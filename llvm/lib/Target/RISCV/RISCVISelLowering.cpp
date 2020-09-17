@@ -14,6 +14,7 @@
 #include "RISCVISelLowering.h"
 #include "MCTargetDesc/RISCVMatInt.h"
 #include "RISCV.h"
+#include "RISCVConstantPoolValue.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVRegisterInfo.h"
 #include "RISCVSubtarget.h"
@@ -6431,6 +6432,44 @@ static SDValue getTargetNode(JumpTableSDNode *N, const SDLoc &DL, EVT Ty,
   return DAG.getTargetJumpTable(N->getIndex(), Ty, Flags);
 }
 
+static SDValue getTargetNode(ExternalSymbolSDNode *N, SDLoc DL, EVT Ty,
+                             SelectionDAG &DAG, unsigned Flags) {
+  llvm_unreachable("Unexpected node type.");
+}
+
+template <class NodeTy>
+static SDValue getLargeAddr(NodeTy *N, SDLoc DL, EVT Ty, SelectionDAG &DAG) {
+  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N)) {
+    RISCVConstantPoolConstant *CPV =
+        RISCVConstantPoolConstant::Create(G->getGlobal(), RISCVCP::GlobalValue);
+    SDValue CPAddr = DAG.getTargetConstantPool(CPV, Ty, Align(8));
+    SDValue LC = DAG.getNode(RISCVISD::LLA, DL, Ty, CPAddr);
+    return DAG.getLoad(
+        Ty, DL, DAG.getEntryNode(), LC,
+        MachinePointerInfo::getConstantPool(DAG.getMachineFunction()));
+  } else if (BlockAddressSDNode *B = dyn_cast<BlockAddressSDNode>(N)) {
+    RISCVConstantPoolConstant *CPV = RISCVConstantPoolConstant::Create(
+        B->getBlockAddress(), RISCVCP::BlockAddress);
+    SDValue CPAddr = DAG.getTargetConstantPool(CPV, Ty, Align(8));
+    SDValue LC = DAG.getNode(RISCVISD::LLA, DL, Ty, CPAddr);
+    return DAG.getLoad(
+        Ty, DL, DAG.getEntryNode(), LC,
+        MachinePointerInfo::getConstantPool(DAG.getMachineFunction()));
+  } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(N)) {
+    RISCVConstantPoolSymbol *CPV = RISCVConstantPoolSymbol::Create(
+        *DAG.getContext(), S->getSymbol(), RISCVCP::None);
+    SDValue CPAddr = DAG.getTargetConstantPool(CPV, Ty, Align(8));
+    SDValue LC = DAG.getNode(RISCVISD::LLA, DL, Ty, CPAddr);
+    return DAG.getLoad(
+        Ty, DL, DAG.getEntryNode(), LC,
+        MachinePointerInfo::getConstantPool(DAG.getMachineFunction()));
+  } else {
+    // Using pc-relative mode for other node type.
+    SDValue Addr = getTargetNode(N, DL, Ty, DAG, 0);
+    return DAG.getNode(RISCVISD::LLA, DL, Ty, Addr);
+  }
+}
+
 template <class NodeTy>
 SDValue RISCVTargetLowering::getAddr(NodeTy *N, SelectionDAG &DAG,
                                      bool IsLocal, bool IsExternWeak) const {
@@ -6498,6 +6537,9 @@ SDValue RISCVTargetLowering::getAddr(NodeTy *N, SelectionDAG &DAG,
     // the address space. This generates the pattern (PseudoLLA sym), which
     // expands to (addi (auipc %pcrel_hi(sym)) %pcrel_lo(auipc)).
     return DAG.getNode(RISCVISD::LLA, DL, Ty, Addr);
+  }
+  case CodeModel::Large: {
+    return getLargeAddr(N, DL, Ty, DAG);
   }
   }
 }
@@ -17489,22 +17531,32 @@ SDValue RISCVTargetLowering::LowerCall(CallLoweringInfo &CLI,
   // If the callee is a GlobalAddress/ExternalSymbol node, turn it into a
   // TargetGlobalAddress/TargetExternalSymbol node so that legalize won't
   // split it and then direct call can be matched by PseudoCALL.
-  if (GlobalAddressSDNode *S = dyn_cast<GlobalAddressSDNode>(Callee)) {
-    const GlobalValue *GV = S->getGlobal();
+  if (getTargetMachine().getCodeModel() == CodeModel::Large) {
+    if (GlobalAddressSDNode *S = dyn_cast<GlobalAddressSDNode>(Callee)) {
+      Callee = getLargeAddr(S, DL, getPointerTy(DAG.getDataLayout()), DAG);
+    } else if (ExternalSymbolSDNode *S =
+                   dyn_cast<ExternalSymbolSDNode>(Callee)) {
+      Callee = getLargeAddr(S, DL, getPointerTy(DAG.getDataLayout()), DAG);
+    }
+  } else {
+    if (GlobalAddressSDNode *S = dyn_cast<GlobalAddressSDNode>(Callee)) {
+      const GlobalValue *GV = S->getGlobal();
+      unsigned OpFlags = RISCVII::MO_CALL;
 
-    unsigned OpFlags = RISCVII::MO_CALL;
-    if (!getTargetMachine().shouldAssumeDSOLocal(*GV->getParent(), GV))
-      OpFlags = RISCVII::MO_PLT;
+      if (!getTargetMachine().shouldAssumeDSOLocal(*GV->getParent(), GV))
+        OpFlags = RISCVII::MO_PLT;
 
-    Callee = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, OpFlags);
-  } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
-    unsigned OpFlags = RISCVII::MO_CALL;
+      Callee = DAG.getTargetGlobalAddress(GV, DL, PtrVT, 0, OpFlags);
+    } else if (ExternalSymbolSDNode *S =
+                   dyn_cast<ExternalSymbolSDNode>(Callee)) {
+      unsigned OpFlags = RISCVII::MO_CALL;
 
-    if (!getTargetMachine().shouldAssumeDSOLocal(*MF.getFunction().getParent(),
-                                                 nullptr))
-      OpFlags = RISCVII::MO_PLT;
+      if (!getTargetMachine().shouldAssumeDSOLocal(
+              *MF.getFunction().getParent(), nullptr))
+        OpFlags = RISCVII::MO_PLT;
 
-    Callee = DAG.getTargetExternalSymbol(S->getSymbol(), PtrVT, OpFlags);
+      Callee = DAG.getTargetExternalSymbol(S->getSymbol(), PtrVT, OpFlags);
+    }
   }
 
   // The first call operand is the chain and the second is the target address.
