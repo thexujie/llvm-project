@@ -6939,7 +6939,8 @@ ExprResult Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
   // no_caller_saved_registers since there is no efficient way to
   // save and restore the non-GPR state.
   if (auto *Caller = getCurFunctionDecl()) {
-    if (Caller->hasAttr<ARMInterruptAttr>()) {
+    if (Caller->hasAttr<ARMInterruptAttr>() &&
+        !Caller->hasAttr<ARMSaveFPAttr>()) {
       bool VFP = Context.getTargetInfo().hasFeature("vfp");
       if (VFP && (!FDecl || !FDecl->hasAttr<ARMInterruptAttr>())) {
         Diag(Fn->getExprLoc(), diag::warn_arm_interrupt_calling_convention);

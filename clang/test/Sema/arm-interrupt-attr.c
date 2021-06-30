@@ -31,13 +31,13 @@ void caller1(void) {
 
 #ifndef SOFT
 __attribute__((interrupt("IRQ"))) void caller2(void) {
-  callee1(); // expected-warning {{call to function without interrupt attribute could clobber interruptee's VFP registers}}
+  callee1(); // expected-warning {{call to function without interrupt attribute could clobber interruptee's VFP registers; consider using the `interrupt_save_fp` attribute to prevent this behavior}}
   callee2();
 }
 
 void (*callee3)(void);
 __attribute__((interrupt("IRQ"))) void caller3(void) {
-  callee3(); // expected-warning {{call to function without interrupt attribute could clobber interruptee's VFP registers}}
+  callee3(); // expected-warning {{call to function without interrupt attribute could clobber interruptee's VFP registers; consider using the `interrupt_save_fp` attribute to prevent this behavior}}
 }
 #else
 __attribute__((interrupt("IRQ"))) void caller2(void) {

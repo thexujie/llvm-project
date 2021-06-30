@@ -337,7 +337,14 @@ def warn_anyx86_excessive_regsave : Warning<
   " or be compiled with '-mgeneral-regs-only'">,
   InGroup<DiagGroup<"excessive-regsave">>;
 def warn_arm_interrupt_calling_convention : Warning<
-   "call to function without interrupt attribute could clobber interruptee's VFP registers">,
+  "call to function without interrupt attribute could clobber interruptee's "
+  "VFP registers; consider using the `interrupt_save_fp` attribute to prevent "
+  "this behavior">,
+   InGroup<Extra>;
+def warn_arm_interrupt_save_fp_without_vfp_unit : Warning<
+   "`interrupt_save_fp` only applies to targets that have a VFP unit enabled "
+   "for this compilation; this will be treated as a regular `interrupt` "
+   "attribute">,
    InGroup<Extra>;
 def warn_interrupt_attribute_invalid : Warning<
    "%select{MIPS|MSP430|RISC-V}0 'interrupt' attribute only applies to "
