@@ -32,8 +32,10 @@ class ThreadSafeContext;
 
 namespace clang {
 
-struct PartialTranslationUnit;
 class TargetInfo;
+
+namespace caas {
+struct PartialTranslationUnit;
 
 class IncrementalExecutor {
   using CtorDtorIterator = llvm::orc::CtorDtorIterator;
@@ -50,6 +52,7 @@ public:
                       llvm::orc::LLJITBuilder &JITBuilder, llvm::Error &Err);
   ~IncrementalExecutor();
 
+  llvm::Error addModule(std::unique_ptr<llvm::Module> &M);
   llvm::Error addModule(PartialTranslationUnit &PTU);
   llvm::Error removeModule(PartialTranslationUnit &PTU);
   llvm::Error runCtors() const;
@@ -62,7 +65,7 @@ public:
   static llvm::Expected<std::unique_ptr<llvm::orc::LLJITBuilder>>
   createDefaultJITBuilder(llvm::orc::JITTargetMachineBuilder JTMB);
 };
-
+} // namespace caas
 } // end namespace clang
 
 #endif // LLVM_CLANG_LIB_INTERPRETER_INCREMENTALEXECUTOR_H

@@ -38,6 +38,8 @@ class ThreadSafeContext;
 namespace clang {
 
 class CompilerInstance;
+
+namespace caas {
 class IncrementalExecutor;
 class IncrementalParser;
 
@@ -150,6 +152,7 @@ public:
   llvm::Expected<llvm::orc::LLJIT &> getExecutionEngine();
 
   llvm::Expected<PartialTranslationUnit &> Parse(llvm::StringRef Code);
+  llvm::Error ExecuteModule(std::unique_ptr<llvm::Module> &M);
   llvm::Error Execute(PartialTranslationUnit &T);
   llvm::Error ParseAndExecute(llvm::StringRef Code, Value *V = nullptr);
   llvm::Expected<llvm::orc::ExecutorAddr> CompileDtorCall(CXXRecordDecl *CXXRD);
@@ -182,6 +185,8 @@ public:
 
   Expr *SynthesizeExpr(Expr *E);
 
+  std::unique_ptr<llvm::Module> GenModule();
+
 private:
   size_t getEffectivePTUSize() const;
   void markUserCodeStart();
@@ -190,6 +195,7 @@ private:
 
   llvm::SmallVector<Expr *, 4> ValuePrintingInfo;
 };
+} // namespace caas
 } // namespace clang
 
 #endif // LLVM_CLANG_INTERPRETER_INTERPRETER_H

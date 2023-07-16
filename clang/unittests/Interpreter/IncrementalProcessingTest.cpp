@@ -27,6 +27,7 @@
 
 using namespace llvm;
 using namespace clang;
+using namespace clang::caas;
 
 namespace {
 
@@ -52,12 +53,12 @@ const Function *getGlobalInit(llvm::Module *M) {
 
 TEST(IncrementalProcessing, EmitCXXGlobalInitFunc) {
   std::vector<const char *> ClangArgv = {"-Xclang", "-emit-llvm-only"};
-  auto CB = clang::IncrementalCompilerBuilder();
+  auto CB = clang::caas::IncrementalCompilerBuilder();
   CB.SetCompilerArgs(ClangArgv);
   auto CI = cantFail(CB.CreateCpp());
   auto Interp = llvm::cantFail(Interpreter::create(std::move(CI)));
 
-  std::array<clang::PartialTranslationUnit *, 2> PTUs;
+  std::array<clang::caas::PartialTranslationUnit *, 2> PTUs;
 
   PTUs[0] = &llvm::cantFail(Interp->Parse(TestProgram1));
   ASSERT_TRUE(PTUs[0]->TheModule);

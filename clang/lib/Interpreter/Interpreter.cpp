@@ -43,7 +43,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 using namespace clang;
-
+using namespace clang::caas;
 // FIXME: Figure out how to unify with namespace init_convenience from
 //        tools/clang-import-test/clang-import-test.cpp
 namespace {
@@ -270,6 +270,7 @@ const char *const Runtimes = R"(
       __clang_Interpreter_SetValueCopyArr(Src[0], Placement, Size);
     }
 #endif // __cplusplus
+    #define __CLANG_REPL__ 1
 )";
 
 llvm::Expected<std::unique_ptr<Interpreter>>
@@ -409,6 +410,23 @@ llvm::Error Interpreter::CreateExecutor() {
 
 void Interpreter::ResetExecutor() { IncrExecutor.reset(); }
 
+
+llvm::Error Interpreter::ExecuteModule(std::unique_ptr<llvm::Module> &M) {
+  if (!IncrExecutor) {
+    auto Err = CreateExecutor();
+    if (Err)
+      return Err;
+  }
+  // FIXME: Add a callback to retain the llvm::Module once the JIT is done.
+  if (auto Err = IncrExecutor->addModule(M))
+    return Err;
+
+  if (auto Err = IncrExecutor->runCtors())
+    return Err;
+
+  return llvm::Error::success();
+}
+
 llvm::Error Interpreter::Execute(PartialTranslationUnit &T) {
   assert(T.TheModule);
   if (!IncrExecutor) {
@@ -532,6 +550,10 @@ Interpreter::CompileDtorCall(CXXRecordDecl *CXXRD) {
   return AddrOrErr;
 }
 
+std::unique_ptr<llvm::Module> Interpreter::GenModule() {
+  return IncrParser->GenModule();
+}
+
 static constexpr llvm::StringRef MagicRuntimeInterface[] = {
     "__clang_Interpreter_SetValueNoAlloc",
     "__clang_Interpreter_SetValueWithAlloc",
@@ -589,8 +611,8 @@ class InterfaceKindVisitor
   llvm::SmallVector<Expr *, 3> Args;
 
 public:
-  InterfaceKindVisitor(ASTContext &Ctx, Sema &S, Expr *E)
-      : Ctx(Ctx), S(S), E(E) {}
+InterfaceKindVisitor(ASTContext &Ctx, Sema &S, Expr *E)
+  : Ctx(Ctx), S(S), E(E) {}
 
   Interpreter::InterfaceKind VisitRecordType(const RecordType *Ty) {
     return Interpreter::InterfaceKind::WithAlloc;

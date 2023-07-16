@@ -35,6 +35,7 @@
 #endif
 
 using namespace clang;
+using namespace clang::caas;
 namespace {
 
 static bool HostSupportsJit() {
@@ -104,7 +105,7 @@ TEST(InterpreterExtensionsTest, ExecutorCreateReset) {
   if (!HostSupportsJit())
     GTEST_SKIP();
 
-  clang::IncrementalCompilerBuilder CB;
+  clang::caas::IncrementalCompilerBuilder CB;
   llvm::Error ErrOut = llvm::Error::success();
   TestCreateResetExecutor Interp(cantFail(CB.CreateCpp()), ErrOut);
   cantFail(std::move(ErrOut));
@@ -156,7 +157,7 @@ public:
 };
 
 TEST(InterpreterExtensionsTest, FindRuntimeInterface) {
-  clang::IncrementalCompilerBuilder CB;
+  clang::caas::IncrementalCompilerBuilder CB;
   llvm::Error ErrOut = llvm::Error::success();
   RecordRuntimeIBMetrics Interp(cantFail(CB.CreateCpp()), ErrOut);
   cantFail(std::move(ErrOut));
@@ -203,7 +204,7 @@ TEST(InterpreterExtensionsTest, DefaultCrossJIT) {
   if (!IsARMTargetRegistered())
     GTEST_SKIP();
 
-  IncrementalCompilerBuilder CB;
+  clang::caas::IncrementalCompilerBuilder CB;
   CB.SetTargetTriple("armv6-none-eabi");
   auto CI = cantFail(CB.CreateCpp());
   llvm::Error ErrOut = llvm::Error::success();
@@ -222,7 +223,7 @@ TEST(InterpreterExtensionsTest, CustomCrossJIT) {
 
   std::string TargetTriple = "armv6-none-eabi";
 
-  IncrementalCompilerBuilder CB;
+  clang::caas::IncrementalCompilerBuilder CB;
   CB.SetTargetTriple(TargetTriple);
   auto CI = cantFail(CB.CreateCpp());
   llvm::Error ErrOut = llvm::Error::success();

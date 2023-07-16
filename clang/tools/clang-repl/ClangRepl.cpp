@@ -82,10 +82,10 @@ static int checkDiagErrors(const clang::CompilerInstance *CI, bool HasError) {
 }
 
 struct ReplListCompleter {
-  clang::IncrementalCompilerBuilder &CB;
-  clang::Interpreter &MainInterp;
-  ReplListCompleter(clang::IncrementalCompilerBuilder &CB,
-                    clang::Interpreter &Interp)
+  clang::caas::IncrementalCompilerBuilder &CB;
+  clang::caas::Interpreter &MainInterp;
+  ReplListCompleter(clang::caas::IncrementalCompilerBuilder &CB,
+                    clang::caas::Interpreter &Interp)
       : CB(CB), MainInterp(Interp){};
 
   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
@@ -117,7 +117,7 @@ ReplListCompleter::operator()(llvm::StringRef Buffer, size_t Pos,
 
   size_t Lines =
       std::count(Buffer.begin(), std::next(Buffer.begin(), Pos), '\n') + 1;
-  auto Interp = clang::Interpreter::create(std::move(*CI));
+  auto Interp = clang::caas::Interpreter::create(std::move(*CI));
 
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
@@ -165,7 +165,7 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
-  clang::IncrementalCompilerBuilder CB;
+  clang::caas::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs(ClangArgv);
 
   std::unique_ptr<clang::CompilerInstance> DeviceCI;
@@ -200,11 +200,10 @@ int main(int argc, const char **argv) {
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  std::unique_ptr<clang::Interpreter> Interp;
-
+  std::unique_ptr<clang::caas::Interpreter> Interp;
   if (CudaEnabled) {
-    Interp = ExitOnErr(
-        clang::Interpreter::createWithCUDA(std::move(CI), std::move(DeviceCI)));
+    Interp = ExitOnErr(clang::caas::Interpreter::createWithCUDA(
+        std::move(CI), std::move(DeviceCI)));
 
     if (CudaPath.empty()) {
       ExitOnErr(Interp->LoadDynamicLibrary("libcudart.so"));
@@ -213,7 +212,7 @@ int main(int argc, const char **argv) {
       ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
     }
   } else
-    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
+    Interp = ExitOnErr(clang::caas::Interpreter::create(std::move(CI)));
 
   for (const std::string &input : OptInputs) {
     if (auto Err = Interp->ParseAndExecute(input))

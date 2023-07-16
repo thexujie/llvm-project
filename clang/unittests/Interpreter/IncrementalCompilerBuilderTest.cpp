@@ -29,7 +29,7 @@ static void cleanupRemappedFileBuffers(CompilerInstance &CI) {
 
 TEST(IncrementalCompilerBuilder, SetCompilerArgs) {
   std::vector<const char *> ClangArgv = {"-Xclang", "-ast-dump-all"};
-  auto CB = clang::IncrementalCompilerBuilder();
+  auto CB = clang::caas::IncrementalCompilerBuilder();
   CB.SetCompilerArgs(ClangArgv);
   auto CI = cantFail(CB.CreateCpp());
   EXPECT_TRUE(CI->getFrontendOpts().ASTDumpAll);
@@ -37,7 +37,7 @@ TEST(IncrementalCompilerBuilder, SetCompilerArgs) {
 }
 
 TEST(IncrementalCompilerBuilder, SetTargetTriple) {
-  auto CB = clang::IncrementalCompilerBuilder();
+  auto CB = clang::caas::IncrementalCompilerBuilder();
   CB.SetTargetTriple("armv6-none-eabi");
   auto CI = cantFail(CB.CreateCpp());
   EXPECT_EQ(CI->getTargetOpts().Triple, "armv6-none-unknown-eabi");
