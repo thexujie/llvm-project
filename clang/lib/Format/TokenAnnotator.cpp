@@ -4006,10 +4006,18 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
   }
 
   if (Left.is(tok::l_paren) || Right.is(tok::r_paren)) {
-    return (Right.is(TT_CastRParen) ||
-            (Left.MatchingParen && Left.MatchingParen->is(TT_CastRParen)))
-               ? Style.SpacesInParensOptions.InCStyleCasts
-               : Style.SpacesInParensOptions.Other;
+    if (Right.is(TT_CastRParen) ||
+        (Left.MatchingParen && Left.MatchingParen->is(TT_CastRParen))) {
+      return Style.SpacesInParensOptions.InCStyleCasts;
+    }
+    const auto isAttributeParen = [](const FormatToken *Paren) {
+      return Paren && Paren->isOneOf(TT_AttributeLParen, TT_AttributeRParen);
+    };
+    if (isAttributeParen(&Left) || isAttributeParen(&Right) ||
+        isAttributeParen(Left.Previous) || isAttributeParen(Right.Next)) {
+      return Style.SpacesInParensOptions.InAttributeSpecifiers;
+    }
+    return Style.SpacesInParensOptions.Other;
   }
   if (Right.isOneOf(tok::semi, tok::comma))
     return false;
