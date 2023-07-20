@@ -410,7 +410,6 @@ llvm::Error Interpreter::CreateExecutor() {
 
 void Interpreter::ResetExecutor() { IncrExecutor.reset(); }
 
-
 llvm::Error Interpreter::ExecuteModule(std::unique_ptr<llvm::Module> &M) {
   if (!IncrExecutor) {
     auto Err = CreateExecutor();

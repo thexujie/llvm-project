@@ -68,10 +68,6 @@ IncrementalExecutor::IncrementalExecutor(llvm::orc::ThreadSafeContext &TSC,
 
 IncrementalExecutor::~IncrementalExecutor() {}
 
-llvm::Error IncrementalExecutor::addModule(std::unique_ptr<llvm::Module> &M) {
-  return Jit->addIRModule({std::move(M), TSCtx});
-}
-
 llvm::Error IncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
   llvm::orc::ResourceTrackerSP RT =
       Jit->getMainJITDylib().createResourceTracker();

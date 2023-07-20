@@ -115,11 +115,9 @@ static std::string PrintEnum(const Value &V) {
       IsFirst = false;
     }
   }
-
-  llvm::SmallString<24> ApStr;
-  AP.toString(ApStr, /*Radix=*/10);
-
-  SS << " : " << PrintQualType(Ctx, ED->getIntegerType()) << " " << ApStr;
+  llvm::SmallString<64> APStr;
+  AP.toString(APStr, /*Radix=*/10);
+  SS << " : " << PrintQualType(Ctx, ED->getIntegerType()) << " "  << APStr;
   return Str;
 }
 
@@ -279,10 +277,15 @@ static llvm::Expected<llvm::orc::ExecutorAddr> CompileDecl(Interpreter &Interp,
   ASTConsumer &Consumer = Interp.getCompilerInstance()->getASTConsumer();
   Consumer.HandleTopLevelDecl(DeclGroupRef(D));
   Interp.getCompilerInstance()->getSema().PerformPendingInstantiations();
-  Consumer.HandleTranslationUnit(Interp.getASTContext());
+  ASTContext &C = Interp.getASTContext();
+  TranslationUnitDecl *TUPart = C.getTranslationUnitDecl();
+  assert(!TUPart->containsDecl(D) && "Decl already added!");
+  TUPart->addDecl(D);
+  Consumer.HandleTranslationUnit(C);
 
   if (std::unique_ptr<llvm::Module> M = Interp.GenModule()) {
-    if (llvm::Error Err = Interp.ExecuteModule(M))
+    PartialTranslationUnit PTU = {TUPart, std::move(M)};
+    if (llvm::Error Err = Interp.Execute(PTU))
       return Err;
     ASTNameGenerator ASTNameGen(Interp.getASTContext());
     llvm::Expected<llvm::orc::ExecutorAddr> AddrOrErr =
