@@ -41,9 +41,22 @@ if(LLVM_BUILD_LLVM_DYLIB)
      OR ("${CMAKE_SYSTEM_NAME}" STREQUAL "DragonFly")
      OR ("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
      OR ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")) # FIXME: It should be "GNU ld for elf"
-    configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/simple_version_script.map.in
-    ${LLVM_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map)
+
+    if(NOT "${CMAKE_CFG_INTDIR}" STREQUAL ".")
+      foreach(BUILD_MODE ${CMAKE_CONFIGURATION_TYPES})
+        # Replace the special string with a per config directory.
+        string(REPLACE ${CMAKE_CFG_INTDIR} ${BUILD_MODE} PER_CONF_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
+        configure_file(
+          ${CMAKE_CURRENT_SOURCE_DIR}/simple_version_script.map.in
+          ${PER_CONF_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map
+        )
+      endforeach()
+    else()
+      configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/simple_version_script.map.in
+        ${LLVM_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map
+      )
+    endif()
 
     # GNU ld doesn't resolve symbols in the version script.
     set(LIB_NAMES -Wl,--whole-archive ${LIB_NAMES} -Wl,--no-whole-archive)
