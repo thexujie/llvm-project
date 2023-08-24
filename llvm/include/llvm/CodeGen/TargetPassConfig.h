@@ -139,6 +139,9 @@ protected:
   /// callers.
   bool RequireCodeGenSCCOrder = false;
 
+  /// Asserts whether we can assume whole program visibility during codegen.
+  bool HasWholeProgramVisibility = false;
+
   /// Add the actual instruction selection passes. This does not include
   /// preparation passes on IR.
   bool addCoreISelPasses();
@@ -187,6 +190,13 @@ public:
   bool requiresCodeGenSCCOrder() const { return RequireCodeGenSCCOrder; }
   void setRequiresCodeGenSCCOrder(bool Enable = true) {
     setOpt(RequireCodeGenSCCOrder, Enable);
+  }
+
+  bool getHasWholeProgramVisibility() const {
+    return HasWholeProgramVisibility;
+  }
+  void setHasWholeProgramVisibility(bool Enable) {
+    setOpt(HasWholeProgramVisibility, Enable);
   }
 
   /// Allow the target to override a specific pass without overriding the pass

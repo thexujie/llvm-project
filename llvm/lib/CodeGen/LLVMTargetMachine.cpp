@@ -114,13 +114,14 @@ LLVMTargetMachine::getTargetTransformInfo(const Function &F) const {
 /// addPassesToX helper drives creation and initialization of TargetPassConfig.
 static TargetPassConfig *
 addPassesToGenerateCode(LLVMTargetMachine &TM, PassManagerBase &PM,
-                        bool DisableVerify,
-                        MachineModuleInfoWrapperPass &MMIWP) {
+                        bool DisableVerify, MachineModuleInfoWrapperPass &MMIWP,
+                        bool HasWholeProgramVisibility) {
   // Targets may override createPassConfig to provide a target-specific
   // subclass.
   TargetPassConfig *PassConfig = TM.createPassConfig(PM);
   // Set PassConfig options provided by TargetMachine.
   PassConfig->setDisableVerify(DisableVerify);
+  PassConfig->setHasWholeProgramVisibility(HasWholeProgramVisibility);
   PM.add(PassConfig);
   PM.add(&MMIWP);
 
@@ -233,12 +234,12 @@ Expected<std::unique_ptr<MCStreamer>> LLVMTargetMachine::createMCStreamer(
 bool LLVMTargetMachine::addPassesToEmitFile(
     PassManagerBase &PM, raw_pwrite_stream &Out, raw_pwrite_stream *DwoOut,
     CodeGenFileType FileType, bool DisableVerify,
-    MachineModuleInfoWrapperPass *MMIWP) {
+    MachineModuleInfoWrapperPass *MMIWP, bool HasWholeProgramVisibility) {
   // Add common CodeGen passes.
   if (!MMIWP)
     MMIWP = new MachineModuleInfoWrapperPass(this);
-  TargetPassConfig *PassConfig =
-      addPassesToGenerateCode(*this, PM, DisableVerify, *MMIWP);
+  TargetPassConfig *PassConfig = addPassesToGenerateCode(
+      *this, PM, DisableVerify, *MMIWP, HasWholeProgramVisibility);
   if (!PassConfig)
     return true;
 
@@ -265,8 +266,8 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
                                           bool DisableVerify) {
   // Add common CodeGen passes.
   MachineModuleInfoWrapperPass *MMIWP = new MachineModuleInfoWrapperPass(this);
-  TargetPassConfig *PassConfig =
-      addPassesToGenerateCode(*this, PM, DisableVerify, *MMIWP);
+  TargetPassConfig *PassConfig = addPassesToGenerateCode(
+      *this, PM, DisableVerify, *MMIWP, /*HasWholeProgramVisibility=*/false);
   if (!PassConfig)
     return true;
   assert(TargetPassConfig::willCompleteCodeGenPipeline() &&

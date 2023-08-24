@@ -416,8 +416,9 @@ static void codegen(const Config &Conf, TargetMachine *TM,
   if (Conf.PreCodeGenPassesHook)
     Conf.PreCodeGenPassesHook(CodeGenPasses);
   if (TM->addPassesToEmitFile(CodeGenPasses, *Stream->OS,
-                              DwoOut ? &DwoOut->os() : nullptr,
-                              Conf.CGFileType))
+                              DwoOut ? &DwoOut->os() : nullptr, Conf.CGFileType,
+                              /*DisableVerify=*/true, /*MMIWP=*/nullptr,
+                              Conf.HasWholeProgramVisibility))
     report_fatal_error("Failed to setup codegen");
   CodeGenPasses.run(Mod);
 

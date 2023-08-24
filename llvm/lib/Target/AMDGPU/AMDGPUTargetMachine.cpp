@@ -50,6 +50,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Transforms/HipStdPar/HipStdPar.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
@@ -625,7 +626,7 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       [this](StringRef PassName, ModulePassManager &PM,
              ArrayRef<PassBuilder::PipelineElement>) {
         if (PassName == "amdgpu-attributor") {
-          PM.addPass(AMDGPUAttributorPass(*this));
+          PM.addPass(AMDGPUAttributorPass(*this, HasWholeProgramVisibility));
           return true;
         }
         if (PassName == "amdgpu-unify-metadata") {
@@ -1004,7 +1005,8 @@ void AMDGPUPassConfig::addStraightLineScalarOptimizationPasses() {
 }
 
 void AMDGPUPassConfig::addIRPasses() {
-  const AMDGPUTargetMachine &TM = getAMDGPUTargetMachine();
+  AMDGPUTargetMachine &TM = getAMDGPUTargetMachine();
+  TM.HasWholeProgramVisibility = getHasWholeProgramVisibility();
 
   Triple::ArchType Arch = TM.getTargetTriple().getArch();
   if (RemoveIncompatibleFunctions && Arch == Triple::amdgcn)
@@ -1041,7 +1043,7 @@ void AMDGPUPassConfig::addIRPasses() {
   // AMDGPUAttributor infers lack of llvm.amdgcn.lds.kernel.id calls, so run
   // after their introduction
   if (TM.getOptLevel() > CodeGenOptLevel::None)
-    addPass(createAMDGPUAttributorLegacyPass());
+    addPass(createAMDGPUAttributorLegacyPass(HasWholeProgramVisibility));
 
   if (TM.getOptLevel() > CodeGenOptLevel::None)
     addPass(createInferAddressSpacesPass());

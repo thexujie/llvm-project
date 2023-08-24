@@ -378,7 +378,8 @@ public:
   addPassesToEmitFile(PassManagerBase &, raw_pwrite_stream &,
                       raw_pwrite_stream *, CodeGenFileType,
                       bool /*DisableVerify*/ = true,
-                      MachineModuleInfoWrapperPass *MMIWP = nullptr) {
+                      MachineModuleInfoWrapperPass *MMIWP = nullptr,
+                      bool HasWholeProgramVisibility = false) {
     return true;
   }
 
@@ -444,11 +445,11 @@ public:
   /// emitted.  Typically this will involve several steps of code generation.
   /// \p MMIWP is an optional parameter that, if set to non-nullptr,
   /// will be used to set the MachineModuloInfo for this PM.
-  bool
-  addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
-                      raw_pwrite_stream *DwoOut, CodeGenFileType FileType,
-                      bool DisableVerify = true,
-                      MachineModuleInfoWrapperPass *MMIWP = nullptr) override;
+  bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
+                           raw_pwrite_stream *DwoOut, CodeGenFileType FileType,
+                           bool DisableVerify = true,
+                           MachineModuleInfoWrapperPass *MMIWP = nullptr,
+                           bool HasWholeProgramVisibility = false) override;
 
   virtual Error buildCodeGenPipeline(ModulePassManager &,
                                      MachineFunctionPassManager &,
