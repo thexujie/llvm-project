@@ -31,7 +31,6 @@ libcxx/include/__algorithm/is_sorted.h
 libcxx/include/__algorithm/is_sorted_until.h
 libcxx/include/__algorithm/iterator_operations.h
 libcxx/include/__algorithm/iter_swap.h
-libcxx/include/__algorithm/lexicographical_compare.h
 libcxx/include/__algorithm/lower_bound.h
 libcxx/include/__algorithm/make_heap.h
 libcxx/include/__algorithm/make_projected.h

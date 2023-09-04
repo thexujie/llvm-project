@@ -42,6 +42,9 @@ struct __less<void, void> {
   }
 };
 
+template <class _Lhs, class _Rhs>
+struct __is_trivial_less_than_predicate<__less<>, _Lhs, _Rhs> : true_type {};
+
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // _LIBCPP___ALGORITHM_COMP_H

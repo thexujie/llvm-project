@@ -418,6 +418,14 @@ struct _LIBCPP_TEMPLATE_VIS less<void>
 };
 #endif
 
+template <class _Tp>
+struct __is_trivial_less_than_predicate<less<_Tp>, _Tp, _Tp> : true_type {};
+
+#if _LIBCPP_STD_VER >= 14
+template <class _Tp, class _Up>
+struct __is_trivial_less_than_predicate<less<>, _Tp, _Up> : true_type {};
+#endif
+
 #if _LIBCPP_STD_VER >= 14
 template <class _Tp = void>
 #else
