@@ -32,6 +32,7 @@ config.substitutions.append(('%{lib}', '@LIBCXX_LIBRARY_DIR@'))
 config.substitutions.append(('%{module}', '@LIBCXX_GENERATED_MODULE_DIR@'))
 config.substitutions.append(('%{executor}', '@LIBCXX_EXECUTOR@'))
 config.substitutions.append(('%{test-tools}', '@LIBCXX_TEST_TOOLS_PATH@'))
+config.substitutions.append(('%{check-output}', os.path.join('@CMAKE_BINARY_DIR@', 'bin/check_output') + " %s"))
 
 # The test needs to manually rebuild the module. The compiler flags used in the
 # test need to be the same as the compiler flags used to generate the module.
