@@ -68,8 +68,9 @@ def Performance : Package<"performance">, ParentPackage<OptIn>;
 
 def Security : Package <"security">;
 def InsecureAPI : Package<"insecureAPI">, ParentPackage<Security>;
+def SecurityOptIn : Package<"security">, ParentPackage<OptIn>;
+def Taint : Package<"taint">, ParentPackage<SecurityOptIn>;
 def SecurityAlpha : Package<"security">, ParentPackage<Alpha>;
-def Taint : Package<"taint">, ParentPackage<SecurityAlpha>;
 
 def CERT : Package<"cert">, ParentPackage<SecurityAlpha>;
 def POS : Package<"pos">, ParentPackage<CERT>;
@@ -1050,11 +1051,11 @@ def GenericTaintChecker : Checker<"TaintPropagation">,
                   "Config",
                   "Specifies the name of the configuration file.",
                   "",
-                  InAlpha>,
+                  Released>,
   ]>,
   Documentation<HasDocumentation>;
 
-} // end "alpha.security.taint"
+} // end "optin.security.taint"
 
 //===----------------------------------------------------------------------===//
 // Mac OS X, Cocoa, and Core Foundation checkers.

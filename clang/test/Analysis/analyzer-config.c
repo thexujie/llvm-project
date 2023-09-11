@@ -11,7 +11,6 @@
 // CHECK-NEXT: alpha.osx.cocoa.DirectIvarAssignment:AnnotatedFunctions = false
 // CHECK-NEXT: alpha.security.MmapWriteExec:MmapProtExec = 0x04
 // CHECK-NEXT: alpha.security.MmapWriteExec:MmapProtRead = 0x01
-// CHECK-NEXT: alpha.security.taint.TaintPropagation:Config = ""
 // CHECK-NEXT: alpha.unix.Errno:AllowErrnoReadOutsideConditionExpressions = true
 // CHECK-NEXT: alpha.unix.StdCLibraryFunctions:DisplayLoadedSummaries = false
 // CHECK-NEXT: alpha.unix.StdCLibraryFunctions:ModelPOSIX = false
@@ -112,6 +111,7 @@
 // CHECK-NEXT: optin.cplusplus.VirtualCall:ShowFixIts = false
 // CHECK-NEXT: optin.osx.cocoa.localizability.NonLocalizedStringChecker:AggressiveReport = false
 // CHECK-NEXT: optin.performance.Padding:AllowedPad = 24
+// CHECK-NEXT: optin.security.taint.TaintPropagation:Config = ""
 // CHECK-NEXT: osx.NumberObjectConversion:Pedantic = false
 // CHECK-NEXT: osx.cocoa.RetainCount:TrackNSCFStartParam = false
 // CHECK-NEXT: prune-paths = true
