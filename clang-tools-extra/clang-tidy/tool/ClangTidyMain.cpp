@@ -555,17 +555,17 @@ static llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> createBaseFS() {
   return BaseFS;
 }
 
-static llvm::Expected<CommonOptionsParser>
-recreateOptionsParserIfNeeded(llvm::ArrayRef<const char *> Args,
-                              llvm::Expected<CommonOptionsParser> OptionsParser,
-                              const ClangTidyOptions &EffectiveOptions) {
+static void recreateOptionsParserIfNeeded(
+    llvm::Expected<CommonOptionsParser> &OptionsParser,
+    llvm::ArrayRef<const char *> Args,
+    const ClangTidyOptions &EffectiveOptions) {
 
   auto DoubleDashIt = std::find(Args.begin(), Args.end(), StringRef("--"));
 
   // Exit if we don't have any compiler arguments
   if (DoubleDashIt == Args.end() || Args.empty() ||
       Args.back() == StringRef("--"))
-    return OptionsParser;
+    return;
 
   auto IsDriverMode = [](StringRef Argument) {
     return Argument.startswith("--driver-mode=");
@@ -574,7 +574,7 @@ recreateOptionsParserIfNeeded(llvm::ArrayRef<const char *> Args,
   // Exit if --driver-mode= is explicitly passed in compiler arguments
   if (Args.end() !=
       std::find_if(std::next(DoubleDashIt), Args.end(), IsDriverMode))
-    return OptionsParser;
+    return;
 
   std::vector<std::string> CommandArguments(std::next(DoubleDashIt),
                                             Args.end());
@@ -613,7 +613,7 @@ recreateOptionsParserIfNeeded(llvm::ArrayRef<const char *> Args,
 
   // Exit if there is no --driver-mode= at this stage
   if (DriverModeIt == CommandArguments.end())
-    return OptionsParser;
+    return;
 
   std::vector<const char *> NewArgs(Args.begin(), Args.end());
 
@@ -629,8 +629,8 @@ recreateOptionsParserIfNeeded(llvm::ArrayRef<const char *> Args,
   // proper --driver-mode=
   int ArgC = NewArgs.size();
   const char **ArgV = NewArgs.data();
-  return CommonOptionsParser::create(ArgC, ArgV, ClangTidyCategory,
-                                     cl::ZeroOrMore);
+  OptionsParser = CommonOptionsParser::create(ArgC, ArgV, ClangTidyCategory,
+                                              cl::ZeroOrMore);
 }
 
 int clangTidyMain(int argc, const char **argv) {
@@ -672,8 +672,7 @@ int clangTidyMain(int argc, const char **argv) {
   SmallString<256> FilePath = makeAbsolute(FileName);
   ClangTidyOptions EffectiveOptions = OptionsProvider->getOptions(FilePath);
 
-  OptionsParser = recreateOptionsParserIfNeeded(Args, std::move(OptionsParser),
-                                                EffectiveOptions);
+  recreateOptionsParserIfNeeded(OptionsParser, Args, EffectiveOptions);
   if (!OptionsParser) {
     llvm::WithColor::error() << llvm::toString(OptionsParser.takeError());
     return 1;
