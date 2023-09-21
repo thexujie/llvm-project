@@ -211,17 +211,17 @@ struct __select_backend<std::execution::parallel_policy> {
   using type = __cpu_backend_tag;
 };
 
-#   if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
+#    if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
 template <>
 struct __select_backend<std::execution::parallel_unsequenced_policy> {
   using type = __gpu_backend_tag;
 };
-#   else
+#    else
 template <>
 struct __select_backend<std::execution::parallel_unsequenced_policy> {
   using type = __cpu_backend_tag;
 };
-#   endif
+#    endif
 
 #  else
 

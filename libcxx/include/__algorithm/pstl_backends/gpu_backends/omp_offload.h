@@ -46,8 +46,9 @@ _LIBCPP_HIDE_FROM_ABI inline T __omp_extract_base_ptr(std::__wrap_iter<T> w) {
 // Applying function or lambda in a loop
 
 template <class _Iterator, class _DifferenceType, class _Function>
-_LIBCPP_HIDE_FROM_ABI _Iterator __omp_parallel_for_simd_1(_Iterator __first, _DifferenceType __n, _Function __f) noexcept {
-  #pragma omp target teams distribute parallel for simd map(tofrom:__first[0:__n])
+_LIBCPP_HIDE_FROM_ABI _Iterator
+__omp_parallel_for_simd_1(_Iterator __first, _DifferenceType __n, _Function __f) noexcept {
+#  pragma omp target teams distribute parallel for simd map(tofrom : __first[0 : __n])
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     __f(__first[__i]);
 
@@ -65,8 +66,9 @@ _LIBCPP_HIDE_FROM_ABI _Iterator __parallel_for_simd_1(_Iterator __first, _Differ
 // Assigning a value in a loop
 
 template <class _Index, class _DifferenceType, class _Tp>
-_LIBCPP_HIDE_FROM_ABI _Index __omp_parallel_for_simd_val_1(_Index __first, _DifferenceType __n, const _Tp& __value) noexcept {
-  #pragma omp target teams distribute parallel for simd map(tofrom:__first[0:__n]) map(to:__value)
+_LIBCPP_HIDE_FROM_ABI _Index
+__omp_parallel_for_simd_val_1(_Index __first, _DifferenceType __n, const _Tp& __value) noexcept {
+#  pragma omp target teams distribute parallel for simd map(tofrom : __first[0 : __n]) map(to : __value)
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     __first[__i] = __value;
 
@@ -74,7 +76,8 @@ _LIBCPP_HIDE_FROM_ABI _Index __omp_parallel_for_simd_val_1(_Index __first, _Diff
 }
 
 template <class _Index, class _DifferenceType, class _Tp>
-_LIBCPP_HIDE_FROM_ABI _Index __parallel_for_simd_val_1(_Index __first, _DifferenceType __n, const _Tp& __value) noexcept {
+_LIBCPP_HIDE_FROM_ABI _Index
+__parallel_for_simd_val_1(_Index __first, _DifferenceType __n, const _Tp& __value) noexcept {
   __omp_parallel_for_simd_val_1(__omp_gpu_backend::__omp_extract_base_ptr(__first), __n, __value);
   return __first + __n;
 }
