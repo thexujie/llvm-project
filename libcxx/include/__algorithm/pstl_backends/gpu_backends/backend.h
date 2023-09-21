@@ -12,8 +12,12 @@
 #include <__config>
 #include <cstddef>
 
-#if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
-#  include <__algorithm/pstl_backends/gpu_backends/omp_offload.h>
+#if defined(_LIBCPP_PSTL_GPU_OFFLOAD)
+#  if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
+#    include <__algorithm/pstl_backends/gpu_backends/omp_offload.h>
+#  else
+#    error Invalid PSTL GPU backend
+#  endif
 #endif
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)

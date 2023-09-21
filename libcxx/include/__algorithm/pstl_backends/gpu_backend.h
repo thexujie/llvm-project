@@ -13,7 +13,7 @@
 
 #include <__algorithm/pstl_backends/gpu_backends/backend.h>
 
-#if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
+#if defined(_LIBCPP_PSTL_GPU_OFFLOAD)
 #  include <__algorithm/pstl_backends/gpu_backends/fill.h>
 #  include <__algorithm/pstl_backends/gpu_backends/for_each.h>
 #endif
