@@ -10,6 +10,7 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKEND_H
 
 #include <__algorithm/pstl_backends/cpu_backend.h>
+#include <__algorithm/pstl_backends/gpu_backend.h>
 #include <__config>
 #include <execution>
 
@@ -210,10 +211,17 @@ struct __select_backend<std::execution::parallel_policy> {
   using type = __cpu_backend_tag;
 };
 
+#   if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
+template <>
+struct __select_backend<std::execution::parallel_unsequenced_policy> {
+  using type = __gpu_backend_tag;
+};
+#   else
 template <>
 struct __select_backend<std::execution::parallel_unsequenced_policy> {
   using type = __cpu_backend_tag;
 };
+#   endif
 
 #  else
 

@@ -294,11 +294,21 @@ option(LIBCXX_HAS_WIN32_THREAD_API "Ignore auto-detection and force use of win32
 option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
+option(LIBCXX_ENABLE_GPU_OFFLOAD 
+  "Build libc++ with support for GPU offload" OFF)
 
 if (LIBCXX_ENABLE_THREADS)
   set(LIBCXX_PSTL_CPU_BACKEND "std_thread" CACHE STRING "Which PSTL CPU backend to use")
 else()
   set(LIBCXX_PSTL_CPU_BACKEND "serial" CACHE STRING "Which PSTL CPU backend to use")
+endif()
+
+if (NOT DEFINED LIBCXX_PSTL_GPU_BACKEND)
+  if (${LIBCXX_ENABLE_GPU_OFFLOAD})
+    set(LIBCXX_PSTL_GPU_BACKEND "omp_offload" CACHE STRING "Which PSTL GPU backend to use")
+  else()
+    set(LIBCXX_PSTL_GPU_BACKEND "none" CACHE STRING "Which PSTL GPU backend to use")
+  endif()
 endif()
 
 # Misc options ----------------------------------------------------------------
@@ -780,6 +790,10 @@ elseif(LIBCXX_PSTL_CPU_BACKEND STREQUAL "libdispatch")
 else()
   message(FATAL_ERROR "LIBCXX_PSTL_CPU_BACKEND is set to ${LIBCXX_PSTL_CPU_BACKEND}, which is not a valid backend.
                        Valid backends are: serial, std_thread and libdispatch")
+endif()
+
+if (LIBCXX_PSTL_GPU_BACKEND STREQUAL "omp_offload")
+  config_define(1 _LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
 endif()
 
 if (LIBCXX_ABI_DEFINES)
