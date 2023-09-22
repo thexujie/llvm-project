@@ -16,6 +16,7 @@
 #if defined(_LIBCPP_PSTL_GPU_OFFLOAD)
 #  include <__algorithm/pstl_backends/gpu_backends/fill.h>
 #  include <__algorithm/pstl_backends/gpu_backends/for_each.h>
+#  include <__algorithm/pstl_backends/gpu_backends/transform.h>
 #endif
 
 #endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_H
