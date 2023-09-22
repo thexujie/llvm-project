@@ -3331,7 +3331,7 @@ def ReleaseCapability : InheritableAttr {
   let Documentation = [ReleaseCapabilityDocs];
 }
 
-def RequiresCapability : InheritableAttr {
+def RequiresCapability : DeclOrTypeAttr {
   let Spellings = [Clang<"requires_capability", 0>,
                    Clang<"exclusive_locks_required", 0>,
                    Clang<"requires_shared_capability", 0>,
@@ -3340,8 +3340,8 @@ def RequiresCapability : InheritableAttr {
   let LateParsed = 1;
   let TemplateDependent = 1;
   let ParseArgumentsAsUnevaluated = 1;
-  let InheritEvenIfAlreadyPresent = 1;
-  let Subjects = SubjectList<[Function]>;
+  /*let InheritEvenIfAlreadyPresent = 1;*/
+  /*let Subjects = SubjectList<[Function]>;*/
   let Accessors = [Accessor<"isShared", [Clang<"requires_shared_capability", 0>,
                                          Clang<"shared_locks_required", 0>]>];
   let Documentation = [Undocumented];
