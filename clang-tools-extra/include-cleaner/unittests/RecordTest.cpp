@@ -379,6 +379,54 @@ TEST_F(PragmaIncludeTest, IWYUKeep) {
   EXPECT_TRUE(PI.shouldKeep(FM.getFile("std/set").get()));
 }
 
+TEST_F(PragmaIncludeTest, AssociatedHeader) {
+  createEmptyFiles({"foo/main.h", "bar/main.h", "bar/other.h", "std/vector"});
+  auto IsKeep = [&](llvm::StringRef Name, TestAST &AST) {
+    return PI.shouldKeep(AST.fileManager().getFile(Name).get());
+  };
+
+  Inputs.FileName = "main.cc";
+  Inputs.ExtraArgs.push_back("-isystemstd");
+  {
+    Inputs.Code = R"cpp(
+      #include "foo/main.h"
+      #include "bar/main.h"
+    )cpp";
+    auto AST = build();
+    EXPECT_TRUE(IsKeep("foo/main.h", AST));
+    EXPECT_FALSE(IsKeep("bar/main.h", AST)) << "not first include";
+  }
+
+  {
+    Inputs.Code = R"cpp(
+      #include "bar/other.h"
+      #include "bar/main.h"
+    )cpp";
+    auto AST = build();
+    EXPECT_FALSE(IsKeep("bar/other.h", AST));
+    EXPECT_FALSE(IsKeep("bar/main.h", AST)) << "not first include";
+  }
+
+  {
+    Inputs.Code = R"cpp(
+      #include "foo/main.h"
+      #include "bar/other.h" // IWYU pragma: associated
+    )cpp";
+    auto AST = build();
+    EXPECT_TRUE(IsKeep("foo/main.h", AST));
+    EXPECT_TRUE(IsKeep("bar/other.h", AST));
+  }
+
+  Inputs.FileName = "vector.cc";
+  {
+    Inputs.Code = R"cpp(
+      #include <vector>
+    )cpp";
+    auto AST = build();
+    EXPECT_FALSE(IsKeep("std/vector", AST)) << "stdlib is never associated";
+  }
+}
+
 TEST_F(PragmaIncludeTest, IWYUPrivate) {
   Inputs.Code = R"cpp(
     #include "public.h"
