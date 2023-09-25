@@ -17,6 +17,7 @@
 #  include <__algorithm/pstl_backends/gpu_backends/fill.h>
 #  include <__algorithm/pstl_backends/gpu_backends/for_each.h>
 #  include <__algorithm/pstl_backends/gpu_backends/transform.h>
+#  include <__algorithm/pstl_backends/gpu_backends/transform_reduce.h>
 #endif
 
 #endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_H

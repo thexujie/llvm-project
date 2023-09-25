@@ -91,6 +91,7 @@ set(files
   __algorithm/pstl_backends/gpu_backends/for_each.h
   __algorithm/pstl_backends/gpu_backends/omp_offload.h
   __algorithm/pstl_backends/gpu_backends/transform.h
+  __algorithm/pstl_backends/gpu_backends/transform_reduce.h
   __algorithm/pstl_copy.h
   __algorithm/pstl_count.h
   __algorithm/pstl_fill.h
