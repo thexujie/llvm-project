@@ -109,3 +109,22 @@ void operator delete(void *) {
   // we just trap here to catch any such accidental usages.
   __builtin_trap();
 }
+
+// Defining members in the std namespace is not preferred. But, we do it here
+// so that we can use it to define the operator new which takes std::align_val_t
+// argument.
+namespace std {
+enum class align_val_t : size_t {};
+} // namespace std
+
+void operator delete(void *mem, std::align_val_t) noexcept {
+  // The libc runtime should not use the global delete operator. Hence,
+  // we just trap here to catch any such accidental usages.
+  __builtin_trap();
+}
+
+void operator delete(void *mem, unsigned long) noexcept {
+  // The libc runtime should not use the global delete operator. Hence,
+  // we just trap here to catch any such accidental usages.
+  __builtin_trap();
+}
