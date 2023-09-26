@@ -3340,7 +3340,7 @@ def RequiresCapability : DeclOrTypeAttr {
   let LateParsed = 1;
   let TemplateDependent = 1;
   let ParseArgumentsAsUnevaluated = 1;
-  /*let InheritEvenIfAlreadyPresent = 1;*/
+  let InheritEvenIfAlreadyPresent = 1;
   /*let Subjects = SubjectList<[Function]>;*/
   let Accessors = [Accessor<"isShared", [Clang<"requires_shared_capability", 0>,
                                          Clang<"shared_locks_required", 0>]>];

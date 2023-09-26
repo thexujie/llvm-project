@@ -8187,6 +8187,16 @@ static void handleRequiresCapabilityAttr(Sema &S, Decl *D,
   if (!AL.checkAtLeastNumArgs(S, 1))
     return;
 
+  // We allow this on function declaration as well as
+  // variable declarations of function pointer type.
+  if (!D->isFunctionPointerType() && !isa<FunctionDecl>(D)) {
+    // FIXME: Diagnostic should say "functions and function pointer decls" now I
+    // guess.
+    S.Diag(D->getLocation(), diag::warn_attribute_wrong_decl_type)
+        << AL << AL.isRegularKeywordAttribute() << ExpectedFunction;
+    return;
+  }
+
   // check that all arguments are lockable objects
   SmallVector<Expr*, 1> Args;
   checkAttrArgsAreCapabilityObjs(S, D, AL, Args);
