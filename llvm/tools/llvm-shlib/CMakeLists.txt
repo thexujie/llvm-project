@@ -42,7 +42,12 @@ if(LLVM_BUILD_LLVM_DYLIB)
      OR ("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
      OR ("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")) # FIXME: It should be "GNU ld for elf"
 
-    if(NOT "${CMAKE_CFG_INTDIR}" STREQUAL ".")
+    if("${CMAKE_CFG_INTDIR}" STREQUAL ".")
+      configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/simple_version_script.map.in
+        ${LLVM_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map
+      )
+    else()
       foreach(BUILD_MODE ${CMAKE_CONFIGURATION_TYPES})
         # Replace the special string with a per config directory.
         string(REPLACE ${CMAKE_CFG_INTDIR} ${BUILD_MODE} PER_CONF_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
@@ -51,11 +56,6 @@ if(LLVM_BUILD_LLVM_DYLIB)
           ${PER_CONF_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map
         )
       endforeach()
-    else()
-      configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/simple_version_script.map.in
-        ${LLVM_LIBRARY_DIR}/tools/llvm-shlib/simple_version_script.map
-      )
     endif()
 
     # GNU ld doesn't resolve symbols in the version script.
@@ -160,7 +160,10 @@ if(LLVM_BUILD_LLVM_C_DYLIB AND MSVC)
   # Need to separate lib names with newlines.
   string(REPLACE ";" "\n" FILE_CONTENT "${FULL_LIB_NAMES}")
 
-  if(NOT "${CMAKE_CFG_INTDIR}" STREQUAL ".")
+  if("${CMAKE_CFG_INTDIR}" STREQUAL ".")
+    # Write out the full lib names into file to be read by the python script.
+    file(WRITE ${LIBSFILE} "${FILE_CONTENT}")
+  else()
     foreach(BUILD_MODE ${CMAKE_CONFIGURATION_TYPES})
       # Replace the special string with a per config directory.
       string(REPLACE ${CMAKE_CFG_INTDIR} ${BUILD_MODE} PER_CONF_CONTENT "${FILE_CONTENT}")
@@ -170,9 +173,6 @@ if(LLVM_BUILD_LLVM_C_DYLIB AND MSVC)
       # ${CMAKE_CFG_INTDIR} correctly and select the right one.
       file(WRITE ${LLVM_BINARY_DIR}/${BUILD_MODE}/libllvm-c.args "${PER_CONF_CONTENT}")
     endforeach()
-  else()
-    # Write out the full lib names into file to be read by the python script.
-    file(WRITE ${LIBSFILE} "${FILE_CONTENT}")
   endif()
 
   # Generate the exports file dynamically.
@@ -194,5 +194,5 @@ if(LLVM_BUILD_LLVM_C_DYLIB AND MSVC)
     # Make sure we search LLVMSupport first, before the CRT libs
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -INCLUDE:malloc")
   endif()
-  
+
 endif()
