@@ -36,7 +36,7 @@ __pstl_fill(__gpu_backend_tag, _ForwardIterator __first, _ForwardIterator __last
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    std::__par_backend::__parallel_for_simd_val_1(__first, __last - __first, __value);
+    return std::__par_backend::__parallel_for_simd_val_1(__first, __last - __first, __value);
   }
   // Otherwise, we execute for_each on the CPU instead
   return std::__pstl_fill<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __value);

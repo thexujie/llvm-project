@@ -35,7 +35,7 @@ __pstl_for_each(__gpu_backend_tag, _ForwardIterator __first, _ForwardIterator __
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    std::__par_backend::__parallel_for_simd_1(__first, __last - __first, __func);
+    return std::__par_backend::__parallel_for_simd_1(__first, __last - __first, __func);
   }
   // Else if the excution policy is parallel, we execute for_each on the CPU instead
   return std::__pstl_for_each<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __func);
