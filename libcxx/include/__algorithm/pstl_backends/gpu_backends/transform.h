@@ -37,30 +37,13 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
     _UnaryOperation __op) {
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value) {
+                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
     // While the CPU backend captures by reference, [&], that is not valid when
     // offloading to the GPU. Therefore we must capture by value, [=].
-    return std::__par_backend::__parallel_for_simd_2(
-        __first,
-        __last - __first,
-        __result,
-        [=](__iter_reference<_ForwardIterator> __in_value, __iter_reference<_ForwardOutIterator> __out_value) {
-          __out_value = __op(__in_value);
-        });
-  } else if constexpr (__is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
-                       __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value) {
-    std::__terminate_on_exception([&] {
-      std::__par_backend::__parallel_for(
-          __first, __last, [__op, __first, __result](_ForwardIterator __brick_first, _ForwardIterator __brick_last) {
-            return std::__pstl_transform<__remove_parallel_policy_t<_ExecutionPolicy>>(
-                __cpu_backend_tag{}, __brick_first, __brick_last, __result + (__brick_first - __first), __op);
-          });
-    });
-    return __result + (__last - __first);
-  } else {
-    return std::transform(__first, __last, __result, __op);
+    return std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
   }
+  return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __result, __op);
 }
 
 template <class _ExecutionPolicy,
@@ -79,39 +62,15 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value) {
+                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     // While the CPU backend captures by reference, [&], that is not valid when
     // offloading to the GPU. Therefore we must capture by value, [=].
-    return std::__par_backend::__parallel_for_simd_3(
-        __first1,
-        __last1 - __first1,
-        __first2,
-        __result,
-        [=](__iter_reference<_ForwardIterator1> __in1,
-            __iter_reference<_ForwardIterator2> __in2,
-            __iter_reference<_ForwardOutIterator> __out_value) { __out_value = __op(__in1, __in2); });
-  } else if constexpr (__is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
-                       __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value) {
-    std::__terminate_on_exception([&] {
-      std::__par_backend::__parallel_for(
-          __first1,
-          __last1,
-          [__op, __first1, __first2, __result](_ForwardIterator1 __brick_first, _ForwardIterator1 __brick_last) {
-            return std::__pstl_transform<__remove_parallel_policy_t<_ExecutionPolicy>>(
-                __cpu_backend_tag{},
-                __brick_first,
-                __brick_last,
-                __first2 + (__brick_first - __first1),
-                __result + (__brick_first - __first1),
-                __op);
-          });
-    });
-    return __result + (__last1 - __first1);
-  } else {
-    return std::transform(__first1, __last1, __first2, __result, __op);
+    return std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
   }
+  return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first1, __last1, __first2, __result, __op);
 }
 
 _LIBCPP_END_NAMESPACE_STD

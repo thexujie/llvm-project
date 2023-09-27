@@ -12,9 +12,11 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/gpu_backends/backend.h>
 #include <__config>
+#include <__functional/operations.h>
 #include <__iterator/concepts.h>
 #include <__iterator/iterator_traits.h>
 #include <__numeric/transform_reduce.h>
+#include <__type_traits/integral_constant.h>
 #include <__type_traits/is_arithmetic.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/operation_traits.h>
@@ -27,6 +29,25 @@
 #endif
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
+
+template <class _T1, class _T2, class _T3>
+struct __is_supported_reduction : std::false_type {};
+
+#  define __PSTL_IS_SUPPORTED_REDUCTION(funname)                                                                       \
+    template <class _Tp>                                                                                               \
+    struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};                                  \
+    template <class _Tp, class _Up>                                                                                    \
+    struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
+
+// __is_trivial_plus_operation already exists
+__PSTL_IS_SUPPORTED_REDUCTION(plus)
+__PSTL_IS_SUPPORTED_REDUCTION(minus)
+__PSTL_IS_SUPPORTED_REDUCTION(multiplies)
+__PSTL_IS_SUPPORTED_REDUCTION(logical_and)
+__PSTL_IS_SUPPORTED_REDUCTION(logical_or)
+__PSTL_IS_SUPPORTED_REDUCTION(bit_and)
+__PSTL_IS_SUPPORTED_REDUCTION(bit_or)
+__PSTL_IS_SUPPORTED_REDUCTION(bit_xor)
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -50,49 +71,16 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     _BinaryOperation2 __transform) {
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value) {
+                __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
+                (__is_trivial_plus_operation<_BinaryOperation1, _Tp, _Tp>::value ||
+                 __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_2(
-        std::move(__first1),
-        std::move(__first2),
-        __last1 - __first1,
-        std::move(__init),
-        std::move(__reduce),
-        [=](__iter_reference<_ForwardIterator1> __in_value_1, __iter_reference<_ForwardIterator1> __in_value_2) {
-          return __transform(__in_value_1, __in_value_2);
-        });
-  } else if constexpr (__is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value) {
-    return std::__terminate_on_exception([&] {
-      return __par_backend::__parallel_transform_reduce(
-          __first1,
-          std::move(__last1),
-          [__first1, __first2, __transform](_ForwardIterator1 __iter) {
-            return __transform(*__iter, *(__first2 + (__iter - __first1)));
-          },
-          std::move(__init),
-          std::move(__reduce),
-          [__first1, __first2, __reduce, __transform](
-              _ForwardIterator1 __brick_first, _ForwardIterator1 __brick_last, _Tp __brick_init) {
-            return std::__pstl_transform_reduce<__remove_parallel_policy_t<_ExecutionPolicy>>(
-                __cpu_backend_tag{},
-                __brick_first,
-                std::move(__brick_last),
-                __first2 + (__brick_first - __first1),
-                std::move(__brick_init),
-                std::move(__reduce),
-                std::move(__transform));
-          });
-    });
-  } else {
-    return std::transform_reduce(
-        std::move(__first1),
-        std::move(__last1),
-        std::move(__first2),
-        std::move(__init),
-        std::move(__reduce),
-        std::move(__transform));
+        __first1, __first2, __last1 - __first1, __init, __reduce, __transform);
   }
+  return std::__pstl_transform_reduce<_ExecutionPolicy>(
+      __cpu_backend_tag{}, __first1, __last1, __first2, std::move(__init), __reduce, __transform);
 }
 
 //===----------------------------------------------------------------------===//
@@ -108,36 +96,15 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     _BinaryOperation __reduce,
     _UnaryOperation __transform) {
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value) {
+                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
+                (__is_trivial_plus_operation<_BinaryOperation, _Tp, _Tp>::value ||
+                 __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_1(
-        std::move(__first),
-        __last - __first,
-        std::move(__init),
-        std::move(__reduce),
-        [=](__iter_reference<_ForwardIterator> __in_value) { return __transform(__in_value); });
-  } else if constexpr (__is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                       __has_random_access_iterator_category_or_concept<_ForwardIterator>::value) {
-    return std::__terminate_on_exception([&] {
-      return __par_backend::__parallel_transform_reduce(
-          std::move(__first),
-          std::move(__last),
-          [__transform](_ForwardIterator __iter) { return __transform(*__iter); },
-          std::move(__init),
-          __reduce,
-          [__transform, __reduce](auto __brick_first, auto __brick_last, _Tp __brick_init) {
-            return std::__pstl_transform_reduce<__remove_parallel_policy_t<_ExecutionPolicy>>(
-                __cpu_backend_tag{},
-                std::move(__brick_first),
-                std::move(__brick_last),
-                std::move(__brick_init),
-                std::move(__reduce),
-                std::move(__transform));
-          });
-    });
-  } else {
-    return std::transform_reduce(
-        std::move(__first), std::move(__last), std::move(__init), std::move(__reduce), std::move(__transform));
+        __first, __last - __first, __init, __reduce, __transform);
   }
+  return std::__pstl_transform_reduce<_ExecutionPolicy>(
+      __cpu_backend_tag{}, __first, __last, std::move(__init), __reduce, __transform);
 }
 
 _LIBCPP_END_NAMESPACE_STD

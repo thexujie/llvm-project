@@ -11,8 +11,18 @@
 
 #include <__assert>
 #include <__config>
+#include <__functional/operations.h>
+#include <__iterator/wrap_iter.h>
+#include <__memory/addressof.h>
+#include <__memory/pointer_traits.h>
+#include <__type_traits/is_pointer.h>
+#include <__type_traits/is_same.h>
 #include <__utility/move.h>
 #include <cstddef>
+
+// is_same
+
+// __libcpp_is_contiguous_iterator
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -30,27 +40,33 @@ inline namespace __omp_gpu_backend {
 
 // Checking if a pointer is in a range
 template <typename T1, typename T2, typename T3>
-_LIBCPP_HIDE_FROM_ABI inline bool __omp_in_ptr_range(T1 a, T2 p, T3 b) {
+_LIBCPP_HIDE_FROM_ABI inline bool __omp_in_ptr_range(T1, T2, T3) {
   return false;
 }
 
-template <typename T>
-_LIBCPP_HIDE_FROM_ABI inline bool __omp_in_ptr_range(T* a, T* p, T* b) {
-  return std::less_equal<T*>{}(a, p) && std::less<T*>{}(p, b);
+template <typename _Tp>
+_LIBCPP_HIDE_FROM_ABI inline bool __omp_in_ptr_range(_Tp* a, _Tp* p, _Tp* b) {
+  return std::less_equal<_Tp*>{}(a, p) && std::less<_Tp*>{}(p, b);
 }
 
 // In OpenMP, we need to extract the pointer for the underlying data for data
 // structures like std::vector and std::array to be able to map the data to the
 // device.
 
-template <typename T>
-_LIBCPP_HIDE_FROM_ABI inline T __omp_extract_base_ptr(T p) {
+template <typename _Tp, std::enable_if<std::is_pointer<_Tp>::value >::type* = 0>
+_LIBCPP_HIDE_FROM_ABI inline _Tp __omp_extract_base_ptr(_Tp p) {
   return p;
 }
 
-template <typename T>
-_LIBCPP_HIDE_FROM_ABI inline T __omp_extract_base_ptr(std::__wrap_iter<T> w) {
-  std::pointer_traits<std::__wrap_iter<T>> PT;
+template <typename _Tp>
+_LIBCPP_HIDE_FROM_ABI inline auto __omp_extract_base_ptr(_Tp p) {
+  return std::addressof(*p);
+  ;
+}
+
+template <typename _Tp>
+_LIBCPP_HIDE_FROM_ABI inline _Tp __omp_extract_base_ptr(std::__wrap_iter<_Tp> w) {
+  std::pointer_traits<std::__wrap_iter<_Tp>> PT;
   return PT.to_address(w);
 }
 
@@ -61,8 +77,8 @@ _LIBCPP_HIDE_FROM_ABI inline T __omp_extract_base_ptr(std::__wrap_iter<T> w) {
 // Applying function or lambda in a loop
 
 template <class _Iterator, class _DifferenceType, class _Function>
-_LIBCPP_HIDE_FROM_ABI _Iterator
-__omp_parallel_for_simd_1(_Iterator __first, _DifferenceType __n, _Function __f, const int __device = 0) noexcept {
+_LIBCPP_HIDE_FROM_ABI _Iterator __omp_parallel_for_simd_1(
+    _Iterator __first, _DifferenceType __n, _Function __f, [[maybe_unused]] const int __device = 0) noexcept {
 #  pragma omp target teams distribute parallel for simd map(tofrom : __first[0 : __n]) device(__device)
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     __f(__first[__i]);
@@ -82,7 +98,7 @@ _LIBCPP_HIDE_FROM_ABI _Iterator __parallel_for_simd_1(_Iterator __first, _Differ
 
 template <class _Index, class _DifferenceType, class _Tp>
 _LIBCPP_HIDE_FROM_ABI _Index __omp_parallel_for_simd_val_1(
-    _Index __first, _DifferenceType __n, const _Tp& __value, const int __device = 0) noexcept {
+    _Index __first, _DifferenceType __n, const _Tp& __value, [[maybe_unused]] const int __device = 0) noexcept {
 #  pragma omp target teams distribute parallel for simd map(from : __first[0 : __n]) map(always, to : __value)         \
       device(__device)
   for (_DifferenceType __i = 0; __i < __n; ++__i)
@@ -104,20 +120,24 @@ __parallel_for_simd_val_1(_Index __first, _DifferenceType __n, const _Tp& __valu
 
 template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Function>
 _LIBCPP_HIDE_FROM_ABI _Iterator1 __omp_parallel_for_simd_2(
-    _Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Function __f, const int __device = 0) noexcept {
+    _Iterator1 __first1,
+    _DifferenceType __n,
+    _Iterator2 __first2,
+    _Function __f,
+    [[maybe_unused]] const int __device = 0) noexcept {
   if ((!std::is_same<_Iterator1, _Iterator2>::value) ||
       (std::is_same<_Iterator1, _Iterator2>::value &&
        !__omp_gpu_backend::__omp_in_ptr_range(__first1, __first2, __first1 + __n))) {
 #  pragma omp target teams distribute parallel for simd map(to : __first1[0 : __n]) map(from : __first2[0 : __n])      \
       device(__device)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
-      __f(__first1[__i], __first2[__i]);
+      __first2[__i] = __f(__first1[__i]);
     return __first1 + __n;
   }
 #  pragma omp target teams distribute parallel for simd map(tofrom : __first1[0 : __n], __first2[0 : __n])             \
       device(__device)
   for (_DifferenceType __i = 0; __i < __n; ++__i)
-    __f(__first1[__i], __first2[__i]);
+    __first2[__i] = __f(__first1[__i]);
 
   return __first1 + __n;
 }
@@ -146,7 +166,7 @@ _LIBCPP_HIDE_FROM_ABI _Iterator1 __omp_parallel_for_simd_3(
     _Iterator2 __first2,
     _Iterator3 __first3,
     _Function __f,
-    const int __device = 0) noexcept {
+    [[maybe_unused]] const int __device = 0) noexcept {
   // It may be that __first3 is in the interval [__first1+__n) or [__firt2+__n)
   // It is, however, undefined behavior to compare two pointers that do not
   // point to the same object or are not the same type.
@@ -165,14 +185,14 @@ _LIBCPP_HIDE_FROM_ABI _Iterator1 __omp_parallel_for_simd_3(
 #  pragma omp target teams distribute parallel for simd map(to : __first1[0 : __n], __first2[0 : __n])                 \
       map(from : __first3[0 : __n]) device(__device)
     for (_DifferenceType __i = 0; __i < __n; ++__i)
-      __f(__first1[__i], __first2[__i], __first3[__i]);
+      __first3[__i] = __f(__first1[__i], __first2[__i]);
     return __first1 + __n;
   }
   // In the general case, we have to map all data to and from the device
 #  pragma omp target teams distribute parallel for simd map(                                                           \
           tofrom : __first1[0 : __n], __first2[0 : __n], __first3[0 : __n]) device(__device)
   for (_DifferenceType __i = 0; __i < __n; ++__i)
-    __f(__first1[__i], __first2[__i], __first3[__i]);
+    __first3[__i] = __f(__first1[__i], __first2[__i]);
 
   return __first1 + __n;
 }
@@ -197,46 +217,44 @@ _LIBCPP_HIDE_FROM_ABI _Iterator1 __parallel_for_simd_3(
 
 // General case
 
-#  define __PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                                            \
+#  define __PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                                                 \
     template <class _Iterator,                                                                                                   \
               class _DifferenceType,                                                                                             \
               typename _Tp,                                                                                                      \
               typename _BinaryOperationType,                                                                                     \
-              typename _UnaryOperation,                                                                                          \
-              __enable_if_t<is_arithmetic_v<_Tp>, int> = 0 >                                                                     \
+              typename _UnaryOperation>                                                                     \
     _LIBCPP_HIDE_FROM_ABI _Tp __omp_parallel_for_simd_reduction_1(                                                               \
         _Iterator __first,                                                                                                       \
         _DifferenceType __n,                                                                                                     \
         _Tp __init,                                                                                                              \
         std_op<_BinaryOperationType> __reduce,                                                                                   \
-        _UnaryOperation __transform,                                                                                             \
-        const int __device = 0) noexcept {                                                                                       \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init) map(to : __first[0 : __n]) device(__device)) \
-      for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                            \
-        __init = __reduce(__init, __transform(__first[__i]));                                                                    \
-      return __init;                                                                                                             \
+        _UnaryOperation __transform/*,                                                                                             \
+        [[maybe_unused]] const int __device = 0*/) noexcept {    \
+_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init) map(to : __first[0 : __n])) /*device(__device))*/ \
+      for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                                 \
+        __init = __reduce(__init, __transform(__first[__i]));                                                                         \
+      return __init;                                                                                                                  \
     }
 
-#  define __PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)                                                                                                \
+#  define __PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)                                                                                                     \
     template <class _Iterator1,                                                                                                                      \
               class _Iterator2,                                                                                                                      \
               class _DifferenceType,                                                                                                                 \
               typename _Tp,                                                                                                                          \
               typename _BinaryOperationType,                                                                                                         \
-              typename _UnaryOperation,                                                                                                              \
-              __enable_if_t<is_arithmetic_v<_Tp>, int> = 0 >                                                                                         \
+              typename _UnaryOperation >                                                                                         \
     _LIBCPP_HIDE_FROM_ABI _Tp __omp_parallel_for_simd_reduction_2(                                                                                   \
         _Iterator1 __first1,                                                                                                                         \
         _Iterator2 __first2,                                                                                                                         \
         _DifferenceType __n,                                                                                                                         \
         _Tp __init,                                                                                                                                  \
         std_op<_BinaryOperationType> __reduce,                                                                                                       \
-        _UnaryOperation __transform,                                                                                                                 \
-        const int __device = 0) noexcept {                                                                                                           \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init) map(to : __first1[0 : __n], __first2[0 : __n]) device(__device)) \
-      for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                                                \
-        __init = __reduce(__init, __transform(__first1[__i], __first2[__i]));                                                                        \
-      return __init;                                                                                                                                 \
+        _UnaryOperation __transform/*,                                                                                                                 \
+        [[maybe_unused]] const int __device = 0*/) noexcept {    \
+_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init) map(to : __first1[0 : __n], __first2[0 : __n]))/* device(__device))*/ \
+      for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                                                     \
+        __init = __reduce(__init, __transform(__first1[__i], __first2[__i]));                                                                             \
+      return __init;                                                                                                                                      \
     }
 
 #  define __PSTL_OMP_SIMD_REDUCTION(omp_op, std_op)                                                                    \
@@ -276,7 +294,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __parallel_for_simd_reduction_1(
     _Tp __init,
     _BinaryOperation __reduce,
     _UnaryOperation __transform,
-    const int __device = 0) noexcept {
+    [[maybe_unused]] const int __device = 0) noexcept {
   return __omp_parallel_for_simd_reduction_1(
       __omp_gpu_backend::__omp_extract_base_ptr(__first), __n, __init, __reduce, __transform);
 }
@@ -294,7 +312,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __parallel_for_simd_reduction_2(
     _Tp __init,
     _BinaryOperation __reduce,
     _UnaryOperation __transform,
-    const int __device = 0) noexcept {
+    [[maybe_unused]] const int __device = 0) noexcept {
   return __omp_parallel_for_simd_reduction_2(
       __omp_gpu_backend::__omp_extract_base_ptr(__first1),
       __omp_gpu_backend::__omp_extract_base_ptr(__first2),

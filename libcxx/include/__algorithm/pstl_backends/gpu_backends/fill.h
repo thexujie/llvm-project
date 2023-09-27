@@ -14,6 +14,7 @@
 #include <__algorithm/pstl_backends/gpu_backends/backend.h>
 #include <__config>
 #include <__iterator/concepts.h>
+#include <__iterator/iterator_traits.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__utility/terminate_on_exception.h>
 #include <stdio.h>
@@ -33,23 +34,12 @@ __pstl_fill(__gpu_backend_tag, _ForwardIterator __first, _ForwardIterator __last
   // parallel unsequenced, as it is the only execution policy prohibiting throwing
   // exceptions and allowing SIMD instructions
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value) {
+                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
     std::__par_backend::__parallel_for_simd_val_1(__first, __last - __first, __value);
   }
-  // Else if the excution policy is parallel, we execute for_each on the CPU instead
-  else if constexpr (__is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                     __has_random_access_iterator_category_or_concept<_ForwardIterator>::value) {
-    std::__terminate_on_exception([&] {
-      __par_backend::__parallel_for(
-          __first, __last, [&__value](_ForwardIterator __brick_first, _ForwardIterator __brick_last) {
-            std::__pstl_fill<__remove_parallel_policy_t<_ExecutionPolicy>>(
-                __cpu_backend_tag{}, __brick_first, __brick_last, __value);
-          });
-    });
-    // Else we execute for_each in serial
-  } else {
-    std::fill(__first, __last, __value);
-  }
+  // Otherwise, we execute for_each on the CPU instead
+  return std::__pstl_fill<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __value);
 }
 
 _LIBCPP_END_NAMESPACE_STD
