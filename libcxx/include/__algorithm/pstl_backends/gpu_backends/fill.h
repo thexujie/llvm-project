@@ -30,16 +30,18 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 _LIBCPP_HIDE_FROM_ABI void
 __pstl_fill(__gpu_backend_tag, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value) {
-  // It is only safe to execute for_each on the GPU, it the execution policy is
+  // It is only safe to execute fill on the GPU, it the execution policy is
   // parallel unsequenced, as it is the only execution policy prohibiting throwing
   // exceptions and allowing SIMD instructions
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    return std::__par_backend::__parallel_for_simd_val_1(__first, __last - __first, __value);
+    std::__par_backend::__parallel_for_simd_val_1(__first, __last - __first, __value);
   }
-  // Otherwise, we execute for_each on the CPU instead
-  return std::__pstl_fill<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __value);
+  // Otherwise, we execute fill on the CPU instead
+  else {
+    std::__pstl_fill<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __value);
+  }
 }
 
 _LIBCPP_END_NAMESPACE_STD

@@ -31,13 +31,13 @@
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
 template <class _T1, class _T2, class _T3>
-struct __is_supported_reduction : std::false_type {};
+_LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction : std::false_type {};
 
 #  define __PSTL_IS_SUPPORTED_REDUCTION(funname)                                                                       \
     template <class _Tp>                                                                                               \
-    struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};                                  \
+    _LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};            \
     template <class _Tp, class _Up>                                                                                    \
-    struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
+    _LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
 
 // __is_trivial_plus_operation already exists
 __PSTL_IS_SUPPORTED_REDUCTION(plus)

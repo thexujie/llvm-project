@@ -38,11 +38,12 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    // While the CPU backend captures by reference, [&], that is not valid when
-    // offloading to the GPU. Therefore we must capture by value, [=].
-    return std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
+    std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
+    return __result + (__last - __first);
   }
+  // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __result, __op);
 }
 
@@ -66,10 +67,10 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    // While the CPU backend captures by reference, [&], that is not valid when
-    // offloading to the GPU. Therefore we must capture by value, [=].
-    return std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
+    std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
+    return __result + (__last1 - __first1);
   }
+  // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first1, __last1, __first2, __result, __op);
 }
 
