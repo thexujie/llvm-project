@@ -568,6 +568,9 @@ public:
   bool processDevice(Fortran::lower::StatementContext &stmtCtx,
                      mlir::Value &result) const;
   bool processDeviceType(mlir::omp::DeclareTargetDeviceType &result) const;
+  bool processDistSchedule(Fortran::lower::StatementContext &stmtCtx,
+                           mlir::UnitAttr &scheduleStatic,
+                           mlir::Value &chunkSize) const;
   bool processFinal(Fortran::lower::StatementContext &stmtCtx,
                     mlir::Value &result) const;
   bool processHint(mlir::IntegerAttr &result) const;
@@ -1487,6 +1490,19 @@ bool ClauseProcessor::processDeviceType(
     case Fortran::parser::OmpDeviceTypeClause::Type::Any:
       result = mlir::omp::DeclareTargetDeviceType::any;
       break;
+    }
+    return true;
+  }
+  return false;
+}
+
+bool ClauseProcessor::processDistSchedule(
+    Fortran::lower::StatementContext &stmtCtx, mlir::UnitAttr &scheduleStatic,
+    mlir::Value &chunkSize) const {
+  if (auto *distScheduleClause = findUniqueClause<ClauseTy::DistSchedule>()) {
+    scheduleStatic = converter.getFirOpBuilder().getUnitAttr();
+    if (const auto *expr = Fortran::semantics::GetExpr(distScheduleClause->v)) {
+      chunkSize = fir::getBase(converter.genExprValue(*expr, stmtCtx));
     }
     return true;
   }
@@ -3003,6 +3019,27 @@ genTeamsOp(Fortran::lower::AbstractConverter &converter,
                                  reductionDeclSymbols));
 }
 
+static mlir::omp::DistributeOp
+genDistributeOp(Fortran::lower::AbstractConverter &converter,
+                Fortran::lower::pft::Evaluation &eval, bool genNested,
+                mlir::Location currentLocation,
+                const Fortran::parser::OmpClauseList &clauseList,
+                bool outerCombined = false) {
+  Fortran::lower::StatementContext stmtCtx;
+  mlir::UnitAttr scheduleStatic;
+  mlir::Value chunkSize;
+  llvm::SmallVector<mlir::Value> allocateOperands, allocatorOperands;
+
+  ClauseProcessor cp(converter, clauseList);
+  cp.processDistSchedule(stmtCtx, scheduleStatic, chunkSize);
+  cp.processAllocate(allocatorOperands, allocateOperands);
+
+  return genOpWithBody<mlir::omp::DistributeOp>(
+      converter, eval, genNested, currentLocation, outerCombined, &clauseList,
+      scheduleStatic, chunkSize, allocateOperands, allocatorOperands,
+      /*order_val=*/nullptr);
+}
+
 /// Extract the list of function and variable symbols affected by the given
 /// 'declare target' directive and return the intended device type for them.
 static mlir::omp::DeclareTargetDeviceType getDeclareTargetInfo(
@@ -3387,7 +3424,9 @@ static void genOMP(Fortran::lower::AbstractConverter &converter,
     }
     if (llvm::omp::allDistributeSet.test(ompDirective)) {
       validDirective = true;
-      TODO(currentLocation, "Distribute construct");
+      bool outerCombined = llvm::omp::topDistributeSet.test(ompDirective);
+      genDistributeOp(converter, eval, /*genNested=*/false, currentLocation,
+                      loopOpClauseList, outerCombined);
     }
     if ((llvm::omp::allParallelSet & llvm::omp::loopConstructSet)
             .test(ompDirective)) {
