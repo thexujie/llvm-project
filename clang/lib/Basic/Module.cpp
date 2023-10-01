@@ -725,18 +725,3 @@ void VisibleModuleSet::makeTransitiveImportsVisible(Module *M,
   for (auto *I : M->Imports)
     setVisible(I, Loc, Vis, Cb);
 }
-
-ASTSourceDescriptor::ASTSourceDescriptor(Module &M)
-    : Signature(M.Signature), ClangModule(&M) {
-  if (M.Directory)
-    Path = M.Directory->getName();
-  if (auto File = M.getASTFile())
-    ASTFile = File->getName();
-}
-
-std::string ASTSourceDescriptor::getModuleName() const {
-  if (ClangModule)
-    return ClangModule->Name;
-  else
-    return std::string(PCHModuleName);
-}
