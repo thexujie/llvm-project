@@ -30,14 +30,16 @@
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
+_LIBCPP_BEGIN_NAMESPACE_STD
+
 template <class _T1, class _T2, class _T3>
-_LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction : std::false_type {};
+struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction : std::false_type {};
 
 #  define __PSTL_IS_SUPPORTED_REDUCTION(funname)                                                                       \
     template <class _Tp>                                                                                               \
-    _LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};            \
+    struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};            \
     template <class _Tp, class _Up>                                                                                    \
-    _LIBCPP_HIDE_FROM_ABI struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
+    struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
 
 // __is_trivial_plus_operation already exists
 __PSTL_IS_SUPPORTED_REDUCTION(plus)
@@ -48,8 +50,6 @@ __PSTL_IS_SUPPORTED_REDUCTION(logical_or)
 __PSTL_IS_SUPPORTED_REDUCTION(bit_and)
 __PSTL_IS_SUPPORTED_REDUCTION(bit_or)
 __PSTL_IS_SUPPORTED_REDUCTION(bit_xor)
-
-_LIBCPP_BEGIN_NAMESPACE_STD
 
 //===----------------------------------------------------------------------===//
 // Two input iterators
@@ -69,11 +69,14 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     _Tp __init,
     _BinaryOperation1 __reduce,
     _BinaryOperation2 __transform) {
+  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
+                __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
+#  if _LIBCPP_STD_VER <= 17
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
+#  endif
                 (__is_trivial_plus_operation<_BinaryOperation1, _Tp, _Tp>::value ||
                  __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_2(
@@ -95,9 +98,12 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     _Tp __init,
     _BinaryOperation __reduce,
     _UnaryOperation __transform) {
+  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
+                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
+#  if _LIBCPP_STD_VER <= 17
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
+#  endif
                 (__is_trivial_plus_operation<_BinaryOperation, _Tp, _Tp>::value ||
                  __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_1(

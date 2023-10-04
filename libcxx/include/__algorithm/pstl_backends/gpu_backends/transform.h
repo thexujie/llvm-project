@@ -35,10 +35,13 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
     _ForwardIterator __last,
     _ForwardOutIterator __result,
     _UnaryOperation __op) {
+  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
+#  if _LIBCPP_STD_VER <= 17
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
+#  endif
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
     return __result + (__last - __first);
@@ -60,12 +63,15 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
     _ForwardIterator2 __first2,
     _ForwardOutIterator __result,
     _BinaryOperation __op) {
+  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
+#  if _LIBCPP_STD_VER <= 17
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
+#  endif
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
     return __result + (__last1 - __first1);
