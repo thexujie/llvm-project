@@ -24,11 +24,11 @@ LLVM_LIBC_FUNCTION(ssize_t, pread,
     // This is a 32-bit system with a 64-bit offset.
     long offset_low = static_cast<long>(offset);
     long offset_high = static_cast<long>(offset >> 32);
-    ssize_t ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(
-        SYS_pread64, fd, buf, count, offset_low, offset_high);
+    ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf, count,
+                                                offset_low, offset_high);
   } else {
-    ssize_t ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf,
-                                                        count, offset);
+    ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf, count,
+                                                offset);
   }
 
   if (ret < 0) {
