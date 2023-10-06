@@ -10,6 +10,7 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_FILL_H
 
 #include <__algorithm/fill.h>
+#include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__iterator/concepts.h>
@@ -39,7 +40,7 @@ __pstl_fill(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last
   }
   // Otherwise, we execute fill on the CPU instead
   else {
-    std::fill(__first, __last, __value);
+    std::__pstl_fill<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __value);
   }
 }
 

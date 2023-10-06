@@ -10,6 +10,7 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_MERGE_H
 
 #include <__algorithm/merge.h>
+#include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__iterator/concepts.h>
@@ -39,7 +40,8 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_merge(
     _ForwardOutIterator __result,
     _Comp __comp) {
   // TODO: Implement GPU backend
-  return std::merge(__first1, __last1, __first2, __last2, __result, __comp);
+  return std::__pstl_merge<_ExecutionPolicy>(
+      __cpu_backend_tag{}, __first1, __last1, __first2, __last2, __result, __comp);
 }
 
 _LIBCPP_END_NAMESPACE_STD

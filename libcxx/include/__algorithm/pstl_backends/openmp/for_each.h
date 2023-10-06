@@ -10,6 +10,7 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_FOR_EACH_H
 
 #include <__algorithm/for_each.h>
+#include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__iterator/concepts.h>
@@ -35,10 +36,10 @@ __pstl_for_each(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
     std::__par_backend::__parallel_for_simd_1(__first, __last - __first, __func);
-  } else {
-    // If it is not safe to offload to the GPU, we call the serial
-    // implementation
-    std::for_each(__first, __last, __func);
+  }
+  // Else we fall back to the serial backend
+  else {
+    std::__pstl_for_each<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __func);
   }
 }
 

@@ -11,6 +11,7 @@
 
 #include <__algorithm/any_of.h>
 #include <__algorithm/find_if.h>
+#include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__atomic/atomic.h>
 #include <__atomic/memory_order.h>
@@ -30,7 +31,7 @@ template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
 _LIBCPP_HIDE_FROM_ABI bool
 __pstl_any_of(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) {
   // TODO: Implement GPU backend
-  return std::any_of(__first, __last, __pred);
+  return std::__pstl_any_of<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __pred);
 }
 
 _LIBCPP_END_NAMESPACE_STD

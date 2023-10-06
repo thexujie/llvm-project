@@ -9,6 +9,7 @@
 #ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H
 
+#include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__functional/operations.h>
@@ -72,16 +73,13 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
-#  if _LIBCPP_STD_VER <= 17
-                __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
-#  endif
                 (__is_trivial_plus_operation<_BinaryOperation1, _Tp, _Tp>::value ||
                  __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_2(
         __first1, __first2, __last1 - __first1, __init, __reduce, __transform);
   }
-  return std::transform_reduce(__first1, __last1, __first2, std::move(__init), __reduce, __transform);
+  return std::__pstl_transform_reduce<_ExecutionPolicy>(
+      __cpu_backend_tag{}, __first1, __last1, __first2, std::move(__init), __reduce, __transform);
 }
 
 //===----------------------------------------------------------------------===//
@@ -104,8 +102,8 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     return std::__par_backend::__parallel_for_simd_reduction_1(
         __first, __last - __first, __init, __reduce, __transform);
   }
-  // If it is not safe to offload to the GPU, we call the serial implementation
-  return std::transform_reduce(__first, __last, std::move(__init), __reduce, __transform);
+  return std::__pstl_transform_reduce<_ExecutionPolicy>(
+      __cpu_backend_tag{}, __first, __last, std::move(__init), __reduce, __transform);
 }
 
 _LIBCPP_END_NAMESPACE_STD
