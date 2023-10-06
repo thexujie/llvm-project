@@ -6,19 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_BACKEND_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_BACKEND_H
+#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_BACKEND_H
+#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_BACKEND_H
 
 #include <__config>
 #include <cstddef>
 
-#if defined(_LIBCPP_PSTL_GPU_OFFLOAD)
-#  if defined(_LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
-#    include <__algorithm/pstl_backends/gpu_backends/omp_offload.h>
-#  else
-#    error Invalid PSTL GPU backend
-#  endif
-#endif
+#include <__algorithm/pstl_backends/openmp/omp_offload.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -28,10 +22,10 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-struct __gpu_backend_tag {};
+struct __omp_backend_tag {};
 
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // _LIBCPP_STD_VER >= 17
 
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_BACKEND_H
+#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_BACKEND_H

@@ -55,14 +55,19 @@ into a program termination at the front-end level. When a backend returns a dise
 frontend will turn that into a call to `std::__throw_bad_alloc();` to report the internal failure to the user.
 */
 
-#include <__algorithm/pstl_backends/cpu_backends/any_of.h>
-#include <__algorithm/pstl_backends/cpu_backends/backend.h>
-#include <__algorithm/pstl_backends/cpu_backends/fill.h>
-#include <__algorithm/pstl_backends/cpu_backends/find_if.h>
-#include <__algorithm/pstl_backends/cpu_backends/for_each.h>
-#include <__algorithm/pstl_backends/cpu_backends/merge.h>
-#include <__algorithm/pstl_backends/cpu_backends/stable_sort.h>
-#include <__algorithm/pstl_backends/cpu_backends/transform.h>
-#include <__algorithm/pstl_backends/cpu_backends/transform_reduce.h>
+#if defined(_LIBCPP_PSTL_CPU_BACKEND_SERIAL) || defined(_LIBCPP_PSTL_CPU_BACKEND_THREAD) ||                            \
+    defined(_LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
+
+#  include <__algorithm/pstl_backends/cpu_backends/any_of.h>
+#  include <__algorithm/pstl_backends/cpu_backends/backend.h>
+#  include <__algorithm/pstl_backends/cpu_backends/fill.h>
+#  include <__algorithm/pstl_backends/cpu_backends/find_if.h>
+#  include <__algorithm/pstl_backends/cpu_backends/for_each.h>
+#  include <__algorithm/pstl_backends/cpu_backends/merge.h>
+#  include <__algorithm/pstl_backends/cpu_backends/stable_sort.h>
+#  include <__algorithm/pstl_backends/cpu_backends/transform.h>
+#  include <__algorithm/pstl_backends/cpu_backends/transform_reduce.h>
+
+#endif
 
 #endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_CPU_BACKEND_H

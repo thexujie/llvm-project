@@ -10,7 +10,7 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKEND_H
 
 #include <__algorithm/pstl_backends/cpu_backend.h>
-#include <__algorithm/pstl_backends/gpu_backend.h>
+#include <__algorithm/pstl_backends/openmp.h>
 #include <__config>
 #include <execution>
 
@@ -192,6 +192,9 @@ frontend will turn that into a call to `std::__throw_bad_alloc();` to report the
 template <class _ExecutionPolicy>
 struct __select_backend;
 
+#  if defined(_LIBCPP_PSTL_CPU_BACKEND_SERIAL) || defined(_LIBCPP_PSTL_CPU_BACKEND_THREAD) ||                          \
+      defined(_LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
+
 template <>
 struct __select_backend<std::execution::sequenced_policy> {
   using type = __cpu_backend_tag;
@@ -204,24 +207,39 @@ struct __select_backend<std::execution::unsequenced_policy> {
 };
 #  endif
 
-#  if defined(_LIBCPP_PSTL_CPU_BACKEND_SERIAL) || defined(_LIBCPP_PSTL_CPU_BACKEND_THREAD) ||                          \
-      defined(_LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
 template <>
 struct __select_backend<std::execution::parallel_policy> {
   using type = __cpu_backend_tag;
 };
 
-#    if defined(_LIBCPP_PSTL_GPU_OFFLOAD)
-template <>
-struct __select_backend<std::execution::parallel_unsequenced_policy> {
-  using type = __gpu_backend_tag;
-};
-#    else
 template <>
 struct __select_backend<std::execution::parallel_unsequenced_policy> {
   using type = __cpu_backend_tag;
 };
+
+#  elif defined(_LIBCPP_PSTL_BACKEND_OPENMP)
+
+template <>
+struct __select_backend<std::execution::sequenced_policy> {
+  using type = __omp_backend_tag;
+};
+
+#    if _LIBCPP_STD_VER >= 20
+template <>
+struct __select_backend<std::execution::unsequenced_policy> {
+  using type = __omp_backend_tag;
+};
 #    endif
+
+template <>
+struct __select_backend<std::execution::parallel_policy> {
+  using type = __omp_backend_tag;
+};
+
+template <>
+struct __select_backend<std::execution::parallel_unsequenced_policy> {
+  using type = __omp_backend_tag;
+};
 
 #  else
 

@@ -294,19 +294,14 @@ option(LIBCXX_HAS_WIN32_THREAD_API "Ignore auto-detection and force use of win32
 option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
-option(LIBCXX_ENABLE_GPU_OFFLOAD 
-  "Build libc++ with support for GPU offload" OFF)
 
-if (LIBCXX_ENABLE_THREADS)
-  set(LIBCXX_PSTL_CPU_BACKEND "std_thread" CACHE STRING "Which PSTL CPU backend to use")
-else()
-  set(LIBCXX_PSTL_CPU_BACKEND "serial" CACHE STRING "Which PSTL CPU backend to use")
-endif()
-
-if (${LIBCXX_ENABLE_GPU_OFFLOAD})
-  set(LIBCXX_PSTL_GPU_BACKEND "omp_offload" CACHE STRING "Which PSTL GPU backend to use")
-else()
-  set(LIBCXX_PSTL_GPU_BACKEND "none" CACHE STRING "Which PSTL GPU backend to use")
+set(LIBCXX_PSTL_BACKEND "openmp" CACHE INTERNAL "Which PSTL backend to use")
+if (LIBCXX_PSTL_BACKEND STREQUAL "")
+  if (LIBCXX_ENABLE_THREADS)
+    set(LIBCXX_PSTL_BACKEND "std-thread")
+  else()
+    set(LIBCXX_PSTL_BACKEND "serial")
+  endif()
 endif()
 
 # Misc options ----------------------------------------------------------------
@@ -779,20 +774,17 @@ elseif (LIBCXX_HARDENING_MODE STREQUAL "unchecked")
   config_define(0 _LIBCPP_ENABLE_DEBUG_MODE_DEFAULT)
 endif()
 
-if (LIBCXX_PSTL_CPU_BACKEND STREQUAL "serial")
+if (LIBCXX_PSTL_BACKEND STREQUAL "serial")
   config_define(1 _LIBCPP_PSTL_CPU_BACKEND_SERIAL)
-elseif(LIBCXX_PSTL_CPU_BACKEND STREQUAL "std_thread")
+elseif (LIBCXX_PSTL_BACKEND STREQUAL "std-thread")
   config_define(1 _LIBCPP_PSTL_CPU_BACKEND_THREAD)
-elseif(LIBCXX_PSTL_CPU_BACKEND STREQUAL "libdispatch")
+elseif (LIBCXX_PSTL_BACKEND STREQUAL "libdispatch")
   config_define(1 _LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
+elseif (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
+  config_define(1 _LIBCPP_PSTL_BACKEND_OPENMP)
 else()
-  message(FATAL_ERROR "LIBCXX_PSTL_CPU_BACKEND is set to ${LIBCXX_PSTL_CPU_BACKEND}, which is not a valid backend.
-                       Valid backends are: serial, std_thread and libdispatch")
-endif()
-
-config_define_if(LIBCXX_ENABLE_GPU_OFFLOAD _LIBCPP_PSTL_GPU_OFFLOAD)
-if (LIBCXX_PSTL_GPU_BACKEND STREQUAL "omp_offload")
-  config_define(1 _LIBCPP_PSTL_GPU_BACKEND_OMP_OFFLOAD)
+  message(FATAL_ERROR "LIBCXX_PSTL_BACKEND is set to ${LIBCXX_PSTL_BACKEND}, which is not a valid backend.
+                       Valid backends are: serial, std-thread, libdispatch, and openmp.")
 endif()
 
 if (LIBCXX_ABI_DEFINES)

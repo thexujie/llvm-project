@@ -6,11 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_REDUCE_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_REDUCE_H
+#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H
+#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H
 
-#include <__algorithm/pstl_backends/cpu_backends/backend.h>
-#include <__algorithm/pstl_backends/gpu_backends/backend.h>
+#include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__functional/operations.h>
 #include <__iterator/concepts.h>
@@ -62,7 +61,7 @@ template <class _ExecutionPolicy,
           class _BinaryOperation1,
           class _BinaryOperation2>
 _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
-    __gpu_backend_tag,
+    __omp_backend_tag,
     _ForwardIterator1 __first1,
     _ForwardIterator1 __last1,
     _ForwardIterator2 __first2,
@@ -82,8 +81,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     return std::__par_backend::__parallel_for_simd_reduction_2(
         __first1, __first2, __last1 - __first1, __init, __reduce, __transform);
   }
-  return std::__pstl_transform_reduce<_ExecutionPolicy>(
-      __cpu_backend_tag{}, __first1, __last1, __first2, std::move(__init), __reduce, __transform);
+  return std::transform_reduce(__first1, __last1, __first2, std::move(__init), __reduce, __transform);
 }
 
 //===----------------------------------------------------------------------===//
@@ -92,7 +90,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp, class _BinaryOperation, class _UnaryOperation>
 _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
-    __gpu_backend_tag,
+    __omp_backend_tag,
     _ForwardIterator __first,
     _ForwardIterator __last,
     _Tp __init,
@@ -101,20 +99,17 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
   // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
-#  if _LIBCPP_STD_VER <= 17
-                __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
-#  endif
                 (__is_trivial_plus_operation<_BinaryOperation, _Tp, _Tp>::value ||
                  __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value)) {
     return std::__par_backend::__parallel_for_simd_reduction_1(
         __first, __last - __first, __init, __reduce, __transform);
   }
-  return std::__pstl_transform_reduce<_ExecutionPolicy>(
-      __cpu_backend_tag{}, __first, __last, std::move(__init), __reduce, __transform);
+  // If it is not safe to offload to the GPU, we call the serial implementation
+  return std::transform_reduce(__first, __last, std::move(__init), __reduce, __transform);
 }
 
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_REDUCE_H
+#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H

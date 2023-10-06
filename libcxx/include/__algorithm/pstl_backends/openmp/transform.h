@@ -6,11 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_H
+#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_H
+#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_H
 
-#include <__algorithm/pstl_backends/cpu_backends/backend.h>
-#include <__algorithm/pstl_backends/gpu_backends/backend.h>
+#include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__algorithm/transform.h>
 #include <__config>
 #include <__iterator/concepts.h>
@@ -30,7 +29,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _ForwardOutIterator, class _UnaryOperation>
 _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
-    __gpu_backend_tag,
+    __omp_backend_tag,
     _ForwardIterator __first,
     _ForwardIterator __last,
     _ForwardOutIterator __result,
@@ -46,8 +45,8 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
     std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
     return __result + (__last - __first);
   }
-  // If it is not safe to offload to the GPU, we rely on the CPU backend.
-  return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __result, __op);
+  // If it is not safe to offload to the GPU, we rely on the serial backend.
+  return std::transform(__first, __last, __result, __op);
 }
 
 template <class _ExecutionPolicy,
@@ -57,7 +56,7 @@ template <class _ExecutionPolicy,
           class _BinaryOperation,
           enable_if_t<is_execution_policy_v<__remove_cvref_t<_ExecutionPolicy>>, int> = 0>
 _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
-    __gpu_backend_tag,
+    __omp_backend_tag,
     _ForwardIterator1 __first1,
     _ForwardIterator1 __last1,
     _ForwardIterator2 __first2,
@@ -68,20 +67,16 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
-#  if _LIBCPP_STD_VER <= 17
-                __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
-#  endif
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
     return __result + (__last1 - __first1);
   }
-  // If it is not safe to offload to the GPU, we rely on the CPU backend.
-  return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first1, __last1, __first2, __result, __op);
+  // If it is not safe to offload to the GPU, we call the serial implementation
+  return std::transform(__first1, __last1, __first2, __result, __op);
 }
 
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_TRANSFORM_H
+#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_H

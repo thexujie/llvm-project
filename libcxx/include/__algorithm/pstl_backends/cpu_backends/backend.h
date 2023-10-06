@@ -18,6 +18,8 @@
 #  include <__algorithm/pstl_backends/cpu_backends/thread.h>
 #elif defined(_LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
 #  include <__algorithm/pstl_backends/cpu_backends/libdispatch.h>
+#elif defined(_LIBCPP_PSTL_BACKEND_OPENMP)
+// OpenMP covers both CPU and GPU backends
 #else
 #  error "Invalid CPU backend choice"
 #endif

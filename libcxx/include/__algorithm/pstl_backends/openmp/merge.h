@@ -6,12 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_MERGE_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_MERGE_H
+#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_MERGE_H
+#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_MERGE_H
 
 #include <__algorithm/merge.h>
-#include <__algorithm/pstl_backends/cpu_backends/backend.h>
-#include <__algorithm/pstl_backends/gpu_backends/backend.h>
+#include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__iterator/concepts.h>
 #include <__type_traits/is_execution_policy.h>
@@ -32,7 +31,7 @@ template <class _ExecutionPolicy,
           class _ForwardOutIterator,
           class _Comp>
 _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_merge(
-    __gpu_backend_tag,
+    __omp_backend_tag,
     _ForwardIterator1 __first1,
     _ForwardIterator1 __last1,
     _ForwardIterator2 __first2,
@@ -40,12 +39,11 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_merge(
     _ForwardOutIterator __result,
     _Comp __comp) {
   // TODO: Implement GPU backend
-  return std::__pstl_merge<_ExecutionPolicy>(
-      __cpu_backend_tag{}, __first1, __last1, __first2, __last2, __result, __comp);
+  return std::merge(__first1, __last1, __first2, __last2, __result, __comp);
 }
 
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKENDS_MERGE_H
+#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_MERGE_H
