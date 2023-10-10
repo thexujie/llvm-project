@@ -12,17 +12,12 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
-#include <__functional/operations.h>
 #include <__iterator/concepts.h>
-#include <__iterator/iterator_traits.h>
 #include <__numeric/transform_reduce.h>
 #include <__type_traits/integral_constant.h>
 #include <__type_traits/is_arithmetic.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/operation_traits.h>
-#include <__utility/move.h>
-#include <__utility/terminate_on_exception.h>
-#include <new>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -33,13 +28,13 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _T1, class _T2, class _T3>
-struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction : std::false_type {};
+struct __is_supported_reduction : std::false_type {};
 
 #  define __PSTL_IS_SUPPORTED_REDUCTION(funname)                                                                       \
     template <class _Tp>                                                                                               \
-    struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};            \
+    struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};                                  \
     template <class _Tp, class _Up>                                                                                    \
-    struct _LIBCPP_HIDE_FROM_ABI __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
+    struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
 
 // __is_trivial_plus_operation already exists
 __PSTL_IS_SUPPORTED_REDUCTION(plus)
@@ -73,8 +68,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
-                (__is_trivial_plus_operation<_BinaryOperation1, _Tp, _Tp>::value ||
-                 __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value)) {
+                __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value) {
     return std::__par_backend::__parallel_for_simd_reduction_2(
         __first1, __first2, __last1 - __first1, __init, __reduce, __transform);
   }
@@ -97,8 +91,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
   // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
-                (__is_trivial_plus_operation<_BinaryOperation, _Tp, _Tp>::value ||
-                 __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value)) {
+                __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value) {
     return std::__par_backend::__parallel_for_simd_reduction_1(
         __first, __last - __first, __init, __reduce, __transform);
   }

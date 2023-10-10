@@ -14,11 +14,7 @@
 #include <__algorithm/transform.h>
 #include <__config>
 #include <__iterator/concepts.h>
-#include <__iterator/iterator_traits.h>
-#include <__type_traits/enable_if.h>
 #include <__type_traits/is_execution_policy.h>
-#include <__type_traits/remove_cvref.h>
-#include <__utility/terminate_on_exception.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -38,7 +34,6 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
   // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     std::__par_backend::__parallel_for_simd_2(__first, __last - __first, __result, __op);
     return __result + (__last - __first);
@@ -64,7 +59,6 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_transform(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
                 __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardOutIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
     std::__par_backend::__parallel_for_simd_3(__first1, __last1 - __first1, __first2, __result, __op);
     return __result + (__last1 - __first1);

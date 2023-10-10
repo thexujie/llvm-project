@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_H
+#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_H
+#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_H
 
 #include <__config>
 
@@ -22,4 +22,4 @@
 #include <__algorithm/pstl_backends/openmp/transform.h>
 #include <__algorithm/pstl_backends/openmp/transform_reduce.h>
 
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_GPU_BACKEND_H
+#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_H
