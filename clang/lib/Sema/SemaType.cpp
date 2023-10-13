@@ -8642,6 +8642,31 @@ static void HandleAnnotateTypeAttr(TypeProcessingState &State,
   CurType = State.getAttributedType(AnnotateTypeAttr, CurType, CurType);
 }
 
+static void HandleRequiresCapabilityAttr(TypeProcessingState &State,
+                                         QualType &CurType,
+                                         const ParsedAttr &PA) {
+  Sema &S = State.getSema();
+
+  if (PA.getNumArgs() < 1) {
+    S.Diag(PA.getLoc(), diag::err_attribute_too_few_arguments) << PA << 1;
+    return;
+  }
+
+  // FIXME: We need to sanity check the arguments here I think? Like we do in
+  // SemaDeclAtr.cpp.
+
+  llvm::SmallVector<Expr *, 4> Args;
+  Args.reserve(PA.getNumArgs() - 1);
+  for (unsigned Idx = 1; Idx < PA.getNumArgs(); Idx++) {
+    assert(!PA.isArgIdent(Idx));
+    Args.push_back(PA.getArgAsExpr(Idx));
+  }
+
+  auto *RCAttr =
+      RequiresCapabilityAttr::Create(S.Context, Args.data(), Args.size(), PA);
+  CurType = State.getAttributedType(RCAttr, CurType, CurType);
+}
+
 static void HandleLifetimeBoundAttr(TypeProcessingState &State,
                                     QualType &CurType,
                                     ParsedAttr &Attr) {
@@ -8935,6 +8960,11 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     }
     case ParsedAttr::AT_AnnotateType: {
       HandleAnnotateTypeAttr(state, type, attr);
+      attr.setUsedAsTypeAttr();
+      break;
+    }
+    case ParsedAttr::AT_RequiresCapability: {
+      HandleRequiresCapabilityAttr(state, type, attr);
       attr.setUsedAsTypeAttr();
       break;
     }
