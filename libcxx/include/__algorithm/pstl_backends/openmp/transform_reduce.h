@@ -18,6 +18,7 @@
 #include <__type_traits/is_arithmetic.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/operation_traits.h>
+#include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -56,7 +57,7 @@ template <class _ExecutionPolicy,
           class _Tp,
           class _BinaryOperation1,
           class _BinaryOperation2>
-_LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
+_LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
     __omp_backend_tag,
     _ForwardIterator1 __first1,
     _ForwardIterator1 __last1,
@@ -66,8 +67,10 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
     _BinaryOperation2 __transform) {
   // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator1>::value &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
+                __is_parallel_execution_policy_v<_ExecutionPolicy> &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator2>::value && 
+                is_arithmetic_v<_Tp> &&
                 __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value) {
     return std::__par_backend::__parallel_for_simd_reduction_2(
         __first1, __first2, __last1 - __first1, __init, __reduce, __transform);
@@ -81,16 +84,17 @@ _LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
 //===----------------------------------------------------------------------===//
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp, class _BinaryOperation, class _UnaryOperation>
-_LIBCPP_HIDE_FROM_ABI _Tp __pstl_transform_reduce(
+_LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
     __omp_backend_tag,
     _ForwardIterator __first,
     _ForwardIterator __last,
     _Tp __init,
     _BinaryOperation __reduce,
     _UnaryOperation __transform) {
-  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
-                __has_random_access_iterator_category_or_concept<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
+                __is_parallel_execution_policy_v<_ExecutionPolicy> &&
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value && 
+                is_arithmetic_v<_Tp> &&
                 __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value) {
     return std::__par_backend::__parallel_for_simd_reduction_1(
         __first, __last - __first, __init, __reduce, __transform);

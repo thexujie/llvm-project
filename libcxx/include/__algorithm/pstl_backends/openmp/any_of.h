@@ -14,13 +14,14 @@
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
 #include <__type_traits/is_execution_policy.h>
+#include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
-_LIBCPP_HIDE_FROM_ABI bool
+_LIBCPP_HIDE_FROM_ABI optional<bool>
 __pstl_any_of(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) {
   // TODO: Implement GPU backend
   return std::__pstl_any_of<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __pred);

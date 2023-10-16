@@ -13,6 +13,7 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
+#include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -27,7 +28,7 @@ template <class _ExecutionPolicy,
           class _ForwardIterator2,
           class _ForwardOutIterator,
           class _Comp>
-_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator __pstl_merge(
+_LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_merge(
     __omp_backend_tag,
     _ForwardIterator1 __first1,
     _ForwardIterator1 __last1,

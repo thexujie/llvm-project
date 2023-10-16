@@ -13,6 +13,8 @@
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__algorithm/stable_sort.h>
 #include <__config>
+#include <__utility/empty.h>
+#include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -23,10 +25,10 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _ExecutionPolicy, class _RandomAccessIterator, class _Comp>
-_LIBCPP_HIDE_FROM_ABI void
+_LIBCPP_HIDE_FROM_ABI optional<__empty>
 __pstl_stable_sort(__omp_backend_tag, _RandomAccessIterator __first, _RandomAccessIterator __last, _Comp __comp) {
   // TODO: Implement GPU backend.
-  __pstl_stable_sort<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __comp);
+  return __pstl_stable_sort<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __comp);
 }
 
 _LIBCPP_END_NAMESPACE_STD
