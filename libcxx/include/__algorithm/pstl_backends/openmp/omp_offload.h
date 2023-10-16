@@ -9,8 +9,8 @@
 #ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_OMP_OFFLOAD_H
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_OMP_OFFLOAD_H
 
-#include <__assert>
 #include <__algorithm/unwrap_iter.h>
+#include <__assert>
 #include <__config>
 #include <__functional/operations.h>
 #include <__iterator/iterator_traits.h>
@@ -19,8 +19,8 @@
 #include <__memory/pointer_traits.h>
 #include <__type_traits/is_pointer.h>
 #include <__type_traits/is_same.h>
-#include <__utility/move.h>
 #include <__utility/empty.h>
+#include <__utility/move.h>
 #include <cstddef>
 #include <optional>
 
@@ -70,28 +70,28 @@ template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_to([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#pragma omp target enter data map(to : p[0 : len])
+#  pragma omp target enter data map(to : p[0 : len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_from([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#pragma omp target exit data map(from : p[0 : len])
+#  pragma omp target exit data map(from : p[0 : len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_alloc([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#pragma omp target enter data map(alloc : p[0 : len])
+#  pragma omp target enter data map(alloc : p[0 : len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_free([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#pragma omp target exit data map(release : p[0 : len])
+#  pragma omp target exit data map(release : p[0 : len])
 }
 
 //===----------------------------------------------------------------------===//
@@ -112,12 +112,12 @@ __omp_map_free([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _Diffe
         _DifferenceType __n,                                                                                           \
         _Tp __init,                                                                                                    \
         std_op<_BinaryOperationType> __reduce,                                                                         \
-        _UnaryOperation __transform) noexcept {                                                                         \
-      __omp_gpu_backend::__omp_map_to(__first, __n);                                                                                      \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                    \
+        _UnaryOperation __transform) noexcept {                                                                        \
+      __omp_gpu_backend::__omp_map_to(__first, __n);                                                                   \
+_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first + __i)));                                                      \
-      __omp_gpu_backend::__omp_map_free(__first, __n);                                                                                    \
+      __omp_gpu_backend::__omp_map_free(__first, __n);                                                                 \
       return __init;                                                                                                   \
     }
 
@@ -134,14 +134,14 @@ _PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__in
         _DifferenceType __n,                                                                                           \
         _Tp __init,                                                                                                    \
         std_op<_BinaryOperationType> __reduce,                                                                         \
-        _UnaryOperation __transform) noexcept {                                                                         \
-      __omp_gpu_backend::__omp_map_to(__first1, __n);                                                                                     \
-      __omp_gpu_backend::__omp_map_to(__first2, __n);                                                                                     \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                    \
+        _UnaryOperation __transform) noexcept {                                                                        \
+      __omp_gpu_backend::__omp_map_to(__first1, __n);                                                                  \
+      __omp_gpu_backend::__omp_map_to(__first2, __n);                                                                  \
+_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first1 + __i), *(__first2 + __i)));                                  \
-      __omp_gpu_backend::__omp_map_free(__first1, __n);                                                                                   \
-      __omp_gpu_backend::__omp_map_free(__first2, __n);                                                                                   \
+      __omp_gpu_backend::__omp_map_free(__first1, __n);                                                                \
+      __omp_gpu_backend::__omp_map_free(__first2, __n);                                                                \
       return __init;                                                                                                   \
     } // namespace __omp_gpu_backend
 

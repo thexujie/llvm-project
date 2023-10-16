@@ -27,12 +27,13 @@ namespace __par_backend {
 inline namespace __omp_gpu_backend {
 
 template <class _Tp, class _DifferenceType, class _Predicate>
-_LIBCPP_HIDE_FROM_ABI _DifferenceType  __omp_parallel_for_min_idx(_Tp* __first, _DifferenceType __n, _Predicate __pred) noexcept {
+_LIBCPP_HIDE_FROM_ABI _DifferenceType
+__omp_parallel_for_min_idx(_Tp* __first, _DifferenceType __n, _Predicate __pred) noexcept {
   __omp_gpu_backend::__omp_map_to(__first, __n);
   _DifferenceType idx = __n;
-#  pragma omp target teams distribute parallel for simd reduction(min:idx)
-  for (_DifferenceType __i = 0; __i < __n; ++__i){
-    if (__pred(*(__first+__i))) {
+#  pragma omp target teams distribute parallel for simd reduction(min : idx)
+  for (_DifferenceType __i = 0; __i < __n; ++__i) {
+    if (__pred(*(__first + __i))) {
       idx = (__i < idx) ? __i : idx;
     }
   }
@@ -43,12 +44,14 @@ _LIBCPP_HIDE_FROM_ABI _DifferenceType  __omp_parallel_for_min_idx(_Tp* __first, 
 // Extracting the underlying pointer
 
 template <class _ForwardIterator, class _DifferenceType, class _Predicate>
-_LIBCPP_HIDE_FROM_ABI optional<_ForwardIterator> __parallel_for_min_idx(_ForwardIterator __first, _DifferenceType __n, _Predicate __pred) noexcept {
-  return __first + __omp_gpu_backend::__omp_parallel_for_min_idx(__omp_gpu_backend::__omp_extract_base_ptr(__first), __n, __pred);
+_LIBCPP_HIDE_FROM_ABI optional<_ForwardIterator>
+__parallel_for_min_idx(_ForwardIterator __first, _DifferenceType __n, _Predicate __pred) noexcept {
+  return __first +
+         __omp_gpu_backend::__omp_parallel_for_min_idx(__omp_gpu_backend::__omp_extract_base_ptr(__first), __n, __pred);
 }
 
-}
-}
+} // namespace __omp_gpu_backend
+} // namespace __par_backend
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
 _LIBCPP_HIDE_FROM_ABI optional<_ForwardIterator>

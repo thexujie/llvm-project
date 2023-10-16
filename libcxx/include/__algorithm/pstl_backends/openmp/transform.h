@@ -33,11 +33,8 @@ inline namespace __omp_gpu_backend {
 //===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty> __omp_parallel_for_simd(
-    _Tp* __first1,
-    _DifferenceType __n,
-    _Up* __first2,
-    _Function __f) noexcept {
+_LIBCPP_HIDE_FROM_ABI optional<__empty>
+__omp_parallel_for_simd(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Function __f) noexcept {
   __omp_gpu_backend::__omp_map_alloc(__first2, __n);
   __omp_gpu_backend::__omp_map_to(__first1, __n);
 #  pragma omp target teams distribute parallel for simd
@@ -65,12 +62,8 @@ __parallel_for_simd(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first
 //===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Vp, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty> __omp_parallel_for_simd(
-    _Tp* __first1,
-    _DifferenceType __n,
-    _Up* __first2,
-    _Vp* __first3,
-    _Function __f) noexcept {
+_LIBCPP_HIDE_FROM_ABI optional<__empty>
+__omp_parallel_for_simd(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Vp* __first3, _Function __f) noexcept {
   __omp_gpu_backend::__omp_map_to(__first1, __n);
   __omp_gpu_backend::__omp_map_to(__first2, __n);
   __omp_gpu_backend::__omp_map_alloc(__first3, __n);
@@ -96,8 +89,8 @@ _LIBCPP_HIDE_FROM_ABI optional<__empty> __parallel_for_simd(
       __f);
 }
 
-}
-}
+} // namespace __omp_gpu_backend
+} // namespace __par_backend
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _ForwardOutIterator, class _UnaryOperation>
 _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
