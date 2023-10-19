@@ -13,7 +13,9 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
+#include <__iterator/wrap_iter.h>
 #include <__type_traits/is_execution_policy.h>
+#include <__type_traits/remove_pointer.h>
 #include <__utility/empty.h>
 #include <optional>
 
@@ -25,30 +27,6 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-namespace __par_backend {
-inline namespace __omp_gpu_backend {
-
-template <class _Tp, class _DifferenceType, class _Up>
-_LIBCPP_HIDE_FROM_ABI optional<__empty>
-__omp_parallel_for_simd_val(_Tp* __first, _DifferenceType __n, const _Up& __value) noexcept {
-  __omp_gpu_backend::__omp_map_alloc(__first, __n);
-#  pragma omp target teams distribute parallel for simd firstprivate(__value)
-  for (_DifferenceType __i = 0; __i < __n; ++__i)
-    *(__first + __i) = __value;
-  __omp_gpu_backend::__omp_map_from(__first, __n);
-  return __empty{};
-}
-
-template <class _ForwardIterator, class _DifferenceType, class _Tp>
-_LIBCPP_HIDE_FROM_ABI optional<__empty>
-__parallel_for_simd_val(_ForwardIterator __first, _DifferenceType __n, const _Tp& __value) noexcept {
-  return __omp_gpu_backend::__omp_parallel_for_simd_val(
-      __omp_gpu_backend::__omp_extract_base_ptr(__first), __n, __value);
-}
-
-} // namespace __omp_gpu_backend
-} // namespace __par_backend
-
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
 __pstl_fill(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value) {
@@ -58,7 +36,10 @@ __pstl_fill(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    return std::__par_backend::__parallel_for_simd_val(__first, __last - __first, __value);
+    std::__rewrap_iter(__first, __par_backend::__omp_for_each(std::__unwrap_iter(__first), __last - __first, [&](std::remove_pointer_t<decltype(std::__unwrap_iter(__first))>& e) {
+          e = __value;
+        }));
+    return __empty{};
   }
   // Otherwise, we execute fill on the CPU instead
   else {

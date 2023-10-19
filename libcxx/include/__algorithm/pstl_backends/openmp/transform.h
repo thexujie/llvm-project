@@ -14,6 +14,7 @@
 #include <__algorithm/transform.h>
 #include <__config>
 #include <__iterator/concepts.h>
+#include <__iterator/wrap_iter.h>
 #include <__type_traits/is_execution_policy.h>
 #include <optional>
 
@@ -25,72 +26,38 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-namespace __par_backend {
-inline namespace __omp_gpu_backend {
-
 //===----------------------------------------------------------------------===//
-// Templates for two iterators
+// OpenMP implementations of transform for one and two input iterators and one
+// output iterator
 //===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Function>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
-__omp_parallel_for_simd(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Function __f) noexcept {
-  __omp_gpu_backend::__omp_map_alloc(__first2, __n);
-  __omp_gpu_backend::__omp_map_to(__first1, __n);
+__omp_transform(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Function __f) noexcept {
+  __par_backend::__omp_map_alloc(__first2, __n);
+  __par_backend::__omp_map_to(__first1, __n);
 #  pragma omp target teams distribute parallel for simd
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     *(__first2 + __i) = __f(*(__first1 + __i));
-  __omp_gpu_backend::__omp_map_from(__first2, __n);
-  __omp_gpu_backend::__omp_map_free(__first1, __n);
+  __par_backend::__omp_map_from(__first2, __n);
+  __par_backend::__omp_map_free(__first1, __n);
   return __empty{};
 }
-
-// Extracting the underlying pointer
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty>
-__parallel_for_simd(_Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Function __f) noexcept {
-  return __omp_gpu_backend::__omp_parallel_for_simd(
-      __omp_gpu_backend::__omp_extract_base_ptr(__first1),
-      __n,
-      __omp_gpu_backend::__omp_extract_base_ptr(__first2),
-      __f);
-}
-
-//===----------------------------------------------------------------------===//
-// Templates for three iterator
-//===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Vp, class _Function>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
-__omp_parallel_for_simd(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Vp* __first3, _Function __f) noexcept {
-  __omp_gpu_backend::__omp_map_to(__first1, __n);
-  __omp_gpu_backend::__omp_map_to(__first2, __n);
-  __omp_gpu_backend::__omp_map_alloc(__first3, __n);
+__omp_transform(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Vp* __first3, _Function __f) noexcept {
+  __par_backend::__omp_map_to(__first1, __n);
+  __par_backend::__omp_map_to(__first2, __n);
+  __par_backend::__omp_map_alloc(__first3, __n);
 #  pragma omp target teams distribute parallel for simd
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     *(__first3 + __i) = __f(*(__first1 + __i), *(__first2 + __i));
-  __omp_gpu_backend::__omp_map_free(__first1, __n);
-  __omp_gpu_backend::__omp_map_free(__first2, __n);
-  __omp_gpu_backend::__omp_map_from(__first3, __n);
+  __par_backend::__omp_map_free(__first1, __n);
+  __par_backend::__omp_map_free(__first2, __n);
+  __par_backend::__omp_map_from(__first3, __n);
   return __empty{};
 }
-
-// Extracting the underlying pointer
-
-template <class _Iterator1, class _DifferenceType, class _Iterator2, class _Iterator3, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty> __parallel_for_simd(
-    _Iterator1 __first1, _DifferenceType __n, _Iterator2 __first2, _Iterator3 __first3, _Function __f) noexcept {
-  return __omp_gpu_backend::__omp_parallel_for_simd(
-      __omp_gpu_backend::__omp_extract_base_ptr(__first1),
-      __n,
-      __omp_gpu_backend::__omp_extract_base_ptr(__first2),
-      __omp_gpu_backend::__omp_extract_base_ptr(__first3),
-      __f);
-}
-
-} // namespace __omp_gpu_backend
-} // namespace __par_backend
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _ForwardOutIterator, class _UnaryOperation>
 _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
@@ -103,7 +70,7 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__par_backend::__parallel_for_simd(__first, __last - __first, __result, __op);
+    std::__omp_transform(std::__unwrap_iter(__first), __last - __first, std::__unwrap_iter(__result), __op);
     return __result + (__last - __first);
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
@@ -128,7 +95,7 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__par_backend::__parallel_for_simd(__first1, __last1 - __first1, __first2, __result, __op);
+    std::__omp_transform(std::__unwrap_iter(__first1), __last1 - __first1, std::__unwrap_iter(__first2), std::__unwrap_iter(__result), __op);
     return __result + (__last1 - __first1);
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.

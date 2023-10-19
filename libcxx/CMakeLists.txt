@@ -295,14 +295,13 @@ option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
 
-set(LIBCXX_PSTL_BACKEND "openmp" CACHE INTERNAL "Which PSTL backend to use")
-if (LIBCXX_PSTL_BACKEND STREQUAL "")
-  if (LIBCXX_ENABLE_THREADS)
-    set(LIBCXX_PSTL_BACKEND "std-thread")
-  else()
-    set(LIBCXX_PSTL_BACKEND "serial")
-  endif()
+if (LIBCXX_ENABLE_THREADS)
+  set(LIBCXX_PSTL_BACKEND_DEFAULT "std-thread")
+else()
+  set(LIBCXX_PSTL_BACKEND_DEFAULT "serial")
 endif()
+
+set(LIBCXX_PSTL_BACKEND "${LIBCXX_PSTL_BACKEND_DEFAULT}" CACHE STRING "Select the PSTL backend to use. Valid values are serial, std-thread, libdispatch, openmp. Default: ${LIBCXX_PSTL_BACKEND_DEFAULT}")
 
 # Misc options ----------------------------------------------------------------
 # FIXME: Turn -pedantic back ON. It is currently off because it warns
