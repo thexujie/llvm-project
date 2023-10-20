@@ -408,6 +408,17 @@ libc++ Feature Options
   Use the specified GCC toolchain and standard library when building the native
   stdlib benchmark tests.
 
+.. option:: LIBCXX_PSTL_BACKEND:STRING
+
+  **Default**:: ``"serial"``
+
+  **Values**:: ``serial``, ``std-thread``, ``libdispatch``, ``openmp``
+
+  Select the desired backend for C++ parallel algorithms. All four options can
+  target multi-core CPU architectures, and ``openmp`` can additionally target
+  GPU architectures. The ``openmp`` backend requires OpenMP version 4.5 or
+  later.
+
 
 libc++ ABI Feature Options
 --------------------------

@@ -466,6 +466,113 @@ Unpoisoning may not be an option, if (for example) you are not maintaining the a
 * You are using allocator, which does not call destructor during deallocation.
 * You are aware that memory allocated with an allocator may be accessed, even when unused by container.
 
+Offloading C++ Parallel Algorithms to GPUs
+------------------------------------------
+
+Experimental support for GPU offloading has been added to ``libc++``. The
+implementation uses OpenMP target offloading to leverage GPU compute resources.
+The OpenMP PSTL backend can target both NVIDIA and AMD GPUs.
+However, the implementation only supports contiguous iterators, such as 
+iterators for ``std::vector`` or ``std::array``.
+To enable the OpenMP offloading backend it must be selected with
+``LIBCXX_PSTL_BACKEND=openmp`` when installing ``libc++``. Further, when
+compiling a program, the user must specify the command line options
+``-fopenmp -fexperimental-library -stdlib=libc++``. To install LLVM with OpenMP
+offloading enabled, please read
+`the LLVM OpenMP FAQ. <https://openmp.llvm.org/SupportAndFAQ.html>`_ 
+You may also want to to visit
+`the OpenMP offloading command-line argument reference. <https://openmp.llvm.org/CommandLineArgumentReference.html#offload-command-line-arguments>`_ 
+
+Example
+~~~~~~~
+
+The following is an example of offloading vector addition to a GPU using our
+standard library extension.
+
+.. code-block:: cpp
+
+  #include <algorithm>
+  #include <execution>
+
+  template<typename T1, typename T2, typename T3>
+  void axpy(const T1 a,std::vector<T2>& x, std::vector<T3>& y)
+  {
+    std::transform(std::execution::par_unseq,x.begin(),x.end(), y.begin(), y.begin(),
+                  [=](T2 xi, T3 yi){ return a*xi + yi; });
+  }
+
+The execution policy ``std::execution::par_unseq`` states that the algorithm's
+execution may be parallelized, vectorized, and migrated across threads. This is
+the only execution mode that is safe to offload to GPUs, and for all other
+execution modes the algorithms will execute on the CPU.
+Special attention must be paid to the lambda captures when enabling GPU
+offloading. If the lambda captures by reference, the user must manually map the
+variables to the device. If capturing by reference, the above example could
+be implemented in the following way.
+
+.. code-block:: cpp
+
+  template<typename T1, typename T2, typename T3>
+  void axpy(const T1 a,std::vector<T2>& x, std::vector<T3>& y)
+  {
+  # pragma omp target data map(to:a)
+    std::transform(std::execution::par_unseq,x.begin(),x.end(), y.begin(), y.begin(),
+                  [&](T2 xi, T3 yi){ return a*xi + yi; });
+  }
+
+However, if unified shared memory, USM, is enabled, no additional data mapping
+is necessary when capturing y reference.
+
+Compiling functions for GPUs with OpenMP
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The C++ standard defines that all accesses to memory are inside a single address
+space. However, discrete GPU systems have distinct address spaces. A single
+address space can be emulated if your system supports unified shared memory.
+However, many discrete GPU systems do not, and in those cases it is important to
+pass device function pointers to the parallel algorithms. Below is an example of
+how the OpenMP `declare target` directive can be used to mark that a function
+should be compiled for both host and device. The device address of a function
+pointer can be obtained with `target map(from:<list of identifiers>)`.
+
+.. code-block:: cpp
+
+  // Declare that the function must be compiled for both host and device
+  #pragma omp declare target
+  void cube(int& n) {n*=n*n; };
+  #pragma omp end declare target
+
+  int main()
+  {
+    int * a =  new int[LEN];
+    // Initialize the array to 2 on the device
+    std::fill(std::execution::par_unseq,a, a+LEN,2);
+    // Get the device pointer for cube
+    void (*dcube)(int& n);
+    #pragma omp target map(from:dcube)
+    dcube = &cube;
+    // Pass the device function pointer to the parallel algorithm
+    std::for_each(std::execution::par_unseq,a, a+LEN,dcube);
+    // Validate that the result is 8 on the host for all array indices
+    std::for_each(std::execution::par,a, a+LEN,[&](int & n){
+      assert(n == 8);
+    });
+    delete[] a;
+    return 0;
+  }
+
+Without unified shared memory, the above example will not work if the host
+function pointer `cube` is passed to the parallel algorithm.
+
+Important notes about exception handling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+GPU architectures do not support exception handling. If compiling a program
+containing parallel algorithms with ``clang`` 18 or newer, a program with
+exceptions in offloaded code regions will compile, but the program will
+terminate if an exception is thrown on the device. This does not conform with
+the C++ standard and exception handling on GPUs will hopefully be better
+supported in future releases of LLVM.
+
 Platform specific behavior
 ==========================
 
