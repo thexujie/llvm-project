@@ -49,6 +49,7 @@ struct TrieContent final : public TrieNode {
 
   static bool classof(const TrieNode *TN) { return !TN->IsSubtrie; }
 };
+
 static_assert(sizeof(TrieContent) ==
                   ThreadSafeTrieRawHashMapBase::TrieContentBaseSize,
               "Check header assumption!");
@@ -165,7 +166,7 @@ struct ThreadSafeTrieRawHashMapBase::ImplType {
     while (!Root.Next.compare_exchange_weak(CurrentHead, S.get()))
       S->Next.exchange(CurrentHead);
 
-    // Ownership transferred to subtrie.
+    // Ownership transferred to subtrie successfully. Release the unique_ptr.
     return S.release();
   }
 
@@ -191,9 +192,13 @@ ThreadSafeTrieRawHashMapBase::getOrCreateImpl() {
   // If another thread wins this one is destroyed locally.
   std::unique_ptr<ImplType> Impl = ImplType::create(0, NumRootBits);
   ImplType *ExistingImpl = nullptr;
+
+  // If the ownership transferred succesfully, release unique_ptr and return
+  // the pointer to the new ImplType.
   if (ImplPtr.compare_exchange_strong(ExistingImpl, Impl.get()))
     return *Impl.release();
 
+  // Already created, return the existing ImplType.
   return *ExistingImpl;
 }
 

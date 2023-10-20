@@ -41,7 +41,6 @@ struct IndexGenerator {
   }
 
   size_t hint(unsigned Index, unsigned Bit) {
-    assert(Index >= 0);
     assert(Bit < Bytes.size() * 8);
     assert(Bit == 0 || (Bit - NumRootBits) % NumSubtrieBits == 0);
     StartBit = Bit;

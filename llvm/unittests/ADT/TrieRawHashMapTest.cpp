@@ -49,7 +49,7 @@ private:
 } // namespace llvm
 
 namespace {
-template <typename DataType, size_t HashSize>
+template <typename DataType, size_t HashSize = sizeof(uint64_t)>
 class SimpleTrieHashMapTest : public TrieRawHashMapTestHelper,
                               public ::testing::Test {
 public:
@@ -64,11 +64,7 @@ public:
   }
 
   void destroyTrie() { Trie.reset(); }
-
-  ~SimpleTrieHashMapTest() {
-    if (Trie)
-      Trie.reset();
-  }
+  ~SimpleTrieHashMapTest() { destroyTrie(); }
 
   // Use the number itself as hash to test the pathological case.
   static HashType hash(uint64_t Num) {
@@ -83,7 +79,7 @@ private:
   std::optional<TrieType> Trie;
 };
 
-using SmallNodeTrieTest = SimpleTrieHashMapTest<uint64_t, sizeof(uint64_t)>;
+using SmallNodeTrieTest = SimpleTrieHashMapTest<uint64_t>;
 
 TEST_F(SmallNodeTrieTest, TrieAllocation) {
   NumType Numbers[] = {
@@ -209,9 +205,7 @@ TEST_F(SmallNodeTrieTest, TrieStructureSmallFinalSubtrie) {
   }
   for (NumType N : Numbers) {
     TrieType::pointer Lookup = Trie.find(hash(N));
-    EXPECT_TRUE(Lookup);
-    if (!Lookup)
-      continue;
+    ASSERT_TRUE(Lookup);
     EXPECT_EQ(hash(N), Lookup->Hash);
     EXPECT_EQ(N, Lookup->Data);
 
@@ -273,11 +267,11 @@ TEST_F(SmallNodeTrieTest, TrieDestructionLoop) {
 
 struct NumWithDestructorT {
   uint64_t Num;
-  ~NumWithDestructorT() {}
+  llvm::function_ref<void()> DestructorCallback;
+  ~NumWithDestructorT() { DestructorCallback(); }
 };
 
-using NodeWithDestructorTrieTest =
-    SimpleTrieHashMapTest<NumWithDestructorT, sizeof(uint64_t)>;
+using NodeWithDestructorTrieTest = SimpleTrieHashMapTest<NumWithDestructorT>;
 
 TEST_F(NodeWithDestructorTrieTest, TrieDestructionLoop) {
   // Test destroying large Trie. Make sure there is no recursion that can
@@ -289,17 +283,26 @@ TEST_F(NodeWithDestructorTrieTest, TrieDestructionLoop) {
   // Fill them up. Pick a MaxN high enough to cause a stack overflow in debug
   // builds.
   static constexpr uint64_t MaxN = 100000;
+
+  uint64_t DestructorCalled = 0;
+  auto DtorCallback = [&DestructorCalled]() { ++DestructorCalled; };
   for (uint64_t N = 0; N != MaxN; ++N) {
     HashType Hash = hash(N);
-    Trie.insert(TrieType::pointer(), TrieType::value_type(Hash, NumType{N}));
+    Trie.insert(TrieType::pointer(),
+                TrieType::value_type(Hash, NumType{N, DtorCallback}));
   }
+  // Reset the count after all the temporaries get destroyed.
+  DestructorCalled = 0;
 
   // Destroy tries. If destruction is recursive and MaxN is high enough, these
   // will both fail.
   destroyTrie();
+
+  // Count the number of destructor calls during `destroyTrie()`.
+  ASSERT_EQ(DestructorCalled, MaxN);
 }
 
-using NumStrNodeTrieTest = SimpleTrieHashMapTest<std::string, sizeof(uint64_t)>;
+using NumStrNodeTrieTest = SimpleTrieHashMapTest<std::string>;
 
 TEST_F(NumStrNodeTrieTest, TrieInsertLazy) {
   for (unsigned RootBits : {2, 3, 6, 10}) {

@@ -105,10 +105,6 @@ protected:
 
   public:
     PointerBase() noexcept = default;
-    PointerBase(PointerBase &&) = default;
-    PointerBase(const PointerBase &) = default;
-    PointerBase &operator=(PointerBase &&) = default;
-    PointerBase &operator=(const PointerBase &) = default;
 
   private:
     friend class ThreadSafeTrieRawHashMapBase;
@@ -228,9 +224,7 @@ private:
     friend class ThreadSafeTrieRawHashMap;
 
     ValueT *get() const {
-      if (void *B = PointerBase::get())
-        return reinterpret_cast<ValueT *>(B);
-      return nullptr;
+      return reinterpret_cast<ValueT *>(PointerBase::get());
     }
 
   public:
@@ -245,10 +239,6 @@ private:
     explicit operator bool() const { return get(); }
 
     PointerImpl() = default;
-    PointerImpl(PointerImpl &&) = default;
-    PointerImpl(const PointerImpl &) = default;
-    PointerImpl &operator=(PointerImpl &&) = default;
-    PointerImpl &operator=(const PointerImpl &) = default;
 
   protected:
     PointerImpl(PointerBase Result) : PointerBase(Result) {}
@@ -263,10 +253,6 @@ public:
 
   public:
     pointer() = default;
-    pointer(pointer &&) = default;
-    pointer(const pointer &) = default;
-    pointer &operator=(pointer &&) = default;
-    pointer &operator=(const pointer &) = default;
 
   private:
     pointer(PointerBase Result) : pointer::PointerImpl(Result) {}
@@ -277,11 +263,6 @@ public:
 
   public:
     const_pointer() = default;
-    const_pointer(const_pointer &&) = default;
-    const_pointer(const const_pointer &) = default;
-    const_pointer &operator=(const_pointer &&) = default;
-    const_pointer &operator=(const const_pointer &) = default;
-
     const_pointer(const pointer &P) : const_pointer::PointerImpl(P) {}
 
   private:
