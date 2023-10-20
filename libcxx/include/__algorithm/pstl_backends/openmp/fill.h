@@ -27,18 +27,26 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
+template <class _Tp, class _DifferenceType, class _Up>
+_LIBCPP_HIDE_FROM_ABI _Tp* __omp_fill(_Tp* __out1, _DifferenceType __n, const _Up& __value) noexcept {
+  __par_backend::__omp_map_alloc(__out1, __n);
+#  pragma omp target teams distribute parallel for simd
+  for (_DifferenceType __i = 0; __i < __n; ++__i)
+    *(__out1 + __i) = __value;
+  __par_backend::__omp_map_from(__out1, __n);
+  return __out1 + __n;
+}
+
 template <class _ExecutionPolicy, class _ForwardIterator, class _Tp>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
 __pstl_fill(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, const _Tp& __value) {
-  // It is only safe to execute fill on the GPU, it the execution policy is
-  // parallel unsequenced, as it is the only execution policy allowing
-  // SIMD instructions
+  // If it is safe to offload the computations to the GPU, we call the OpenMP
+  // implementation of for_each. In the case of fill, we provide for_Each with a
+  // lambda returning a constant.
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    std::__rewrap_iter(__first, __par_backend::__omp_for_each(std::__unwrap_iter(__first), __last - __first, [&](std::remove_pointer_t<decltype(std::__unwrap_iter(__first))>& e) {
-          e = __value;
-        }));
+    std::__rewrap_iter(__first, std::__omp_fill(std::__unwrap_iter(__first), __last - __first, __value));
     return __empty{};
   }
   // Otherwise, we execute fill on the CPU instead

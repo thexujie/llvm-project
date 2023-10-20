@@ -23,10 +23,6 @@
 #include <__utility/move.h>
 #include <cstddef>
 
-// is_same
-
-// __libcpp_is_contiguous_iterator
-
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
 #endif
@@ -70,24 +66,9 @@ __omp_map_alloc([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _Diff
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
-__omp_map_free([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
+__omp_map_release([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
 #  pragma omp target exit data map(release : p[0 : len])
-}
-
-//===----------------------------------------------------------------------===//
-// The OpenMP implementation of for_each is shared between for_each and fill
-//===----------------------------------------------------------------------===//
-
-template <class _Tp, class _DifferenceType, class _Function>
-_LIBCPP_HIDE_FROM_ABI _Tp*
-__omp_for_each(_Tp* __first, _DifferenceType __n, _Function __f) noexcept {
-  __par_backend::__omp_map_to(__first, __n);
-#  pragma omp target teams distribute parallel for simd
-  for (_DifferenceType __i = 0; __i < __n; ++__i)
-    __f(*(__first + __i));
-  __par_backend::__omp_map_from(__first, __n);
-  return __first + __n;
 }
 
 } // namespace __omp_gpu_backend

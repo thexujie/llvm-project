@@ -26,16 +26,25 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
+template <class _Tp, class _DifferenceType, class _Function>
+_LIBCPP_HIDE_FROM_ABI _Tp* __omp_for_each(_Tp* __inout1, _DifferenceType __n, _Function __f) noexcept {
+  __par_backend::__omp_map_to(__inout1, __n);
+#  pragma omp target teams distribute parallel for simd
+  for (_DifferenceType __i = 0; __i < __n; ++__i)
+    __f(*(__inout1 + __i));
+  __par_backend::__omp_map_from(__inout1, __n);
+  return __inout1 + __n;
+}
+
 template <class _ExecutionPolicy, class _ForwardIterator, class _Functor>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
 __pstl_for_each(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, _Functor __func) {
-  // It is only safe to execute for_each on the GPU, it the execution policy is
-  // parallel unsequenced, as it is the only execution policy prohibiting throwing
-  // exceptions and allowing SIMD instructions
+  // If it is safe to offload the computations to the GPU, we call the OpenMP
+  // implementation of for_each
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
-    __par_backend::__omp_for_each(std::__unwrap_iter(__first), __last - __first, __func);
+    std::__omp_for_each(std::__unwrap_iter(__first), __last - __first, __func);
     return __empty{};
   }
   // Else we fall back to the serial backend

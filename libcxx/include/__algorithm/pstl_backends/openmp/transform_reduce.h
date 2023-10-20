@@ -39,17 +39,17 @@ _LIBCPP_BEGIN_NAMESPACE_STD
               typename _Tp,                                                                                            \
               typename _BinaryOperationType,                                                                           \
               typename _UnaryOperation>                                                                                \
-    _LIBCPP_HIDE_FROM_ABI _Tp __omp_transform_reduce(                                                     \
+    _LIBCPP_HIDE_FROM_ABI _Tp __omp_transform_reduce(                                                                  \
         _Iterator __first,                                                                                             \
         _DifferenceType __n,                                                                                           \
         _Tp __init,                                                                                                    \
         std_op<_BinaryOperationType> __reduce,                                                                         \
         _UnaryOperation __transform) noexcept {                                                                        \
-      __par_backend::__omp_map_to(__first, __n);                                                                   \
+      __par_backend::__omp_map_to(__first, __n);                                                                       \
 _PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first + __i)));                                                      \
-      __par_backend::__omp_map_free(__first, __n);                                                                 \
+      __par_backend::__omp_map_release(__first, __n);                                                                  \
       return __init;                                                                                                   \
     }
 
@@ -60,20 +60,20 @@ _PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__in
               typename _Tp,                                                                                            \
               typename _BinaryOperationType,                                                                           \
               typename _UnaryOperation >                                                                               \
-    _LIBCPP_HIDE_FROM_ABI _Tp __omp_transform_reduce(                                                     \
+    _LIBCPP_HIDE_FROM_ABI _Tp __omp_transform_reduce(                                                                  \
         _Iterator1 __first1,                                                                                           \
         _Iterator2 __first2,                                                                                           \
         _DifferenceType __n,                                                                                           \
         _Tp __init,                                                                                                    \
         std_op<_BinaryOperationType> __reduce,                                                                         \
         _UnaryOperation __transform) noexcept {                                                                        \
-      __par_backend::__omp_map_to(__first1, __n);                                                                  \
-      __par_backend::__omp_map_to(__first2, __n);                                                                  \
+      __par_backend::__omp_map_to(__first1, __n);                                                                      \
+      __par_backend::__omp_map_to(__first2, __n);                                                                      \
 _PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first1 + __i), *(__first2 + __i)));                                  \
-      __par_backend::__omp_map_free(__first1, __n);                                                                \
-      __par_backend::__omp_map_free(__first2, __n);                                                                \
+      __par_backend::__omp_map_release(__first1, __n);                                                                 \
+      __par_backend::__omp_map_release(__first2, __n);                                                                 \
       return __init;                                                                                                   \
     }
 
@@ -145,8 +145,7 @@ _LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
                 __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value) {
-    return std::__omp_transform_reduce(
-        std::__unwrap_iter(__first), __last - __first, __init, __reduce, __transform);
+    return std::__omp_transform_reduce(std::__unwrap_iter(__first), __last - __first, __init, __reduce, __transform);
   }
   return std::__pstl_transform_reduce<_ExecutionPolicy>(
       __cpu_backend_tag{}, __first, __last, std::move(__init), __reduce, __transform);
@@ -166,7 +165,6 @@ _LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
     _Tp __init,
     _BinaryOperation1 __reduce,
     _BinaryOperation2 __transform) {
-  // The interface for the function switched between C++17 and C++20
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&

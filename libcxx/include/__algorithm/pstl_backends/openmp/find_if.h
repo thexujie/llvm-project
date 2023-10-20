@@ -34,17 +34,20 @@ _LIBCPP_HIDE_FROM_ABI _Tp* __omp_find_if(_Tp* __first, _DifferenceType __n, _Pre
       idx = (__i < idx) ? __i : idx;
     }
   }
-  __par_backend::__omp_map_free(__first, __n);
+  __par_backend::__omp_map_release(__first, __n);
   return __first + idx;
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _Predicate>
 _LIBCPP_HIDE_FROM_ABI optional<_ForwardIterator>
 __pstl_find_if(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) {
+  // If it is safe to offload the computations to the GPU, we call the OpenMP
+  // implementation of find_if
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
     return std::__rewrap_iter(__first, std::__omp_find_if(std::__unwrap_iter(__first), __last - __first, __pred));
+    // Else we rey on the CPU PSTL backend
   } else {
     return std::__pstl_find_if<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __pred);
   }

@@ -33,29 +33,45 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Tp, class _DifferenceType, class _Up, class _Function>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
-__omp_transform(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Function __f) noexcept {
-  __par_backend::__omp_map_alloc(__first2, __n);
-  __par_backend::__omp_map_to(__first1, __n);
+__omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __out1, _Function __f) noexcept {
+  // The order of the following maps matter, as we wish to move the data. If
+  // they were placed in the reverse order, and __in equals __out, then we would
+  // allocate the buffer on the device without copying the data.
+  __par_backend::__omp_map_to(__in1, __n);
+  __par_backend::__omp_map_alloc(__out1, __n);
 #  pragma omp target teams distribute parallel for simd
   for (_DifferenceType __i = 0; __i < __n; ++__i)
-    *(__first2 + __i) = __f(*(__first1 + __i));
-  __par_backend::__omp_map_from(__first2, __n);
-  __par_backend::__omp_map_free(__first1, __n);
+    *(__out1 + __i) = __f(*(__in1 + __i));
+  // The order of the following two maps matters, since the user could legally
+  // overwrite __in The "release" map modifier decreases the reference counter
+  // by one, and "from" only moves the data to the host, when the reference
+  // count is decremented to zero.
+  __par_backend::__omp_map_release(__in1, __n);
+  __par_backend::__omp_map_from(__out1, __n);
   return __empty{};
 }
 
 template <class _Tp, class _DifferenceType, class _Up, class _Vp, class _Function>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
-__omp_transform(_Tp* __first1, _DifferenceType __n, _Up* __first2, _Vp* __first3, _Function __f) noexcept {
-  __par_backend::__omp_map_to(__first1, __n);
-  __par_backend::__omp_map_to(__first2, __n);
-  __par_backend::__omp_map_alloc(__first3, __n);
+__omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __in2, _Vp* __out1, _Function __f) noexcept {
+  // The order of the following maps matter, as we wish to move the data. If
+  // they were placed in the reverse order, and __out equals __in1 or __in2,
+  // then we would allocate one of the buffer on the device without copying the
+  // data.
+  __par_backend::__omp_map_to(__in1, __n);
+  __par_backend::__omp_map_to(__in2, __n);
+  __par_backend::__omp_map_alloc(__out1, __n);
 #  pragma omp target teams distribute parallel for simd
   for (_DifferenceType __i = 0; __i < __n; ++__i)
-    *(__first3 + __i) = __f(*(__first1 + __i), *(__first2 + __i));
-  __par_backend::__omp_map_free(__first1, __n);
-  __par_backend::__omp_map_free(__first2, __n);
-  __par_backend::__omp_map_from(__first3, __n);
+    *(__out1 + __i) = __f(*(__in1 + __i), *(__in2 + __i));
+  // The order of the following three maps matters, since the user could legally
+  // overwrite either of the inputs if __out equals __in1 or __in2. The
+  // "release" map modifier decreases the reference counter by one, and "from"
+  // only moves the data from the device, when the reference count is
+  // decremented to zero.
+  __par_backend::__omp_map_release(__in1, __n);
+  __par_backend::__omp_map_release(__in2, __n);
+  __par_backend::__omp_map_from(__out1, __n);
   return __empty{};
 }
 
@@ -95,7 +111,12 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__omp_transform(std::__unwrap_iter(__first1), __last1 - __first1, std::__unwrap_iter(__first2), std::__unwrap_iter(__result), __op);
+    std::__omp_transform(
+        std::__unwrap_iter(__first1),
+        __last1 - __first1,
+        std::__unwrap_iter(__first2),
+        std::__unwrap_iter(__result),
+        __op);
     return __result + (__last1 - __first1);
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
