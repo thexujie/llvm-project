@@ -28,7 +28,7 @@ template <class _ExecutionPolicy, class _RandomAccessIterator, class _Comp>
 _LIBCPP_HIDE_FROM_ABI optional<__empty>
 __pstl_stable_sort(__omp_backend_tag, _RandomAccessIterator __first, _RandomAccessIterator __last, _Comp __comp) {
   // TODO: Implement GPU backend.
-  return __pstl_stable_sort<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __comp);
+  return std::__pstl_stable_sort<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __comp);
 }
 
 _LIBCPP_END_NAMESPACE_STD
