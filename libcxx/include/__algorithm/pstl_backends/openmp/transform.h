@@ -32,8 +32,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 //===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Function>
-_LIBCPP_HIDE_FROM_ABI _Tp*
-__omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __out1, _Function __f) noexcept {
+_LIBCPP_HIDE_FROM_ABI _Tp* __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __out1, _Function __f) noexcept {
   // The order of the following maps matter, as we wish to move the data. If
   // they were placed in the reverse order, and __in equals __out, then we would
   // allocate the buffer on the device without copying the data.
@@ -86,7 +85,9 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__rewrap_iter(__result,std::__omp_transform(std::__unwrap_iter(__first), __last - __first, std::__unwrap_iter(__result), __op));
+    std::__rewrap_iter(
+        __result,
+        std::__omp_transform(std::__unwrap_iter(__first), __last - __first, std::__unwrap_iter(__result), __op));
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __result, __op);
@@ -110,12 +111,14 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    return std::__rewrap_iter(__result,std::__omp_transform(
-        std::__unwrap_iter(__first1),
-        __last1 - __first1,
-        std::__unwrap_iter(__first2),
-        std::__unwrap_iter(__result),
-        __op));
+    return std::__rewrap_iter(
+        __result,
+        std::__omp_transform(
+            std::__unwrap_iter(__first1),
+            __last1 - __first1,
+            std::__unwrap_iter(__first2),
+            std::__unwrap_iter(__result),
+            __op));
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first1, __last1, __first2, __result, __op);
