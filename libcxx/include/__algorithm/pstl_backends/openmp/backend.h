@@ -22,10 +22,9 @@
 
 #  if defined(_LIBCPP_PSTL_BACKEND_OPENMP)
 #    if !defined(_OPENMP)
-// #   warning "PSTL is configured to use the OpenMP backend, but OpenMP is not enabled. Did you compile with -fopenmp?"
+#   error "PSTL is configured to use the OpenMP backend, but OpenMP is not enabled. Did you compile with -fopenmp?"
 #    elif (defined(_OPENMP) && _OPENMP < 201511)
-// #   warning "OpenMP target offloading has been supported since OpenMP version 4.5 (201511). Please use a more recent
-// version of OpenMP."
+#   error "OpenMP target offloading has been supported since OpenMP version 4.5 (201511). Please use a more recent version of OpenMP."
 #    endif
 #  endif
 

@@ -525,6 +525,7 @@ is necessary when capturing y reference.
 
 Compiling functions for GPUs with OpenMP
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 The C++ standard defines that all accesses to memory are inside a single address
 space. However, discrete GPU systems have distinct address spaces. A single
 address space can be emulated if your system supports unified shared memory.
