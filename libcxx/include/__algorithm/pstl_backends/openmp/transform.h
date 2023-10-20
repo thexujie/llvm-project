@@ -32,7 +32,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 //===----------------------------------------------------------------------===//
 
 template <class _Tp, class _DifferenceType, class _Up, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty>
+_LIBCPP_HIDE_FROM_ABI _Tp*
 __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __out1, _Function __f) noexcept {
   // The order of the following maps matter, as we wish to move the data. If
   // they were placed in the reverse order, and __in equals __out, then we would
@@ -48,11 +48,11 @@ __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __out1, _Function __f) noe
   // count is decremented to zero.
   __par_backend::__omp_map_release(__in1, __n);
   __par_backend::__omp_map_from(__out1, __n);
-  return __empty{};
+  return __out1 + __n;
 }
 
 template <class _Tp, class _DifferenceType, class _Up, class _Vp, class _Function>
-_LIBCPP_HIDE_FROM_ABI optional<__empty>
+_LIBCPP_HIDE_FROM_ABI _Tp*
 __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __in2, _Vp* __out1, _Function __f) noexcept {
   // The order of the following maps matter, as we wish to move the data. If
   // they were placed in the reverse order, and __out equals __in1 or __in2,
@@ -72,7 +72,7 @@ __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __in2, _Vp* __out1, _Funct
   __par_backend::__omp_map_release(__in1, __n);
   __par_backend::__omp_map_release(__in2, __n);
   __par_backend::__omp_map_from(__out1, __n);
-  return __empty{};
+  return __out1 + __n;
 }
 
 template <class _ExecutionPolicy, class _ForwardIterator, class _ForwardOutIterator, class _UnaryOperation>
@@ -86,8 +86,7 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__omp_transform(std::__unwrap_iter(__first), __last - __first, std::__unwrap_iter(__result), __op);
-    return __result + (__last - __first);
+    std::__rewrap_iter(__result,std::__omp_transform(std::__unwrap_iter(__first), __last - __first, std::__unwrap_iter(__result), __op));
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first, __last, __result, __op);
@@ -111,13 +110,12 @@ _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator> __pstl_transform(
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardOutIterator>::value) {
-    std::__omp_transform(
+    return std::__rewrap_iter(__result,std::__omp_transform(
         std::__unwrap_iter(__first1),
         __last1 - __first1,
         std::__unwrap_iter(__first2),
         std::__unwrap_iter(__result),
-        __op);
-    return __result + (__last1 - __first1);
+        __op));
   }
   // If it is not safe to offload to the GPU, we rely on the CPU backend.
   return std::__pstl_transform<_ExecutionPolicy>(__cpu_backend_tag{}, __first1, __last1, __first2, __result, __op);
