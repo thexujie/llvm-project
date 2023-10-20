@@ -45,30 +45,30 @@ inline namespace __omp_gpu_backend {
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
-__omp_map_to([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
+__omp_map_to([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target enter data map(to : p[0 : len])
+#  pragma omp target enter data map(to : __p [0:__len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
-__omp_map_from([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
+__omp_map_from([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target exit data map(from : p[0 : len])
+#  pragma omp target exit data map(from : __p [0:__len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
-__omp_map_alloc([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
+__omp_map_alloc([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target enter data map(alloc : p[0 : len])
+#  pragma omp target enter data map(alloc : __p [0:__len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
-__omp_map_release([[maybe_unused]] const _Iterator p, [[maybe_unused]] const _DifferenceType len) noexcept {
+__omp_map_release([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target exit data map(release : p[0 : len])
+#  pragma omp target exit data map(release : __p [0:__len])
 }
 
 } // namespace __omp_gpu_backend
