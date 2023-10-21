@@ -176,7 +176,7 @@ PATCHFILE_NAME = "changes_for_analyzer.patch"
 CHECKERS = ",".join(
     [
         "alpha.unix.SimpleStream",
-        "alpha.security.taint",
+        "optin.security.taint",
         "cplusplus.NewDeleteLeaks",
         "core",
         "cplusplus",

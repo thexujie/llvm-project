@@ -3,7 +3,7 @@ Taint Analysis Configuration
 ============================
 
 The Clang Static Analyzer uses taint analysis to detect security-related issues in code.
-The backbone of taint analysis in the Clang SA is the `GenericTaintChecker`, which the user can access via the :ref:`alpha-security-taint-TaintPropagation` checker alias and this checker has a default taint-related configuration.
+The backbone of taint analysis in the Clang SA is the `GenericTaintChecker`, which the user can access via the :ref:`optin-security-taint-TaintPropagation` checker alias and this checker has a default taint-related configuration.
 The built-in default settings are defined in code, and they are always in effect once the checker is enabled, either directly or via the alias.
 The checker also provides a configuration interface for extending the default settings by providing a configuration file in `YAML <http://llvm.org/docs/YamlIO.html#introduction-to-yaml>`_ format.
 This documentation describes the syntax of the configuration file and gives the informal semantics of the configuration options.
@@ -18,7 +18,7 @@ ________
 
 Taint analysis works by checking for the occurrence of special operations during the symbolic execution of the program.
 Taint analysis defines sources, sinks, and propagation rules. It identifies errors by detecting a flow of information that originates from a taint source, reaches a taint sink, and propagates through the program paths via propagation rules.
-A source, sink, or an operation that propagates taint is mainly domain-specific knowledge, but there are some built-in defaults provided by :ref:`alpha-security-taint-TaintPropagation`.
+A source, sink, or an operation that propagates taint is mainly domain-specific knowledge, but there are some built-in defaults provided by :ref:`optin-security-taint-TaintPropagation`.
 It is possible to express that a statement sanitizes tainted values by providing a ``Filters`` section in the external configuration (see :ref:`clangsa-taint-configuration-example` and :ref:`clangsa-taint-filter-details`).
 There are no default filters defined in the built-in settings.
 The checker's documentation also specifies how to provide a custom taint configuration with command-line options.
