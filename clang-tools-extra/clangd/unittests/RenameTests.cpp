@@ -1417,9 +1417,9 @@ TEST(CrossFileRenameTests, DirtyBuffer) {
       return true; // has more references
     }
 
-    bool refersTo(const RefsRequest &Req,
-                  llvm::function_ref<void(const RefersToResult &)> Callback)
-        const override {
+    bool containedRefs(const ContainedRefsRequest &Req,
+                       llvm::function_ref<void(const ContainedRefsResult &)>
+                           Callback) const override {
       return false;
     }
 
@@ -1474,9 +1474,9 @@ TEST(CrossFileRenameTests, DeduplicateRefsFromIndex) {
       return false;
     }
 
-    bool refersTo(const RefsRequest &Req,
-                  llvm::function_ref<void(const RefersToResult &)> Callback)
-        const override {
+    bool containedRefs(const ContainedRefsRequest &Req,
+                       llvm::function_ref<void(const ContainedRefsResult &)>
+                           Callback) const override {
       return false;
     }
 
