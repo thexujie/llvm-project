@@ -12,6 +12,7 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__algorithm/transform.h>
+#include <__algorithm/unwrap_iter.h>
 #include <__config>
 #include <__iterator/concepts.h>
 #include <__iterator/wrap_iter.h>

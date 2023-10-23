@@ -9,33 +9,20 @@
 #ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_OMP_OFFLOAD_H
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_OMP_OFFLOAD_H
 
-#include <__algorithm/unwrap_iter.h>
 #include <__assert>
 #include <__config>
-#include <__functional/operations.h>
 #include <__iterator/iterator_traits.h>
-#include <__iterator/wrap_iter.h>
-#include <__memory/addressof.h>
-#include <__memory/pointer_traits.h>
-#include <__type_traits/is_pointer.h>
-#include <__type_traits/is_same.h>
-#include <__utility/empty.h>
-#include <__utility/move.h>
-#include <cstddef>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
 #endif
-
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace __par_backend {
-inline namespace __omp_gpu_backend {
+inline namespace __omp_backend {
 
 //===----------------------------------------------------------------------===//
 // The following four functions can be used to map contiguous array sections to
@@ -47,37 +34,35 @@ template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_to([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target enter data map(to : __p [0:__len])
+#  pragma omp target enter data map(to : __p[0 : __len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_from([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target exit data map(from : __p [0:__len])
+#  pragma omp target exit data map(from : __p[0 : __len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_alloc([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target enter data map(alloc : __p [0:__len])
+#  pragma omp target enter data map(alloc : __p[0 : __len])
 }
 
 template <class _Iterator, class _DifferenceType>
 _LIBCPP_HIDE_FROM_ABI void
 __omp_map_release([[maybe_unused]] const _Iterator __p, [[maybe_unused]] const _DifferenceType __len) noexcept {
   static_assert(__libcpp_is_contiguous_iterator<_Iterator>::value);
-#  pragma omp target exit data map(release : __p [0:__len])
+#  pragma omp target exit data map(release : __p[0 : __len])
 }
 
-} // namespace __omp_gpu_backend
+} // namespace __omp_backend
 } // namespace __par_backend
 
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && && _LIBCPP_STD_VER >= 17
-
-_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_OMP_OFFLOAD_H

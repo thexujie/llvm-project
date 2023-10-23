@@ -12,6 +12,7 @@
 #include <__algorithm/for_each.h>
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
+#include <__algorithm/unwrap_iter.h>
 #include <__config>
 #include <__iterator/wrap_iter.h>
 #include <__type_traits/is_execution_policy.h>
