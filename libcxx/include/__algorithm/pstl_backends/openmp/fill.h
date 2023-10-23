@@ -17,6 +17,7 @@
 #include <__iterator/wrap_iter.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/remove_pointer.h>
+#include <__utility/empty.h>
 #include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
