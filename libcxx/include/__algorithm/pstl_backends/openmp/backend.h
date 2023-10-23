@@ -10,7 +10,6 @@
 #define _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_BACKEND_H
 
 #include <__config>
-#include <cstddef>
 
 #include <__algorithm/pstl_backends/openmp/omp_offload.h>
 

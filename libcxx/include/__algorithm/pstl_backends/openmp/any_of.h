@@ -13,7 +13,6 @@
 #include <__algorithm/pstl_backends/cpu_backends/backend.h>
 #include <__algorithm/pstl_backends/openmp/backend.h>
 #include <__config>
-#include <__type_traits/is_execution_policy.h>
 #include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17

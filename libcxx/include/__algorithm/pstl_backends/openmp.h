@@ -22,6 +22,24 @@ is available at execution time. The target regions can also be compiled directly
 for a CPU architecture, for instance by adding the command-line option
 `-fopenmp-targets=x86_64-pc-linux-gnu` in Clang.
 
+When is an Algorithm Offloaded?
+-------------------------------
+Only parallel algorithms with the parallel unsequenced execution policy are
+offloaded to the device. We cannot offload parallel algorithms with a parallel
+execution policy to GPUs because invocations executing in the same thread "are
+indeterminately sequenced with respect to each other" which we cannot guarantee
+on a GPU.
+
+The standard draft states that "the semantics [...] allow the implementation to
+fall back to sequential execution if the system cannot parallelize an algorithm
+invocation". If it is not deemed safe to offload the parallel algorithm to the
+device, we first fall back to a parallel unsequenced implementation from
+./cpu_backends. The CPU implementation may then fall back to sequential
+execution. In that way we strive to achieve the best possible performance.
+
+Further, "it is the caller's responsibility to ensure that the invocation does
+not introduce data races or deadlocks."
+
 Implicit Assumptions
 --------------------
 If the user provides a function pointer as an argument to a parallel algorithm,
@@ -43,6 +61,9 @@ Currently, GPU architectures do not handle exceptions. OpenMP target regions are
 allowed to contain try/catch statements and throw expressions in Clang, but if a
 throw expression is reached, it will terminate the program. That does not
 conform with the C++ standard.
+
+[This document](https://eel.is/c++draft/algorithms.parallel) has been used as
+reference for these considerations.
 
 */
 
