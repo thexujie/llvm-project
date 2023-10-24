@@ -102,6 +102,12 @@ enum class ICFLevel {
         // behavior.
 };
 
+enum class LTOKind{
+  Default, // Any LTO mode without Unified LTO. The default mode.
+  UnifiedRegular, // Regular LTO, with Unified LTO enabled.
+  UnifiedThin // ThinLTO, with Unified LTO enabled.
+};
+
 // Global configuration.
 struct Configuration {
   enum ManifestKind { Default, SideBySide, Embed, No };
@@ -317,6 +323,7 @@ struct Configuration {
   bool writeCheckSum = false;
   EmitKind emit = EmitKind::Obj;
   bool allowDuplicateWeak = false;
+  LTOKind ltoKind;
 };
 
 } // namespace lld::coff

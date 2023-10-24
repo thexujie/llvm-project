@@ -126,8 +126,23 @@ BitcodeCompiler::BitcodeCompiler(COFFLinkerContext &c) : ctx(c) {
         llvm::heavyweight_hardware_concurrency(ctx.config.thinLTOJobs));
   }
 
+  lto::LTO::LTOKind Kind = lto::LTO::LTOK_Default;
+  switch (ctx.config.ltoKind) {
+  case LTOKind::Default: {
+    Kind = lto::LTO::LTOK_Default;
+    break;
+  }
+  case LTOKind::UnifiedRegular: {
+    Kind = lto::LTO::LTOK_UnifiedRegular;
+    break;
+  }
+  case LTOKind::UnifiedThin: {
+    Kind = lto::LTO::LTOK_UnifiedThin;
+    break;
+  }
+  }
   ltoObj = std::make_unique<lto::LTO>(createConfig(), backend,
-                                      ctx.config.ltoPartitions);
+                                      ctx.config.ltoPartitions, Kind);
 }
 
 BitcodeCompiler::~BitcodeCompiler() = default;
