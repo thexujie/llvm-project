@@ -484,6 +484,9 @@ private:
                                     const MachineInstr &MI,
                                     int OpIdx = -1) const;
 
+  void renderUImmS1(MachineInstrBuilder &MIB, const MachineInstr &MI,
+                    int OpIdx = -1) const;
+
   // Materialize a GlobalValue or BlockAddress using a movz+movk sequence.
   void materializeLargeCMVal(MachineInstr &I, const Value *V, unsigned OpFlags);
 
@@ -7609,6 +7612,14 @@ void AArch64InstructionSelector::renderFPImm32SIMDModImmType4(
                                                       ->getValueAPF()
                                                       .bitcastToAPInt()
                                                       .getZExtValue()));
+}
+
+void AArch64InstructionSelector::renderUImmS1(MachineInstrBuilder &MIB,
+                                              const MachineInstr &MI,
+                                              int OpIdx) const {
+  assert(MI.getOpcode() == TargetOpcode::G_CONSTANT && OpIdx == -1 &&
+         "Expected G_CONSTANT");
+  MIB.addImm(MI.getOperand(1).getCImm()->getZExtValue());
 }
 
 bool AArch64InstructionSelector::isLoadStoreOfNumBytes(
