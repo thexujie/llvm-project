@@ -1889,6 +1889,8 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
                               .Case("unifiedregular", LTOKind::UnifiedRegular)
                               .Default(LTOKind::Default);
 
+      } else if (s.equals("ltodefaultpipeline")) {
+        config->useDefaultPipeline = true;
       } else if (s != "lbr" && s != "nolbr")
         error("/opt: unknown option: " + s);
     }

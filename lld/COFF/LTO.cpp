@@ -47,6 +47,19 @@ std::string BitcodeCompiler::getThinLTOOutputFile(StringRef path) {
   return lto::getThinLTOOutputFile(path, ctx.config.thinLTOPrefixReplaceOld,
                                    ctx.config.thinLTOPrefixReplaceNew);
 }
+static lto::LTO::LTOKind toLTOKind(LTOKind kind) {
+  switch (kind) {
+  case LTOKind::Default: {
+    return lto::LTO::LTOK_Default;
+  }
+  case LTOKind::UnifiedRegular: {
+    return lto::LTO::LTOK_UnifiedRegular;
+  }
+  case LTOKind::UnifiedThin: {
+    return lto::LTO::LTOK_UnifiedThin;
+  }
+  }
+}
 
 lto::Config BitcodeCompiler::createConfig() {
   lto::Config c;
@@ -88,6 +101,7 @@ lto::Config BitcodeCompiler::createConfig() {
   c.PGOWarnMismatch = ctx.config.ltoPGOWarnMismatch;
   c.TimeTraceEnabled = ctx.config.timeTraceEnabled;
   c.TimeTraceGranularity = ctx.config.timeTraceGranularity;
+  c.UseDefaultPipeline = ctx.config.useDefaultPipeline;
 
   if (ctx.config.emit == EmitKind::LLVM) {
     c.PostInternalizeModuleHook = [this](size_t task, const Module &m) {
@@ -126,23 +140,9 @@ BitcodeCompiler::BitcodeCompiler(COFFLinkerContext &c) : ctx(c) {
         llvm::heavyweight_hardware_concurrency(ctx.config.thinLTOJobs));
   }
 
-  lto::LTO::LTOKind Kind = lto::LTO::LTOK_Default;
-  switch (ctx.config.ltoKind) {
-  case LTOKind::Default: {
-    Kind = lto::LTO::LTOK_Default;
-    break;
-  }
-  case LTOKind::UnifiedRegular: {
-    Kind = lto::LTO::LTOK_UnifiedRegular;
-    break;
-  }
-  case LTOKind::UnifiedThin: {
-    Kind = lto::LTO::LTOK_UnifiedThin;
-    break;
-  }
-  }
+  lto::LTO::LTOKind kind = toLTOKind(ctx.config.ltoKind);
   ltoObj = std::make_unique<lto::LTO>(createConfig(), backend,
-                                      ctx.config.ltoPartitions, Kind);
+                                      ctx.config.ltoPartitions, kind);
 }
 
 BitcodeCompiler::~BitcodeCompiler() = default;

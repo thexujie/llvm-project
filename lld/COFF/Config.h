@@ -324,6 +324,7 @@ struct Configuration {
   EmitKind emit = EmitKind::Obj;
   bool allowDuplicateWeak = false;
   LTOKind ltoKind;
+  bool useDefaultPipeline = false;
 };
 
 } // namespace lld::coff
