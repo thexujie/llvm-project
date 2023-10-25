@@ -69,6 +69,15 @@ public:
 
   /// Classifies an expression.
   std::optional<PrimType> classify(QualType T) const;
+  std::optional<PrimType> classify(const Expr *E) const {
+    if (E->isGLValue()) {
+      if (E->getType()->isFunctionType())
+        return PT_FnPtr;
+      return PT_Ptr;
+    }
+
+    return classify(E->getType());
+  }
 
   const CXXMethodDecl *
   getOverridingFunction(const CXXRecordDecl *DynamicDecl,

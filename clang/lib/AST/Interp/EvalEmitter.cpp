@@ -35,7 +35,7 @@ EvalEmitter::~EvalEmitter() {
 
 llvm::Expected<bool> EvalEmitter::interpretExpr(const Expr *E) {
   if (this->visitExpr(E))
-    return true;
+    return S.maybeDiagnoseDanglingAllocations();
   if (BailLocation)
     return llvm::make_error<ByteCodeGenError>(*BailLocation);
   return false;
@@ -43,7 +43,7 @@ llvm::Expected<bool> EvalEmitter::interpretExpr(const Expr *E) {
 
 llvm::Expected<bool> EvalEmitter::interpretDecl(const VarDecl *VD) {
   if (this->visitDecl(VD))
-    return true;
+    return S.maybeDiagnoseDanglingAllocations();
   if (BailLocation)
     return llvm::make_error<ByteCodeGenError>(*BailLocation);
   return false;

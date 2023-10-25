@@ -55,9 +55,12 @@ def ArgRoundingMode : ArgType { let Name = "llvm::RoundingMode"; }
 def ArgLETD: ArgType { let Name = "const LifetimeExtendedTemporaryDecl *"; }
 def ArgCastKind : ArgType { let Name = "CastKind"; }
 def ArgCallExpr : ArgType { let Name = "const CallExpr *"; }
+def ArgExpr : ArgType { let Name = "const Expr *"; }
 def ArgOffsetOfExpr : ArgType { let Name = "const OffsetOfExpr *"; }
 def ArgDeclRef : ArgType { let Name = "const DeclRefExpr *"; }
 def ArgCCI : ArgType { let Name = "const ComparisonCategoryInfo *"; }
+def ArgDesc : ArgType { let Name = "const Descriptor *"; }
+def ArgPrimType : ArgType { let Name = "PrimType"; }
 
 //===----------------------------------------------------------------------===//
 // Classes of types instructions operate on.
@@ -70,6 +73,10 @@ class TypeClass {
 def IntegerTypeClass : TypeClass {
   let Types = [Sint8, Uint8, Sint16, Uint16, Sint32,
                Uint32, Sint64, Uint64, IntAP, IntAPS];
+}
+
+def UnsignedIntegerTypeClass : TypeClass {
+  let Types = [Uint8, Uint16, Uint32, Uint64, IntAP];
 }
 
 def FixedSizeIntegralTypeClass : TypeClass {
@@ -461,6 +468,7 @@ def StoreBitFieldPop : StoreBitFieldOpcode {}
 
 // [Pointer, Value] -> []
 def InitPop : StoreOpcode {}
+def Init    : StoreOpcode {}
 // [Pointer, Value] -> [Pointer]
 def InitElem : Opcode {
   let Types = [AllTypeClass];
@@ -690,3 +698,23 @@ def InvalidDeclRef : Opcode {
 }
 
 def ArrayDecay : Opcode;
+
+def Alloc : Opcode {
+  let Args = [ArgDesc];
+}
+
+def AllocN : Opcode {
+  let Types = [UnsignedIntegerTypeClass];
+  let Args = [ArgPrimType, ArgExpr];
+  let HasGroup = 1;
+}
+
+def AllocCN : Opcode {
+  let Types = [UnsignedIntegerTypeClass];
+  let Args = [ArgDesc];
+  let HasGroup = 1;
+}
+
+def Free : Opcode {
+  let Args = [ArgBool];
+}

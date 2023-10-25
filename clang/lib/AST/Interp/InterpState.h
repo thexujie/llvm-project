@@ -14,6 +14,7 @@
 #define LLVM_CLANG_AST_INTERP_INTERPSTATE_H
 
 #include "Context.h"
+#include "DynamicAllocator.h"
 #include "Function.h"
 #include "InterpFrame.h"
 #include "InterpStack.h"
@@ -94,6 +95,13 @@ public:
 
   Context &getContext() const { return Ctx; }
 
+  DynamicAllocator &getAllocator() { return Alloc; }
+
+  /// Diagnose any dynamic allocations that haven't been freed yet.
+  /// Will return \c false if there were any allocations to diagnose,
+  /// \c true otherwise.
+  bool maybeDiagnoseDanglingAllocations();
+
 private:
   /// AST Walker state.
   State &Parent;
@@ -101,6 +109,8 @@ private:
   DeadBlock *DeadBlocks = nullptr;
   /// Reference to the offset-source mapping.
   SourceMapper *M;
+  /// Allocator used for dynamic allocations performed via the program.
+  DynamicAllocator Alloc;
 
 public:
   /// Reference to the module containing all bytecode.

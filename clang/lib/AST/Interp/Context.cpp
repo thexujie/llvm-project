@@ -167,7 +167,7 @@ bool Context::Run(State &Parent, const Function *Func, APValue &Result) {
     State.Current = new InterpFrame(State, Func, /*Caller=*/nullptr, {});
     if (Interpret(State, Result)) {
       assert(Stk.empty());
-      return true;
+      return !State.maybeDiagnoseDanglingAllocations();
     }
 
     // State gets destroyed here, so the Stk.clear() below doesn't accidentally
