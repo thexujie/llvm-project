@@ -902,11 +902,12 @@ enum RankFlags {
   RF_NOT_ALLOC = 1 << 26,
   RF_PARTITION = 1 << 18, // Partition number (8 bits)
   RF_NOT_SPECIAL = 1 << 17,
-  RF_WRITE = 1 << 16,
-  RF_EXEC_WRITE = 1 << 15,
-  RF_EXEC = 1 << 14,
-  RF_RODATA = 1 << 13,
-  RF_LARGE = 1 << 12,
+  RF_NOT_LARGE_TEXT = 1 << 16,
+  RF_WRITE = 1 << 15,
+  RF_EXEC_WRITE = 1 << 14,
+  RF_EXEC = 1 << 13,
+  RF_RODATA = 1 << 12,
+  RF_LARGE = 1 << 11,
   RF_NOT_RELRO = 1 << 9,
   RF_NOT_TLS = 1 << 8,
   RF_BSS = 1 << 7,
@@ -957,6 +958,9 @@ static unsigned getSectionRank(OutputSection &osec) {
   // places.
   bool isExec = osec.flags & SHF_EXECINSTR;
   bool isWrite = osec.flags & SHF_WRITE;
+  bool isLarge = osec.flags & SHF_X86_64_LARGE && config->emachine == EM_X86_64;
+
+  rank |= RF_NOT_LARGE_TEXT;
 
   if (!isWrite && !isExec) {
     // Make PROGBITS sections (e.g .rodata .eh_frame) closer to .text to
@@ -965,10 +969,13 @@ static unsigned getSectionRank(OutputSection &osec) {
     if (osec.type == SHT_PROGBITS)
       rank |= RF_RODATA;
     // Among PROGBITS sections, place .lrodata further from .text.
-    if (!(osec.flags & SHF_X86_64_LARGE && config->emachine == EM_X86_64))
+    if (!isLarge)
       rank |= RF_LARGE;
   } else if (isExec) {
     rank |= isWrite ? RF_EXEC_WRITE : RF_EXEC;
+    // Place .ltext before .(l)rodata.
+    if (isLarge)
+      rank &= ~RF_NOT_LARGE_TEXT;
   } else {
     rank |= RF_WRITE;
     // The TLS initialization block needs to be a single contiguous block. Place
@@ -981,7 +988,7 @@ static unsigned getSectionRank(OutputSection &osec) {
       rank |= RF_NOT_RELRO;
     // Place .ldata and .lbss after .bss. Making .bss closer to .text alleviates
     // relocation overflow pressure.
-    if (osec.flags & SHF_X86_64_LARGE && config->emachine == EM_X86_64)
+    if (isLarge)
       rank |= RF_LARGE;
   }
 
