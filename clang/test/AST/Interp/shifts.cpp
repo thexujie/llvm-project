@@ -33,13 +33,10 @@ namespace shifts {
                            // FIXME: 'implicit conversion' warning missing in the new interpreter. \
                            // cxx17-warning {{shift count >= width of type}} \
                            // ref-warning {{shift count >= width of type}} \
-                           // ref-warning {{implicit conversion}} \
-                           // ref-cxx17-warning {{shift count >= width of type}} \
-                           // ref-cxx17-warning {{implicit conversion}}
+                           // ref-cxx17-warning {{shift count >= width of type}}
     c = 1 >> (unsigned)-1; // expected-warning {{shift count >= width of type}} \
                            // cxx17-warning {{shift count >= width of type}} \
-                           // ref-warning {{shift count >= width of type}} \
-                           // ref-cxx17-warning {{shift count >= width of type}}
+                           // ref-warning {{shift count >= width of type}}
     c = 1 << c;
     c <<= 0;
     c >>= 0;

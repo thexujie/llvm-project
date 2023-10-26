@@ -11444,9 +11444,12 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
   llvm::APSInt Right = RHSResult.Val.getInt();
 
   if (Right.isNegative()) {
-    S.DiagRuntimeBehavior(Loc, RHS.get(),
-                          S.PDiag(diag::warn_shift_negative)
-                            << RHS.get()->getSourceRange());
+    if (S.ExprEvalContexts.back().isConstantEvaluated())
+      S.Diag(Loc, diag::warn_shift_negative) << RHS.get()->getSourceRange();
+    else
+      S.DiagRuntimeBehavior(Loc, RHS.get(),
+                            S.PDiag(diag::warn_shift_negative)
+                              << RHS.get()->getSourceRange());
     return;
   }
 
@@ -11460,9 +11463,14 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
   }
   llvm::APInt LeftBits(Right.getBitWidth(), LeftSize);
   if (Right.uge(LeftBits)) {
-    S.DiagRuntimeBehavior(Loc, RHS.get(),
-                          S.PDiag(diag::warn_shift_gt_typewidth)
-                            << RHS.get()->getSourceRange());
+    if (S.ExprEvalContexts.back().isConstantEvaluated()
+        && !S.getLangOpts().CPlusPlus11)
+      S.Diag(Loc, diag::warn_shift_gt_typewidth)
+        << RHS.get()->getSourceRange();
+    else
+      S.DiagRuntimeBehavior(Loc, RHS.get(),
+                            S.PDiag(diag::warn_shift_gt_typewidth)
+                              << RHS.get()->getSourceRange());
     return;
   }
 
@@ -11493,9 +11501,12 @@ static void DiagnoseBadShiftValues(Sema& S, ExprResult &LHS, ExprResult &RHS,
   // If LHS does not have a non-negative value then, the
   // behavior is undefined before C++2a. Warn about it.
   if (Left.isNegative()) {
-    S.DiagRuntimeBehavior(Loc, LHS.get(),
-                          S.PDiag(diag::warn_shift_lhs_negative)
-                            << LHS.get()->getSourceRange());
+    if (S.ExprEvalContexts.back().isConstantEvaluated())
+      S.Diag(Loc, diag::warn_shift_lhs_negative) << LHS.get()->getSourceRange();
+    else
+      S.DiagRuntimeBehavior(Loc, LHS.get(),
+                            S.PDiag(diag::warn_shift_lhs_negative)
+                              << LHS.get()->getSourceRange());
     return;
   }
 

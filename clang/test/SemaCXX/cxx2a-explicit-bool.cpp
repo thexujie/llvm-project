@@ -21,7 +21,7 @@ namespace special_cases
 template<int a>
 struct A {
 // expected-note@-1+ {{candidate constructor}}
-  explicit(1 << a)
+  explicit(1 << a) // expected-warning {{shift count is negative}}
 // expected-note@-1 {{negative shift count -1}}
 // expected-error@-2 {{explicit specifier argument is not a constant expression}}
   A(int);
