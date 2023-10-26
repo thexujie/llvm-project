@@ -781,6 +781,8 @@ elseif (LIBCXX_PSTL_BACKEND STREQUAL "libdispatch")
   config_define(1 _LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
 elseif (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
   config_define(1 _LIBCPP_PSTL_BACKEND_OPENMP)
+  # Making sure that OpenMP is enabled during build
+  add_compile_options(-fopenmp)
 else()
   message(FATAL_ERROR "LIBCXX_PSTL_BACKEND is set to ${LIBCXX_PSTL_BACKEND}, which is not a valid backend.
                        Valid backends are: serial, std-thread, libdispatch, and openmp.")

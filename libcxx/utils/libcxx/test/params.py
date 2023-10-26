@@ -330,6 +330,14 @@ DEFAULT_PARAMETERS = [
         default=f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).resolve().parent.parent.parent / 'run.py'))}",
         help="Custom executor to use instead of the configured default.",
         actions=lambda executor: [AddSubstitution("%{executor}", executor)],
+    ),
+    Parameter(
+        name="enable_openmp",
+        choices=[True, False],
+        type=bool,
+        default=False,
+        help="Enable the OpenMP compilation toolchain if the PSTL backend was set to OpenMP.",
+        actions=lambda enabled: [AddCompileFlag("-fopenmp")] if enabled else [],
     )
 ]
 # fmt: on

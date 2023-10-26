@@ -16,6 +16,7 @@
 #include <__config>
 #include <__iterator/wrap_iter.h>
 #include <__type_traits/is_execution_policy.h>
+#include <__type_traits/is_trivially_copyable.h>
 #include <__type_traits/remove_pointer.h>
 #include <__utility/empty.h>
 #include <optional>
@@ -46,7 +47,9 @@ __pstl_fill(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __last
   // lambda returning a constant.
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
+                is_trivially_copyable_v<remove_pointer_t<decltype(std::__unwrap_iter(__first))> > &&
+                is_trivially_copyable_v<_Tp>) {
     std::__rewrap_iter(__first, std::__omp_fill(std::__unwrap_iter(__first), __last - __first, __value));
     return __empty{};
   }

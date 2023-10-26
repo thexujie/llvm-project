@@ -18,7 +18,9 @@
 #include <__numeric/transform_reduce.h>
 #include <__type_traits/is_arithmetic.h>
 #include <__type_traits/is_execution_policy.h>
+#include <__type_traits/is_trivially_copyable.h>
 #include <__type_traits/operation_traits.h>
+#include <__type_traits/remove_pointer.h>
 #include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
@@ -144,7 +146,8 @@ _LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator>::value && is_arithmetic_v<_Tp> &&
-                __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value) {
+                __is_supported_reduction<_BinaryOperation, _Tp, _Tp>::value &&
+                is_trivially_copyable_v<remove_pointer_t<decltype(std::__unwrap_iter(__first))> >) {
     return std::__omp_transform_reduce(std::__unwrap_iter(__first), __last - __first, __init, __reduce, __transform);
   }
   return std::__pstl_transform_reduce<_ExecutionPolicy>(
@@ -169,7 +172,9 @@ _LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator1>::value &&
                 __libcpp_is_contiguous_iterator<_ForwardIterator2>::value && is_arithmetic_v<_Tp> &&
-                __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value) {
+                __is_supported_reduction<_BinaryOperation1, _Tp, _Tp>::value &&
+                is_trivially_copyable_v<remove_pointer_t<decltype(std::__unwrap_iter(__first1))> > &&
+                is_trivially_copyable_v<remove_pointer_t<decltype(std::__unwrap_iter(__first2))> >) {
     return std::__omp_transform_reduce(
         std::__unwrap_iter(__first1), std::__unwrap_iter(__first2), __last1 - __first1, __init, __reduce, __transform);
   }

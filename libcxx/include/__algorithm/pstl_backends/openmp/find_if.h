@@ -15,6 +15,8 @@
 #include <__algorithm/unwrap_iter.h>
 #include <__config>
 #include <__iterator/wrap_iter.h>
+#include <__type_traits/is_trivially_copyable.h>
+#include <__type_traits/remove_pointer.h>
 #include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
@@ -46,7 +48,8 @@ __pstl_find_if(__omp_backend_tag, _ForwardIterator __first, _ForwardIterator __l
   // implementation of find_if
   if constexpr (__is_unsequenced_execution_policy_v<_ExecutionPolicy> &&
                 __is_parallel_execution_policy_v<_ExecutionPolicy> &&
-                __libcpp_is_contiguous_iterator<_ForwardIterator>::value) {
+                __libcpp_is_contiguous_iterator<_ForwardIterator>::value &&
+                is_trivially_copyable_v<remove_pointer_t<decltype(std::__unwrap_iter(__first))> >) {
     return std::__rewrap_iter(__first, std::__omp_find_if(std::__unwrap_iter(__first), __last - __first, __pred));
     // Else we rey on the CPU PSTL backend
   } else {
