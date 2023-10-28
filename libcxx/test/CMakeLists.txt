@@ -39,7 +39,7 @@ endif()
 # also be enabled for the LIT tests
 if (DEFINED LIBCXX_PSTL_BACKEND)
   if (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
-    serialize_lit_string_param(SERIALIZED_LIT_PARAMS enable_openmp "ON")
+    serialize_lit_string_param(SERIALIZED_LIT_PARAMS openmp_pstl_backend "ON")
   endif()
 endif()
 

@@ -332,12 +332,21 @@ DEFAULT_PARAMETERS = [
         actions=lambda executor: [AddSubstitution("%{executor}", executor)],
     ),
     Parameter(
-        name="enable_openmp",
+        name="openmp_pstl_backend",
         choices=[True, False],
         type=bool,
         default=False,
         help="Enable the OpenMP compilation toolchain if the PSTL backend was set to OpenMP.",
-        actions=lambda enabled: [AddCompileFlag("-fopenmp")] if enabled else [],
+        actions=lambda enabled: [
+            AddCompileFlag("-fopenmp"),
+            # The linker needs to find the correct version of libomptarget
+            AddLinkFlag("-Wl,-rpath,%{lib}/../../lib"),
+            AddLinkFlag("-L%{lib}/../../lib"),
+            #  The preprocessor needs to find the omp.h header
+            AddFlag("-I %{lib}/../../runtimes/runtimes-bins/openmp/runtime/src"),
+            # If the OpenMP PSTL backend was enbaled, we wish to run the tests for it
+            AddFeature("openmp_pstl_backend")
+        ] if enabled else [],
     )
 ]
 # fmt: on
