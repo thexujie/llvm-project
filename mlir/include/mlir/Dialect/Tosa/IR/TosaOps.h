@@ -55,11 +55,6 @@ public:
   static LogicalResult verifyTrait(Operation *op) {
     auto resElemType = getElementTypeOrSelf(op->getResult(0));
 
-    // In cases of floating point type, op requires the same element
-    // type for all operands and result.
-    if (llvm::isa<FloatType>(resElemType))
-      return impl::verifySameOperandsAndResultElementType(op);
-
     if (auto resIntType = resElemType.dyn_cast<IntegerType>()) {
       IntegerType lhsIntType =
           getElementTypeOrSelf(op->getOperand(0)).cast<IntegerType>();
@@ -78,7 +73,9 @@ public:
       return success();
     }
 
-    return failure();
+    // In cases of all other types, op requires the same element
+    // type for all operands and result.
+    return impl::verifySameOperandsAndResultElementType(op);
   }
 };
 
