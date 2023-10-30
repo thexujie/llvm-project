@@ -45,18 +45,19 @@ struct IndexGenerator {
 
   // Get the index of the object in the next level of trie.
   size_t next() {
-    size_t Index;
     if (!StartBit) {
       // Compute index for root when StartBit is not set.
       StartBit = 0;
-      Index = getIndex(Bytes, *StartBit, NumRootBits);
-    } else {
+      return getIndex(Bytes, *StartBit, NumRootBits);
+    }
+    if (*StartBit < Bytes.size() * 8) {
       // Compute index for sub-trie.
       *StartBit += *StartBit ? NumSubtrieBits : NumRootBits;
       assert((*StartBit - NumRootBits) % NumSubtrieBits == 0);
-      Index = getIndex(Bytes, *StartBit, NumSubtrieBits);
+      return getIndex(Bytes, *StartBit, NumSubtrieBits);
     }
-    return Index;
+    // All the bits are consumed.
+    return end();
   }
 
   // Provide a hint to speed up the index generation by providing the
@@ -78,6 +79,8 @@ struct IndexGenerator {
     assert(StartBit);
     return getIndex(CollidingBits, *StartBit, NumSubtrieBits);
   }
+
+  size_t end() const { return SIZE_MAX; }
 
   // Compute the index for the object from its hash, current start bits, and
   // the number of bits used for current level.

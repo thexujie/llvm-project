@@ -224,7 +224,7 @@ ThreadSafeTrieRawHashMapBase::find(ArrayRef<uint8_t> Hash) const {
   TrieSubtrie *S = &Impl->Root;
   IndexGenerator IndexGen{NumRootBits, NumSubtrieBits, Hash};
   size_t Index = IndexGen.next();
-  while (true) {
+  while (Index != IndexGen.end()) {
     // Try to set the content.
     TrieNode *Existing = S->get(Index);
     if (!Existing)
@@ -239,6 +239,7 @@ ThreadSafeTrieRawHashMapBase::find(ArrayRef<uint8_t> Hash) const {
     Index = IndexGen.next();
     S = cast<TrieSubtrie>(Existing);
   }
+  llvm_unreachable("failed to locate the node after consuming all hash bytes");
 }
 
 ThreadSafeTrieRawHashMapBase::PointerBase ThreadSafeTrieRawHashMapBase::insert(
@@ -258,7 +259,7 @@ ThreadSafeTrieRawHashMapBase::PointerBase ThreadSafeTrieRawHashMapBase::insert(
     Index = IndexGen.next();
   }
 
-  while (true) {
+  while (Index != IndexGen.end()) {
     // Load the node from the slot, allocating and calling the constructor if
     // the slot is empty.
     bool Generated = false;
@@ -292,8 +293,8 @@ ThreadSafeTrieRawHashMapBase::PointerBase ThreadSafeTrieRawHashMapBase::insert(
       return PointerBase(ExistingContent.getValuePointer());
 
     // Sink the existing content as long as the indexes match.
-    while (true) {
-      size_t NextIndex = IndexGen.next();
+    size_t NextIndex = IndexGen.next();
+    while (NextIndex != IndexGen.end()) {
       size_t NewIndexForExistingContent =
           IndexGen.getCollidingBits(ExistingContent.getHash());
       S = S->sink(Index, ExistingContent, IndexGen.getNumBits(),
@@ -306,8 +307,11 @@ ThreadSafeTrieRawHashMapBase::PointerBase ThreadSafeTrieRawHashMapBase::insert(
       // Found the difference.
       if (NextIndex != NewIndexForExistingContent)
         break;
+
+      NextIndex = IndexGen.next();
     }
   }
+  llvm_unreachable("failed to insert the node after consuming all hash bytes");
 }
 
 ThreadSafeTrieRawHashMapBase::ThreadSafeTrieRawHashMapBase(
