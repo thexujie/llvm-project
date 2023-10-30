@@ -102,14 +102,15 @@ public:
 };
 } // end namespace
 
-static size_t getTrieTailSize(size_t StartBit, size_t NumBits) {
-  assert(NumBits < 20 && "Tries should have fewer than ~1M slots");
+// Compute the trailing object size in the trie node. This is the size of \c
+// Slots in TrieNodes that pointing to the children.
+static size_t getTrieTailSize(size_t NumBits) {
   return sizeof(TrieNode *) * (1u << NumBits);
 }
 
 std::unique_ptr<TrieSubtrie> TrieSubtrie::create(size_t StartBit,
                                                  size_t NumBits) {
-  size_t Size = sizeof(TrieSubtrie) + getTrieTailSize(StartBit, NumBits);
+  size_t Size = sizeof(TrieSubtrie) + getTrieTailSize(NumBits);
   void *Memory = ::malloc(Size);
   TrieSubtrie *S = ::new (Memory) TrieSubtrie(StartBit, NumBits);
   return std::unique_ptr<TrieSubtrie>(S);
@@ -128,15 +129,22 @@ TrieSubtrie::TrieSubtrie(size_t StartBit, size_t NumBits)
       "Expected no work in destructor for TrieNode");
 }
 
+// Sink the nodes down sub-trie when the object being inserted collides with
+// the index of existing object in the trie. In this case, a new sub-trie needs
+// to be allocated to hold existing object.
 TrieSubtrie *TrieSubtrie::sink(
     size_t I, TrieContent &Content, size_t NumSubtrieBits, size_t NewI,
     function_ref<TrieSubtrie *(std::unique_ptr<TrieSubtrie>)> Saver) {
+  // Create a new sub-trie that points to the existing object with the new
+  // index for the next level.
   assert(NumSubtrieBits > 0);
   std::unique_ptr<TrieSubtrie> S = create(StartBit + NumBits, NumSubtrieBits);
 
   assert(NewI < S->Slots.size());
   S->Slots[NewI].store(&Content);
 
+  // Using compare_exchange to atomically add back the new sub-trie to the trie
+  // in the place of the exsiting object.
   TrieNode *ExistingNode = &Content;
   assert(I < Slots.size());
   if (Slots[I].compare_exchange_strong(ExistingNode, S.get()))
@@ -149,12 +157,15 @@ TrieSubtrie *TrieSubtrie::sink(
 
 struct ThreadSafeTrieRawHashMapBase::ImplType {
   static std::unique_ptr<ImplType> create(size_t StartBit, size_t NumBits) {
-    size_t Size = sizeof(ImplType) + getTrieTailSize(StartBit, NumBits);
+    size_t Size = sizeof(ImplType) + getTrieTailSize(NumBits);
     void *Memory = ::malloc(Size);
     ImplType *Impl = ::new (Memory) ImplType(StartBit, NumBits);
     return std::unique_ptr<ImplType>(Impl);
   }
 
+  // Save the Subtrie into the ownship list of the trie structure in a
+  // thread-safe way. The ownership transfer is done by compare_exchange the
+  // pointer value inside the unique_ptr.
   TrieSubtrie *save(std::unique_ptr<TrieSubtrie> S) {
     assert(!S->Next && "Expected S to a freshly-constructed leaf");
 
@@ -306,12 +317,7 @@ ThreadSafeTrieRawHashMapBase::ThreadSafeTrieRawHashMapBase(
       ContentOffset(ContentOffset),
       NumRootBits(NumRootBits ? *NumRootBits : DefaultNumRootBits),
       NumSubtrieBits(NumSubtrieBits ? *NumSubtrieBits : DefaultNumSubtrieBits),
-      ImplPtr(nullptr) {
-  assert((!NumRootBits || *NumRootBits < 20) &&
-         "Root should have fewer than ~1M slots");
-  assert((!NumSubtrieBits || *NumSubtrieBits < 10) &&
-         "Subtries should have fewer than ~1K slots");
-}
+      ImplPtr(nullptr) {}
 
 ThreadSafeTrieRawHashMapBase::ThreadSafeTrieRawHashMapBase(
     ThreadSafeTrieRawHashMapBase &&RHS)
@@ -413,7 +419,7 @@ std::string ThreadSafeTrieRawHashMapBase::getTriePrefixAsString(
   TrieContent *Node = nullptr;
   while (Current) {
     TrieSubtrie *Next = nullptr;
-    // find first used slot in the trie.
+    // Find first used slot in the trie.
     for (unsigned I = 0, E = Current->Slots.size(); I < E; ++I) {
       auto *S = Current->get(I);
       if (!S)
