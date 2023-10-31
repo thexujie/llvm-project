@@ -7,7 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // This test will fail if the number of devices detected by OpenMP is larger
-// than zero but for_each is not executed on the device.
+// than zero but std::for_each(std::execution::par_unseq,...) is not executed on
+// the device.
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
@@ -27,15 +28,27 @@ int main(void) {
     return 0;
 
   // Initializing test array
-  const int __test_size = 10000;
-  std::vector<int> __v(__test_size);
-  std::for_each(std::execution::par_unseq, __v.begin(), __v.end(), [](int& n) {
-    // Returns true if executed on the host
-    n = omp_is_initial_device();
-  });
+  const int test_size = 10000;
+  std::vector<int> v(test_size, 2);
 
-  auto __idx = std::find_if(std::execution::par_unseq, __v.begin(), __v.end(), [](int& n) -> bool { return n > 0; });
-  assert(__idx == __v.end() &&
-         "omp_is_initial_device() returned true in the target region. std::for_each was not offloaded.");
+  // By making an extra map, we can control when the data is mapped to and from
+  // the device, because the map inside std::fill will then only increment and
+  // decrement reference counters and not move data.
+  int* data = v.data();
+#pragma omp target enter data map(to : data[0 : v.size()])
+  std::fill(std::execution::par_unseq, v.begin(), v.end(), -2);
+
+  // At this point v should only contain the value 2
+  for (int vi : v)
+    assert(vi == 2 &&
+           "std::fill transferred data from device to the host but should only have decreased the reference counter.");
+
+// After moving the result back to the host it should now be -2
+#pragma omp target update from(data[0 : v.size()])
+  for (int vi : v)
+    assert(vi == -2 && "std::fill did not update the result on the device.");
+
+#pragma omp target exit data map(delete : data[0 : v.size()])
+
   return 0;
 }

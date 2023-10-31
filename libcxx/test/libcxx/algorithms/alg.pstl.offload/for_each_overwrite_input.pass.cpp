@@ -6,8 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-// This test verifies that you can overwrite the input in std::for_each. If the
-// result was not copied back from the device to the host, this test would fail.
+// This test verifies that you can overwrite the input in
+// std::for_each(std::execution::par_unseq,...). If the result was not copied
+// back from the device to the host, this test would fail.
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
@@ -22,43 +23,43 @@
 #include <vector>
 
 template <class _Tp, class _Predicate, class _Up>
-void overwrite(_Tp& __data, _Predicate __pred, const _Up& __value) {
-  // This function assumes that __pred will never be the identity transformation
-  // Filling array with __value
-  std::fill(std::execution::par_unseq, __data.begin(), __data.end(), __value);
+void overwrite(_Tp& data, _Predicate pred, const _Up& value) {
+  // This function assumes that pred will never be the identity transformation
 
   // Updating the array with a lambda
-  std::for_each(std::execution::par_unseq, __data.begin(), __data.end(), __pred);
+  std::for_each(std::execution::par_unseq, data.begin(), data.end(), pred);
 
   // Asserting that no elements have the intial value
-  auto __idx = std::find_if(
-      std::execution::par_unseq, __data.begin(), __data.end(), [&, __value](decltype(__data[0])& n) -> bool {
-        return n == __value;
-      });
-  assert(__idx == __data.end());
+  for (int di : data)
+    assert(
+        di != value &&
+        "The GPU implementation of std::for_each does not allow users to mutate the input as the C++ standard does.");
 }
 
 int main(void) {
-  const int __test_size = 10000;
+  const double value  = 2.0;
+  const int test_size = 10000;
   // Testing with vector of doubles
   {
-    std::vector<double> __v(__test_size);
-    overwrite(__v, [&](double& __n) { __n *= __n; }, 2.0);
+    std::vector<double> v(test_size, value);
+    overwrite(v, [&](double& n) { n *= n; }, value);
   }
   // Testing with vector of integers
   {
-    std::vector<int> __v(__test_size);
-    overwrite(__v, [&](int& __n) { __n *= __n; }, 2);
+    std::vector<int> v(test_size, (int)value);
+    overwrite(v, [&](int& n) { n *= n; }, (int)value);
   }
   // Testing with array of doubles
   {
-    std::array<double, __test_size> __a;
-    overwrite(__a, [&](double& __n) { __n *= __n; }, 2.0);
+    std::array<double, test_size> a;
+    a.fill(value);
+    overwrite(a, [&](double& n) { n *= n; }, value);
   }
   // Testing with array of integers
   {
-    std::array<int, __test_size> __a;
-    overwrite(__a, [&](int& __n) { __n *= __n; }, 2);
+    std::array<int, test_size> a;
+    a.fill((int)value);
+    overwrite(a, [&](int& n) { n *= n; }, (int)value);
   }
   return 0;
 }

@@ -7,7 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // This test will fail if the number of devices detected by OpenMP is larger
-// than zero but for_each is not executed on the device.
+// than zero but for_each(std::execution::par_unseq,...) is not executed on the
+// device.
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
@@ -27,15 +28,14 @@ int main(void) {
     return 0;
 
   // Initializing test array
-  const int __test_size = 10000;
-  std::vector<int> __v(__test_size);
-  std::for_each(std::execution::par_unseq, __v.begin(), __v.end(), [](int& n) {
+  const int test_size = 10000;
+  std::vector<int> v(test_size);
+  std::for_each(std::execution::par_unseq, v.begin(), v.end(), [](int& n) {
     // Returns true if executed on the host
     n = omp_is_initial_device();
   });
 
-  auto __idx = std::find_if(std::execution::par_unseq, __v.begin(), __v.end(), [](int& n) -> bool { return n > 0; });
-  assert(__idx == __v.end() &&
-         "omp_is_initial_device() returned true in the target region. std::for_each was not offloaded.");
+  for (int vi : v)
+    assert(vi == 0 && "omp_is_initial_device() returned true in the target region. std::for_each was not offloaded.");
   return 0;
 }

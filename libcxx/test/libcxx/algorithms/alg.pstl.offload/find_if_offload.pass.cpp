@@ -7,7 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // This test will fail if the number of devices detected by OpenMP is larger
-// than zero but find_if is not executed on the device.
+// than zero but syd::find_if(std::execution::par_unseq,...) is not executed on
+// the device.
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
@@ -27,15 +28,14 @@ int main(void) {
     return 0;
 
   // Initializing test array
-  const int __test_size = 10000;
-  std::vector<double> __v(__test_size);
-  std::fill(std::execution::par_unseq, __v.begin(), __v.end(), 1.0);
+  const int test_size = 10000;
+  std::vector<double> v(test_size, 1);
 
-  auto __idx = std::find_if(std::execution::par_unseq, __v.begin(), __v.end(), [](double&) -> bool {
+  auto idx = std::find_if(std::execution::par_unseq, v.begin(), v.end(), [](double&) -> bool {
     // Returns true if executed on the host
     return omp_is_initial_device();
   });
-  assert(__idx == __v.end() &&
+  assert(idx == v.end() &&
          "omp_is_initial_device() returned true in the target region. std::find_if was not offloaded.");
   return 0;
 }

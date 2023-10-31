@@ -7,7 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // This test will fail if the number of devices detected by OpenMP is larger
-// than zero but transform is not executed on the device.
+// than zero but std::transform(std::execution::par_unseq,...) is not executed
+// on the device.
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
@@ -26,38 +27,31 @@ int main(void) {
   if (omp_get_num_devices() < 1)
     return 0;
 
-  // Initializing test array
-  const int __test_size = 10000;
-  std::vector<int> __host(__test_size);
-  std::vector<int> __device(__test_size);
+  // Initializing test arrays
+  const int test_size = 10000;
+  std::vector<int> host(test_size);
+  std::vector<int> device(test_size);
   // Should execute on host
-  std::transform(std::execution::unseq, __host.begin(), __host.end(), __host.begin(), [](int& h) {
+  std::transform(std::execution::unseq, host.begin(), host.end(), host.begin(), [](int& h) {
     // Returns true if executed on the host
     h = omp_is_initial_device();
     return h;
   });
 
-  // Finding first index where omp_is_initial_device() returned true
-  auto __idx = std::find_if(std::execution::par_unseq, __host.begin(), __host.end(), [](int& n) -> bool { return n; });
-  assert(__idx == __host.begin() &&
-         "omp_is_initial_device() returned false. std::transform was offloaded but shouldn't be.");
+  // Asserting the std::transform(std::execution::unseq,...) executed on the host
+  for (int hi : host)
+    assert(hi && "omp_is_initial_device() returned false. std::transform was offloaded but shouldn't be.");
 
   // Should execute on device
   std::transform(
-      std::execution::par_unseq,
-      __device.begin(),
-      __device.end(),
-      __host.begin(),
-      __device.begin(),
-      [](int& d, int& h) {
+      std::execution::par_unseq, device.begin(), device.end(), host.begin(), device.begin(), [](int& d, int& h) {
         // Should return fals
         d = omp_is_initial_device();
         return h == d;
       });
 
-  // Finding first index where omp_is_initial_device() returned true
-  __idx = std::find_if(std::execution::par_unseq, __device.begin(), __device.end(), [](int& n) -> bool { return n; });
-  assert(__idx == __device.end() &&
-         "omp_is_initial_device() returned true in the target region. std::transform was not offloaded.");
+  // Asserting the std::transform(std::execution::par_unseq,...) executed on the device
+  for (int di : device)
+    assert(!di && "omp_is_initial_device() returned true in the target region. std::transform was not offloaded.");
   return 0;
 }
