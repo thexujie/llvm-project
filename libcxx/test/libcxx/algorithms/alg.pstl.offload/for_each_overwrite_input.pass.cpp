@@ -12,7 +12,7 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
-// ADDITIONAL_COMPILE_FLAGS: -fopenmp --offload-arch=native
+// ADDITIONAL_COMPILE_FLAGS: -O2 -Wno-pass-failed -fopenmp -fno-exceptions
 
 // REQUIRES: openmp_pstl_backend
 
