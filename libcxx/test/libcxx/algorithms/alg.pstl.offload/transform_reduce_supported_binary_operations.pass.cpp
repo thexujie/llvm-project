@@ -20,7 +20,7 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
-// ADDITIONAL_COMPILE_FLAGS: -O2 -Wno-pass-failed -fopenmp -fno-exceptions
+// ADDITIONAL_COMPILE_FLAGS: -O2 -Wno-pass-failed -fopenmp -fno-exceptions --offload-arch=native -L%{lib}/../../lib -lomptarget -L%{lib}/../../projects/openmp/libomptarget/ -lomptarget.devicertl
 
 // REQUIRES: openmp_pstl_backend
 
@@ -160,8 +160,8 @@ int main(void) {
   // Bitwise or
   {
     std::vector<unsigned int> v(test_size, 0);
-    int result =
-        std::transform_reduce(std::execution::par_unseq, v.begin(), v.end(), 0, std::bit_or{}, [](unsigned int& a) {
+    int result = std::transform_reduce(
+        std::execution::par_unseq, v.begin(), v.end(), 0, std::bit_or{}, [](unsigned int& a) -> unsigned int {
           return a || omp_is_initial_device();
         });
     assert(!result && "std::transform_reduce(std::execution::par_unseq,...) does not have the intended effect for the "
@@ -169,8 +169,8 @@ int main(void) {
 
     // After adding a one, the result should be true
     v[v.size() / 2] = 1;
-    result =
-        std::transform_reduce(std::execution::par_unseq, v.begin(), v.end(), 0, std::bit_or{}, [](unsigned int& a) {
+    result          = std::transform_reduce(
+        std::execution::par_unseq, v.begin(), v.end(), 0, std::bit_or{}, [](unsigned int& a) -> unsigned int {
           return a && !omp_is_initial_device();
         });
     assert(result && "std::transform_reduce(std::execution::par_unseq,...) does not have the intended effect for the "

@@ -31,7 +31,7 @@ template <class _Tp, class _DifferenceType, class _Predicate>
 _LIBCPP_HIDE_FROM_ABI _Tp* __omp_find_if(_Tp* __first, _DifferenceType __n, _Predicate __pred) noexcept {
   __par_backend::__omp_map_to(__first, __n);
   _DifferenceType __idx = __n;
-#  pragma omp target teams distribute parallel for simd reduction(min : __idx)
+#  pragma omp target teams distribute parallel for reduction(min : __idx)
   for (_DifferenceType __i = 0; __i < __n; ++__i) {
     if (__pred(*(__first + __i))) {
       __idx = (__i < __idx) ? __i : __idx;

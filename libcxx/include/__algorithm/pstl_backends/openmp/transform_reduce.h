@@ -48,7 +48,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
         std_op<_BinaryOperationType> __reduce,                                                                         \
         _UnaryOperation __transform) noexcept {                                                                        \
       __par_backend::__omp_map_to(__first, __n);                                                                       \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
+_PSTL_PRAGMA(omp target teams distribute parallel for reduction(omp_op:__init))                                        \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first + __i)));                                                      \
       __par_backend::__omp_map_release(__first, __n);                                                                  \
@@ -71,7 +71,7 @@ _PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__in
         _UnaryOperation __transform) noexcept {                                                                        \
       __par_backend::__omp_map_to(__first1, __n);                                                                      \
       __par_backend::__omp_map_to(__first2, __n);                                                                      \
-_PSTL_PRAGMA(omp target teams distribute parallel for simd reduction(omp_op:__init))                                   \
+_PSTL_PRAGMA(omp target teams distribute parallel for reduction(omp_op:__init))                                        \
       for (_DifferenceType __i = 0; __i < __n; ++__i)                                                                  \
         __init = __reduce(__init, __transform(*(__first1 + __i), *(__first2 + __i)));                                  \
       __par_backend::__omp_map_release(__first1, __n);                                                                 \

@@ -341,7 +341,7 @@ DEFAULT_PARAMETERS = [
             AddCompileFlag("-fopenmp"),
             # The linker needs to find the correct version of libomptarget
             AddLinkFlag("-Wl,-rpath,%{lib}/../../lib"),
-            AddLinkFlag("-L%{lib}/../../lib"),
+            #AddLinkFlag("-L%{lib}/../../lib -lomptarget"),
             #  The preprocessor needs to find the omp.h header
             # If OpenMP was installed as a project, the header lives in the
             # following directory

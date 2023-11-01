@@ -40,7 +40,7 @@ _LIBCPP_HIDE_FROM_ABI _Tp* __omp_transform(_Tp* __in1, _DifferenceType __n, _Up*
   // allocate the buffer on the device without copying the data.
   __par_backend::__omp_map_to(__in1, __n);
   __par_backend::__omp_map_alloc(__out1, __n);
-#  pragma omp target teams distribute parallel for simd
+#  pragma omp target teams distribute parallel for
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     *(__out1 + __i) = __f(*(__in1 + __i));
   // The order of the following two maps matters, since the user could legally
@@ -62,7 +62,7 @@ __omp_transform(_Tp* __in1, _DifferenceType __n, _Up* __in2, _Vp* __out1, _Funct
   __par_backend::__omp_map_to(__in1, __n);
   __par_backend::__omp_map_to(__in2, __n);
   __par_backend::__omp_map_alloc(__out1, __n);
-#  pragma omp target teams distribute parallel for simd
+#  pragma omp target teams distribute parallel for
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     *(__out1 + __i) = __f(*(__in1 + __i), *(__in2 + __i));
   // The order of the following three maps matters, since the user could legally

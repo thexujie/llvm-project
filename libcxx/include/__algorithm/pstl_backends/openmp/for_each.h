@@ -32,7 +32,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 template <class _Tp, class _DifferenceType, class _Function>
 _LIBCPP_HIDE_FROM_ABI _Tp* __omp_for_each(_Tp* __inout1, _DifferenceType __n, _Function __f) noexcept {
   __par_backend::__omp_map_to(__inout1, __n);
-#  pragma omp target teams distribute parallel for simd
+#  pragma omp target teams distribute parallel for
   for (_DifferenceType __i = 0; __i < __n; ++__i)
     __f(*(__inout1 + __i));
   __par_backend::__omp_map_from(__inout1, __n);

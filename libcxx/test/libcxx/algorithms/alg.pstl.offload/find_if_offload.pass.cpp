@@ -12,7 +12,7 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
-// ADDITIONAL_COMPILE_FLAGS: -O2 -Wno-pass-failed -fopenmp -fno-exceptions
+// ADDITIONAL_COMPILE_FLAGS: -O2 -Wno-pass-failed -fopenmp -fno-exceptions --offload-arch=native -L%{lib}/../../lib -lomptarget  -L%{lib}/../../projects/openmp/libomptarget/ -lomptarget.devicertl
 
 // REQUIRES: openmp_pstl_backend
 
