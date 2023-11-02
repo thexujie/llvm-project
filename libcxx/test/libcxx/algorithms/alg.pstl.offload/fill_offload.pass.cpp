@@ -35,7 +35,7 @@ int main(void) {
   // the device, because the map inside std::fill will then only increment and
   // decrement reference counters and not move data.
   int* data = v.data();
-#pragma omp target enter data map(to : data[0 : v.size()])
+#pragma omp target enter data map(to : data [0:v.size()])
   std::fill(std::execution::par_unseq, v.begin(), v.end(), -2);
 
   // At this point v should only contain the value 2
@@ -44,11 +44,11 @@ int main(void) {
            "std::fill transferred data from device to the host but should only have decreased the reference counter.");
 
 // After moving the result back to the host it should now be -2
-#pragma omp target update from(data[0 : v.size()])
+#pragma omp target update from(data [0:v.size()])
   for (int vi : v)
     assert(vi == -2 && "std::fill did not update the result on the device.");
 
-#pragma omp target exit data map(delete : data[0 : v.size()])
+#pragma omp target exit data map(delete : data [0:v.size()])
 
   return 0;
 }
