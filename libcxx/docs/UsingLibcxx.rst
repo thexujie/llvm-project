@@ -487,18 +487,19 @@ Example
 ~~~~~~~
 
 The following is an example of offloading vector addition to a GPU using our
-standard library extension.
+standard library extension. It implements the classical vector addition from
+BLAS that overwrites the vector ``y`` with ``y=a*x+y``. Thus ``y.begin()`` is
+both used as an input and an output iterator in this example.
 
 .. code-block:: cpp
 
   #include <algorithm>
   #include <execution>
 
-  template<typename T1, typename T2, typename T3>
-  void axpy(const T1 a,std::vector<T2>& x, std::vector<T3>& y)
-  {
-    std::transform(std::execution::par_unseq,x.begin(),x.end(), y.begin(), y.begin(),
-                  [=](T2 xi, T3 yi){ return a*xi + yi; });
+  template <typename T1, typename T2, typename T3>
+  void axpy(const T1 a, const std::vector<T2> &x, std::vector<T3> &y) {
+    std::transform(std::execution::par_unseq, x.begin(), x.end(), y.begin(),
+                  y.begin(), [=](T2 xi, T3 yi) { return a * xi + yi; });
   }
 
 The execution policy ``std::execution::par_unseq`` states that the algorithm's
@@ -512,12 +513,11 @@ be implemented in the following way.
 
 .. code-block:: cpp
 
-  template<typename T1, typename T2, typename T3>
-  void axpy(const T1 a,std::vector<T2>& x, std::vector<T3>& y)
-  {
-  # pragma omp target data map(to:a)
-    std::transform(std::execution::par_unseq,x.begin(),x.end(), y.begin(), y.begin(),
-                  [&](T2 xi, T3 yi){ return a*xi + yi; });
+  template <typename T1, typename T2, typename T3>
+  void axpy(const T1 a, const std::vector<T2> &x, std::vector<T3> &y) {
+  #pragma omp target data map(to : a)
+    std::transform(std::execution::par_unseq, x.begin(), x.end(), y.begin(),
+                  y.begin(), [&](T2 xi, T3 yi) { return a * xi + yi; });
   }
 
 However, if unified shared memory, USM, is enabled, no additional data mapping
@@ -539,27 +539,31 @@ pointer can be obtained with ``target map(from:<list of identifiers>)``.
 
   // Declare that the function must be compiled for both host and device
   #pragma omp declare target
-  void cube(int& n) {n*=n*n; };
+  // This function computes the squared difference of two floating points
+  float squared(float a, float b) { return a * a - 2.0f * a * b + b * b; };
   #pragma omp end declare target
 
-  int main()
-  {
-    std::vector<int> a(LEN,2);
-    // Get the device pointer for cube
-    void (*dcube)(int& n);
-    #pragma omp target map(from:dcube)
-    dcube = &cube;
+  int main() {
+    std::vector<float> a(100, 1.0);
+    std::vector<float> b(100, 1.25);
+
+    // Get the device pointer for squared
+    float (*dev_squared)(float, float);
+  #pragma omp target map(from : dev_squared)
+    dev_squared = &squared;
+
     // Pass the device function pointer to the parallel algorithm
-    std::for_each(std::execution::par_unseq,a.begin(), a.end(),dcube);
-    // Validate that the result is 8 on the host for all array indices
-    std::for_each(std::execution::par,a.begin(), a.end(),[&](int & n){
-      assert(n == 8);
-    });
+    float sum =
+        std::transform_reduce(std::execution::par_unseq, a.begin(), a.end(),
+                              b.begin(), 0.0f, std::plus{}, dev_squared);
+
+    // Validate that the result is approximately 6.25
+    assert(std::abs(sum - 6.25f) < 1e-10);
     return 0;
   }
 
 Without unified shared memory, the above example will not work if the host
-function pointer ``cube`` is passed to the parallel algorithm.
+function pointer ``squared`` is passed to the parallel algorithm.
 
 Important notes about exception handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
