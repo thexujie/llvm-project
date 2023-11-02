@@ -60,7 +60,7 @@ Exceptions
 Currently, GPU architectures do not handle exceptions. OpenMP target regions are
 allowed to contain try/catch statements and throw expressions in Clang, but if a
 throw expression is reached, it will terminate the program. That does not
-conform with the C++ standard.
+conform to the C++ standard.
 
 [This document](https://eel.is/c++draft/algorithms.parallel) has been used as
 reference for these considerations.
