@@ -569,7 +569,7 @@ Important notes about exception handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 GPU architectures do not support exception handling. If compiling a program
-containing parallel algorithms with ``clang`` 18 or newer, a program with
+containing parallel algorithms with current versions of Clang, a program with
 exceptions in offloaded code regions will compile, but the program will
 terminate if an exception is thrown on the device. This does not conform with
 the C++ standard and exception handling on GPUs will hopefully be better
