@@ -27,7 +27,7 @@ inline namespace __omp_backend {
 //===----------------------------------------------------------------------===//
 // The following four functions can be used to map contiguous array sections to
 // and from the device. For now, they are simple overlays of the OpenMP pragmas,
-// but they should be updated wen adding support for other iterator types.
+// but they should be updated when adding support for other iterator types.
 //===----------------------------------------------------------------------===//
 
 template <class _Iterator, class _DifferenceType>

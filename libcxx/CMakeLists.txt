@@ -558,6 +558,11 @@ function(cxx_add_basic_build_flags target)
     endif()
   endif()
   target_compile_options(${target} PUBLIC "${LIBCXX_ADDITIONAL_COMPILE_FLAGS}")
+
+  # If the PSTL backend depends on OpenMP, we must enable the OpenMP tool chain
+  if (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
+    target_add_compile_flags_if_supported(${target} PUBLIC -fopenmp)
+  endif()
 endfunction()
 
 # Exception flags =============================================================
@@ -781,8 +786,6 @@ elseif (LIBCXX_PSTL_BACKEND STREQUAL "libdispatch")
   config_define(1 _LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH)
 elseif (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
   config_define(1 _LIBCPP_PSTL_BACKEND_OPENMP)
-  # Making sure that OpenMP is enabled during build
-  add_compile_options(-fopenmp)
 else()
   message(FATAL_ERROR "LIBCXX_PSTL_BACKEND is set to ${LIBCXX_PSTL_BACKEND}, which is not a valid backend.
                        Valid backends are: serial, std-thread, libdispatch, and openmp.")

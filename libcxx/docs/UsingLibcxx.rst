@@ -477,8 +477,8 @@ iterators for ``std::vector`` or ``std::array``.
 To enable the OpenMP offloading backend it must be selected with
 ``LIBCXX_PSTL_BACKEND=openmp`` when installing ``libc++``. Further, when
 compiling a program, the user must specify the command line options
-``-fopenmp -fexperimental-library -stdlib=libc++``. To install LLVM with OpenMP
-offloading enabled, please read
+``-fopenmp -fexperimental-library``. To install LLVM with OpenMP offloading
+enabled, please read
 `the LLVM OpenMP FAQ. <https://openmp.llvm.org/SupportAndFAQ.html>`_ 
 You may also want to to visit
 `the OpenMP offloading command-line argument reference. <https://openmp.llvm.org/CommandLineArgumentReference.html#offload-command-line-arguments>`_ 
@@ -531,9 +531,9 @@ space. However, discrete GPU systems have distinct address spaces. A single
 address space can be emulated if your system supports unified shared memory.
 However, many discrete GPU systems do not, and in those cases it is important to
 pass device function pointers to the parallel algorithms. Below is an example of
-how the OpenMP `declare target` directive can be used to mark that a function
+how the OpenMP ``declare target`` directive can be used to mark that a function
 should be compiled for both host and device. The device address of a function
-pointer can be obtained with `target map(from:<list of identifiers>)`.
+pointer can be obtained with ``target map(from:<list of identifiers>)``.
 
 .. code-block:: cpp
 
@@ -559,7 +559,7 @@ pointer can be obtained with `target map(from:<list of identifiers>)`.
   }
 
 Without unified shared memory, the above example will not work if the host
-function pointer `cube` is passed to the parallel algorithm.
+function pointer ``cube`` is passed to the parallel algorithm.
 
 Important notes about exception handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
