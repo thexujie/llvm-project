@@ -63,7 +63,7 @@ def main():
         # TEMP is needed for placing temp files in a sensible directory.
         if "TEMP" in os.environ:
             env["TEMP"] = os.environ.get("TEMP")
-    
+
     # Forwarding the environment variable CUDA_VISIBLE_DEVICES which configures
     # the visible NVIDIA GPUs.
     if "CUDA_VISIBLE_DEVICES" in os.environ:
