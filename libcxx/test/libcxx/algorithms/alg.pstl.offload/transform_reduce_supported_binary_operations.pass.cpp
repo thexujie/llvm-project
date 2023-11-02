@@ -33,7 +33,7 @@
 #include <omp.h>
 #include <iostream>
 
-int main(void) {
+int main(int, char**) {
   // We only run the test if a device is detected by OpenMP
   if (omp_get_num_devices() < 1)
     return 0;

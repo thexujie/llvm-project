@@ -30,7 +30,7 @@ std::string get_env_var(std::string const& env_var_name, int& flag) {
   return (val != NULL) ? val : "";
 }
 
-int main(void) {
+int main(int, char**) {
   // Stores whether the environment variable was found
   int status = 0;
 

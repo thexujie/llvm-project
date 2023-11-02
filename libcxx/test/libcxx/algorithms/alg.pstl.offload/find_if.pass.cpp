@@ -41,7 +41,7 @@ void check_find_if(_Tp& data) {
   }
 }
 
-int main(void) {
+int main(int, char**) {
   const int test_size = 10000;
   // Testing with vector of doubles
   {

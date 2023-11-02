@@ -36,7 +36,7 @@ void overwrite(_Tp& data, _Predicate pred, const _Up& value) {
         "The GPU implementation of std::for_each does not allow users to mutate the input as the C++ standard does.");
 }
 
-int main(void) {
+int main(int, char**) {
   const double value  = 2.0;
   const int test_size = 10000;
   // Testing with vector of doubles
