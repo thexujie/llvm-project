@@ -8648,7 +8648,7 @@ static void HandleRequiresCapabilityAttr(TypeProcessingState &State,
   Sema &S = State.getSema();
 
   if (PA.getNumArgs() < 1) {
-    S.Diag(PA.getLoc(), diag::err_attribute_too_few_arguments) << PA << 1;
+    // Already diganosed elsewhere, just ignore.
     return;
   }
 
