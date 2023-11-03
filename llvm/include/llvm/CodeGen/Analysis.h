@@ -75,20 +75,23 @@ void ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL, Type *Ty,
                      SmallVectorImpl<uint64_t> *FixedOffsets,
                      uint64_t StartingOffset);
 
-/// Variant of ComputeValueVTs that also produces the memory VTs.
+/// Variant of ComputeValueVTs that also produces the memory VTs and VT types.
 void ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL, Type *Ty,
                      SmallVectorImpl<EVT> &ValueVTs,
                      SmallVectorImpl<EVT> *MemVTs,
+                     SmallVectorImpl<Type *> *ValueTys,
                      SmallVectorImpl<TypeSize> *Offsets,
                      TypeSize StartingOffset);
 void ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL, Type *Ty,
                      SmallVectorImpl<EVT> &ValueVTs,
                      SmallVectorImpl<EVT> *MemVTs,
+                     SmallVectorImpl<Type *> *ValueTys = nullptr,
                      SmallVectorImpl<TypeSize> *Offsets = nullptr,
                      uint64_t StartingOffset = 0);
 void ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL, Type *Ty,
                      SmallVectorImpl<EVT> &ValueVTs,
                      SmallVectorImpl<EVT> *MemVTs,
+                     SmallVectorImpl<Type *> *ValueTys,
                      SmallVectorImpl<uint64_t> *FixedOffsets,
                      uint64_t StartingOffset);
 
