@@ -2634,6 +2634,9 @@ struct ExtAddrMode : public TargetLowering::AddrMode {
   void print(raw_ostream &OS) const;
   void dump() const;
 
+  // Replace From in ExtAddrMode with To.
+  // E.g., SExt insts may be promoted and deleted. We should replace them with
+  // the promoted values.
   void replaceWith(Value *From, Value *To) {
     if (BaseReg == From)
       BaseReg = To;
