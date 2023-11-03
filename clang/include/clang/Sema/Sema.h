@@ -13868,6 +13868,11 @@ public:
                                    SourceLocation BuiltinLoc,
                                    SourceLocation RParenLoc);
 
+  void checkAttrArgsAreCapabilityObjs(Decl *D, const ParsedAttr &AL,
+                                      SmallVectorImpl<Expr *> &Args,
+                                      unsigned Sidx = 0,
+                                      bool ParamIdxOk = false);
+
 private:
   bool SemaBuiltinPrefetch(CallExpr *TheCall);
   bool SemaBuiltinAllocaWithAlign(CallExpr *TheCall);
