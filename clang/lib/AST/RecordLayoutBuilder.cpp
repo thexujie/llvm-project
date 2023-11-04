@@ -2802,6 +2802,13 @@ void MicrosoftRecordLayoutBuilder::initializeLayout(const RecordDecl *RD) {
     UseExternalLayout = Source->layoutRecordType(
         RD, External.Size, External.Align, External.FieldOffsets,
         External.BaseOffsets, External.VirtualBaseOffsets);
+
+  if (!RD->isMsStruct(Context)) {
+    auto Location = RD->getLocation();
+    if (Location.isValid())
+      Context.getDiagnostics().Report(Location,
+                                      diag::err_itanium_layout_unimplemented);
+  }
 }
 
 void
