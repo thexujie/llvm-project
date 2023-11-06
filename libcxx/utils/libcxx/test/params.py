@@ -347,9 +347,6 @@ DEFAULT_PARAMETERS = [
             AddFlag("-I %{lib}/../../projects/openmp/runtime/src/"),
             # And if it was installed as a runtime it lives in the following:
             AddFlag("-I %{lib}/../../runtimes/runtimes-bins/openmp/runtime/src"),
-            # If the OpenMP PSTL backend was enbaled, we wish to run the tests
-            # for it
-            AddFeature("openmp_pstl_backend")
         ] if enabled else [],
     )
 ]
