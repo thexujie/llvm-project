@@ -36,9 +36,9 @@ define internal i32 @caller(ptr %B) {
 ; CGSCC: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; CGSCC-LABEL: define {{[^@]+}}@caller
 ; CGSCC-SAME: () #[[ATTR0]] {
-; CGSCC-NEXT:    [[A:%.*]] = alloca i32, align 4
-; CGSCC-NEXT:    [[A2:%.*]] = alloca i8, i32 0, align 4
-; CGSCC-NEXT:    [[A1:%.*]] = alloca i8, i32 0, align 4
+; CGSCC-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 4
+; CGSCC-NEXT:    [[A12:%.*]] = alloca i8, i32 0, align 4
+; CGSCC-NEXT:    [[A11:%.*]] = alloca i8, i32 0, align 4
 ; CGSCC-NEXT:    ret i32 0
 ;
   %A = alloca i32
@@ -51,13 +51,13 @@ define i32 @callercaller() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@callercaller
 ; TUNIT-SAME: () #[[ATTR0:[0-9]+]] {
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    ret i32 0
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
 ; CGSCC-LABEL: define {{[^@]+}}@callercaller
 ; CGSCC-SAME: () #[[ATTR1:[0-9]+]] {
-; CGSCC-NEXT:    [[B:%.*]] = alloca i32, align 4
+; CGSCC-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
 ; CGSCC-NEXT:    [[X:%.*]] = call noundef i32 @caller() #[[ATTR2:[0-9]+]]
 ; CGSCC-NEXT:    ret i32 [[X]]
 ;

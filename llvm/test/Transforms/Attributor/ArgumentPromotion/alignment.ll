@@ -9,8 +9,8 @@
 define void @f() {
 ; TUNIT-LABEL: define {{[^@]+}}@f() {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[A:%.*]] = alloca i32, align 1
-; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[A]], align 1
+; TUNIT-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 1
+; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[A1]], align 1
 ; TUNIT-NEXT:    call void @g(i32 [[TMP0]])
 ; TUNIT-NEXT:    ret void
 ;
@@ -92,7 +92,7 @@ define i32 @callercaller() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@callercaller
 ; TUNIT-SAME: () #[[ATTR1:[0-9]+]] {
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    ret i32 3
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

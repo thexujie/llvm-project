@@ -92,10 +92,10 @@ define dso_local i32 @visible_local(ptr %A) #0 {
 ; TUNIT-LABEL: define {{[^@]+}}@visible_local
 ; TUNIT-SAME: (ptr nocapture nofree readonly [[A:%.*]]) #[[ATTR1:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    store i32 5, ptr [[B]], align 4
-; TUNIT-NEXT:    [[CALL1:%.*]] = call i32 @noalias_args(ptr nocapture nofree noundef readonly align 4 [[A]], ptr noalias nocapture nofree noundef nonnull readonly align 4 dereferenceable(4) [[B]]) #[[ATTR4]]
-; TUNIT-NEXT:    [[CALL2:%.*]] = call i32 @noalias_args_argmem(ptr nocapture nofree noundef readonly align 4 [[A]], ptr noalias nocapture nofree noundef nonnull readonly align 4 dereferenceable(4) [[B]]) #[[ATTR4]]
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    store i32 5, ptr [[B1]], align 4
+; TUNIT-NEXT:    [[CALL1:%.*]] = call i32 @noalias_args(ptr nocapture nofree noundef readonly align 4 [[A]], ptr noalias nocapture nofree noundef nonnull readonly align 4 dereferenceable(4) [[B1]]) #[[ATTR4]]
+; TUNIT-NEXT:    [[CALL2:%.*]] = call i32 @noalias_args_argmem(ptr nocapture nofree noundef readonly align 4 [[A]], ptr noalias nocapture nofree noundef nonnull readonly align 4 dereferenceable(4) [[B1]]) #[[ATTR4]]
 ; TUNIT-NEXT:    [[ADD:%.*]] = add nsw i32 [[CALL1]], [[CALL2]]
 ; TUNIT-NEXT:    ret i32 [[ADD]]
 ;
@@ -142,7 +142,7 @@ define i32 @visible_local_2() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@visible_local_2
 ; TUNIT-SAME: () #[[ATTR2:[0-9]+]] {
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    ret i32 10
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
@@ -179,8 +179,8 @@ define i32 @visible_local_3() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@visible_local_3
 ; TUNIT-SAME: () #[[ATTR2]] {
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    [[CALL:%.*]] = call i32 @noalias_args_argmem_rn(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B]]) #[[ATTR5:[0-9]+]]
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    [[CALL:%.*]] = call i32 @noalias_args_argmem_rn(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B1]]) #[[ATTR5:[0-9]+]]
 ; TUNIT-NEXT:    ret i32 5
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

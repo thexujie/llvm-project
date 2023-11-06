@@ -375,13 +375,13 @@ define dso_local void @spam() {
 ; TUNIT-LABEL: define {{[^@]+}}@spam
 ; TUNIT-SAME: () #[[ATTR2:[0-9]+]] {
 ; TUNIT-NEXT:  bb:
-; TUNIT-NEXT:    [[TMP:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[TMP1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    [[X:%.*]] = fptosi float undef to i32
-; TUNIT-NEXT:    store i32 [[X]], ptr [[TMP]], align 4
+; TUNIT-NEXT:    store i32 [[X]], ptr [[TMP1]], align 4
 ; TUNIT-NEXT:    br label [[BB16:%.*]]
 ; TUNIT:       bb16:
-; TUNIT-NEXT:    [[TRUETMP18:%.*]] = icmp eq i32 [[X]], 0
-; TUNIT-NEXT:    br i1 [[TRUETMP18]], label [[BB35:%.*]], label [[BB19:%.*]]
+; TUNIT-NEXT:    [[TMP18:%.*]] = icmp eq i32 [[X]], 0
+; TUNIT-NEXT:    br i1 [[TMP18]], label [[BB35:%.*]], label [[BB19:%.*]]
 ; TUNIT:       bb19:
 ; TUNIT-NEXT:    br label [[BB23:%.*]]
 ; TUNIT:       bb23:
@@ -399,13 +399,13 @@ define dso_local void @spam() {
 ; CGSCC-LABEL: define {{[^@]+}}@spam
 ; CGSCC-SAME: () #[[ATTR5:[0-9]+]] {
 ; CGSCC-NEXT:  bb:
-; CGSCC-NEXT:    [[TMP:%.*]] = alloca i32, align 4
+; CGSCC-NEXT:    [[TMP1:%.*]] = alloca i8, i32 4, align 4
 ; CGSCC-NEXT:    [[X:%.*]] = fptosi float undef to i32
-; CGSCC-NEXT:    store i32 [[X]], ptr [[TMP]], align 4
+; CGSCC-NEXT:    store i32 [[X]], ptr [[TMP1]], align 4
 ; CGSCC-NEXT:    br label [[BB16:%.*]]
 ; CGSCC:       bb16:
-; CGSCC-NEXT:    [[TRUETMP18:%.*]] = icmp eq i32 [[X]], 0
-; CGSCC-NEXT:    br i1 [[TRUETMP18]], label [[BB35:%.*]], label [[BB19:%.*]]
+; CGSCC-NEXT:    [[TMP18:%.*]] = icmp eq i32 [[X]], 0
+; CGSCC-NEXT:    br i1 [[TMP18]], label [[BB35:%.*]], label [[BB19:%.*]]
 ; CGSCC:       bb19:
 ; CGSCC-NEXT:    br label [[BB23:%.*]]
 ; CGSCC:       bb23:

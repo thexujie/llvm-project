@@ -36,8 +36,12 @@ define i8 @call_simplifiable_1() {
 ; TUNIT-LABEL: define {{[^@]+}}@call_simplifiable_1
 ; TUNIT-SAME: () #[[ATTR0:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[BYTES:%.*]] = alloca [1024 x i8], align 16
-; TUNIT-NEXT:    [[I0:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 2
+; TUNIT-NEXT:    [[BYTES1:%.*]] = alloca i8, align 16
+; TUNIT-NEXT:    [[I0:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 2
+; TUNIT-NEXT:    [[TMP0:%.*]] = ptrtoint ptr [[I0]] to i32
+; TUNIT-NEXT:    [[TMP1:%.*]] = sub i32 [[TMP0]], 2
+; TUNIT-NEXT:    [[TMP2:%.*]] = inttoptr i32 [[TMP1]] to ptr
+; TUNIT-NEXT:    store i8 2, ptr [[TMP2]], align 1
 ; TUNIT-NEXT:    ret i8 2
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
@@ -93,9 +97,17 @@ define i8 @call_simplifiable_2() {
 ; TUNIT-LABEL: define {{[^@]+}}@call_simplifiable_2
 ; TUNIT-SAME: () #[[ATTR0]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[BYTES:%.*]] = alloca [1024 x i8], align 16
-; TUNIT-NEXT:    [[I0:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 2
-; TUNIT-NEXT:    [[I1:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 3
+; TUNIT-NEXT:    [[BYTES1:%.*]] = alloca i8, i32 2, align 16
+; TUNIT-NEXT:    [[I0:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 2
+; TUNIT-NEXT:    [[TMP0:%.*]] = ptrtoint ptr [[I0]] to i32
+; TUNIT-NEXT:    [[TMP1:%.*]] = sub i32 [[TMP0]], 2
+; TUNIT-NEXT:    [[TMP2:%.*]] = inttoptr i32 [[TMP1]] to ptr
+; TUNIT-NEXT:    store i8 2, ptr [[TMP2]], align 1
+; TUNIT-NEXT:    [[I1:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 3
+; TUNIT-NEXT:    [[TMP3:%.*]] = ptrtoint ptr [[I1]] to i32
+; TUNIT-NEXT:    [[TMP4:%.*]] = sub i32 [[TMP3]], 2
+; TUNIT-NEXT:    [[TMP5:%.*]] = inttoptr i32 [[TMP4]] to ptr
+; TUNIT-NEXT:    store i8 3, ptr [[TMP5]], align 1
 ; TUNIT-NEXT:    ret i8 4
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
@@ -125,8 +137,12 @@ define i8 @call_simplifiable_3() {
 ; TUNIT-LABEL: define {{[^@]+}}@call_simplifiable_3
 ; TUNIT-SAME: () #[[ATTR0]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[BYTES:%.*]] = alloca [1024 x i8], align 16
-; TUNIT-NEXT:    [[I2:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 2
+; TUNIT-NEXT:    [[BYTES1:%.*]] = alloca i8, align 16
+; TUNIT-NEXT:    [[I2:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 2
+; TUNIT-NEXT:    [[TMP0:%.*]] = ptrtoint ptr [[I2]] to i32
+; TUNIT-NEXT:    [[TMP1:%.*]] = sub i32 [[TMP0]], 2
+; TUNIT-NEXT:    [[TMP2:%.*]] = inttoptr i32 [[TMP1]] to ptr
+; TUNIT-NEXT:    store i8 2, ptr [[TMP2]], align 1
 ; TUNIT-NEXT:    ret i8 2
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)
@@ -198,12 +214,24 @@ define i8 @call_partially_simplifiable_1() {
 ; TUNIT-LABEL: define {{[^@]+}}@call_partially_simplifiable_1
 ; TUNIT-SAME: () #[[ATTR0]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[BYTES:%.*]] = alloca [1024 x i8], align 16
-; TUNIT-NEXT:    [[I2:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 2
+; TUNIT-NEXT:    [[BYTES1:%.*]] = alloca i8, i32 3, align 16
+; TUNIT-NEXT:    [[I2:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 2
+; TUNIT-NEXT:    [[TMP0:%.*]] = ptrtoint ptr [[I2]] to i32
+; TUNIT-NEXT:    [[TMP1:%.*]] = sub i32 [[TMP0]], 2
+; TUNIT-NEXT:    [[TMP2:%.*]] = inttoptr i32 [[TMP1]] to ptr
+; TUNIT-NEXT:    store i8 2, ptr [[TMP2]], align 1
 ; TUNIT-NEXT:    store i8 2, ptr [[I2]], align 2
-; TUNIT-NEXT:    [[I3:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 3
+; TUNIT-NEXT:    [[I3:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 3
+; TUNIT-NEXT:    [[TMP3:%.*]] = ptrtoint ptr [[I3]] to i32
+; TUNIT-NEXT:    [[TMP4:%.*]] = sub i32 [[TMP3]], 1
+; TUNIT-NEXT:    [[TMP5:%.*]] = inttoptr i32 [[TMP4]] to ptr
+; TUNIT-NEXT:    store i8 3, ptr [[TMP5]], align 1
 ; TUNIT-NEXT:    store i8 3, ptr [[I3]], align 1
-; TUNIT-NEXT:    [[I4:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 4
+; TUNIT-NEXT:    [[I4:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 4
+; TUNIT-NEXT:    [[TMP6:%.*]] = ptrtoint ptr [[I4]] to i32
+; TUNIT-NEXT:    [[TMP7:%.*]] = sub i32 [[TMP6]], 3
+; TUNIT-NEXT:    [[TMP8:%.*]] = inttoptr i32 [[TMP7]] to ptr
+; TUNIT-NEXT:    store i8 4, ptr [[TMP8]], align 1
 ; TUNIT-NEXT:    [[R:%.*]] = call i8 @sum_two_different_loads(ptr nocapture nofree noundef nonnull readonly align 2 dereferenceable(1022) [[I2]], ptr nocapture nofree noundef nonnull readonly dereferenceable(1021) [[I3]]) #[[ATTR3]]
 ; TUNIT-NEXT:    ret i8 [[R]]
 ;
@@ -239,13 +267,25 @@ define i8 @call_partially_simplifiable_2(i1 %cond) {
 ; TUNIT-LABEL: define {{[^@]+}}@call_partially_simplifiable_2
 ; TUNIT-SAME: (i1 [[COND:%.*]]) #[[ATTR2:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[BYTES:%.*]] = alloca [1024 x i8], align 16
-; TUNIT-NEXT:    [[I51:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 51
-; TUNIT-NEXT:    [[I52:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 52
+; TUNIT-NEXT:    [[BYTES1:%.*]] = alloca i8, i32 4, align 16
+; TUNIT-NEXT:    [[I51:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 51
+; TUNIT-NEXT:    [[I52:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 52
+; TUNIT-NEXT:    [[TMP0:%.*]] = ptrtoint ptr [[I52]] to i32
+; TUNIT-NEXT:    [[TMP1:%.*]] = sub i32 [[TMP0]], 52
+; TUNIT-NEXT:    [[TMP2:%.*]] = inttoptr i32 [[TMP1]] to ptr
+; TUNIT-NEXT:    store i8 2, ptr [[TMP2]], align 1
 ; TUNIT-NEXT:    store i8 2, ptr [[I52]], align 4
-; TUNIT-NEXT:    [[I53:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 53
+; TUNIT-NEXT:    [[I53:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 53
+; TUNIT-NEXT:    [[TMP3:%.*]] = ptrtoint ptr [[I53]] to i32
+; TUNIT-NEXT:    [[TMP4:%.*]] = sub i32 [[TMP3]], 50
+; TUNIT-NEXT:    [[TMP5:%.*]] = inttoptr i32 [[TMP4]] to ptr
+; TUNIT-NEXT:    store i8 3, ptr [[TMP5]], align 1
 ; TUNIT-NEXT:    store i8 3, ptr [[I53]], align 1
-; TUNIT-NEXT:    [[I54:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES]], i64 0, i64 54
+; TUNIT-NEXT:    [[I54:%.*]] = getelementptr inbounds [1024 x i8], ptr [[BYTES1]], i64 0, i64 54
+; TUNIT-NEXT:    [[TMP6:%.*]] = ptrtoint ptr [[I54]] to i32
+; TUNIT-NEXT:    [[TMP7:%.*]] = sub i32 [[TMP6]], 53
+; TUNIT-NEXT:    [[TMP8:%.*]] = inttoptr i32 [[TMP7]] to ptr
+; TUNIT-NEXT:    store i8 4, ptr [[TMP8]], align 1
 ; TUNIT-NEXT:    [[SEL:%.*]] = select i1 [[COND]], ptr [[I51]], ptr [[I52]]
 ; TUNIT-NEXT:    [[R:%.*]] = call i8 @sum_two_different_loads(ptr nocapture nofree nonnull readonly dereferenceable(972) [[SEL]], ptr nocapture nofree noundef nonnull readonly dereferenceable(971) [[I53]]) #[[ATTR3]]
 ; TUNIT-NEXT:    ret i8 [[R]]
