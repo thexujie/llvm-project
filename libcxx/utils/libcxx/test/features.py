@@ -305,7 +305,7 @@ macros = {
     "_LIBCPP_HAS_NO_UNICODE": "libcpp-has-no-unicode",
     "_LIBCPP_HAS_NO_STD_MODULES":  "libcpp-has-no-std-modules",
     "_LIBCPP_PSTL_CPU_BACKEND_LIBDISPATCH": "libcpp-pstl-cpu-backend-libdispatch",
-    "_LIBCPP_PSTL_BACKEND_OPENMP": "openmp_pstl_backend"
+    "_LIBCPP_PSTL_BACKEND_OPENMP": "openmp_pstl_backend",
 }
 for macro, feature in macros.items():
     DEFAULT_FEATURES.append(
