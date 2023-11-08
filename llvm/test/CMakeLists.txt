@@ -23,6 +23,7 @@ llvm_canonicalize_cmake_booleans(
   LLVM_ENABLE_EXPENSIVE_CHECKS
   LLVM_ENABLE_REVERSE_ITERATION
   LLVM_INCLUDE_DXIL_TESTS
+  LLVM_ENABLE_ONDISK_CAS
   LLVM_TOOL_LLVM_DRIVER_BUILD
   )
 
@@ -55,6 +56,7 @@ configure_lit_site_cfg(
 # NOTE: Sync the substitutions in test/lit.cfg when adding to this list.
 set(LLVM_TEST_DEPENDS
           BugpointPasses
+          CASPluginTest
           FileCheck
           LLVMHello
           LLVMWindowsDriver
@@ -70,6 +72,7 @@ set(LLVM_TEST_DEPENDS
           llvm-bcanalyzer
           llvm-bitcode-strip
           llvm-c-test
+          llvm-cas
           llvm-cat
           llvm-cfi-verify
           llvm-config
