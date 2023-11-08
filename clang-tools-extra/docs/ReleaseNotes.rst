@@ -290,6 +290,12 @@ Changes in existing checks
   to ignore unused parameters when they are marked as unused and parameters of
   deleted functions and constructors.
 
+- Improved :doc:`cppcoreguidelines-special-member-functions
+  <clang-tidy/checks/cppcoreguidelines/special-member-functions>` check with a
+  new option `AllowImplicitlyDeletedCopyOrMove`, which removes the requirement
+  for explicit copy or move special member functions when they are already
+  implicitly deleted.
+
 - Improved :doc:`llvm-namespace-comment
   <clang-tidy/checks/llvm/namespace-comment>` check to provide fixes for
   ``inline`` namespaces in the same format as :program:`clang-format`.
