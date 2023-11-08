@@ -373,6 +373,18 @@ static void handleNewDebugValue(InlinedEntity Var, const MachineInstr &DV,
                                 DbgValueHistoryMap &HistMap) {
   EntryIndex NewIndex;
   if (HistMap.startDbgValue(Var, DV, NewIndex)) {
+    // As we already need to iterate all LiveEntries when handling a DbgValue,
+    // we use this map to avoid a more expensive check against RegVars. There
+    // is an assert that we handle this correclty in addRegDescribedVar.
+    //
+    // In other terms, the presense in this map indicates the presense of a
+    // corresponding entry in RegVars.
+    //
+    // The bool value then tracks whether an entry is to be retained (true) or
+    // removed (false); as we end previous entries we speculatively assume they
+    // can be dropped from RegVars, but we then also visit the new entry whose
+    // set of debug register operands may overlap and "save" a reg from being
+    // dropped.
     SmallDenseMap<unsigned, bool, 4> TrackedRegs;
 
     // If we have created a new debug value entry, close all preceding
