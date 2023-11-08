@@ -531,31 +531,26 @@ space. However, discrete GPU systems have distinct address spaces. A single
 address space can be emulated if your system supports unified shared memory.
 However, many discrete GPU systems do not, and in those cases it is important to
 pass device function pointers to the parallel algorithms. Below is an example of
-how the OpenMP ``declare target`` directive can be used to mark that a function
-should be compiled for both host and device. The device address of a function
-pointer can be obtained with ``target map(from:<list of identifiers>)``.
+how the OpenMP ``declare target`` directive with the ``indirect`` clause can be
+used to mark that a function should be compiled for both host and device.
 
 .. code-block:: cpp
 
-  // Declare that the function must be compiled for both host and device
-  #pragma omp declare target
   // This function computes the squared difference of two floating points
   float squared(float a, float b) { return a * a - 2.0f * a * b + b * b; };
-  #pragma omp end declare target
+
+  // Declare that the function must be compiled for both host and device
+  #pragma omp declare target indirect to(squared)
 
   int main() {
     std::vector<float> a(100, 1.0);
     std::vector<float> b(100, 1.25);
 
-    // Get the device pointer for squared
-    float (*dev_squared)(float, float);
-  #pragma omp target map(from : dev_squared)
-    dev_squared = &squared;
-
-    // Pass the device function pointer to the parallel algorithm
+    // Pass the host function pointer to the parallel algorithm and let OpenMP
+    // translate it to the device function pointer internally
     float sum =
         std::transform_reduce(std::execution::par_unseq, a.begin(), a.end(),
-                              b.begin(), 0.0f, std::plus{}, dev_squared);
+                              b.begin(), 0.0f, std::plus{}, squared);
 
     // Validate that the result is approximately 6.25
     assert(std::abs(sum - 6.25f) < 1e-10);
