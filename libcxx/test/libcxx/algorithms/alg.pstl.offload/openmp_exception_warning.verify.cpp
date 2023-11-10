@@ -24,11 +24,11 @@
 #include <vector>
 
 bool is_odd(int& i) {
-  try { // expected-warning {{target 'amdgcn-amd-amdhsa' does not support exception handling; 'catch' block is ignored}}
+  try { // expected-warning {{does not support exception handling; 'catch' block is ignored}}
     if (i % 2 == 0) {
       return true;
     } else {
-      throw false; // expected-warning {{target 'amdgcn-amd-amdhsa' does not support exception handling; 'throw' is assumed to be never reached}}
+      throw false; // expected-warning {{does not support exception handling; 'throw' is assumed to be never reached}}
     }
   } catch (bool b) {
     return b;
