@@ -11960,9 +11960,11 @@ isArithmeticArgumentPromotion(Sema &S, const ImplicitCastExpr *ICE) {
     From = VecTy->getElementType();
   if (const auto *VecTy = To->getAs<ExtVectorType>())
     To = VecTy->getElementType();
-  // It's a floating promotion if the source type is a lower rank.
-  return ICE->getCastKind() == CK_FloatingCast &&
-         S.Context.getFloatingTypeOrder(From, To) < 0;
+  // It's a floating promotion if the source type is float.
+  // [7.3.8p1][conv.fpprom] https://eel.is/c++draft/conv.fpprom
+  return (ICE->getCastKind() == CK_FloatingCast &&
+          S.Context.isPromotableFloatingType(From) &&
+          S.Context.getPromotedFloatingType(From) == To);
 }
 
 bool
@@ -15272,9 +15274,12 @@ static void AnalyzeCompoundAssignment(Sema &S, BinaryOperator *E) {
     return;
 
   // If both source and target are floating points, warn about losing precision.
-  int Order = S.getASTContext().getFloatingTypeSemanticOrder(
-      QualType(ResultBT, 0), QualType(RBT, 0));
-  if (Order < 0 && !S.SourceMgr.isInSystemMacro(E->getOperatorLoc()))
+  FloatConvRankCompareResult Order =
+      S.getASTContext().getFloatingTypeSemanticOrder(QualType(ResultBT, 0),
+                                                     QualType(RBT, 0));
+
+  assert(Order != FRCR_Unordered && "Invalid floating point types");
+  if (Order == FRCR_Lesser && !S.SourceMgr.isInSystemMacro(E->getOperatorLoc()))
     // warn about dropping FP rank.
     DiagnoseImpCast(S, E->getRHS(), E->getLHS()->getType(), E->getOperatorLoc(),
                     diag::warn_impcast_float_result_precision);
@@ -15700,7 +15705,7 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
 
       int Order = S.getASTContext().getFloatingTypeSemanticOrder(
           QualType(SourceBT, 0), QualType(TargetBT, 0));
-      if (Order > 0) {
+      if (Order == FRCR_Greater) {
         // Don't warn about float constants that are precisely
         // representable in the target type.
         Expr::EvalResult result;
@@ -15718,12 +15723,14 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
         DiagnoseImpCast(S, E, T, CC, diag::warn_impcast_float_precision);
       }
       // ... or possibly if we're increasing rank, too
-      else if (Order < 0) {
+      else if (Order == FRCR_Lesser) {
         if (S.SourceMgr.isInSystemMacro(CC))
           return;
 
         DiagnoseImpCast(S, E, T, CC, diag::warn_impcast_double_promotion);
       }
+      assert(Order != FRCR_Unordered &&
+             "Unordered floating types are not allowed.");
       return;
     }
 
