@@ -98,6 +98,9 @@ struct greater_equal {
 template <class _Lhs, class _Rhs>
 struct __is_trivial_equality_predicate<ranges::equal_to, _Lhs, _Rhs> : true_type {};
 
+template <class _Lhs, class _Rhs>
+struct __is_trivial_less_than_predicate<ranges::less, _Lhs, _Rhs> : true_type {};
+
 #endif // _LIBCPP_STD_VER >= 20
 
 _LIBCPP_END_NAMESPACE_STD

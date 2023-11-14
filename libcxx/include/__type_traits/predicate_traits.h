@@ -21,6 +21,9 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 template <class _Pred, class _Lhs, class _Rhs>
 struct __is_trivial_equality_predicate : false_type {};
 
+template <class _Pred, class _Lhs, class _Rhs>
+struct __is_trivial_less_than_predicate : false_type {};
+
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // _LIBCPP___TYPE_TRAITS_PREDICATE_TRAITS
