@@ -82,10 +82,11 @@ func.func @opaque_types(%arg0: !emitc.opaque<"bool">, %arg1: !emitc.opaque<"char
   return %2 : !emitc.opaque<"status_t">
 }
 
-func.func @apply(%arg0: i32) -> !emitc.ptr<i32> {
+func.func @apply() -> !emitc.ptr<i32> {
+  %arg0 = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> i32
   // CHECK: int32_t* [[V2]] = &[[V1]];
-  %0 = emitc.apply "&"(%arg0) : (i32) -> !emitc.ptr<i32>
+  %0 = emitc.address_of %arg0 : (i32) -> !emitc.ptr<i32>
   // CHECK: int32_t [[V3]] = *[[V2]];
-  %1 = emitc.apply "*"(%0) : (!emitc.ptr<i32>) -> (i32)
+  %1 = emitc.dereference %0 : (!emitc.ptr<i32>) -> (i32)
   return %0 : !emitc.ptr<i32>
 }

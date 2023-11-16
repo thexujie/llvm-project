@@ -72,26 +72,18 @@ func.func @dense_template_argument(%arg : i32) {
 
 // -----
 
-func.func @empty_operator(%arg : i32) {
-    // expected-error @+1 {{'emitc.apply' op applicable operator must not be empty}}
-    %2 = emitc.apply ""(%arg) : (i32) -> !emitc.ptr<i32>
-    return
-}
-
-// -----
-
-func.func @illegal_operator(%arg : i32) {
-    // expected-error @+1 {{'emitc.apply' op applicable operator is illegal}}
-    %2 = emitc.apply "+"(%arg) : (i32) -> !emitc.ptr<i32>
-    return
-}
-
-// -----
-
-func.func @illegal_operand() {
+func.func @illegal_address_of_operand() {
     %1 = "emitc.constant"(){value = 42: i32} : () -> i32
-    // expected-error @+1 {{'emitc.apply' op cannot apply to constant}}
-    %2 = emitc.apply "&"(%1) : (i32) -> !emitc.ptr<i32>
+    // expected-error @+1 {{'emitc.address_of' op requires operand to be a variable}}
+    %2 = emitc.address_of %1 : (i32) -> !emitc.ptr<i32>
+    return
+}
+
+// -----
+
+func.func @illegal_dereference_operand(%arg0 : !emitc.ptr<i32>) {
+    // expected-error @+1 {{'emitc.dereference' op requires result to be of type pointed to by operand}}
+    %2 = emitc.dereference %arg0 : (!emitc.ptr<i32>) -> (f32)
     return
 }
 

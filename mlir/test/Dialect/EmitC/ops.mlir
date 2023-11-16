@@ -25,9 +25,10 @@ func.func @c() {
   return
 }
 
-func.func @a(%arg0: i32, %arg1: i32) {
-  %1 = "emitc.apply"(%arg0) {applicableOperator = "&"} : (i32) -> !emitc.ptr<i32>
-  %2 = emitc.apply "&"(%arg1) : (i32) -> !emitc.ptr<i32>
+func.func @a() {
+  %arg0 = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> i32
+  %1 = "emitc.address_of"(%arg0) : (i32) -> !emitc.ptr<i32>
+  %2 = emitc.address_of %arg0 : (i32) -> !emitc.ptr<i32>
   return
 }
 
@@ -44,6 +45,12 @@ func.func @add_pointer(%arg0: !emitc.ptr<f32>, %arg1: i32, %arg2: !emitc.opaque<
 
 func.func @div_int(%arg0: i32, %arg1: i32) {
   %1 = "emitc.div" (%arg0, %arg1) : (i32, i32) -> i32
+  return
+}
+
+func.func @dereference(%arg0: !emitc.ptr<i32>) {
+  %1 = "emitc.dereference"(%arg0) : (!emitc.ptr<i32>) -> (i32)
+  %2 = emitc.dereference %arg0 : (!emitc.ptr<i32>) -> (i32)
   return
 }
 
