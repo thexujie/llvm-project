@@ -214,6 +214,19 @@ static LogicalResult printConstantOp(CppEmitter &emitter, Operation *operation,
 }
 
 static LogicalResult printOperation(CppEmitter &emitter,
+                                    emitc::AddressOfOp addressOfOp) {
+  raw_ostream &os = emitter.ostream();
+  Operation &op = *addressOfOp.getOperation();
+
+  if (failed(emitter.emitAssignPrefix(op)))
+    return failure();
+  os << "&";
+  os << emitter.getOrCreateName(addressOfOp.getOperand());
+
+  return success();
+}
+
+static LogicalResult printOperation(CppEmitter &emitter,
                                     emitc::ConstantOp constantOp) {
   Operation *operation = constantOp.getOperation();
   Attribute value = constantOp.getValue();
@@ -461,19 +474,6 @@ static LogicalResult printOperation(CppEmitter &emitter, emitc::CallOp callOp) {
   return success();
 }
 
-static LogicalResult printOperation(CppEmitter &emitter,
-                                    emitc::ApplyOp applyOp) {
-  raw_ostream &os = emitter.ostream();
-  Operation &op = *applyOp.getOperation();
-
-  if (failed(emitter.emitAssignPrefix(op)))
-    return failure();
-  os << applyOp.getApplicableOperator();
-  os << emitter.getOrCreateName(applyOp.getOperand());
-
-  return success();
-}
-
 static LogicalResult printOperation(CppEmitter &emitter, emitc::CastOp castOp) {
   raw_ostream &os = emitter.ostream();
   Operation &op = *castOp.getOperation();
@@ -485,6 +485,19 @@ static LogicalResult printOperation(CppEmitter &emitter, emitc::CastOp castOp) {
     return failure();
   os << ") ";
   os << emitter.getOrCreateName(castOp.getOperand());
+
+  return success();
+}
+
+static LogicalResult printOperation(CppEmitter &emitter,
+                                    emitc::DereferenceOp dereferenceOp) {
+  raw_ostream &os = emitter.ostream();
+  Operation &op = *dereferenceOp.getOperation();
+
+  if (failed(emitter.emitAssignPrefix(op)))
+    return failure();
+  os << "*";
+  os << emitter.getOrCreateName(dereferenceOp.getOperand());
 
   return success();
 }
@@ -949,10 +962,11 @@ LogicalResult CppEmitter::emitOperation(Operation &op, bool trailingSemicolon) {
           .Case<cf::BranchOp, cf::CondBranchOp>(
               [&](auto op) { return printOperation(*this, op); })
           // EmitC ops.
-          .Case<emitc::AddOp, emitc::ApplyOp, emitc::AssignOp, emitc::CallOp,
-                emitc::CastOp, emitc::CmpOp, emitc::ConstantOp, emitc::DivOp,
-                emitc::ForOp, emitc::IfOp, emitc::IncludeOp, emitc::MulOp,
-                emitc::RemOp, emitc::SubOp, emitc::VariableOp>(
+          .Case<emitc::AddOp, emitc::AddressOfOp, emitc::AssignOp,
+                emitc::CallOp, emitc::CastOp, emitc::CmpOp, emitc::ConstantOp,
+                emitc::DereferenceOp, emitc::DivOp, emitc::ForOp, emitc::IfOp,
+                emitc::IncludeOp, emitc::MulOp, emitc::RemOp, emitc::SubOp,
+                emitc::VariableOp>(
               [&](auto op) { return printOperation(*this, op); })
           // Func ops.
           .Case<func::CallOp, func::ConstantOp, func::FuncOp, func::ReturnOp>(

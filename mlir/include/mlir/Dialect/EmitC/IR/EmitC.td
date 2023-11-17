@@ -63,31 +63,23 @@ def EmitC_AddOp : EmitC_BinaryOp<"add", []> {
   let hasVerifier = 1;
 }
 
-def EmitC_ApplyOp : EmitC_Op<"apply", []> {
-  let summary = "Apply operation";
+def EmitC_AddressOfOp : EmitC_Op<"address_of", []> {
+  let summary = "Address operation";
   let description = [{
-    With the `apply` operation the operators & (address of) and * (contents of)
-    can be applied to a single operand.
+    This operation models the C & (address of) operator for a single operand which
+    must be an emitc.variable. It returns an emitc pointer to the variable.
 
     Example:
 
     ```mlir
     // Custom form of applying the & operator.
-    %0 = emitc.apply "&"(%arg0) : (i32) -> !emitc.ptr<i32>
-
-    // Generic form of the same operation.
-    %0 = "emitc.apply"(%arg0) {applicableOperator = "&"}
-        : (i32) -> !emitc.ptr<i32>
-
+    %0 = emitc.address_of %arg0 : (i32) -> !emitc.ptr<i32>
     ```
   }];
-  let arguments = (ins
-    Arg<StrAttr, "the operator to apply">:$applicableOperator,
-    AnyType:$operand
-  );
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyType:$var);
+  let results = (outs EmitC_PointerType:$result);
   let assemblyFormat = [{
-    $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
+    $var attr-dict `:` functional-type($var, $result)
   }];
   let hasVerifier = 1;
 }
@@ -219,6 +211,27 @@ def EmitC_ConstantOp : EmitC_Op<"constant", [ConstantLike]> {
   let results = (outs AnyType);
 
   let hasFolder = 1;
+  let hasVerifier = 1;
+}
+
+def EmitC_DereferenceOp : EmitC_Op<"dereference", []> {
+  let summary = "Dereference operation";
+  let description = [{
+    This operation models the C * (dereference) operator for a single operand which
+    must be of !emitc.ptr<> type. It returns the value pointed to by the pointer.
+
+    Example:
+
+    ```mlir
+    // Custom form of applying the & operator.
+    %0 = emitc.dereference %arg0 : (!emitc.ptr<i32>) -> i32
+    ```
+  }];
+  let arguments = (ins EmitC_PointerType:$pointer);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = [{
+    $pointer attr-dict `:` functional-type($pointer, $result)
+  }];
   let hasVerifier = 1;
 }
 
@@ -448,12 +461,12 @@ def EmitC_VariableOp : EmitC_Op<"variable", []> {
 
     Since folding is not supported, it can be used with pointers.
     As an example, it is valid to create pointers to `variable` operations
-    by using `apply` operations and pass these to a `call` operation.
+    by using `address_of` operations and pass these to a `call` operation.
     ```mlir
     %0 = "emitc.variable"() {value = 0 : i32} : () -> i32
     %1 = "emitc.variable"() {value = 0 : i32} : () -> i32
-    %2 = emitc.apply "&"(%0) : (i32) -> !emitc.ptr<i32>
-    %3 = emitc.apply "&"(%1) : (i32) -> !emitc.ptr<i32>
+    %2 = emitc.address_of %0 : (i32) -> !emitc.ptr<i32>
+    %3 = emitc.address_of %1 : (i32) -> !emitc.ptr<i32>
     emitc.call "write"(%2, %3) : (!emitc.ptr<i32>, !emitc.ptr<i32>) -> ()
     ```
   }];

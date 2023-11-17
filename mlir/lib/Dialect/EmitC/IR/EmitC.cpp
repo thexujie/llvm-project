@@ -72,23 +72,21 @@ LogicalResult AddOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
-// ApplyOp
+// AddressOfOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult ApplyOp::verify() {
-  StringRef applicableOperatorStr = getApplicableOperator();
+LogicalResult AddressOfOp::verify() {
+  Value variable = getVar();
+  auto variableDef = dyn_cast_if_present<VariableOp>(variable.getDefiningOp());
+  if (!variableDef)
+    return emitOpError() << "requires operand to be a variable";
 
-  // Applicable operator must not be empty.
-  if (applicableOperatorStr.empty())
-    return emitOpError("applicable operator must not be empty");
+  Type variableType = variable.getType();
+  emitc::PointerType resultType = getResult().getType();
+  Type pointeeType = resultType.getPointee();
 
-  // Only `*` and `&` are supported.
-  if (applicableOperatorStr != "&" && applicableOperatorStr != "*")
-    return emitOpError("applicable operator is illegal");
-
-  Operation *op = getOperand().getDefiningOp();
-  if (op && dyn_cast<ConstantOp>(op))
-    return emitOpError("cannot apply to constant");
+  if (variableType != pointeeType)
+    return emitOpError("requires variable to be of type pointed to by result");
 
   return success();
 }
@@ -188,6 +186,23 @@ LogicalResult emitc::ConstantOp::verify() {
 }
 
 OpFoldResult emitc::ConstantOp::fold(FoldAdaptor adaptor) { return getValue(); }
+
+//===----------------------------------------------------------------------===//
+// DereferenceOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult DereferenceOp::verify() {
+  auto pointer = getPointer();
+  emitc::PointerType pointerType = pointer.getType();
+  Type pointeeType = pointerType.getPointee();
+  Type resultType = getResult().getType();
+
+  if (pointeeType != resultType)
+    return emitOpError()
+           << "requires result to be of type pointed to by operand";
+
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // ForOp
