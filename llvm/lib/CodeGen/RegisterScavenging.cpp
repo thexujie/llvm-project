@@ -95,7 +95,7 @@ void RegScavenger::backward() {
 bool RegScavenger::isRegUsed(Register Reg, bool includeReserved) const {
   if (isReserved(Reg))
     return includeReserved;
-  return !LiveUnits.available(Reg);
+  return LiveUnits.contains(Reg);
 }
 
 Register RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
@@ -150,8 +150,8 @@ findSurvivorBackwards(const MachineRegisterInfo &MRI,
     if (I == To) {
       // See if one of the registers in RC wasn't used so far.
       for (MCPhysReg Reg : AllocationOrder) {
-        if (!MRI.isReserved(Reg) && Used.available(Reg) &&
-            LiveOut.available(Reg))
+        if (!MRI.isReserved(Reg) && !Used.contains(Reg) &&
+            !LiveOut.contains(Reg))
           return std::make_pair(Reg, MBB.end());
       }
       // Otherwise we will continue up to InstrLimit instructions to find
@@ -172,10 +172,10 @@ findSurvivorBackwards(const MachineRegisterInfo &MRI,
           MI.getFlag(MachineInstr::FrameSetup))
         break;
 
-      if (Survivor == 0 || !Used.available(Survivor)) {
+      if (Survivor == 0 || Used.contains(Survivor)) {
         MCPhysReg AvilableReg = 0;
         for (MCPhysReg Reg : AllocationOrder) {
-          if (!MRI.isReserved(Reg) && Used.available(Reg)) {
+          if (Used.available(MRI, Reg)) {
             AvilableReg = Reg;
             break;
           }

@@ -8669,8 +8669,8 @@ AArch64InstrInfo::getOutlinableRanges(MachineBasicBlock &MBB,
   // where these registers are dead. We will only outline from those ranges.
   LiveRegUnits LRU(getRegisterInfo());
   auto AreAllUnsafeRegsDead = [&LRU]() {
-    return LRU.available(AArch64::W16) && LRU.available(AArch64::W17) &&
-           LRU.available(AArch64::NZCV);
+    return !LRU.contains(AArch64::W16) && !LRU.contains(AArch64::W17) &&
+           !LRU.contains(AArch64::NZCV);
   };
 
   // We need to know if LR is live across an outlining boundary later on in
@@ -8740,7 +8740,7 @@ AArch64InstrInfo::getOutlinableRanges(MachineBasicBlock &MBB,
       CreateNewRangeStartingAt(MI.getIterator());
       continue;
     }
-    LRAvailableEverywhere &= LRU.available(AArch64::LR);
+    LRAvailableEverywhere &= !LRU.contains(AArch64::LR);
     RangeBegin = MI.getIterator();
     ++RangeLen;
   }
