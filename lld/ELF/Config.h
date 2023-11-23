@@ -187,6 +187,8 @@ struct Config {
   llvm::StringRef cmseOutputLib;
   StringRef zBtiReport = "none";
   StringRef zCetReport = "none";
+  llvm::StringRef zZicfilpReport = "none";
+  llvm::StringRef zZicfissReport = "none";
   bool ltoBBAddrMap;
   llvm::StringRef ltoBasicBlockSections;
   std::pair<llvm::StringRef, llvm::StringRef> thinLTOObjectSuffixReplace;
@@ -324,6 +326,8 @@ struct Config {
   bool zText;
   bool zRetpolineplt;
   bool zWxneeded;
+  bool zForceZicfilp;
+  bool zForceZicfiss;
   DiscardPolicy discard;
   GnuStackKind zGnustack;
   ICFLevel icf;
