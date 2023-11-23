@@ -71,6 +71,7 @@ public:
   void emitDirectiveVariantCC(MCSymbol &Symbol) override;
 
   void finish() override;
+  void emitNoteSection(unsigned Flags);
 };
 
 MCELFStreamer *createRISCVELFStreamer(MCContext &C,
