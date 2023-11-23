@@ -2570,7 +2570,7 @@ static void checkAndReportMissingFeature(StringRef config, uint32_t features,
 // GNU_PROPERTY_AARCH64_FEATURE_1_AND mechanism.
 static uint32_t getAndFeatures() {
   if (config->emachine != EM_386 && config->emachine != EM_X86_64 &&
-      config->emachine != EM_AARCH64)
+      config->emachine != EM_AARCH64 && config->emachine != EM_RISCV)
     return 0;
 
   uint32_t ret = -1;
