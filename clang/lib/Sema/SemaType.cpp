@@ -8651,6 +8651,25 @@ static void HandleAnnotateTypeAttr(TypeProcessingState &State,
   CurType = State.getAttributedType(AnnotateTypeAttr, CurType, CurType);
 }
 
+static void HandleRequiresCapabilityAttr(TypeProcessingState &State,
+                                         QualType &CurType,
+                                         const ParsedAttr &PA) {
+  Sema &S = State.getSema();
+
+  if (PA.getNumArgs() < 1) {
+    // Already diganosed elsewhere, just ignore.
+    return;
+  }
+
+  llvm::SmallVector<Expr *, 4> Args;
+  Args.reserve(PA.getNumArgs() - 1);
+  State.getSema().checkAttrArgsAreCapabilityObjs(/*Decl=*/nullptr, PA, Args);
+
+  auto *RCAttr =
+      RequiresCapabilityAttr::Create(S.Context, Args.data(), Args.size(), PA);
+  CurType = State.getAttributedType(RCAttr, CurType, CurType);
+}
+
 static void HandleLifetimeBoundAttr(TypeProcessingState &State,
                                     QualType &CurType,
                                     ParsedAttr &Attr) {
@@ -8944,6 +8963,11 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     }
     case ParsedAttr::AT_AnnotateType: {
       HandleAnnotateTypeAttr(state, type, attr);
+      attr.setUsedAsTypeAttr();
+      break;
+    }
+    case ParsedAttr::AT_RequiresCapability: {
+      HandleRequiresCapabilityAttr(state, type, attr);
       attr.setUsedAsTypeAttr();
       break;
     }

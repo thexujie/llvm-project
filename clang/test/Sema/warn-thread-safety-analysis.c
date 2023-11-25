@@ -136,6 +136,17 @@ int main(void) {
     // Cleanup happens automatically -> no warning.
   }
 
+  /// Function pointers
+  {
+    int __attribute__((requires_capability(&mu1))) (*function_ptr)(int) = Foo_fun1;
+
+    function_ptr(5); // expected-warning {{calling function 'function_ptr' requires holding mutex 'mu1'}}
+
+    mutex_exclusive_lock(&mu1);
+    int five = function_ptr(5);
+    mutex_exclusive_unlock(&mu1);
+  }
+
   return 0;
 }
 
