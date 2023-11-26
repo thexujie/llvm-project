@@ -191,8 +191,9 @@ template <class _ForwardIterator1, class _ForwardIterator2, class _BinaryPredica
 _LIBCPP_NODISCARD_EXT _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 bool
 is_permutation(_ForwardIterator1 __first1, _ForwardIterator1 __last1, _ForwardIterator2 __first2,
                _BinaryPredicate __pred) {
-  static_assert(__is_callable<_BinaryPredicate, decltype(*__first1), decltype(*__first2)>::value,
-      "The predicate has to be callable");
+  static_assert(__is_callable<_Compare&, decltype(*__first), const _Tp&>::value, "The comparator has to be callable");
+  static_assert(
+      __is_callable<_Compare const&, decltype(*__first), const _Tp&>::value, "The comparator has to be const-callable");
 
   return std::__is_permutation<_ClassicAlgPolicy>(
       std::move(__first1), std::move(__last1), std::move(__first2), __pred);

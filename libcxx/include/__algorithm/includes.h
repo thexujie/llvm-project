@@ -45,8 +45,9 @@ _LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20
     _InputIterator2 __first2,
     _InputIterator2 __last2,
     _Compare __comp) {
-  static_assert(__is_callable<_Compare, decltype(*__first1), decltype(*__first2)>::value,
-      "Comparator has to be callable");
+  static_assert(__is_callable<_Compare&, decltype(*__first), const _Tp&>::value, "The comparator has to be callable");
+  static_assert(
+      __is_callable<_Compare const&, decltype(*__first), const _Tp&>::value, "The comparator has to be const-callable");
 
   return std::__includes(
       std::move(__first1),
