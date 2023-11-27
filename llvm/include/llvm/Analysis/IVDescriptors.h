@@ -166,8 +166,8 @@ public:
   /// other is a PHI value.
   // TODO: FindLast does not need be restricted to increasing loop induction
   // variables.
-  static InstDesc isFindLastIVPattern(Loop *Loop, PHINode *OrigPhi,
-                                      Instruction *I, ScalarEvolution *SE);
+  static InstDesc isFindLastIVPattern(PHINode *OrigPhi, Instruction *I,
+                                      ScalarEvolution *SE);
 
   /// Returns a struct describing if the instruction is a
   /// Select(FCmp(X, Y), (Z = X op PHINode), PHINode) instruction pattern.
