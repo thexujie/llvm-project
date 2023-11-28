@@ -449,7 +449,7 @@ void GlobalSection::generateRelocationCode(raw_ostream &os, bool TLS) const {
       writeU8(os, opcode_ptr_const, "CONST");
       writeSleb128(os, f->getTableIndex(), "offset");
     } else {
-      assert(isa<UndefinedData>(sym));
+      assert(isa<UndefinedData>(sym) || isa<SharedData>(sym));
       continue;
     }
     writeU8(os, opcode_ptr_add, "ADD");
@@ -519,7 +519,7 @@ void GlobalSection::writeBody() {
       else if (auto *f = dyn_cast<FunctionSymbol>(sym))
         initExpr = intConst(f->isStub ? 0 : f->getTableIndex(), is64);
       else {
-        assert(isa<UndefinedData>(sym));
+        assert(isa<UndefinedData>(sym) || isa<SharedData>(sym));
         initExpr = intConst(0, is64);
       }
       writeInitExpr(os, initExpr);

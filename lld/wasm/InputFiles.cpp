@@ -178,7 +178,7 @@ uint64_t ObjFile::calcNewValue(const WasmRelocation &reloc, uint64_t tombstone,
   case R_WASM_MEMORY_ADDR_TLS_SLEB:
   case R_WASM_MEMORY_ADDR_TLS_SLEB64:
   case R_WASM_MEMORY_ADDR_LOCREL_I32: {
-    if (isa<UndefinedData>(sym) || sym->isUndefWeak())
+    if (isa<UndefinedData>(sym) || sym->isShared() || sym->isUndefWeak())
       return 0;
     auto D = cast<DefinedData>(sym);
     uint64_t value = D->getVA() + reloc.Addend;
@@ -391,7 +391,36 @@ static bool shouldMerge(const WasmSegment &seg) {
   return true;
 }
 
-void ObjFile::parse(bool ignoreComdats) {
+void SharedFile::parse() {
+  WasmFileBase::parse();
+  assert(wasmObj->isSharedObject());
+
+  for (const SymbolRef &sym : wasmObj->symbols()) {
+    const WasmSymbol &wasmSym = wasmObj->getWasmSymbol(sym.getRawDataRefImpl());
+    if (wasmSym.isDefined()) {
+      StringRef name = wasmSym.Info.Name;
+      uint32_t flags = wasmSym.Info.Flags;
+      Symbol *s;
+      LLVM_DEBUG(dbgs() << "shared symbol: " << name << "\n");
+      switch (wasmSym.Info.Kind) {
+      case WASM_SYMBOL_TYPE_FUNCTION:
+        if (name == "__wasm_apply_data_relocs" || name == "__wasm_call_ctors") {
+          continue;
+        }
+        s = symtab->addSharedFunction(name, flags, this, wasmSym.Signature);
+        break;
+      case WASM_SYMBOL_TYPE_DATA:
+        s = symtab->addSharedData(name, flags, this);
+        break;
+      default:
+        continue;
+      }
+      symbols.push_back(s);
+    }
+  }
+}
+
+void WasmFileBase::parse() {
   // Parse a memory buffer as a wasm file.
   LLVM_DEBUG(dbgs() << "Parsing object: " << toString(this) << "\n");
   std::unique_ptr<Binary> bin = CHECK(createBinary(mb), toString(this));
@@ -399,13 +428,18 @@ void ObjFile::parse(bool ignoreComdats) {
   auto *obj = dyn_cast<WasmObjectFile>(bin.get());
   if (!obj)
     fatal(toString(this) + ": not a wasm file");
-  if (!obj->isRelocatableObject())
-    fatal(toString(this) + ": not a relocatable wasm file");
 
   bin.release();
   wasmObj.reset(obj);
 
   checkArch(obj->getArch());
+}
+
+void ObjFile::parse(bool ignoreComdats) {
+  WasmFileBase::parse();
+
+  if (!wasmObj->isRelocatableObject())
+    fatal(toString(this) + ": not a relocatable wasm file");
 
   // Build up a map of function indices to table indices for use when
   // verifying the existing table index relocations
@@ -548,6 +582,7 @@ bool ObjFile::isExcludedByComdat(const InputChunk *chunk) const {
 }
 
 FunctionSymbol *ObjFile::getFunctionSymbol(uint32_t index) const {
+  assert(isa<FunctionSymbol>(symbols[index]));
   return cast<FunctionSymbol>(symbols[index]);
 }
 

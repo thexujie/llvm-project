@@ -19,6 +19,8 @@ using namespace llvm::wasm;
 namespace lld::wasm {
 
 static bool requiresGOTAccess(const Symbol *sym) {
+  if (sym->isShared())
+    return true;
   if (!config->isPic &&
       config->unresolvedSymbols != UnresolvedPolicy::ImportDynamic)
     return false;
@@ -141,9 +143,12 @@ void scanRelocations(InputChunk *chunk) {
       break;
     }
 
-    if (config->isPic ||
+    bool shouldImport =
+        sym->isShared() ||
         (sym->isUndefined() &&
-         config->unresolvedSymbols == UnresolvedPolicy::ImportDynamic)) {
+         config->unresolvedSymbols == UnresolvedPolicy::ImportDynamic);
+
+    if (shouldImport) {
       switch (reloc.Type) {
       case R_WASM_TABLE_INDEX_SLEB:
       case R_WASM_TABLE_INDEX_SLEB64:
@@ -162,8 +167,8 @@ void scanRelocations(InputChunk *chunk) {
       case R_WASM_MEMORY_ADDR_I32:
       case R_WASM_MEMORY_ADDR_I64:
         // These relocation types are only present in the data section and
-        // will be converted into code by `generateRelocationCode`.  This code
-        // requires the symbols to have GOT entries.
+        // will be converted into code by `generateRelocationCode`.  This
+        // code requires the symbols to have GOT entries.
         if (requiresGOTAccess(sym))
           addGOTEntry(sym);
         break;

@@ -100,23 +100,33 @@ private:
   llvm::DenseSet<uint64_t> seen;
 };
 
+class WasmFileBase : public InputFile {
+public:
+  explicit WasmFileBase(Kind k, MemoryBufferRef m) : InputFile(k, m) {}
+
+  // Returns the underlying wasm file.
+  const WasmObjectFile *getWasmObj() const { return wasmObj.get(); }
+
+protected:
+  void parse();
+  std::unique_ptr<WasmObjectFile> wasmObj;
+};
+
 // .o file (wasm object file)
-class ObjFile : public InputFile {
+class ObjFile : public WasmFileBase {
 public:
   explicit ObjFile(MemoryBufferRef m, StringRef archiveName)
-      : InputFile(ObjectKind, m) {
+      : WasmFileBase(ObjectKind, m) {
     this->archiveName = std::string(archiveName);
 
     // If this isn't part of an archive, it's eagerly linked, so mark it live.
     if (archiveName.empty())
       markLive();
   }
-  static bool classof(const InputFile *f) { return f->kind() == ObjectKind; }
 
   void parse(bool ignoreComdats = false);
 
-  // Returns the underlying wasm file.
-  const WasmObjectFile *getWasmObj() const { return wasmObj.get(); }
+  static bool classof(const InputFile *f) { return f->kind() == ObjectKind; }
 
   uint32_t calcNewIndex(const WasmRelocation &reloc) const;
   uint64_t calcNewValue(const WasmRelocation &reloc, uint64_t tombstone,
@@ -158,14 +168,15 @@ private:
 
   bool isExcludedByComdat(const InputChunk *chunk) const;
   void addLegacyIndirectFunctionTableIfNeeded(uint32_t tableSymbolCount);
-
-  std::unique_ptr<WasmObjectFile> wasmObj;
 };
 
 // .so file.
-class SharedFile : public InputFile {
+class SharedFile : public WasmFileBase {
 public:
-  explicit SharedFile(MemoryBufferRef m) : InputFile(SharedKind, m) {}
+  explicit SharedFile(MemoryBufferRef m) : WasmFileBase(SharedKind, m) {}
+
+  void parse();
+
   static bool classof(const InputFile *f) { return f->kind() == SharedKind; }
 };
 
