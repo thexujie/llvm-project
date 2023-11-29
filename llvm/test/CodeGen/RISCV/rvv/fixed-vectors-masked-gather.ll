@@ -336,8 +336,8 @@ define <2 x i64> @mgather_v2i8_sextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 x
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    srai a4, a3, 31
 ; RV32ZVE32F-NEXT:    sw a3, 0(a0)
-; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a4, 4(a0)
+; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 12(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -396,9 +396,9 @@ define <2 x i64> @mgather_v2i8_zextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 x
 ; RV32ZVE32F-NEXT:    andi a1, a1, 255
 ; RV32ZVE32F-NEXT:    vmv.x.s a2, v9
 ; RV32ZVE32F-NEXT:    andi a2, a2, 255
-; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw zero, 4(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 0(a0)
+; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -1056,8 +1056,8 @@ define <2 x i64> @mgather_v2i16_sextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    srai a4, a3, 31
 ; RV32ZVE32F-NEXT:    sw a3, 0(a0)
-; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a4, 4(a0)
+; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 12(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -1118,9 +1118,9 @@ define <2 x i64> @mgather_v2i16_zextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 
 ; RV32ZVE32F-NEXT:    and a1, a1, a2
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    and a2, a3, a2
-; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw zero, 4(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 0(a0)
+; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;

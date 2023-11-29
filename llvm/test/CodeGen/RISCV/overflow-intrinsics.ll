@@ -757,8 +757,8 @@ define i1 @uaddo_i42_increment_illegal_type(i42 %x, ptr %p) {
 ; RV64-NEXT:    slli a0, a2, 22
 ; RV64-NEXT:    srli a3, a0, 22
 ; RV64-NEXT:    seqz a0, a3
-; RV64-NEXT:    sw a2, 0(a1)
 ; RV64-NEXT:    srli a3, a3, 32
+; RV64-NEXT:    sw a2, 0(a1)
 ; RV64-NEXT:    sh a3, 4(a1)
 ; RV64-NEXT:    ret
   %a = add i42 %x, 1

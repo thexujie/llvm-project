@@ -478,8 +478,8 @@ define <8 x i64> @insertelt_c6_v8i64_0(<8 x i64> %a, ptr %x) {
 define void @insertelt_c6_v8i64_0_store(ptr %x) {
 ; RV32-LABEL: insertelt_c6_v8i64_0_store:
 ; RV32:       # %bb.0:
-; RV32-NEXT:    sw zero, 4(a0)
 ; RV32-NEXT:    li a1, 6
+; RV32-NEXT:    sw zero, 4(a0)
 ; RV32-NEXT:    sw a1, 0(a0)
 ; RV32-NEXT:    ret
 ;
@@ -523,8 +523,8 @@ define void @insertelt_c6_v8i64_store(ptr %x, i32 %idx) {
 ; RV32:       # %bb.0:
 ; RV32-NEXT:    slli a1, a1, 3
 ; RV32-NEXT:    add a0, a0, a1
-; RV32-NEXT:    sw zero, 4(a0)
 ; RV32-NEXT:    li a1, 6
+; RV32-NEXT:    sw zero, 4(a0)
 ; RV32-NEXT:    sw a1, 0(a0)
 ; RV32-NEXT:    ret
 ;

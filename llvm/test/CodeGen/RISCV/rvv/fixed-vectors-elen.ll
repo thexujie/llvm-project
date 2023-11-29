@@ -42,9 +42,9 @@ define void @add_v2i64(ptr %x, ptr %y) {
 ; RV32-NEXT:    add a1, t0, a1
 ; RV32-NEXT:    sltu a4, a1, t0
 ; RV32-NEXT:    add a2, a2, a4
-; RV32-NEXT:    sw a1, 8(a0)
 ; RV32-NEXT:    sw a7, 0(a0)
 ; RV32-NEXT:    sw a2, 12(a0)
+; RV32-NEXT:    sw a1, 8(a0)
 ; RV32-NEXT:    sw a3, 4(a0)
 ; RV32-NEXT:    ret
 ;

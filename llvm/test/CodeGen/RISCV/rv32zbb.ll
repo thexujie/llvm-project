@@ -816,8 +816,8 @@ define <2 x i64> @ctpop_v2i64(<2 x i64> %a) nounwind {
 ; RV32I-NEXT:    call __mulsi3@plt
 ; RV32I-NEXT:    srli a0, a0, 24
 ; RV32I-NEXT:    add a0, a0, s5
-; RV32I-NEXT:    sw zero, 12(s0)
 ; RV32I-NEXT:    sw zero, 4(s0)
+; RV32I-NEXT:    sw zero, 12(s0)
 ; RV32I-NEXT:    sw a0, 8(s0)
 ; RV32I-NEXT:    sw s8, 0(s0)
 ; RV32I-NEXT:    lw ra, 44(sp) # 4-byte Folded Reload
@@ -845,8 +845,8 @@ define <2 x i64> @ctpop_v2i64(<2 x i64> %a) nounwind {
 ; RV32ZBB-NEXT:    cpop a2, a2
 ; RV32ZBB-NEXT:    cpop a1, a1
 ; RV32ZBB-NEXT:    add a1, a1, a2
-; RV32ZBB-NEXT:    sw zero, 12(a0)
 ; RV32ZBB-NEXT:    sw zero, 4(a0)
+; RV32ZBB-NEXT:    sw zero, 12(a0)
 ; RV32ZBB-NEXT:    sw a1, 8(a0)
 ; RV32ZBB-NEXT:    sw a3, 0(a0)
 ; RV32ZBB-NEXT:    ret
