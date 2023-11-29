@@ -749,22 +749,22 @@ define <2 x i64> @ctpop_v2i64(<2 x i64> %a) nounwind {
 ; RV32I-NEXT:    sw s6, 16(sp) # 4-byte Folded Spill
 ; RV32I-NEXT:    sw s7, 12(sp) # 4-byte Folded Spill
 ; RV32I-NEXT:    sw s8, 8(sp) # 4-byte Folded Spill
-; RV32I-NEXT:    mv s0, a0
-; RV32I-NEXT:    lw a0, 4(a1)
-; RV32I-NEXT:    lw s2, 8(a1)
 ; RV32I-NEXT:    lw s5, 12(a1)
+; RV32I-NEXT:    lw a2, 4(a1)
+; RV32I-NEXT:    mv s0, a0
+; RV32I-NEXT:    lw s2, 8(a1)
 ; RV32I-NEXT:    lw s6, 0(a1)
-; RV32I-NEXT:    srli a1, a0, 1
-; RV32I-NEXT:    lui a2, 349525
-; RV32I-NEXT:    addi s3, a2, 1365
-; RV32I-NEXT:    and a1, a1, s3
-; RV32I-NEXT:    sub a0, a0, a1
-; RV32I-NEXT:    lui a1, 209715
-; RV32I-NEXT:    addi s4, a1, 819
-; RV32I-NEXT:    and a1, a0, s4
-; RV32I-NEXT:    srli a0, a0, 2
-; RV32I-NEXT:    and a0, a0, s4
-; RV32I-NEXT:    add a0, a1, a0
+; RV32I-NEXT:    srli a0, a2, 1
+; RV32I-NEXT:    lui a1, 349525
+; RV32I-NEXT:    addi s3, a1, 1365
+; RV32I-NEXT:    and a0, a0, s3
+; RV32I-NEXT:    sub a2, a2, a0
+; RV32I-NEXT:    lui a0, 209715
+; RV32I-NEXT:    addi s4, a0, 819
+; RV32I-NEXT:    and a0, a2, s4
+; RV32I-NEXT:    srli a2, a2, 2
+; RV32I-NEXT:    and a1, a2, s4
+; RV32I-NEXT:    add a0, a0, a1
 ; RV32I-NEXT:    srli a1, a0, 4
 ; RV32I-NEXT:    add a0, a0, a1
 ; RV32I-NEXT:    lui a1, 61681
@@ -835,20 +835,20 @@ define <2 x i64> @ctpop_v2i64(<2 x i64> %a) nounwind {
 ;
 ; RV32ZBB-LABEL: ctpop_v2i64:
 ; RV32ZBB:       # %bb.0:
-; RV32ZBB-NEXT:    lw a2, 4(a1)
-; RV32ZBB-NEXT:    lw a3, 0(a1)
-; RV32ZBB-NEXT:    lw a4, 8(a1)
-; RV32ZBB-NEXT:    lw a1, 12(a1)
-; RV32ZBB-NEXT:    cpop a2, a2
+; RV32ZBB-NEXT:    lw a2, 12(a1)
+; RV32ZBB-NEXT:    lw a3, 4(a1)
+; RV32ZBB-NEXT:    lw a4, 0(a1)
+; RV32ZBB-NEXT:    lw a1, 8(a1)
 ; RV32ZBB-NEXT:    cpop a3, a3
-; RV32ZBB-NEXT:    add a2, a3, a2
+; RV32ZBB-NEXT:    cpop a4, a4
+; RV32ZBB-NEXT:    add a3, a4, a3
+; RV32ZBB-NEXT:    cpop a2, a2
 ; RV32ZBB-NEXT:    cpop a1, a1
-; RV32ZBB-NEXT:    cpop a3, a4
-; RV32ZBB-NEXT:    add a1, a3, a1
+; RV32ZBB-NEXT:    add a1, a1, a2
 ; RV32ZBB-NEXT:    sw zero, 12(a0)
 ; RV32ZBB-NEXT:    sw zero, 4(a0)
 ; RV32ZBB-NEXT:    sw a1, 8(a0)
-; RV32ZBB-NEXT:    sw a2, 0(a0)
+; RV32ZBB-NEXT:    sw a3, 0(a0)
 ; RV32ZBB-NEXT:    ret
   %1 = call <2 x i64> @llvm.ctpop.v2i64(<2 x i64> %a)
   ret <2 x i64> %1

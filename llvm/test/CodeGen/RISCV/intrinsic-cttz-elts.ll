@@ -7,14 +7,14 @@
 define i16 @ctz_v4i32(<4 x i32> %a) {
 ; RV32-LABEL: ctz_v4i32:
 ; RV32:       # %bb.0:
-; RV32-NEXT:    lw a3, 0(a0)
+; RV32-NEXT:    lw a3, 8(a0)
+; RV32-NEXT:    lw a4, 0(a0)
 ; RV32-NEXT:    lw a1, 4(a0)
 ; RV32-NEXT:    lw a2, 12(a0)
-; RV32-NEXT:    lw a4, 8(a0)
-; RV32-NEXT:    seqz a0, a3
+; RV32-NEXT:    seqz a0, a4
 ; RV32-NEXT:    addi a0, a0, -1
 ; RV32-NEXT:    andi a0, a0, 4
-; RV32-NEXT:    seqz a3, a4
+; RV32-NEXT:    seqz a3, a3
 ; RV32-NEXT:    addi a3, a3, -1
 ; RV32-NEXT:    andi a3, a3, 2
 ; RV32-NEXT:    bltu a3, a0, .LBB0_2
@@ -40,14 +40,14 @@ define i16 @ctz_v4i32(<4 x i32> %a) {
 ;
 ; RV64-LABEL: ctz_v4i32:
 ; RV64:       # %bb.0:
-; RV64-NEXT:    lw a3, 0(a0)
+; RV64-NEXT:    lw a3, 16(a0)
+; RV64-NEXT:    lw a4, 0(a0)
 ; RV64-NEXT:    lw a1, 8(a0)
 ; RV64-NEXT:    lw a2, 24(a0)
-; RV64-NEXT:    lw a4, 16(a0)
-; RV64-NEXT:    seqz a0, a3
+; RV64-NEXT:    seqz a0, a4
 ; RV64-NEXT:    addi a0, a0, -1
 ; RV64-NEXT:    andi a0, a0, 4
-; RV64-NEXT:    seqz a3, a4
+; RV64-NEXT:    seqz a3, a3
 ; RV64-NEXT:    addi a3, a3, -1
 ; RV64-NEXT:    andi a3, a3, 2
 ; RV64-NEXT:    bltu a3, a0, .LBB0_2
