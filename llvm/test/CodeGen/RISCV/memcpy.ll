@@ -107,25 +107,25 @@ define void @t1(ptr nocapture %C) nounwind {
 ; RV32-FAST-NEXT:    sw a1, 27(a0)
 ; RV32-FAST-NEXT:    lui a1, 300325
 ; RV32-FAST-NEXT:    addi a1, a1, 1107
+; RV32-FAST-NEXT:    lui a2, 132181
+; RV32-FAST-NEXT:    addi a2, a2, -689
+; RV32-FAST-NEXT:    lui a3, 340483
+; RV32-FAST-NEXT:    addi a3, a3, -947
+; RV32-FAST-NEXT:    lui a4, 267556
+; RV32-FAST-NEXT:    addi a4, a4, 1871
+; RV32-FAST-NEXT:    lui a5, 337154
+; RV32-FAST-NEXT:    addi a5, a5, 69
+; RV32-FAST-NEXT:    lui a6, 320757
+; RV32-FAST-NEXT:    addi a6, a6, 1107
+; RV32-FAST-NEXT:    lui a7, 365861
+; RV32-FAST-NEXT:    addi a7, a7, -1980
 ; RV32-FAST-NEXT:    sw a1, 24(a0)
-; RV32-FAST-NEXT:    lui a1, 132181
-; RV32-FAST-NEXT:    addi a1, a1, -689
-; RV32-FAST-NEXT:    sw a1, 20(a0)
-; RV32-FAST-NEXT:    lui a1, 340483
-; RV32-FAST-NEXT:    addi a1, a1, -947
-; RV32-FAST-NEXT:    sw a1, 16(a0)
-; RV32-FAST-NEXT:    lui a1, 267556
-; RV32-FAST-NEXT:    addi a1, a1, 1871
-; RV32-FAST-NEXT:    sw a1, 12(a0)
-; RV32-FAST-NEXT:    lui a1, 337154
-; RV32-FAST-NEXT:    addi a1, a1, 69
-; RV32-FAST-NEXT:    sw a1, 8(a0)
-; RV32-FAST-NEXT:    lui a1, 320757
-; RV32-FAST-NEXT:    addi a1, a1, 1107
-; RV32-FAST-NEXT:    sw a1, 4(a0)
-; RV32-FAST-NEXT:    lui a1, 365861
-; RV32-FAST-NEXT:    addi a1, a1, -1980
-; RV32-FAST-NEXT:    sw a1, 0(a0)
+; RV32-FAST-NEXT:    sw a2, 20(a0)
+; RV32-FAST-NEXT:    sw a3, 16(a0)
+; RV32-FAST-NEXT:    sw a4, 12(a0)
+; RV32-FAST-NEXT:    sw a5, 8(a0)
+; RV32-FAST-NEXT:    sw a6, 4(a0)
+; RV32-FAST-NEXT:    sw a7, 0(a0)
 ; RV32-FAST-NEXT:    ret
 ;
 ; RV64-FAST-LABEL: t1:
@@ -165,13 +165,13 @@ define void @t2(ptr nocapture %C) nounwind {
 ; RV64-FAST:       # %bb.0: # %entry
 ; RV64-FAST-NEXT:    lui a1, %hi(.L.str2)
 ; RV64-FAST-NEXT:    ld a2, %lo(.L.str2)(a1)
-; RV64-FAST-NEXT:    sd a2, 0(a0)
-; RV64-FAST-NEXT:    lui a2, 1156
-; RV64-FAST-NEXT:    addi a2, a2, 332
 ; RV64-FAST-NEXT:    addi a1, a1, %lo(.L.str2)
 ; RV64-FAST-NEXT:    ld a3, 24(a1)
 ; RV64-FAST-NEXT:    ld a4, 16(a1)
 ; RV64-FAST-NEXT:    ld a1, 8(a1)
+; RV64-FAST-NEXT:    sd a2, 0(a0)
+; RV64-FAST-NEXT:    lui a2, 1156
+; RV64-FAST-NEXT:    addi a2, a2, 332
 ; RV64-FAST-NEXT:    sw a2, 32(a0)
 ; RV64-FAST-NEXT:    sd a3, 24(a0)
 ; RV64-FAST-NEXT:    sd a4, 16(a0)
@@ -201,22 +201,22 @@ define void @t3(ptr nocapture %C) nounwind {
 ; RV32-FAST:       # %bb.0: # %entry
 ; RV32-FAST-NEXT:    lui a1, 1109
 ; RV32-FAST-NEXT:    addi a1, a1, -689
+; RV32-FAST-NEXT:    lui a2, 340483
+; RV32-FAST-NEXT:    addi a2, a2, -947
+; RV32-FAST-NEXT:    lui a3, 267556
+; RV32-FAST-NEXT:    addi a3, a3, 1871
+; RV32-FAST-NEXT:    lui a4, 337154
+; RV32-FAST-NEXT:    addi a4, a4, 69
+; RV32-FAST-NEXT:    lui a5, 320757
+; RV32-FAST-NEXT:    addi a5, a5, 1107
+; RV32-FAST-NEXT:    lui a6, 365861
+; RV32-FAST-NEXT:    addi a6, a6, -1980
 ; RV32-FAST-NEXT:    sw a1, 20(a0)
-; RV32-FAST-NEXT:    lui a1, 340483
-; RV32-FAST-NEXT:    addi a1, a1, -947
-; RV32-FAST-NEXT:    sw a1, 16(a0)
-; RV32-FAST-NEXT:    lui a1, 267556
-; RV32-FAST-NEXT:    addi a1, a1, 1871
-; RV32-FAST-NEXT:    sw a1, 12(a0)
-; RV32-FAST-NEXT:    lui a1, 337154
-; RV32-FAST-NEXT:    addi a1, a1, 69
-; RV32-FAST-NEXT:    sw a1, 8(a0)
-; RV32-FAST-NEXT:    lui a1, 320757
-; RV32-FAST-NEXT:    addi a1, a1, 1107
-; RV32-FAST-NEXT:    sw a1, 4(a0)
-; RV32-FAST-NEXT:    lui a1, 365861
-; RV32-FAST-NEXT:    addi a1, a1, -1980
-; RV32-FAST-NEXT:    sw a1, 0(a0)
+; RV32-FAST-NEXT:    sw a2, 16(a0)
+; RV32-FAST-NEXT:    sw a3, 12(a0)
+; RV32-FAST-NEXT:    sw a4, 8(a0)
+; RV32-FAST-NEXT:    sw a5, 4(a0)
+; RV32-FAST-NEXT:    sw a6, 0(a0)
 ; RV32-FAST-NEXT:    ret
 ;
 ; RV64-FAST-LABEL: t3:
@@ -253,19 +253,19 @@ define void @t4(ptr nocapture %C) nounwind {
 ; RV32-FAST-LABEL: t4:
 ; RV32-FAST:       # %bb.0: # %entry
 ; RV32-FAST-NEXT:    li a1, 32
+; RV32-FAST-NEXT:    lui a2, 132388
+; RV32-FAST-NEXT:    addi a2, a2, 1871
+; RV32-FAST-NEXT:    lui a3, 337154
+; RV32-FAST-NEXT:    addi a3, a3, 69
+; RV32-FAST-NEXT:    lui a4, 320757
+; RV32-FAST-NEXT:    addi a4, a4, 1107
+; RV32-FAST-NEXT:    lui a5, 365861
+; RV32-FAST-NEXT:    addi a5, a5, -1980
 ; RV32-FAST-NEXT:    sh a1, 16(a0)
-; RV32-FAST-NEXT:    lui a1, 132388
-; RV32-FAST-NEXT:    addi a1, a1, 1871
-; RV32-FAST-NEXT:    sw a1, 12(a0)
-; RV32-FAST-NEXT:    lui a1, 337154
-; RV32-FAST-NEXT:    addi a1, a1, 69
-; RV32-FAST-NEXT:    sw a1, 8(a0)
-; RV32-FAST-NEXT:    lui a1, 320757
-; RV32-FAST-NEXT:    addi a1, a1, 1107
-; RV32-FAST-NEXT:    sw a1, 4(a0)
-; RV32-FAST-NEXT:    lui a1, 365861
-; RV32-FAST-NEXT:    addi a1, a1, -1980
-; RV32-FAST-NEXT:    sw a1, 0(a0)
+; RV32-FAST-NEXT:    sw a2, 12(a0)
+; RV32-FAST-NEXT:    sw a3, 8(a0)
+; RV32-FAST-NEXT:    sw a4, 4(a0)
+; RV32-FAST-NEXT:    sw a5, 0(a0)
 ; RV32-FAST-NEXT:    ret
 ;
 ; RV64-FAST-LABEL: t4:
@@ -274,9 +274,9 @@ define void @t4(ptr nocapture %C) nounwind {
 ; RV64-FAST-NEXT:    ld a2, %lo(.L.str4)(a1)
 ; RV64-FAST-NEXT:    addi a1, a1, %lo(.L.str4)
 ; RV64-FAST-NEXT:    ld a1, 8(a1)
-; RV64-FAST-NEXT:    li a3, 32
-; RV64-FAST-NEXT:    sh a3, 16(a0)
 ; RV64-FAST-NEXT:    sd a2, 0(a0)
+; RV64-FAST-NEXT:    li a2, 32
+; RV64-FAST-NEXT:    sh a2, 16(a0)
 ; RV64-FAST-NEXT:    sd a1, 8(a0)
 ; RV64-FAST-NEXT:    ret
 entry:
@@ -287,36 +287,36 @@ entry:
 define void @t5(ptr nocapture %C) nounwind {
 ; RV32-LABEL: t5:
 ; RV32:       # %bb.0: # %entry
-; RV32-NEXT:    sb zero, 6(a0)
 ; RV32-NEXT:    li a1, 84
+; RV32-NEXT:    li a2, 83
+; RV32-NEXT:    li a3, 89
+; RV32-NEXT:    li a4, 82
+; RV32-NEXT:    li a5, 72
+; RV32-NEXT:    li a6, 68
+; RV32-NEXT:    sb zero, 6(a0)
 ; RV32-NEXT:    sb a1, 5(a0)
-; RV32-NEXT:    li a1, 83
-; RV32-NEXT:    sb a1, 4(a0)
-; RV32-NEXT:    li a1, 89
-; RV32-NEXT:    sb a1, 3(a0)
-; RV32-NEXT:    li a1, 82
-; RV32-NEXT:    sb a1, 2(a0)
-; RV32-NEXT:    li a1, 72
-; RV32-NEXT:    sb a1, 1(a0)
-; RV32-NEXT:    li a1, 68
-; RV32-NEXT:    sb a1, 0(a0)
+; RV32-NEXT:    sb a2, 4(a0)
+; RV32-NEXT:    sb a3, 3(a0)
+; RV32-NEXT:    sb a4, 2(a0)
+; RV32-NEXT:    sb a5, 1(a0)
+; RV32-NEXT:    sb a6, 0(a0)
 ; RV32-NEXT:    ret
 ;
 ; RV64-LABEL: t5:
 ; RV64:       # %bb.0: # %entry
-; RV64-NEXT:    sb zero, 6(a0)
 ; RV64-NEXT:    li a1, 84
+; RV64-NEXT:    li a2, 83
+; RV64-NEXT:    li a3, 89
+; RV64-NEXT:    li a4, 82
+; RV64-NEXT:    li a5, 72
+; RV64-NEXT:    li a6, 68
+; RV64-NEXT:    sb zero, 6(a0)
 ; RV64-NEXT:    sb a1, 5(a0)
-; RV64-NEXT:    li a1, 83
-; RV64-NEXT:    sb a1, 4(a0)
-; RV64-NEXT:    li a1, 89
-; RV64-NEXT:    sb a1, 3(a0)
-; RV64-NEXT:    li a1, 82
-; RV64-NEXT:    sb a1, 2(a0)
-; RV64-NEXT:    li a1, 72
-; RV64-NEXT:    sb a1, 1(a0)
-; RV64-NEXT:    li a1, 68
-; RV64-NEXT:    sb a1, 0(a0)
+; RV64-NEXT:    sb a2, 4(a0)
+; RV64-NEXT:    sb a3, 3(a0)
+; RV64-NEXT:    sb a4, 2(a0)
+; RV64-NEXT:    sb a5, 1(a0)
+; RV64-NEXT:    sb a6, 0(a0)
 ; RV64-NEXT:    ret
 ;
 ; RV32-FAST-LABEL: t5:

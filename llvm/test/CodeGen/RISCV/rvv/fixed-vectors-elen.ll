@@ -26,26 +26,26 @@ define void @add_v4i32(ptr %x, ptr %y) {
 define void @add_v2i64(ptr %x, ptr %y) {
 ; RV32-LABEL: add_v2i64:
 ; RV32:       # %bb.0:
-; RV32-NEXT:    lw a2, 8(a0)
-; RV32-NEXT:    lw a3, 12(a0)
-; RV32-NEXT:    lw a4, 0(a0)
-; RV32-NEXT:    lw a5, 4(a0)
+; RV32-NEXT:    lw a2, 12(a0)
+; RV32-NEXT:    lw a3, 0(a0)
+; RV32-NEXT:    lw a4, 4(a0)
+; RV32-NEXT:    lw a5, 12(a1)
 ; RV32-NEXT:    lw a6, 4(a1)
 ; RV32-NEXT:    lw a7, 0(a1)
-; RV32-NEXT:    lw t0, 8(a1)
-; RV32-NEXT:    lw a1, 12(a1)
-; RV32-NEXT:    add a5, a5, a6
-; RV32-NEXT:    add a7, a4, a7
-; RV32-NEXT:    sltu a4, a7, a4
-; RV32-NEXT:    add a4, a5, a4
-; RV32-NEXT:    add a1, a3, a1
-; RV32-NEXT:    add t0, a2, t0
-; RV32-NEXT:    sltu a2, t0, a2
-; RV32-NEXT:    add a1, a1, a2
-; RV32-NEXT:    sw t0, 8(a0)
+; RV32-NEXT:    lw t0, 8(a0)
+; RV32-NEXT:    lw a1, 8(a1)
+; RV32-NEXT:    add a4, a4, a6
+; RV32-NEXT:    add a7, a3, a7
+; RV32-NEXT:    sltu a3, a7, a3
+; RV32-NEXT:    add a3, a4, a3
+; RV32-NEXT:    add a2, a2, a5
+; RV32-NEXT:    add a1, t0, a1
+; RV32-NEXT:    sltu a4, a1, t0
+; RV32-NEXT:    add a2, a2, a4
 ; RV32-NEXT:    sw a7, 0(a0)
-; RV32-NEXT:    sw a1, 12(a0)
-; RV32-NEXT:    sw a4, 4(a0)
+; RV32-NEXT:    sw a2, 12(a0)
+; RV32-NEXT:    sw a1, 8(a0)
+; RV32-NEXT:    sw a3, 4(a0)
 ; RV32-NEXT:    ret
 ;
 ; RV64-LABEL: add_v2i64:

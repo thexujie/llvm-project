@@ -336,8 +336,8 @@ define <2 x i64> @mgather_v2i8_sextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 x
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    srai a4, a3, 31
 ; RV32ZVE32F-NEXT:    sw a3, 0(a0)
-; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a4, 4(a0)
+; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 12(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -396,9 +396,9 @@ define <2 x i64> @mgather_v2i8_zextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 x
 ; RV32ZVE32F-NEXT:    andi a1, a1, 255
 ; RV32ZVE32F-NEXT:    vmv.x.s a2, v9
 ; RV32ZVE32F-NEXT:    andi a2, a2, 255
-; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw zero, 4(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 0(a0)
+; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -1056,8 +1056,8 @@ define <2 x i64> @mgather_v2i16_sextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    srai a4, a3, 31
 ; RV32ZVE32F-NEXT:    sw a3, 0(a0)
-; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a4, 4(a0)
+; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 12(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -1118,9 +1118,9 @@ define <2 x i64> @mgather_v2i16_zextload_v2i64(<2 x ptr> %ptrs, <2 x i1> %m, <2 
 ; RV32ZVE32F-NEXT:    and a1, a1, a2
 ; RV32ZVE32F-NEXT:    vmv.x.s a3, v9
 ; RV32ZVE32F-NEXT:    and a2, a3, a2
-; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw zero, 4(a0)
 ; RV32ZVE32F-NEXT:    sw a2, 0(a0)
+; RV32ZVE32F-NEXT:    sw zero, 12(a0)
 ; RV32ZVE32F-NEXT:    sw a1, 8(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
@@ -3966,22 +3966,22 @@ define <4 x i64> @mgather_falsemask_v4i64(<4 x ptr> %ptrs, <4 x i64> %passthru) 
 ;
 ; RV32ZVE32F-LABEL: mgather_falsemask_v4i64:
 ; RV32ZVE32F:       # %bb.0:
-; RV32ZVE32F-NEXT:    lw a2, 0(a1)
-; RV32ZVE32F-NEXT:    lw a3, 4(a1)
-; RV32ZVE32F-NEXT:    lw a4, 8(a1)
-; RV32ZVE32F-NEXT:    lw a5, 12(a1)
-; RV32ZVE32F-NEXT:    lw a6, 28(a1)
-; RV32ZVE32F-NEXT:    lw a7, 24(a1)
-; RV32ZVE32F-NEXT:    lw t0, 20(a1)
+; RV32ZVE32F-NEXT:    lw a2, 20(a1)
+; RV32ZVE32F-NEXT:    lw a3, 24(a1)
+; RV32ZVE32F-NEXT:    lw a4, 28(a1)
+; RV32ZVE32F-NEXT:    lw a5, 0(a1)
+; RV32ZVE32F-NEXT:    lw a6, 4(a1)
+; RV32ZVE32F-NEXT:    lw a7, 8(a1)
+; RV32ZVE32F-NEXT:    lw t0, 12(a1)
 ; RV32ZVE32F-NEXT:    lw a1, 16(a1)
-; RV32ZVE32F-NEXT:    sw a6, 28(a0)
-; RV32ZVE32F-NEXT:    sw a7, 24(a0)
-; RV32ZVE32F-NEXT:    sw t0, 20(a0)
+; RV32ZVE32F-NEXT:    sw a4, 28(a0)
+; RV32ZVE32F-NEXT:    sw a3, 24(a0)
+; RV32ZVE32F-NEXT:    sw a2, 20(a0)
 ; RV32ZVE32F-NEXT:    sw a1, 16(a0)
-; RV32ZVE32F-NEXT:    sw a5, 12(a0)
-; RV32ZVE32F-NEXT:    sw a4, 8(a0)
-; RV32ZVE32F-NEXT:    sw a3, 4(a0)
-; RV32ZVE32F-NEXT:    sw a2, 0(a0)
+; RV32ZVE32F-NEXT:    sw t0, 12(a0)
+; RV32ZVE32F-NEXT:    sw a7, 8(a0)
+; RV32ZVE32F-NEXT:    sw a6, 4(a0)
+; RV32ZVE32F-NEXT:    sw a5, 0(a0)
 ; RV32ZVE32F-NEXT:    ret
 ;
 ; RV64ZVE32F-LABEL: mgather_falsemask_v4i64:
