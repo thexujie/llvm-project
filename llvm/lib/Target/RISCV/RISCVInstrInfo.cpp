@@ -2282,9 +2282,9 @@ bool RISCVInstrInfo::shouldClusterMemOps(
     return false;
   }
 
-  // TODO: Use a more carefully chosen heuristic, e.g. only cluster if offsets
-  // indicate they likely share a cache line.
-  return ClusterSize <= 4;
+  // A cache line is typically 64 bytes, so cluster if the memory ops are on
+  // the same or a neighbouring cache line.
+  return std::abs(Offset1 - Offset2) < 64;
 }
 
 // Set BaseReg (the base register operand), Offset (the byte offset being
