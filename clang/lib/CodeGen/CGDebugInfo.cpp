@@ -5540,11 +5540,18 @@ void CGDebugInfo::EmitGlobalVariable(llvm::GlobalVariable *Var,
     }
     AppendAddressSpaceXDeref(AddressSpace, Expr);
 
+    llvm::DIExpression *E = nullptr;
+    if (Expr.empty()) {
+      if (const auto InitVal = evaluateConstantInitializer(D, CGM.getContext()))
+        E = createConstantValueExpression(D, *InitVal);
+    } else {
+      E = DBuilder.createExpression(Expr);
+    }
+
     llvm::DINodeArray Annotations = CollectBTFDeclTagAnnotations(D);
     GVE = DBuilder.createGlobalVariableExpression(
         DContext, DeclName, LinkageName, Unit, LineNo, getOrCreateType(T, Unit),
-        Var->hasLocalLinkage(), true,
-        Expr.empty() ? nullptr : DBuilder.createExpression(Expr),
+        Var->hasLocalLinkage(), true, E,
         getOrCreateStaticDataMemberDeclarationOrNull(D), TemplateParameters,
         Align, Annotations);
     Var->addDebugInfo(GVE);
