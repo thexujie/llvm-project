@@ -2456,6 +2456,95 @@ static RValue EmitHipStdParUnsupportedBuiltin(CodeGenFunction *CGF,
   return RValue::get(CGF->Builder.CreateCall(UBF, Args));
 }
 
+static void RecursivelyZeroNonValueBits(CodeGenFunction &CGF, Value *Ptr,
+                                        QualType Ty) {
+  auto *I8Ptr = CGF.Builder.CreateBitCast(Ptr, CGF.Int8PtrTy);
+  auto *Zero = ConstantInt::get(CGF.Int8Ty, 0);
+  auto WriteZeroAtOffset = [&](size_t Offset) {
+    auto Index = ConstantInt::get(CGF.IntTy, Offset);
+    auto Element = CGF.Builder.CreateGEP(I8Ptr, Index);
+    CGF.Builder.CreateAlignedStore(
+        Zero, Element,
+        CharUnits::One().alignmentAtOffset(CharUnits::fromQuantity(Offset)));
+  };
+  auto GetStructLayout = [&CGF](llvm::Type *Ty) {
+    auto ST = cast<StructType>(Ty);
+    return CGF.CGM.getModule().getDataLayout().getStructLayout(ST);
+  };
+
+  auto ST = cast<StructType>(Ptr->getType()->getPointerElementType());
+  auto SL = GetStructLayout(ST);
+  auto R = cast<CXXRecordDecl>(Ty->getAsRecordDecl());
+  const ASTRecordLayout &ASTLayout = CGF.getContext().getASTRecordLayout(R);
+  size_t RunningOffset = 0;
+  for (auto Base : R->bases()) {
+    // Zero padding between base elements.
+    auto BaseRecord = cast<CXXRecordDecl>(Base.getType()->getAsRecordDecl());
+    auto Offset = static_cast<size_t>(
+        ASTLayout.getBaseClassOffset(BaseRecord).getQuantity());
+    for (; RunningOffset < Offset; ++RunningOffset) {
+      WriteZeroAtOffset(RunningOffset);
+    }
+    // Recursively zero out base classes.
+    auto Index = SL->getElementContainingOffset(Offset);
+    auto BaseElement = CGF.Builder.CreateStructGEP(Ptr, Index);
+    RecursivelyZeroNonValueBits(CGF, BaseElement, Base.getType());
+    // Use the LLVM StructType data layout so we pick up on packed types.
+    auto SL = GetStructLayout(ST->getElementType(Index));
+    auto Size = SL->getSizeInBytes();
+    RunningOffset = Offset + Size;
+  }
+
+  size_t NumFields = std::distance(R->field_begin(), R->field_end());
+  auto CurrentField = R->field_begin();
+  for (size_t I = 0; I < NumFields; ++I, ++CurrentField) {
+    // Size needs to be in bytes so we can compare it later.
+    auto Offset = ASTLayout.getFieldOffset(I) / 8;
+    for (; RunningOffset < Offset; ++RunningOffset) {
+      WriteZeroAtOffset(RunningOffset);
+    }
+
+    auto Index = SL->getElementContainingOffset(Offset);
+    // If this field is an object, it may have non-zero padding.
+    if (CurrentField->getType()->isRecordType()) {
+      auto Element = CGF.Builder.CreateStructGEP(Ptr, Index);
+      RecursivelyZeroNonValueBits(CGF, Element, CurrentField->getType());
+    }
+
+    // TODO: warn if non-constant array type.
+    if (isa<ConstantArrayType>(CurrentField->getType()) &&
+        CurrentField->getType()
+            ->getArrayElementTypeNoTypeQual()
+            ->isRecordType()) {
+      auto FieldElement = CGF.Builder.CreateStructGEP(Ptr, Index);
+      auto AT = cast<ConstantArrayType>(CurrentField->getType());
+      for (size_t ArrIndex = 0; ArrIndex < AT->getSize().getLimitedValue();
+           ++ArrIndex) {
+        auto ElementRecord = AT->getElementType()->getAsRecordDecl();
+        auto ElementAlign =
+            CGF.getContext().getASTRecordLayout(ElementRecord).getAlignment();
+        Address FieldElementAddr{FieldElement, ElementAlign};
+        auto Element =
+            CGF.Builder.CreateConstArrayGEP(FieldElementAddr, ArrIndex);
+        RecursivelyZeroNonValueBits(CGF, Element.getPointer(),
+                                    AT->getElementType());
+      }
+    }
+
+    auto Size = CGF.CGM.getModule()
+                    .getDataLayout()
+                    .getTypeSizeInBits(ST->getElementType(Index))
+                    .getKnownMinSize() /
+                8;
+    RunningOffset = Offset + Size;
+  }
+  // Clear all bits after the last field.
+  auto Size = SL->getSizeInBytes();
+  for (; RunningOffset < Size; ++RunningOffset) {
+    WriteZeroAtOffset(RunningOffset);
+  }
+}
+
 RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
@@ -4314,6 +4403,13 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       Ptr = Builder.CreateLaunderInvariantGroup(Ptr);
 
     return RValue::get(Ptr);
+  }
+  case Builtin::BI__builtin_zero_non_value_bits: {
+    const Expr *Op = E->getArg(0);
+    Value *Address = EmitScalarExpr(Op);
+    auto PointeeTy = Op->getType()->getPointeeType();
+    RecursivelyZeroNonValueBits(*this, Address, PointeeTy);
+    return RValue::get(nullptr);
   }
   case Builtin::BI__sync_fetch_and_add:
   case Builtin::BI__sync_fetch_and_sub:

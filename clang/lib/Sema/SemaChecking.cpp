@@ -2327,6 +2327,26 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
   }
   case Builtin::BI__builtin_launder:
     return SemaBuiltinLaunder(*this, TheCall);
+  case Builtin::BI__builtin_zero_non_value_bits: {
+    const Expr *PtrArg = TheCall->getArg(0)->IgnoreParenImpCasts();
+    const QualType PtrArgType = PtrArg->getType();
+    if (!PtrArgType->isPointerType() ||
+        !PtrArgType->getPointeeType()->isRecordType()) {
+      Diag(PtrArg->getBeginLoc(), diag::err_typecheck_convert_incompatible)
+          << PtrArgType << "structure pointer" << 1 << 0 << 3 << 1 << PtrArgType
+          << "structure pointer";
+      return ExprError();
+    }
+    if (PtrArgType->getPointeeType().isConstQualified()) {
+      Diag(PtrArg->getBeginLoc(), diag::err_typecheck_assign_const)
+          << TheCall->getSourceRange() << 5 /*ConstUnknown*/;
+      return ExprError();
+    }
+    if (RequireCompleteType(PtrArg->getBeginLoc(), PtrArgType->getPointeeType(),
+                            diag::err_typecheck_decl_incomplete_type))
+      return ExprError();
+    break;
+  }
   case Builtin::BI__sync_fetch_and_add:
   case Builtin::BI__sync_fetch_and_add_1:
   case Builtin::BI__sync_fetch_and_add_2:

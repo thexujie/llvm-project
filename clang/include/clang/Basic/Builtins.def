@@ -633,6 +633,7 @@ BUILTIN(__builtin_vsscanf, "icC*RcC*Ra", "FS:1:")
 BUILTIN(__builtin_thread_pointer, "v*", "nc")
 BUILTIN(__builtin_launder, "v*v*", "ntE")
 LANGBUILTIN(__builtin_is_constant_evaluated, "b", "nE", CXX_LANG)
+LANGBUILTIN(__builtin_zero_non_value_bits, "v.", "n", CXX_LANG)
 
 // GCC exception builtins
 BUILTIN(__builtin_eh_return, "vzv*", "r") // FIXME: Takes intptr_t, not size_t!
