@@ -1882,6 +1882,15 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
         if (s.getAsInteger(10, config->ltoPartitions) ||
             config->ltoPartitions == 0)
           error("/opt:lldltopartitions: invalid partition count: " + s);
+      } else if (s.consume_front("lldltobackend=")) {
+        config->ltoKind = StringSwitch<LTOKind>(s)
+                              .Case("default", LTOKind::Default)
+                              .Case("unifiedthin", LTOKind::UnifiedThin)
+                              .Case("unifiedregular", LTOKind::UnifiedRegular)
+                              .Default(LTOKind::Default);
+
+      } else if (s.equals("ltodefaultpipeline")) {
+        config->useDefaultPipeline = true;
       } else if (s != "lbr" && s != "nolbr")
         error("/opt: unknown option: " + s);
     }
