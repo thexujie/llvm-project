@@ -65,8 +65,7 @@ _RandomAccessIterator
 partial_sort_copy(_InputIterator __first, _InputIterator __last,
                   _RandomAccessIterator __result_first, _RandomAccessIterator __result_last, _Compare __comp)
 {
-  static_assert(
-      __is_callable<_Compare, decltype(*__first), decltype(*__result_first)>::value, "Comparator has to be callable");
+  static_assert(__is_callable<_Compare, decltype(*__first), decltype(*__result_first)>::value, "Comparator has to be callable");
 
   auto __result = std::__partial_sort_copy<_ClassicAlgPolicy>(__first, __last, __result_first, __result_last,
       static_cast<__comp_ref_type<_Compare> >(__comp), __identity(), __identity());
