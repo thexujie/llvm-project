@@ -2,11 +2,11 @@
 
 struct ConstUncallable {
   void operator()(int, int) const& = delete;
-  void operator()(int , int) & { return; }
+  void operator()(int, int) & { return; }
 };
 
 struct NonConstUncallable {
-  void operator()(int, int) const&  { return; }
+  void operator()(int, int) const& { return; }
   void operator()(int, int) & = delete;
 };
 
