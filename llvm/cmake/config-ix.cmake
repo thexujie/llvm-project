@@ -257,6 +257,22 @@ else()
   set(LLVM_ENABLE_TERMINFO 0)
 endif()
 
+#Check for icu.
+find_package(ICU COMPONENTS uc i18n)
+if(ICU_FOUND)
+  set(HAVE_ICU 1)
+else()
+  set(HAVE_ICU 0)
+endif()
+
+# Check for iconv.
+find_package(Iconv)
+if(Iconv_FOUND)
+  set(HAVE_ICONV 1)
+else()
+  set(HAVE_ICONV 0)
+endif()
+
 # function checks
 check_symbol_exists(arc4random "stdlib.h" HAVE_DECL_ARC4RANDOM)
 find_package(Backtrace)
