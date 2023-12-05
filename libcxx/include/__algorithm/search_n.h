@@ -167,6 +167,9 @@ _ForwardIterator search_n(_ForwardIterator __first, _ForwardIterator __last,
                           _BinaryPredicate __pred) {
   static_assert(__is_callable<_BinaryPredicate, decltype(*__first), const _Tp&>::value,
                 "BinaryPredicate has to be callable");
+
+  static_assert(__is_callable<_BinaryPredicate const&, decltype(*__first), const _Tp&>::value,
+                "BinaryPredicate has to be const-callable");
   auto __proj = __identity();
   return std::__search_n_impl(__first, __last, std::__convert_to_integral(__count), __value, __pred, __proj).first;
 }

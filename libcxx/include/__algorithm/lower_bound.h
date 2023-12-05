@@ -51,6 +51,8 @@ _LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20
 _ForwardIterator lower_bound(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __value, _Compare __comp) {
   static_assert(__is_callable<_Compare, decltype(*__first), const _Tp&>::value,
                 "The comparator has to be callable");
+  static_assert(
+      __is_callable<_Compare const&, decltype(*__first), const _Tp&>::value, "The comparator has to be const-callable");
   auto __proj = std::__identity();
   return std::__lower_bound<_ClassicAlgPolicy>(__first, __last, __value, __comp, __proj);
 }
