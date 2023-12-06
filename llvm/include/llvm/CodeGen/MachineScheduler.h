@@ -1349,11 +1349,13 @@ ScheduleDAGMI *createGenericSchedPostRA(MachineSchedContext *C);
 
 std::unique_ptr<ScheduleDAGMutation>
 createLoadClusterDAGMutation(const TargetInstrInfo *TII,
-                             const TargetRegisterInfo *TRI);
+                             const TargetRegisterInfo *TRI,
+                             bool ReorderWhileClustering = false);
 
 std::unique_ptr<ScheduleDAGMutation>
 createStoreClusterDAGMutation(const TargetInstrInfo *TII,
-                              const TargetRegisterInfo *TRI);
+                              const TargetRegisterInfo *TRI,
+                              bool ReorderWhileClustering = false);
 
 std::unique_ptr<ScheduleDAGMutation>
 createCopyConstrainDAGMutation(const TargetInstrInfo *TII,

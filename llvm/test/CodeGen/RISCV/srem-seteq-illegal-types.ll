@@ -312,12 +312,12 @@ define void @test_srem_vec(ptr %X) nounwind {
 ; RV32-NEXT:    mv s0, a0
 ; RV32-NEXT:    lbu a1, 12(a0)
 ; RV32-NEXT:    lw a2, 8(a0)
-; RV32-NEXT:    slli a0, a1, 30
-; RV32-NEXT:    lw a3, 4(s0)
+; RV32-NEXT:    lw a3, 4(a0)
+; RV32-NEXT:    lw a0, 0(a0)
+; RV32-NEXT:    slli a4, a1, 30
 ; RV32-NEXT:    srli s1, a2, 2
-; RV32-NEXT:    or s1, s1, a0
+; RV32-NEXT:    or s1, s1, a4
 ; RV32-NEXT:    slli a4, a2, 31
-; RV32-NEXT:    lw a0, 0(s0)
 ; RV32-NEXT:    srli a5, a3, 1
 ; RV32-NEXT:    or s2, a5, a4
 ; RV32-NEXT:    srli a1, a1, 2
@@ -391,8 +391,8 @@ define void @test_srem_vec(ptr %X) nounwind {
 ; RV64-NEXT:    mv s0, a0
 ; RV64-NEXT:    lbu a0, 12(a0)
 ; RV64-NEXT:    lwu a1, 8(s0)
-; RV64-NEXT:    slli a0, a0, 32
 ; RV64-NEXT:    ld a2, 0(s0)
+; RV64-NEXT:    slli a0, a0, 32
 ; RV64-NEXT:    or a0, a1, a0
 ; RV64-NEXT:    slli a0, a0, 29
 ; RV64-NEXT:    srai s1, a0, 31
@@ -464,12 +464,12 @@ define void @test_srem_vec(ptr %X) nounwind {
 ; RV32M-NEXT:    mv s0, a0
 ; RV32M-NEXT:    lbu a1, 12(a0)
 ; RV32M-NEXT:    lw a2, 8(a0)
-; RV32M-NEXT:    slli a0, a1, 30
-; RV32M-NEXT:    lw a3, 4(s0)
+; RV32M-NEXT:    lw a3, 4(a0)
+; RV32M-NEXT:    lw a0, 0(a0)
+; RV32M-NEXT:    slli a4, a1, 30
 ; RV32M-NEXT:    srli s1, a2, 2
-; RV32M-NEXT:    or s1, s1, a0
+; RV32M-NEXT:    or s1, s1, a4
 ; RV32M-NEXT:    slli a4, a2, 31
-; RV32M-NEXT:    lw a0, 0(s0)
 ; RV32M-NEXT:    srli a5, a3, 1
 ; RV32M-NEXT:    or s2, a5, a4
 ; RV32M-NEXT:    srli a1, a1, 2
@@ -614,12 +614,12 @@ define void @test_srem_vec(ptr %X) nounwind {
 ; RV32MV-NEXT:    mv s0, a0
 ; RV32MV-NEXT:    lbu a1, 12(a0)
 ; RV32MV-NEXT:    lw a2, 8(a0)
-; RV32MV-NEXT:    slli a0, a1, 30
-; RV32MV-NEXT:    lw a3, 4(s0)
+; RV32MV-NEXT:    lw a3, 4(a0)
+; RV32MV-NEXT:    lw a0, 0(a0)
+; RV32MV-NEXT:    slli a4, a1, 30
 ; RV32MV-NEXT:    srli s1, a2, 2
-; RV32MV-NEXT:    or s1, s1, a0
+; RV32MV-NEXT:    or s1, s1, a4
 ; RV32MV-NEXT:    slli a4, a2, 31
-; RV32MV-NEXT:    lw a0, 0(s0)
 ; RV32MV-NEXT:    srli a5, a3, 1
 ; RV32MV-NEXT:    or s2, a5, a4
 ; RV32MV-NEXT:    srli a1, a1, 2
