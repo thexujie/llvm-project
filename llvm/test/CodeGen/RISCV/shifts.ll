@@ -264,10 +264,10 @@ define i128 @lshr128(i128 %a, i128 %b) nounwind {
 ; RV32I-NEXT:    sll a6, a7, a6
 ; RV32I-NEXT:    or a5, a5, a6
 ; RV32I-NEXT:    srl a1, a1, a2
-; RV32I-NEXT:    sw a1, 12(a0)
-; RV32I-NEXT:    sw a5, 8(a0)
-; RV32I-NEXT:    sw a4, 4(a0)
 ; RV32I-NEXT:    sw a3, 0(a0)
+; RV32I-NEXT:    sw a4, 4(a0)
+; RV32I-NEXT:    sw a5, 8(a0)
+; RV32I-NEXT:    sw a1, 12(a0)
 ; RV32I-NEXT:    lw s0, 44(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s1, 40(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s2, 36(sp) # 4-byte Folded Reload
@@ -416,10 +416,10 @@ define i128 @ashr128(i128 %a, i128 %b) nounwind {
 ; RV32I-NEXT:    sll a6, a7, a6
 ; RV32I-NEXT:    or a5, a5, a6
 ; RV32I-NEXT:    sra a1, a2, a1
-; RV32I-NEXT:    sw a1, 12(a0)
-; RV32I-NEXT:    sw a5, 8(a0)
-; RV32I-NEXT:    sw a4, 4(a0)
 ; RV32I-NEXT:    sw a3, 0(a0)
+; RV32I-NEXT:    sw a4, 4(a0)
+; RV32I-NEXT:    sw a5, 8(a0)
+; RV32I-NEXT:    sw a1, 12(a0)
 ; RV32I-NEXT:    lw s0, 44(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s1, 40(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s2, 36(sp) # 4-byte Folded Reload
@@ -565,9 +565,9 @@ define i128 @shl128(i128 %a, i128 %b) nounwind {
 ; RV32I-NEXT:    or a3, a3, a5
 ; RV32I-NEXT:    sll a1, a1, a2
 ; RV32I-NEXT:    sw a1, 0(a0)
-; RV32I-NEXT:    sw a3, 12(a0)
-; RV32I-NEXT:    sw a7, 8(a0)
 ; RV32I-NEXT:    sw a4, 4(a0)
+; RV32I-NEXT:    sw a7, 8(a0)
+; RV32I-NEXT:    sw a3, 12(a0)
 ; RV32I-NEXT:    lw s0, 44(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s1, 40(sp) # 4-byte Folded Reload
 ; RV32I-NEXT:    lw s2, 36(sp) # 4-byte Folded Reload
@@ -686,10 +686,10 @@ define i128 @fshr128_minsize(i128 %a, i128 %b) minsize nounwind {
 ; RV32I-NEXT:    slli a5, a5, 1
 ; RV32I-NEXT:    sll a2, a5, t2
 ; RV32I-NEXT:    or a1, a2, a1
-; RV32I-NEXT:    sw a1, 12(a0)
-; RV32I-NEXT:    sw a3, 8(a0)
-; RV32I-NEXT:    sw t0, 4(a0)
 ; RV32I-NEXT:    sw a7, 0(a0)
+; RV32I-NEXT:    sw t0, 4(a0)
+; RV32I-NEXT:    sw a3, 8(a0)
+; RV32I-NEXT:    sw a1, 12(a0)
 ; RV32I-NEXT:    ret
 ; RV32I-NEXT:  .LBB10_13:
 ; RV32I-NEXT:    mv a5, t0

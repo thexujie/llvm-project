@@ -347,6 +347,7 @@ public:
     const RISCVSubtarget &ST = C->MF->getSubtarget<RISCVSubtarget>();
     ScheduleDAGMILive *DAG = createGenericSchedLive(C);
     DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI, true));
+    DAG->addMutation(createStoreClusterDAGMutation(DAG->TII, DAG->TRI, true));
     if (ST.hasMacroFusion())
       DAG->addMutation(createRISCVMacroFusionDAGMutation());
     return DAG;

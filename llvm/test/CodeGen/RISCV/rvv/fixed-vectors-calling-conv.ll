@@ -924,10 +924,10 @@ define <32 x i32> @ret_v32i32_call_v32i32_v32i32_v32i32_i32(<32 x i32> %x, <32 x
 ; LMULMAX1-NEXT:    vse32.v v9, (a0)
 ; LMULMAX1-NEXT:    mv a0, s1
 ; LMULMAX1-NEXT:    vse32.v v8, (a0)
-; LMULMAX1-NEXT:    li a0, 42
-; LMULMAX1-NEXT:    sd a0, 8(sp)
+; LMULMAX1-NEXT:    li a2, 42
 ; LMULMAX1-NEXT:    mv a0, s1
 ; LMULMAX1-NEXT:    sd a1, 0(sp)
+; LMULMAX1-NEXT:    sd a2, 8(sp)
 ; LMULMAX1-NEXT:    vmv.v.v v8, v24
 ; LMULMAX1-NEXT:    vmv.v.v v9, v25
 ; LMULMAX1-NEXT:    vmv.v.v v10, v26

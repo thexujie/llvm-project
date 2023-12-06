@@ -322,8 +322,8 @@ define i128 @abs128(i128 %x) {
 ; RV32I-NEXT:    neg a4, a4
 ; RV32I-NEXT:  .LBB8_2:
 ; RV32I-NEXT:    sw a4, 0(a0)
-; RV32I-NEXT:    sw a1, 8(a0)
 ; RV32I-NEXT:    sw a3, 4(a0)
+; RV32I-NEXT:    sw a1, 8(a0)
 ; RV32I-NEXT:    sw a2, 12(a0)
 ; RV32I-NEXT:    ret
 ;
@@ -350,8 +350,8 @@ define i128 @abs128(i128 %x) {
 ; RV32ZBB-NEXT:    neg a4, a4
 ; RV32ZBB-NEXT:  .LBB8_2:
 ; RV32ZBB-NEXT:    sw a4, 0(a0)
-; RV32ZBB-NEXT:    sw a1, 8(a0)
 ; RV32ZBB-NEXT:    sw a3, 4(a0)
+; RV32ZBB-NEXT:    sw a1, 8(a0)
 ; RV32ZBB-NEXT:    sw a2, 12(a0)
 ; RV32ZBB-NEXT:    ret
 ;
@@ -404,8 +404,8 @@ define i128 @select_abs128(i128 %x) {
 ; RV32I-NEXT:    neg a4, a4
 ; RV32I-NEXT:  .LBB9_2:
 ; RV32I-NEXT:    sw a4, 0(a0)
-; RV32I-NEXT:    sw a1, 8(a0)
 ; RV32I-NEXT:    sw a3, 4(a0)
+; RV32I-NEXT:    sw a1, 8(a0)
 ; RV32I-NEXT:    sw a2, 12(a0)
 ; RV32I-NEXT:    ret
 ;
@@ -432,8 +432,8 @@ define i128 @select_abs128(i128 %x) {
 ; RV32ZBB-NEXT:    neg a4, a4
 ; RV32ZBB-NEXT:  .LBB9_2:
 ; RV32ZBB-NEXT:    sw a4, 0(a0)
-; RV32ZBB-NEXT:    sw a1, 8(a0)
 ; RV32ZBB-NEXT:    sw a3, 4(a0)
+; RV32ZBB-NEXT:    sw a1, 8(a0)
 ; RV32ZBB-NEXT:    sw a2, 12(a0)
 ; RV32ZBB-NEXT:    ret
 ;

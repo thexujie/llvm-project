@@ -261,10 +261,10 @@ define void @vnsrl_0_i64(ptr %in, ptr %out) {
 ;
 ; ZVE32F-LABEL: vnsrl_0_i64:
 ; ZVE32F:       # %bb.0: # %entry
-; ZVE32F-NEXT:    ld a2, 16(a0)
-; ZVE32F-NEXT:    ld a0, 0(a0)
-; ZVE32F-NEXT:    sd a2, 8(a1)
-; ZVE32F-NEXT:    sd a0, 0(a1)
+; ZVE32F-NEXT:    ld a2, 0(a0)
+; ZVE32F-NEXT:    ld a0, 16(a0)
+; ZVE32F-NEXT:    sd a2, 0(a1)
+; ZVE32F-NEXT:    sd a0, 8(a1)
 ; ZVE32F-NEXT:    ret
 entry:
   %0 = load <4 x i64>, ptr %in, align 8
@@ -288,10 +288,10 @@ define void @vnsrl_64_i64(ptr %in, ptr %out) {
 ;
 ; ZVE32F-LABEL: vnsrl_64_i64:
 ; ZVE32F:       # %bb.0: # %entry
-; ZVE32F-NEXT:    ld a2, 24(a0)
-; ZVE32F-NEXT:    ld a0, 8(a0)
-; ZVE32F-NEXT:    sd a2, 8(a1)
-; ZVE32F-NEXT:    sd a0, 0(a1)
+; ZVE32F-NEXT:    ld a2, 8(a0)
+; ZVE32F-NEXT:    ld a0, 24(a0)
+; ZVE32F-NEXT:    sd a2, 0(a1)
+; ZVE32F-NEXT:    sd a0, 8(a1)
 ; ZVE32F-NEXT:    ret
 entry:
   %0 = load <4 x i64>, ptr %in, align 8
@@ -313,10 +313,10 @@ define void @vnsrl_0_double(ptr %in, ptr %out) {
 ;
 ; ZVE32F-LABEL: vnsrl_0_double:
 ; ZVE32F:       # %bb.0: # %entry
-; ZVE32F-NEXT:    ld a2, 16(a0)
-; ZVE32F-NEXT:    ld a0, 0(a0)
-; ZVE32F-NEXT:    sd a2, 8(a1)
-; ZVE32F-NEXT:    sd a0, 0(a1)
+; ZVE32F-NEXT:    ld a2, 0(a0)
+; ZVE32F-NEXT:    ld a0, 16(a0)
+; ZVE32F-NEXT:    sd a2, 0(a1)
+; ZVE32F-NEXT:    sd a0, 8(a1)
 ; ZVE32F-NEXT:    ret
 entry:
   %0 = load <4 x double>, ptr %in, align 8
@@ -340,10 +340,10 @@ define void @vnsrl_64_double(ptr %in, ptr %out) {
 ;
 ; ZVE32F-LABEL: vnsrl_64_double:
 ; ZVE32F:       # %bb.0: # %entry
-; ZVE32F-NEXT:    ld a2, 24(a0)
-; ZVE32F-NEXT:    ld a0, 8(a0)
-; ZVE32F-NEXT:    sd a2, 8(a1)
-; ZVE32F-NEXT:    sd a0, 0(a1)
+; ZVE32F-NEXT:    ld a2, 8(a0)
+; ZVE32F-NEXT:    ld a0, 24(a0)
+; ZVE32F-NEXT:    sd a2, 0(a1)
+; ZVE32F-NEXT:    sd a0, 8(a1)
 ; ZVE32F-NEXT:    ret
 entry:
   %0 = load <4 x double>, ptr %in, align 8

@@ -142,8 +142,7 @@ define i32 @caller_many_scalars() nounwind {
 ; RV32I-FPELIM:       # %bb.0:
 ; RV32I-FPELIM-NEXT:    addi sp, sp, -16
 ; RV32I-FPELIM-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; RV32I-FPELIM-NEXT:    li a0, 8
-; RV32I-FPELIM-NEXT:    sw a0, 4(sp)
+; RV32I-FPELIM-NEXT:    li a4, 8
 ; RV32I-FPELIM-NEXT:    li a0, 1
 ; RV32I-FPELIM-NEXT:    li a1, 2
 ; RV32I-FPELIM-NEXT:    li a2, 3
@@ -152,6 +151,7 @@ define i32 @caller_many_scalars() nounwind {
 ; RV32I-FPELIM-NEXT:    li a6, 6
 ; RV32I-FPELIM-NEXT:    li a7, 7
 ; RV32I-FPELIM-NEXT:    sw zero, 0(sp)
+; RV32I-FPELIM-NEXT:    sw a4, 4(sp)
 ; RV32I-FPELIM-NEXT:    li a4, 0
 ; RV32I-FPELIM-NEXT:    call callee_many_scalars@plt
 ; RV32I-FPELIM-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
@@ -164,8 +164,7 @@ define i32 @caller_many_scalars() nounwind {
 ; RV32I-WITHFP-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 16
-; RV32I-WITHFP-NEXT:    li a0, 8
-; RV32I-WITHFP-NEXT:    sw a0, 4(sp)
+; RV32I-WITHFP-NEXT:    li a4, 8
 ; RV32I-WITHFP-NEXT:    li a0, 1
 ; RV32I-WITHFP-NEXT:    li a1, 2
 ; RV32I-WITHFP-NEXT:    li a2, 3
@@ -174,6 +173,7 @@ define i32 @caller_many_scalars() nounwind {
 ; RV32I-WITHFP-NEXT:    li a6, 6
 ; RV32I-WITHFP-NEXT:    li a7, 7
 ; RV32I-WITHFP-NEXT:    sw zero, 0(sp)
+; RV32I-WITHFP-NEXT:    sw a4, 4(sp)
 ; RV32I-WITHFP-NEXT:    li a4, 0
 ; RV32I-WITHFP-NEXT:    call callee_many_scalars@plt
 ; RV32I-WITHFP-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
@@ -354,9 +354,9 @@ define i32 @caller_large_scalars_exhausted_regs() nounwind {
 ; RV32I-FPELIM-NEXT:    addi sp, sp, -64
 ; RV32I-FPELIM-NEXT:    sw ra, 60(sp) # 4-byte Folded Spill
 ; RV32I-FPELIM-NEXT:    addi a0, sp, 16
+; RV32I-FPELIM-NEXT:    li a1, 9
+; RV32I-FPELIM-NEXT:    sw a1, 0(sp)
 ; RV32I-FPELIM-NEXT:    sw a0, 4(sp)
-; RV32I-FPELIM-NEXT:    li a0, 9
-; RV32I-FPELIM-NEXT:    sw a0, 0(sp)
 ; RV32I-FPELIM-NEXT:    lui a0, 524272
 ; RV32I-FPELIM-NEXT:    sw a0, 28(sp)
 ; RV32I-FPELIM-NEXT:    sw zero, 24(sp)
@@ -387,9 +387,9 @@ define i32 @caller_large_scalars_exhausted_regs() nounwind {
 ; RV32I-WITHFP-NEXT:    sw s0, 56(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 64
 ; RV32I-WITHFP-NEXT:    addi a0, s0, -48
+; RV32I-WITHFP-NEXT:    li a1, 9
+; RV32I-WITHFP-NEXT:    sw a1, 0(sp)
 ; RV32I-WITHFP-NEXT:    sw a0, 4(sp)
-; RV32I-WITHFP-NEXT:    li a0, 9
-; RV32I-WITHFP-NEXT:    sw a0, 0(sp)
 ; RV32I-WITHFP-NEXT:    lui a0, 524272
 ; RV32I-WITHFP-NEXT:    sw a0, -36(s0)
 ; RV32I-WITHFP-NEXT:    sw zero, -40(s0)
@@ -665,16 +665,16 @@ define void @caller_aligned_stack() nounwind {
 ; RV32I-FPELIM-NEXT:    addi sp, sp, -64
 ; RV32I-FPELIM-NEXT:    sw ra, 60(sp) # 4-byte Folded Spill
 ; RV32I-FPELIM-NEXT:    li a0, 19
-; RV32I-FPELIM-NEXT:    sw a0, 24(sp)
-; RV32I-FPELIM-NEXT:    li a0, 18
-; RV32I-FPELIM-NEXT:    sw a0, 20(sp)
-; RV32I-FPELIM-NEXT:    li a0, 17
-; RV32I-FPELIM-NEXT:    sw a0, 16(sp)
+; RV32I-FPELIM-NEXT:    li a1, 18
+; RV32I-FPELIM-NEXT:    li a2, 17
+; RV32I-FPELIM-NEXT:    li a3, 16
+; RV32I-FPELIM-NEXT:    li a4, 15
+; RV32I-FPELIM-NEXT:    sw a4, 0(sp)
+; RV32I-FPELIM-NEXT:    sw a3, 8(sp)
 ; RV32I-FPELIM-NEXT:    sw zero, 12(sp)
-; RV32I-FPELIM-NEXT:    li a0, 16
-; RV32I-FPELIM-NEXT:    sw a0, 8(sp)
-; RV32I-FPELIM-NEXT:    li a0, 15
-; RV32I-FPELIM-NEXT:    sw a0, 0(sp)
+; RV32I-FPELIM-NEXT:    sw a2, 16(sp)
+; RV32I-FPELIM-NEXT:    sw a1, 20(sp)
+; RV32I-FPELIM-NEXT:    sw a0, 24(sp)
 ; RV32I-FPELIM-NEXT:    lui a0, 262153
 ; RV32I-FPELIM-NEXT:    addi a0, a0, 491
 ; RV32I-FPELIM-NEXT:    sw a0, 44(sp)
@@ -708,16 +708,16 @@ define void @caller_aligned_stack() nounwind {
 ; RV32I-WITHFP-NEXT:    sw s0, 56(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 64
 ; RV32I-WITHFP-NEXT:    li a0, 19
-; RV32I-WITHFP-NEXT:    sw a0, 24(sp)
-; RV32I-WITHFP-NEXT:    li a0, 18
-; RV32I-WITHFP-NEXT:    sw a0, 20(sp)
-; RV32I-WITHFP-NEXT:    li a0, 17
-; RV32I-WITHFP-NEXT:    sw a0, 16(sp)
+; RV32I-WITHFP-NEXT:    li a1, 18
+; RV32I-WITHFP-NEXT:    li a2, 17
+; RV32I-WITHFP-NEXT:    li a3, 16
+; RV32I-WITHFP-NEXT:    li a4, 15
+; RV32I-WITHFP-NEXT:    sw a4, 0(sp)
+; RV32I-WITHFP-NEXT:    sw a3, 8(sp)
 ; RV32I-WITHFP-NEXT:    sw zero, 12(sp)
-; RV32I-WITHFP-NEXT:    li a0, 16
-; RV32I-WITHFP-NEXT:    sw a0, 8(sp)
-; RV32I-WITHFP-NEXT:    li a0, 15
-; RV32I-WITHFP-NEXT:    sw a0, 0(sp)
+; RV32I-WITHFP-NEXT:    sw a2, 16(sp)
+; RV32I-WITHFP-NEXT:    sw a1, 20(sp)
+; RV32I-WITHFP-NEXT:    sw a0, 24(sp)
 ; RV32I-WITHFP-NEXT:    lui a0, 262153
 ; RV32I-WITHFP-NEXT:    addi a0, a0, 491
 ; RV32I-WITHFP-NEXT:    sw a0, -20(s0)
@@ -881,10 +881,10 @@ define fp128 @callee_large_scalar_ret() nounwind {
 ; RV32I-FPELIM-LABEL: callee_large_scalar_ret:
 ; RV32I-FPELIM:       # %bb.0:
 ; RV32I-FPELIM-NEXT:    lui a1, 524272
-; RV32I-FPELIM-NEXT:    sw a1, 12(a0)
-; RV32I-FPELIM-NEXT:    sw zero, 8(a0)
-; RV32I-FPELIM-NEXT:    sw zero, 4(a0)
 ; RV32I-FPELIM-NEXT:    sw zero, 0(a0)
+; RV32I-FPELIM-NEXT:    sw zero, 4(a0)
+; RV32I-FPELIM-NEXT:    sw zero, 8(a0)
+; RV32I-FPELIM-NEXT:    sw a1, 12(a0)
 ; RV32I-FPELIM-NEXT:    ret
 ;
 ; RV32I-WITHFP-LABEL: callee_large_scalar_ret:
@@ -894,10 +894,10 @@ define fp128 @callee_large_scalar_ret() nounwind {
 ; RV32I-WITHFP-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 16
 ; RV32I-WITHFP-NEXT:    lui a1, 524272
-; RV32I-WITHFP-NEXT:    sw a1, 12(a0)
-; RV32I-WITHFP-NEXT:    sw zero, 8(a0)
-; RV32I-WITHFP-NEXT:    sw zero, 4(a0)
 ; RV32I-WITHFP-NEXT:    sw zero, 0(a0)
+; RV32I-WITHFP-NEXT:    sw zero, 4(a0)
+; RV32I-WITHFP-NEXT:    sw zero, 8(a0)
+; RV32I-WITHFP-NEXT:    sw a1, 12(a0)
 ; RV32I-WITHFP-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
 ; RV32I-WITHFP-NEXT:    lw s0, 8(sp) # 4-byte Folded Reload
 ; RV32I-WITHFP-NEXT:    addi sp, sp, 16
@@ -938,13 +938,13 @@ define void @callee_large_struct_ret(ptr noalias sret(%struct.large) %agg.result
 ; RV32I-FPELIM-LABEL: callee_large_struct_ret:
 ; RV32I-FPELIM:       # %bb.0:
 ; RV32I-FPELIM-NEXT:    li a1, 1
+; RV32I-FPELIM-NEXT:    li a2, 2
+; RV32I-FPELIM-NEXT:    li a3, 3
+; RV32I-FPELIM-NEXT:    li a4, 4
 ; RV32I-FPELIM-NEXT:    sw a1, 0(a0)
-; RV32I-FPELIM-NEXT:    li a1, 2
-; RV32I-FPELIM-NEXT:    sw a1, 4(a0)
-; RV32I-FPELIM-NEXT:    li a1, 3
-; RV32I-FPELIM-NEXT:    sw a1, 8(a0)
-; RV32I-FPELIM-NEXT:    li a1, 4
-; RV32I-FPELIM-NEXT:    sw a1, 12(a0)
+; RV32I-FPELIM-NEXT:    sw a2, 4(a0)
+; RV32I-FPELIM-NEXT:    sw a3, 8(a0)
+; RV32I-FPELIM-NEXT:    sw a4, 12(a0)
 ; RV32I-FPELIM-NEXT:    ret
 ;
 ; RV32I-WITHFP-LABEL: callee_large_struct_ret:
@@ -954,13 +954,13 @@ define void @callee_large_struct_ret(ptr noalias sret(%struct.large) %agg.result
 ; RV32I-WITHFP-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 16
 ; RV32I-WITHFP-NEXT:    li a1, 1
+; RV32I-WITHFP-NEXT:    li a2, 2
+; RV32I-WITHFP-NEXT:    li a3, 3
+; RV32I-WITHFP-NEXT:    li a4, 4
 ; RV32I-WITHFP-NEXT:    sw a1, 0(a0)
-; RV32I-WITHFP-NEXT:    li a1, 2
-; RV32I-WITHFP-NEXT:    sw a1, 4(a0)
-; RV32I-WITHFP-NEXT:    li a1, 3
-; RV32I-WITHFP-NEXT:    sw a1, 8(a0)
-; RV32I-WITHFP-NEXT:    li a1, 4
-; RV32I-WITHFP-NEXT:    sw a1, 12(a0)
+; RV32I-WITHFP-NEXT:    sw a2, 4(a0)
+; RV32I-WITHFP-NEXT:    sw a3, 8(a0)
+; RV32I-WITHFP-NEXT:    sw a4, 12(a0)
 ; RV32I-WITHFP-NEXT:    lw ra, 12(sp) # 4-byte Folded Reload
 ; RV32I-WITHFP-NEXT:    lw s0, 8(sp) # 4-byte Folded Reload
 ; RV32I-WITHFP-NEXT:    addi sp, sp, 16

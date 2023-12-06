@@ -146,19 +146,19 @@ define void @caller_aligned_stack() nounwind {
 ; RV32I-FPELIM-NEXT:    addi sp, sp, -64
 ; RV32I-FPELIM-NEXT:    sw ra, 60(sp) # 4-byte Folded Spill
 ; RV32I-FPELIM-NEXT:    li a0, 18
+; RV32I-FPELIM-NEXT:    li a1, 17
+; RV32I-FPELIM-NEXT:    li a2, 16
+; RV32I-FPELIM-NEXT:    lui a3, 262236
+; RV32I-FPELIM-NEXT:    addi a3, a3, 655
+; RV32I-FPELIM-NEXT:    lui a4, 377487
+; RV32I-FPELIM-NEXT:    addi a4, a4, 1475
+; RV32I-FPELIM-NEXT:    li a5, 15
+; RV32I-FPELIM-NEXT:    sw a5, 0(sp)
+; RV32I-FPELIM-NEXT:    sw a4, 8(sp)
+; RV32I-FPELIM-NEXT:    sw a3, 12(sp)
+; RV32I-FPELIM-NEXT:    sw a2, 16(sp)
+; RV32I-FPELIM-NEXT:    sw a1, 20(sp)
 ; RV32I-FPELIM-NEXT:    sw a0, 24(sp)
-; RV32I-FPELIM-NEXT:    li a0, 17
-; RV32I-FPELIM-NEXT:    sw a0, 20(sp)
-; RV32I-FPELIM-NEXT:    li a0, 16
-; RV32I-FPELIM-NEXT:    sw a0, 16(sp)
-; RV32I-FPELIM-NEXT:    lui a0, 262236
-; RV32I-FPELIM-NEXT:    addi a0, a0, 655
-; RV32I-FPELIM-NEXT:    sw a0, 12(sp)
-; RV32I-FPELIM-NEXT:    lui a0, 377487
-; RV32I-FPELIM-NEXT:    addi a0, a0, 1475
-; RV32I-FPELIM-NEXT:    sw a0, 8(sp)
-; RV32I-FPELIM-NEXT:    li a0, 15
-; RV32I-FPELIM-NEXT:    sw a0, 0(sp)
 ; RV32I-FPELIM-NEXT:    lui a0, 262153
 ; RV32I-FPELIM-NEXT:    addi a0, a0, 491
 ; RV32I-FPELIM-NEXT:    sw a0, 44(sp)
@@ -192,19 +192,19 @@ define void @caller_aligned_stack() nounwind {
 ; RV32I-WITHFP-NEXT:    sw s0, 56(sp) # 4-byte Folded Spill
 ; RV32I-WITHFP-NEXT:    addi s0, sp, 64
 ; RV32I-WITHFP-NEXT:    li a0, 18
+; RV32I-WITHFP-NEXT:    li a1, 17
+; RV32I-WITHFP-NEXT:    li a2, 16
+; RV32I-WITHFP-NEXT:    lui a3, 262236
+; RV32I-WITHFP-NEXT:    addi a3, a3, 655
+; RV32I-WITHFP-NEXT:    lui a4, 377487
+; RV32I-WITHFP-NEXT:    addi a4, a4, 1475
+; RV32I-WITHFP-NEXT:    li a5, 15
+; RV32I-WITHFP-NEXT:    sw a5, 0(sp)
+; RV32I-WITHFP-NEXT:    sw a4, 8(sp)
+; RV32I-WITHFP-NEXT:    sw a3, 12(sp)
+; RV32I-WITHFP-NEXT:    sw a2, 16(sp)
+; RV32I-WITHFP-NEXT:    sw a1, 20(sp)
 ; RV32I-WITHFP-NEXT:    sw a0, 24(sp)
-; RV32I-WITHFP-NEXT:    li a0, 17
-; RV32I-WITHFP-NEXT:    sw a0, 20(sp)
-; RV32I-WITHFP-NEXT:    li a0, 16
-; RV32I-WITHFP-NEXT:    sw a0, 16(sp)
-; RV32I-WITHFP-NEXT:    lui a0, 262236
-; RV32I-WITHFP-NEXT:    addi a0, a0, 655
-; RV32I-WITHFP-NEXT:    sw a0, 12(sp)
-; RV32I-WITHFP-NEXT:    lui a0, 377487
-; RV32I-WITHFP-NEXT:    addi a0, a0, 1475
-; RV32I-WITHFP-NEXT:    sw a0, 8(sp)
-; RV32I-WITHFP-NEXT:    li a0, 15
-; RV32I-WITHFP-NEXT:    sw a0, 0(sp)
 ; RV32I-WITHFP-NEXT:    lui a0, 262153
 ; RV32I-WITHFP-NEXT:    addi a0, a0, 491
 ; RV32I-WITHFP-NEXT:    sw a0, -20(s0)

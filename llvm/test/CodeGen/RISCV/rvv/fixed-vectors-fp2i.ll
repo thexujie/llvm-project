@@ -134,9 +134,6 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV32-NEXT:    vfncvt.rtz.x.f.w v9, v8
 ; LMULMAX8RV32-NEXT:    vslidedown.vi v8, v9, 2
 ; LMULMAX8RV32-NEXT:    vmv.x.s a1, v8
-; LMULMAX8RV32-NEXT:    slli a2, a1, 17
-; LMULMAX8RV32-NEXT:    srli a2, a2, 19
-; LMULMAX8RV32-NEXT:    sh a2, 4(a0)
 ; LMULMAX8RV32-NEXT:    vmv.x.s a2, v9
 ; LMULMAX8RV32-NEXT:    lui a3, 8
 ; LMULMAX8RV32-NEXT:    addi a3, a3, -1
@@ -144,11 +141,14 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV32-NEXT:    vslidedown.vi v8, v9, 1
 ; LMULMAX8RV32-NEXT:    vmv.x.s a4, v8
 ; LMULMAX8RV32-NEXT:    and a3, a4, a3
+; LMULMAX8RV32-NEXT:    slli a4, a1, 17
+; LMULMAX8RV32-NEXT:    srli a4, a4, 19
 ; LMULMAX8RV32-NEXT:    slli a3, a3, 15
 ; LMULMAX8RV32-NEXT:    slli a1, a1, 30
 ; LMULMAX8RV32-NEXT:    or a1, a2, a1
 ; LMULMAX8RV32-NEXT:    or a1, a1, a3
 ; LMULMAX8RV32-NEXT:    sw a1, 0(a0)
+; LMULMAX8RV32-NEXT:    sh a4, 4(a0)
 ; LMULMAX8RV32-NEXT:    ret
 ;
 ; LMULMAX8RV64-LABEL: fp2si_v3f32_v3i15:
@@ -168,10 +168,10 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV64-NEXT:    slli a3, a3, 30
 ; LMULMAX8RV64-NEXT:    or a1, a1, a3
 ; LMULMAX8RV64-NEXT:    or a1, a1, a2
+; LMULMAX8RV64-NEXT:    slli a2, a1, 19
+; LMULMAX8RV64-NEXT:    srli a2, a2, 51
 ; LMULMAX8RV64-NEXT:    sw a1, 0(a0)
-; LMULMAX8RV64-NEXT:    slli a1, a1, 19
-; LMULMAX8RV64-NEXT:    srli a1, a1, 51
-; LMULMAX8RV64-NEXT:    sh a1, 4(a0)
+; LMULMAX8RV64-NEXT:    sh a2, 4(a0)
 ; LMULMAX8RV64-NEXT:    ret
 ;
 ; LMULMAX1RV32-LABEL: fp2si_v3f32_v3i15:
@@ -180,9 +180,6 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV32-NEXT:    vfncvt.rtz.x.f.w v9, v8
 ; LMULMAX1RV32-NEXT:    vslidedown.vi v8, v9, 2
 ; LMULMAX1RV32-NEXT:    vmv.x.s a1, v8
-; LMULMAX1RV32-NEXT:    slli a2, a1, 17
-; LMULMAX1RV32-NEXT:    srli a2, a2, 19
-; LMULMAX1RV32-NEXT:    sh a2, 4(a0)
 ; LMULMAX1RV32-NEXT:    vmv.x.s a2, v9
 ; LMULMAX1RV32-NEXT:    lui a3, 8
 ; LMULMAX1RV32-NEXT:    addi a3, a3, -1
@@ -190,11 +187,14 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV32-NEXT:    vslidedown.vi v8, v9, 1
 ; LMULMAX1RV32-NEXT:    vmv.x.s a4, v8
 ; LMULMAX1RV32-NEXT:    and a3, a4, a3
+; LMULMAX1RV32-NEXT:    slli a4, a1, 17
+; LMULMAX1RV32-NEXT:    srli a4, a4, 19
 ; LMULMAX1RV32-NEXT:    slli a3, a3, 15
 ; LMULMAX1RV32-NEXT:    slli a1, a1, 30
 ; LMULMAX1RV32-NEXT:    or a1, a2, a1
 ; LMULMAX1RV32-NEXT:    or a1, a1, a3
 ; LMULMAX1RV32-NEXT:    sw a1, 0(a0)
+; LMULMAX1RV32-NEXT:    sh a4, 4(a0)
 ; LMULMAX1RV32-NEXT:    ret
 ;
 ; LMULMAX1RV64-LABEL: fp2si_v3f32_v3i15:
@@ -214,10 +214,10 @@ define <3 x i15> @fp2si_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV64-NEXT:    slli a3, a3, 30
 ; LMULMAX1RV64-NEXT:    or a1, a1, a3
 ; LMULMAX1RV64-NEXT:    or a1, a1, a2
+; LMULMAX1RV64-NEXT:    slli a2, a1, 19
+; LMULMAX1RV64-NEXT:    srli a2, a2, 51
 ; LMULMAX1RV64-NEXT:    sw a1, 0(a0)
-; LMULMAX1RV64-NEXT:    slli a1, a1, 19
-; LMULMAX1RV64-NEXT:    srli a1, a1, 51
-; LMULMAX1RV64-NEXT:    sh a1, 4(a0)
+; LMULMAX1RV64-NEXT:    sh a2, 4(a0)
 ; LMULMAX1RV64-NEXT:    ret
   %z = fptosi <3 x float> %x to <3 x i15>
   ret <3 x i15> %z
@@ -231,9 +231,6 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV32-NEXT:    vfncvt.rtz.x.f.w v9, v8
 ; LMULMAX8RV32-NEXT:    vslidedown.vi v8, v9, 2
 ; LMULMAX8RV32-NEXT:    vmv.x.s a1, v8
-; LMULMAX8RV32-NEXT:    slli a2, a1, 17
-; LMULMAX8RV32-NEXT:    srli a2, a2, 19
-; LMULMAX8RV32-NEXT:    sh a2, 4(a0)
 ; LMULMAX8RV32-NEXT:    vmv.x.s a2, v9
 ; LMULMAX8RV32-NEXT:    lui a3, 16
 ; LMULMAX8RV32-NEXT:    addi a3, a3, -1
@@ -241,11 +238,14 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV32-NEXT:    vslidedown.vi v8, v9, 1
 ; LMULMAX8RV32-NEXT:    vmv.x.s a4, v8
 ; LMULMAX8RV32-NEXT:    and a3, a4, a3
+; LMULMAX8RV32-NEXT:    slli a4, a1, 17
+; LMULMAX8RV32-NEXT:    srli a4, a4, 19
 ; LMULMAX8RV32-NEXT:    slli a3, a3, 15
 ; LMULMAX8RV32-NEXT:    slli a1, a1, 30
 ; LMULMAX8RV32-NEXT:    or a1, a2, a1
 ; LMULMAX8RV32-NEXT:    or a1, a1, a3
 ; LMULMAX8RV32-NEXT:    sw a1, 0(a0)
+; LMULMAX8RV32-NEXT:    sh a4, 4(a0)
 ; LMULMAX8RV32-NEXT:    ret
 ;
 ; LMULMAX8RV64-LABEL: fp2ui_v3f32_v3i15:
@@ -265,10 +265,10 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX8RV64-NEXT:    slli a3, a3, 30
 ; LMULMAX8RV64-NEXT:    or a1, a1, a3
 ; LMULMAX8RV64-NEXT:    or a1, a1, a2
+; LMULMAX8RV64-NEXT:    slli a2, a1, 19
+; LMULMAX8RV64-NEXT:    srli a2, a2, 51
 ; LMULMAX8RV64-NEXT:    sw a1, 0(a0)
-; LMULMAX8RV64-NEXT:    slli a1, a1, 19
-; LMULMAX8RV64-NEXT:    srli a1, a1, 51
-; LMULMAX8RV64-NEXT:    sh a1, 4(a0)
+; LMULMAX8RV64-NEXT:    sh a2, 4(a0)
 ; LMULMAX8RV64-NEXT:    ret
 ;
 ; LMULMAX1RV32-LABEL: fp2ui_v3f32_v3i15:
@@ -277,9 +277,6 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV32-NEXT:    vfncvt.rtz.x.f.w v9, v8
 ; LMULMAX1RV32-NEXT:    vslidedown.vi v8, v9, 2
 ; LMULMAX1RV32-NEXT:    vmv.x.s a1, v8
-; LMULMAX1RV32-NEXT:    slli a2, a1, 17
-; LMULMAX1RV32-NEXT:    srli a2, a2, 19
-; LMULMAX1RV32-NEXT:    sh a2, 4(a0)
 ; LMULMAX1RV32-NEXT:    vmv.x.s a2, v9
 ; LMULMAX1RV32-NEXT:    lui a3, 16
 ; LMULMAX1RV32-NEXT:    addi a3, a3, -1
@@ -287,11 +284,14 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV32-NEXT:    vslidedown.vi v8, v9, 1
 ; LMULMAX1RV32-NEXT:    vmv.x.s a4, v8
 ; LMULMAX1RV32-NEXT:    and a3, a4, a3
+; LMULMAX1RV32-NEXT:    slli a4, a1, 17
+; LMULMAX1RV32-NEXT:    srli a4, a4, 19
 ; LMULMAX1RV32-NEXT:    slli a3, a3, 15
 ; LMULMAX1RV32-NEXT:    slli a1, a1, 30
 ; LMULMAX1RV32-NEXT:    or a1, a2, a1
 ; LMULMAX1RV32-NEXT:    or a1, a1, a3
 ; LMULMAX1RV32-NEXT:    sw a1, 0(a0)
+; LMULMAX1RV32-NEXT:    sh a4, 4(a0)
 ; LMULMAX1RV32-NEXT:    ret
 ;
 ; LMULMAX1RV64-LABEL: fp2ui_v3f32_v3i15:
@@ -311,10 +311,10 @@ define <3 x i15> @fp2ui_v3f32_v3i15(<3 x float> %x) {
 ; LMULMAX1RV64-NEXT:    slli a3, a3, 30
 ; LMULMAX1RV64-NEXT:    or a1, a1, a3
 ; LMULMAX1RV64-NEXT:    or a1, a1, a2
+; LMULMAX1RV64-NEXT:    slli a2, a1, 19
+; LMULMAX1RV64-NEXT:    srli a2, a2, 51
 ; LMULMAX1RV64-NEXT:    sw a1, 0(a0)
-; LMULMAX1RV64-NEXT:    slli a1, a1, 19
-; LMULMAX1RV64-NEXT:    srli a1, a1, 51
-; LMULMAX1RV64-NEXT:    sh a1, 4(a0)
+; LMULMAX1RV64-NEXT:    sh a2, 4(a0)
 ; LMULMAX1RV64-NEXT:    ret
   %z = fptoui <3 x float> %x to <3 x i15>
   ret <3 x i15> %z

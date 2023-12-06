@@ -210,8 +210,8 @@ define i32 @test_call_external_many_args(i32 %a) nounwind {
 ; RV32I-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
 ; RV32I-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
 ; RV32I-NEXT:    mv s0, a0
-; RV32I-NEXT:    sw a0, 4(sp)
 ; RV32I-NEXT:    sw a0, 0(sp)
+; RV32I-NEXT:    sw a0, 4(sp)
 ; RV32I-NEXT:    mv a1, a0
 ; RV32I-NEXT:    mv a2, a0
 ; RV32I-NEXT:    mv a3, a0
@@ -232,8 +232,8 @@ define i32 @test_call_external_many_args(i32 %a) nounwind {
 ; RV32I-PIC-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
 ; RV32I-PIC-NEXT:    sw s0, 8(sp) # 4-byte Folded Spill
 ; RV32I-PIC-NEXT:    mv s0, a0
-; RV32I-PIC-NEXT:    sw a0, 4(sp)
 ; RV32I-PIC-NEXT:    sw a0, 0(sp)
+; RV32I-PIC-NEXT:    sw a0, 4(sp)
 ; RV32I-PIC-NEXT:    mv a1, a0
 ; RV32I-PIC-NEXT:    mv a2, a0
 ; RV32I-PIC-NEXT:    mv a3, a0
@@ -273,8 +273,8 @@ define i32 @test_call_defined_many_args(i32 %a) nounwind {
 ; RV32I:       # %bb.0:
 ; RV32I-NEXT:    addi sp, sp, -16
 ; RV32I-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; RV32I-NEXT:    sw a0, 4(sp)
 ; RV32I-NEXT:    sw a0, 0(sp)
+; RV32I-NEXT:    sw a0, 4(sp)
 ; RV32I-NEXT:    mv a1, a0
 ; RV32I-NEXT:    mv a2, a0
 ; RV32I-NEXT:    mv a3, a0
@@ -291,8 +291,8 @@ define i32 @test_call_defined_many_args(i32 %a) nounwind {
 ; RV32I-PIC:       # %bb.0:
 ; RV32I-PIC-NEXT:    addi sp, sp, -16
 ; RV32I-PIC-NEXT:    sw ra, 12(sp) # 4-byte Folded Spill
-; RV32I-PIC-NEXT:    sw a0, 4(sp)
 ; RV32I-PIC-NEXT:    sw a0, 0(sp)
+; RV32I-PIC-NEXT:    sw a0, 4(sp)
 ; RV32I-PIC-NEXT:    mv a1, a0
 ; RV32I-PIC-NEXT:    mv a2, a0
 ; RV32I-PIC-NEXT:    mv a3, a0
