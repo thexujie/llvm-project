@@ -7,6 +7,21 @@
 #include <cstring>
 #include <new>
 
+template <class T>
+void print_bytes(const T *object)
+{
+  auto size = sizeof(T);
+  const unsigned char * const bytes = reinterpret_cast<const unsigned char *>(object);
+  size_t i;
+
+  fprintf(stderr, "[ ");
+  for(i = 0; i < size; i++)
+  {
+    fprintf(stderr, "%02x ", bytes[i]);
+  }
+  fprintf(stderr, "]\n");
+}
+
 template <size_t A1, size_t A2, class T>
 struct alignas(A1) BasicWithPadding {
   T x;
@@ -74,7 +89,6 @@ void testAllForType(T a, T b, T c, T d) {
   assert(memcmp(&basic1, &basic2, sizeof(B)) != 0);
   __builtin_zero_non_value_bits(&basic2);
   assert(memcmp(&basic1, &basic2, sizeof(B)) == 0);
-
   using A = SpacedArrayMembers<A1, A2, 2, T>;
   A arr1;
   memset(&arr1, 0, sizeof(A));
@@ -219,7 +233,104 @@ struct Foo {
 typedef float Float4Vec __attribute__((ext_vector_type(4)));
 typedef float Float3Vec __attribute__((ext_vector_type(3)));
 
+struct S1 {
+ int x = 0;
+ char c = 0;
+};
+
+struct S2{
+  [[no_unique_address]] S1 s1;
+  bool b;
+  long double l;
+  bool b2;
+};
+
+struct S3{
+  [[no_unique_address]] S1 s1;
+  bool b;
+};
+
+struct alignas(32) S4 {
+  int i;
+};
+struct B1{
+
+};
+
+struct B2 {
+  int x;
+};
+struct B3{
+  char c;
+};
+
+struct B4{
+  bool b;
+};
+
+struct B5{
+  int x2;
+};
+
+struct D:B1,B2,B3,B4,B5{
+  long double l;
+  bool b2;
+};
+
+
 int main() {
+  /*
+  S2 s2{};
+
+  memset(&s2, 42, sizeof(S2));
+  s2.s1.x = 0x12345678;
+  s2.s1.c = 0xff;
+  s2.b = true;
+  s2.l = 3.333;
+  s2.b2 = true;
+  print_bytes(&s2);
+  __builtin_zero_non_value_bits(&s2);
+  print_bytes(&s2);
+
+  D s2{};
+  memset(&s2, 42, sizeof(D));
+  s2.x = 0x12345678;
+  s2.c = 0xff;
+  s2.b = true;
+  s2.x2 = 0x87654321;
+  s2.l = 3.333;
+  s2.b2 = true;
+  print_bytes(&s2);
+  __builtin_zero_non_value_bits(&s2);
+  print_bytes(&s2);
+
+  S3 s2[2];
+
+  memset(&s2, 42, 2*sizeof(S3));
+  s2[0].s1.x = 0x12345678;
+  s2[0].s1.c = 0xff;
+  s2[0].b = true;
+  s2[1].s1.x = 0x12345678;
+  s2[1].s1.c = 0xff;
+  s2[1].b = true;
+  print_bytes(&s2);
+  __builtin_zero_non_value_bits(&s2);
+  print_bytes(&s2);
+
+  */
+/*
+  S4 s2[2];
+
+  memset(&s2, 42, 2*sizeof(S4));
+  s2[0].i = 0x12345678;
+  s2[1].i = 0x12345678;
+  print_bytes(&s2);
+  __builtin_zero_non_value_bits(&s2);
+  print_bytes(&s2);
+
+
+  assert(false);
+*/
   testAllForType<32, 16, char>(11, 22, 33, 44);
   testAllForType<64, 32, char>(4, 5, 6, 7);
   testAllForType<32, 16, volatile char>(11, 22, 33, 44);
@@ -244,6 +355,5 @@ int main() {
   testAllForType<128, 128, Float4Vec>(4, 5, 6, 7);
 
   otherTests();
-
   return 0;
 }
