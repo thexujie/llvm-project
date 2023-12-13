@@ -5,7 +5,7 @@ add_flang_library(FIRTransforms
   AffineDemotion.cpp
   AnnotateConstant.cpp
   CharacterConversion.cpp
-  ConstExtruder.cpp
+  ConstantArgumentGlobalisation.cpp
   ControlFlowConverter.cpp
   ArrayValueCopy.cpp
   ExternalNameConversion.cpp
