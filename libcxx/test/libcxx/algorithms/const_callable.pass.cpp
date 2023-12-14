@@ -13,6 +13,4 @@ struct RvalueRefUncallable {
   bool operator()(int, int) const &{ return true; }
 };
 
-int main(int, char**){
-     assert(std::minmax({42, 0, -42}, RvalueRefUncallable{}).first == true);
-}
+int main(int, char**) { assert(std::minmax({42, 0, -42}, RvalueRefUncallable{}).first == true); }
