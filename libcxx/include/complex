@@ -240,6 +240,17 @@ template<class T> complex<T> tanh (const complex<T>&);
 #   include <sstream> // for std::basic_ostringstream
 #endif
 
+#if _LIBCPP_STD_VER >= 26
+// Tuple interface [complex.tuple]
+#  include <__fwd/complex.h>
+#  include <__fwd/get.h>
+#  include <__tuple/tuple_element.h>
+#  include <__tuple/tuple_size.h>
+#  include <__type_traits/integral_constant.h>
+#  include <__utility/forward.h>
+#  include <__utility/move.h>
+#endif
+
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
 #endif
@@ -308,6 +319,10 @@ public:
             *this = *this / complex(__c.real(), __c.imag());
             return *this;
         }
+#if _LIBCPP_STD_VER >= 26
+    // Tuple interface [complex.tuple]
+    friend struct __get_complex;
+#endif
 };
 
 template<> class _LIBCPP_TEMPLATE_VIS complex<double>;
@@ -369,6 +384,10 @@ public:
             *this = *this / complex(__c.real(), __c.imag());
             return *this;
         }
+#if _LIBCPP_STD_VER >= 26
+    // Tuple interface [complex.tuple]
+    friend struct __get_complex;
+#endif
 };
 
 template<>
@@ -427,6 +446,10 @@ public:
             *this = *this / complex(__c.real(), __c.imag());
             return *this;
         }
+#if _LIBCPP_STD_VER >= 26
+    // Tuple interface [complex.tuple]
+    friend struct __get_complex;
+#endif
 };
 
 template<>
@@ -485,6 +508,10 @@ public:
             *this = *this / complex(__c.real(), __c.imag());
             return *this;
         }
+#if _LIBCPP_STD_VER >= 26
+    // Tuple interface [complex.tuple]
+    friend struct __get_complex;
+#endif
 };
 
 inline
@@ -1536,6 +1563,65 @@ inline namespace literals
     }
   } // namespace complex_literals
 } // namespace literals
+#endif
+
+#if _LIBCPP_STD_VER >= 26
+// Tuple interface [complex.tuple]
+template<class _Tp>
+struct _LIBCPP_TEMPLATE_VIS tuple_size<complex<_Tp>>
+    : public integral_constant<size_t, 2> {};
+
+template<size_t _Ip, class _Tp>
+struct _LIBCPP_TEMPLATE_VIS tuple_element<_Ip, complex<_Tp>>
+{
+    static_assert(_Ip < 2, "Index out of bounds in std::tuple_element<std::complex<T>>");
+
+    using type _LIBCPP_NODEBUG = _Tp;
+};
+
+struct __get_complex
+{
+    template <size_t _Ip, class _Tp>
+    static _LIBCPP_HIDE_FROM_ABI constexpr
+    auto&&
+    get(_Tp&& __z) _NOEXCEPT
+    {
+        static_assert(_Ip < 2, "Index out of bounds in std::get<std::complex<T>>");
+        if constexpr (_Ip == 0) {
+            return std::forward<_Tp>(__z).__re_;
+        } else {
+            return std::forward<_Tp>(__z).__im_;
+        }
+    }
+};
+
+template<size_t _Ip, class _Tp>
+inline _LIBCPP_HIDE_FROM_ABI
+constexpr _Tp& get(complex<_Tp>& __z) _NOEXCEPT
+{
+    return __get_complex::get<_Ip>(__z);
+}
+
+template<size_t _Ip, class _Tp>
+inline _LIBCPP_HIDE_FROM_ABI
+constexpr const _Tp& get(const complex<_Tp>& __z) _NOEXCEPT
+{
+    return __get_complex::get<_Ip>(__z);
+}
+
+template<size_t _Ip, class _Tp>
+inline _LIBCPP_HIDE_FROM_ABI
+constexpr _Tp&& get(complex<_Tp>&& __z) _NOEXCEPT
+{
+    return __get_complex::get<_Ip>(std::move(__z));
+}
+
+template<size_t _Ip, class _Tp>
+inline _LIBCPP_HIDE_FROM_ABI
+constexpr const _Tp&& get(const complex<_Tp>&& __z) _NOEXCEPT
+{
+    return __get_complex::get<_Ip>(std::move(__z));
+}
 #endif
 
 _LIBCPP_END_NAMESPACE_STD
