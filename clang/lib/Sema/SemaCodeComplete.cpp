@@ -25,6 +25,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/AttributeCommonInfo.h"
 #include "clang/Basic/CharInfo.h"
+#include "clang/Basic/ExceptionSpecificationType.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Lex/HeaderSearch.h"
@@ -3292,6 +3293,25 @@ AddFunctionTypeQualsToCompletionString(CodeCompletionBuilder &Result,
   Result.AddInformativeChunk(Result.getAllocator().CopyString(QualsStr));
 }
 
+static void
+AddFunctionExceptSpecToCompletionString(CodeCompletionBuilder &Result,
+                                        const FunctionDecl *Function) {
+  const auto *Proto = Function->getType()->getAs<FunctionProtoType>();
+  if (!Proto)
+    return;
+
+  auto ExceptInfo = Proto->getExceptionSpecInfo();
+  switch (ExceptInfo.Type) {
+  case EST_BasicNoexcept:
+  case EST_NoexceptTrue:
+    Result.AddInformativeChunk(" noexcept");
+    break;
+
+  default:
+    break;
+  }
+}
+
 /// Add the name of the given declaration
 static void AddTypedNameChunk(ASTContext &Context, const PrintingPolicy &Policy,
                               const NamedDecl *ND,
@@ -3560,6 +3580,7 @@ CodeCompletionString *CodeCompletionResult::createCodeCompletionStringForDecl(
     AddFunctionParameterChunks(PP, Policy, Function, Result);
     Result.AddChunk(CodeCompletionString::CK_RightParen);
     AddFunctionTypeQualsToCompletionString(Result, Function);
+    AddFunctionExceptSpecToCompletionString(Result, Function);
   };
 
   if (const auto *Function = dyn_cast<FunctionDecl>(ND)) {
@@ -3642,6 +3663,7 @@ CodeCompletionString *CodeCompletionResult::createCodeCompletionStringForDecl(
     AddFunctionParameterChunks(PP, Policy, Function, Result);
     Result.AddChunk(CodeCompletionString::CK_RightParen);
     AddFunctionTypeQualsToCompletionString(Result, Function);
+    AddFunctionExceptSpecToCompletionString(Result, Function);
     return Result.TakeString();
   }
 
