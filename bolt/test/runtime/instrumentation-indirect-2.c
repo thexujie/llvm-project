@@ -50,7 +50,7 @@ int main() {
   return 0;
 }
 /*
-REQUIRES: system-linux,shell,fuser
+REQUIRES: system-linux,shell,fuser,bolt-runtime
 
 RUN: %clang %cflags %s -o %t.exe -Wl,-q -pie -fpie
 
