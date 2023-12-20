@@ -6,20 +6,19 @@
 # See https://llvm.org/LICENSE.txt for license information.
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
-# ===------------------------------------------------------------------------===#
+# ===----------------------------------------------------------------------------===#
 
-r"""
+"""
 code-coverage git integration
 ============================
 This file provides a code-coverage integration for git. Put it in your
 llvm-project root directory and ensure that it is executable. Code
 coverage information will be provided for the last commit/HEAD by
-runing below command.
+runing the below command.
 Example uses -
           git check-coverage -b build bin/opt llvm/test
-Here b is build directory (optional, default is build)
-next we have binray
-and then test suite path
+Here b is build directory (optional, default is build).
+Next we have binray, and then test suite path.
 """
 
 import argparse
@@ -31,19 +30,18 @@ import sys
 from unidiff import PatchSet
 
 
-# Configure the logging module
 def configure_logging(build_dir):
     logging.basicConfig(
         filename=os.path.join(
             build_dir, "patch_coverage.log"
         ),  # Specify the log file in the build directory
-        level=logging.INFO,  # Set the logging level to INFO
-        format="%(message)s",  # Specify the log message format
+        level=logging.INFO,
+        format="%(message)s",
     )
 
 
-# Define a custom print function that writes to both the log file and the terminal
 def custom_print(*args):
+    """Define a custom print function that writes to the log file."""
     message = " ".join(map(str, args))
     logging.info(message)  # Write to the log file
 
@@ -60,8 +58,8 @@ def create_patch_from_last_commit(output_path):
         with open(output_path, "wb") as patch_file:
             patch_file.write(patch_output.encode("utf-8"))
 
-        print("Patch file '{}' created successfully.".format(output_path))
-        print("")
+        custom_print("Patch file '{}' created successfully.".format(output_path))
+        custom_print("")
 
     except subprocess.CalledProcessError as e:
         print("Error while creating the patch from the last commit:", e)
@@ -78,7 +76,9 @@ def extract_source_files_from_patch(patch_path):
             patch_diff = patch_file.read().decode("utf-8", "ignore")
 
         # Use regular expression to find .cpp files in the patch
-        source_file_matches = re.findall(r"\+{3} b/(\S+\.(?:cpp|c))", patch_diff)
+        source_file_matches = re.findall(
+            r"\+{3} b/(\S+\.(?:cpp|c|h|hpp|hxx|cxx|inc|cppm))", patch_diff
+        )
 
         # Filter out files with "test" in their directory path
         source_files = [file for file in source_file_matches if "test" not in file]
@@ -95,22 +95,25 @@ def extract_source_files_from_patch(patch_path):
         sys.exit(1)
 
 
-def write_source_file_allowlist(source_files, output_path):
-    """Write a file containing the list of source files in the format"""
+def write_source_file_allowlist(source_files, allowlist_path):
+    """Write a file containing the list of source files in the sanitizer
+    special case list format"""
     try:
         # Get the absolute path of the current directory
         current_directory = os.getcwd()
         absolute_path = os.path.abspath(current_directory)
 
         # Write the source file paths to the allowlist file in the specified format
-        with open(output_path, "w") as allowlist_file:
+        with open(allowlist_path, "w") as allowlist_file:
             for source_file in source_files:
                 source_file = os.path.join(absolute_path, source_file)
                 allowlist_file.write("source:{}=allow\n".format(source_file))
             allowlist_file.write("default:skip")  # Specify default behavior
 
         # Print a success message after writing the allowlist file
-        custom_print("Source file allowlist written to file '{}'.".format(output_path))
+        custom_print(
+            "Source file allowlist written to file '{}'.".format(allowlist_path)
+        )
         custom_print("")
 
     except subprocess.CalledProcessError as e:
@@ -167,6 +170,7 @@ def build_llvm(build_dir):
 
         # Remove older profile files
         command = 'find . -type f -name "*.profraw" -delete'
+
         try:
             subprocess.run(command, shell=True, check=True)
             custom_print(
@@ -175,6 +179,10 @@ def build_llvm(build_dir):
         except subprocess.CalledProcessError as e:
             custom_print(f"Error: {e}")
         custom_print("")
+
+        # clean the build directory
+        clean_command = ["ninja", "clean"]
+        subprocess.run(clean_command, check=True)
 
         # Run the cmake command to re-configure the LLVM build for coverage instrumentation
         cmake_command = [
@@ -251,7 +259,6 @@ def run_modified_lit_tests(llvm_lit_path, patch_path, tests):
         ):
             test_file = match.group(1)
 
-            # Get the current working directory
             cwd = os.getcwd()
 
             # Build the full file path dynamically by going two steps back from cwd
@@ -298,9 +305,9 @@ def run_modified_unit_tests(build_dir, patch_path, tests):
         modified_tests = []
 
         custom_print()
-        # Use regular expressions to find modified test cases with ".ll|.c|.cpp" extension
+        # Use regular expressions to find modified unit test cases with ".c|.cpp" extension
         for match in re.finditer(
-            r"^\+\+\+ [ab]/(.*\.(c|cpp|f90))$",
+            r"^\+\+\+ [ab]/(.*\.(c|cpp))$",
             patch_diff,
             re.MULTILINE,
         ):
@@ -410,7 +417,7 @@ def process_coverage_data(cpp_files, build_dir, binary):
 
                     # Construct the llvm-profdata command
                     llvm_profdata_cmd = [
-                        "/usr/local/bin/llvm-profdata",
+                        "./bin/llvm-profdata",
                         "merge",
                         "-o",
                         profdata_output,
@@ -442,7 +449,7 @@ def process_coverage_data(cpp_files, build_dir, binary):
                         cpp_file = os.path.join(parent_directory, cpp_file_original)
                         # Construct the llvm-cov show command to extract coverage data for the specific C++ file
                         llvm_cov_cmd = [
-                            "/usr/local/bin/llvm-cov",
+                            "./bin/llvm-cov",
                             "show",
                             "-instr-profile",
                             profdata_output,
@@ -475,6 +482,68 @@ def process_coverage_data(cpp_files, build_dir, binary):
         sys.exit(1)
 
 
+def read_coverage_file(coverage_file):
+    """Read coverage file and return covered and uncovered line numbers."""
+
+    # Initialize sets to store uncovered and covered line numbers in the current coverage file
+    uncovered_line_numbers = set()
+    covered_line_numbers = set()
+
+    # Open the coverage file and process each line
+    with open(coverage_file, "r") as cov_file:
+        for line in cov_file:
+            # Split each line into parts using "|" as a delimiter
+            parts = line.strip().split("|")
+            if len(parts) >= 3:
+                # Extract line number and execution count
+                line_number_str = parts[0].strip()
+                execution_count = parts[1].strip()
+
+                # Check if line number and execution count are numeric
+                if line_number_str.isdigit() and execution_count.isdigit():
+                    line_number = int(line_number_str)
+                    # determine whether the line is uncovered or covered based on execution count
+                    if int(execution_count) == 0:
+                        uncovered_line_numbers.add(line_number)
+                    elif int(execution_count) > 0:
+                        covered_line_numbers.add(line_number)
+
+    return covered_line_numbers, uncovered_line_numbers
+
+
+def print_coverage_details(file, lines, uncovered_line_numbers, covered_line_numbers):
+    """Print coverage details for a given file and lines."""
+
+    custom_print(f"Modified File: {os.path.relpath(file)[2:]}")
+
+    # Print the original lines for uncovered and covered lines
+    for line_number_source, line_content in lines:
+        if line_number_source in uncovered_line_numbers:
+            custom_print(
+                f"  Uncovered Line: {line_number_source} : {line_content.strip()}"
+            )
+        elif line_number_source in covered_line_numbers:
+            custom_print(
+                f"  Covered Line: {line_number_source} : {line_content.strip()}"
+            )
+
+
+def print_common_uncovered_lines(cpp_file, uncovered_lines, modified_lines):
+    """Print common uncovered lines for a specific cpp_file."""
+
+    print(f"\nCommon uncovered lines for {cpp_file} after all changes:")
+
+    # Iterate through modified lines to find the corresponding source lines
+    for file, lines in modified_lines.items():
+        for line_number_source, line_content in lines:
+            # Print the common uncovered line with source file information for each cpp_file
+            if (
+                os.path.relpath(file)[2:] == cpp_file
+                and line_number_source in uncovered_lines
+            ):
+                print(f"  Line {line_number_source}: {line_content.strip()}")
+
+
 def report_covered_and_uncovered_lines(coverage_files, modified_lines):
     """Report Covered and uncovered source code lines."""
 
@@ -485,69 +554,28 @@ def report_covered_and_uncovered_lines(coverage_files, modified_lines):
         # Iterate through each cpp_file and its associated coverage file in coverage_files
         for cpp_file, coverage_files_list in coverage_files.items():
             for coverage_file in coverage_files_list:
-                custom_print()
                 # Print the current coverage file being processed
                 custom_print(f"Coverage File: build/{coverage_file}")
 
-                # Initialize sets to store uncovered and covered line numbers in the current coverage file
-                uncovered_line_numbers = set()
-                covered_line_numbers = set()
+                covered_line_numbers, uncovered_line_numbers = read_coverage_file(
+                    coverage_file
+                )
 
-                # Open the coverage file and process each line
-                with open(coverage_file, "r") as cov_file:
-                    for line in cov_file:
-                        # Split each line into parts using "|" as a delimiter
-                        parts = line.strip().split("|")
-                        if len(parts) >= 3:
-                            # Extract line number and execution count
-                            line_number_str = parts[0].strip()
-                            execution_count = parts[1].strip()
-
-                            # Check if line number and execution count are numeric
-                            if line_number_str.isdigit() and execution_count.isdigit():
-                                line_number = int(line_number_str)
-                                # Determine whether the line is uncovered or covered based on execution count
-                                if int(execution_count) == 0:
-                                    uncovered_line_numbers.add(line_number)
-                                elif int(execution_count) > 0:
-                                    covered_line_numbers.add(line_number)
-
-                # Store the uncovered line numbers in the common_uncovered_line_numbers dictionary
                 common_uncovered_line_numbers_for_each_file[
                     cpp_file
                 ] = uncovered_line_numbers
-
-                # Print the original lines for uncovered and covered lines
                 for file, lines in modified_lines.items():
                     if os.path.relpath(file)[2:] == cpp_file:
-                        custom_print(f"Modified File: {os.path.relpath(file)[2:]}")
-                        for line_number_source, line_content in lines:
-                            if line_number_source in uncovered_line_numbers:
-                                custom_print(
-                                    f"  Uncovered Line: {line_number_source} : {line_content.strip()}"
-                                )
-                            elif line_number_source in covered_line_numbers:
-                                custom_print(
-                                    f"  Covered Line: {line_number_source} : {line_content.strip()}"
-                                )
+                        print_coverage_details(
+                            file, lines, uncovered_line_numbers, covered_line_numbers
+                        )
 
         # Print the final uncovered lines for each file
         for (
             cpp_file,
             uncovered_lines,
         ) in common_uncovered_line_numbers_for_each_file.items():
-            print(f"\nCommon uncovered lines for {cpp_file} after all changes:")
-            # print(uncovered_lines)
-
-            # Iterate through modified lines to find the corresponding source lines
-            for file, lines in modified_lines.items():
-                for line_number_source, line_content in lines:
-                    # Print the common uncovered line with source file information for each cpp_file
-                    if (
-                        os.path.relpath(file)[2:] == cpp_file
-                        and line_number_source in uncovered_lines
-                    ):
-                        print(f"  Line {line_number_source}: {line_content.strip()}")
+            print_common_uncovered_lines(cpp_file, uncovered_lines, modified_lines)
 
     except Exception as ex:
         # Handle exceptions, print an error message, and exit with status 1
@@ -626,25 +654,27 @@ def parse_args():
     # Create an ArgumentParser object.
     parser = argparse.ArgumentParser()
 
-    # Add optional argument "-b" or "--build-dir" with a default value of "build".
     parser.add_argument("-b", "--build-dir", dest="build_dir", default="build")
 
-    # Add argument "binary".
+    # Add optional argument "-i" or "--instrumented-build-dir" to specify the instrumented LLVM build directory.
+    parser.add_argument(
+        "-i", "--instrumented-build-dir", dest="instrumented_build_dir", default=None
+    )
+
     parser.add_argument("binary")
 
-    # Add positional argument "test_path" which can have one or more values.
+    # Add positional argument "test_path" which is the path to test cases.
     parser.add_argument("test_path", nargs="+")
 
-    # Parse the command line arguments.
     args = parser.parse_args()
 
-    # Return a tuple containing build_dir and test_path.
-    return (args.build_dir, args.binary, args.test_path)
+    return (args.build_dir, args.instrumented_build_dir, args.binary, args.test_path)
 
 
 def main():
     (
         build_dir,
+        instrumented_build_dir,
         binary,
         test_paths,
     ) = (
@@ -673,11 +703,11 @@ def main():
         patch_path
     )  # Extract source files from the patch.
 
-    output_path = os.path.join(
+    allowlist_path = os.path.join(
         build_dir, "fun.list"
     )  # Define the path to the list file for -fprofile-list.
 
-    write_source_file_allowlist(source_files, output_path)
+    write_source_file_allowlist(source_files, allowlist_path)
 
     modified_lines = extract_modified_source_lines_from_patch(
         patch_path, tests
@@ -692,7 +722,10 @@ def main():
         custom_print("")
     custom_print("")
 
-    build_llvm(build_dir)  # Build LLVM in the specified build directory.
+    if not instrumented_build_dir:
+        # If instrumented_build_dir is not provided, build LLVM with
+        # instrumentation flags in the specified build directory.
+        build_llvm(build_dir)
 
     run_modified_lit_tests(
         llvm_lit_path, patch_path, tests
