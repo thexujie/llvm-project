@@ -75,19 +75,24 @@ def extract_source_files_from_patch(patch_path):
         with open(patch_path, "rb") as patch_file:
             patch_diff = patch_file.read().decode("utf-8", "ignore")
 
-        # Use regular expression to find .cpp files in the patch
+        # Use regular expression to find .cpp|c|h|hpp|hxx|cxx|inc|cppm files in the patch
         source_file_matches = re.findall(
             r"\+{3} b/(\S+\.(?:cpp|c|h|hpp|hxx|cxx|inc|cppm))", patch_diff
         )
 
-        # Filter out files with "test" in their directory path
-        source_files = [file for file in source_file_matches if "test" not in file]
+        # Filter out files with "test" or "unittests" in their directory path
+        source_files = [file for file in source_file_matches if "test" not in file and "unittests" not in file]
+
+        if not source_files:
+            print("No source files found in the patch. Exiting.")
+            sys.exit(0)
 
         print()
         print("Source files in the patch (excluding test files):")
         for source_file in source_files:
             print(source_file)
         print("")
+
         return source_files
 
     except Exception as ex:
@@ -251,7 +256,7 @@ def run_modified_lit_tests(llvm_lit_path, patch_path, tests):
 
         modified_tests = []
 
-        # Use regular expressions to find modified test cases with ".ll|.c|.cpp" extension
+        # Use regular expressions to find modified test cases with "ll|mir|mlir|fir|c|cpp|f90|s|test" extension
         for match in re.finditer(
             r"^\+\+\+ [ab]/(.*\.(ll|mir|mlir|fir|c|cpp|f90|s|test))$",
             patch_diff,
@@ -302,7 +307,7 @@ def run_modified_unit_tests(build_dir, patch_path, tests):
         with open(patch_path, "r") as patch_file:
             patch_diff = patch_file.read()
 
-        modified_tests = []
+        modified_unit_tests = []
 
         custom_print()
         # Use regular expressions to find modified unit test cases with ".c|.cpp" extension
@@ -367,7 +372,7 @@ def run_modified_unit_tests(build_dir, patch_path, tests):
 
                 # Check if the file name is starts with +++
                 if match.group(0).startswith("+++"):
-                    modified_tests.append(full_test_file)
+                    modified_unit_tests.append(full_test_file)
 
                     # Run each modified test case
                     custom_print("")
@@ -380,7 +385,7 @@ def run_modified_unit_tests(build_dir, patch_path, tests):
                     )
                     custom_print("Test case executed:", full_test_file)
 
-        if not modified_tests:
+        if not modified_unit_tests:
             custom_print("No modified unit tests found in the patch.")
             return
 
