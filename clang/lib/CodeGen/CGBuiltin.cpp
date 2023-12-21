@@ -60,6 +60,7 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
 #include "llvm/TargetParser/X86TargetParser.h"
+#include <algorithm>
 #include <optional>
 #include <sstream>
 
@@ -2468,7 +2469,12 @@ void ClearPaddingStruct(CodeGenFunction &CGF, Value *Ptr, QualType Ty, StructTyp
                         size_t CurrentStartOffset, size_t &RunningOffset, T&& WriteZeroAtOffset) {
   std::cerr << "\n struct! " << ST->getName().data() << std::endl;
   auto SL = CGF.CGM.getModule().getDataLayout().getStructLayout(ST);
-  auto R = cast<CXXRecordDecl>(Ty->getAsRecordDecl());
+
+  auto R = dyn_cast<CXXRecordDecl>(Ty->getAsRecordDecl());
+  if(!R) {
+    std::cerr << "\n not a CXXRecordDecl" << std::endl;
+
+  }
   const ASTRecordLayout &ASTLayout = CGF.getContext().getASTRecordLayout(R);
   for (auto Base : R->bases()) {
     std::cerr << "\n\n base!"  << std::endl;
@@ -2546,16 +2552,18 @@ void RecursivelyClearPaddingImpl(CodeGenFunction &CGF, Value *Ptr, QualType Ty, 
   if (auto *AT = dyn_cast<ConstantArrayType>(Ty)) {
     ClearPaddingConstantArray(CGF, Ptr, Type, AT, CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
   }
-  else if (auto *ST = dyn_cast<StructType>(Type)) {
+  else if (auto *ST = dyn_cast<StructType>(Type); ST && Ty->isRecordType()) {
     ClearPaddingStruct(CGF, Ptr, Ty, ST, CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
+  } else if (Ty->isAtomicType()) {
+    RecursivelyClearPaddingImpl(CGF, Ptr, Ty.getAtomicUnqualifiedType(), CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
   } else {
     std::cerr << "\n\n increment running offset from: " << RunningOffset << " to " << RunningOffset + Size << std::endl;
-    RunningOffset += Size;
+    RunningOffset = std::max(RunningOffset, CurrentStartOffset + static_cast<size_t>(Size));
   }
 
 }
 
-static void RecursivelyZeroNonValueBits(CodeGenFunction &CGF, Value *Ptr,
+static void RecursivelyClearPadding(CodeGenFunction &CGF, Value *Ptr,
                                         QualType Ty) {
   auto *I8Ptr = CGF.Builder.CreateBitCast(Ptr, CGF.Int8PtrTy);
   auto *Zero = ConstantInt::get(CGF.Int8Ty, 0);
@@ -2577,8 +2585,8 @@ static void RecursivelyZeroNonValueBits(CodeGenFunction &CGF, Value *Ptr,
   
   auto Size = CGF.CGM.getModule()
                     .getDataLayout()
-                    .getTypeSizeInBits(Type)
-                    .getKnownMinValue() / 8;
+                    .getTypeAllocSize(Type)
+                    .getKnownMinValue();
 
   std::cerr << "\n\n  zero tail padding  ["<< RunningOffset << ", " << Size << ")"<< std::endl;
   for (; RunningOffset < Size; ++RunningOffset) {
@@ -4445,11 +4453,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
     return RValue::get(Ptr);
   }
-  case Builtin::BI__builtin_zero_non_value_bits: {
+  case Builtin::BI__builtin_clear_padding: {
     const Expr *Op = E->getArg(0);
     Value *Address = EmitScalarExpr(Op);
     auto PointeeTy = Op->getType()->getPointeeType();
-    RecursivelyZeroNonValueBits(*this, Address, PointeeTy);
+    RecursivelyClearPadding(*this, Address, PointeeTy);
     return RValue::get(nullptr);
   }
   case Builtin::BI__sync_fetch_and_add:

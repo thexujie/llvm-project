@@ -87,7 +87,7 @@ void testAllForType(T a, T b, T c, T d) {
   basic2.x = a;
   basic2.y = b;
   assert(memcmp(&basic1, &basic2, sizeof(B)) != 0);
-  __builtin_zero_non_value_bits(&basic2);
+  __builtin_clear_padding(&basic2);
   assert(memcmp(&basic1, &basic2, sizeof(B)) == 0);
   using A = SpacedArrayMembers<A1, A2, 2, T>;
   A arr1;
@@ -104,7 +104,7 @@ void testAllForType(T a, T b, T c, T d) {
   arr2.y[1] = d;
   arr2.c = 0;
   assert(memcmp(&arr1, &arr2, sizeof(A)) != 0);
-  __builtin_zero_non_value_bits(&arr2);
+  __builtin_clear_padding(&arr2);
   assert(memcmp(&arr1, &arr2, sizeof(A)) == 0);
 
   using P = PaddedPointerMembers<A1, A2, T>;
@@ -117,7 +117,7 @@ void testAllForType(T a, T b, T c, T d) {
   ptr2.x = &a;
   ptr2.y = &b;
   assert(memcmp(&ptr1, &ptr2, sizeof(P)) != 0);
-  __builtin_zero_non_value_bits(&ptr2);
+  __builtin_clear_padding(&ptr2);
   assert(memcmp(&ptr1, &ptr2, sizeof(P)) == 0);
 
   using Three = ThreeMembers<A1, A2, A2, T>;
@@ -131,7 +131,7 @@ void testAllForType(T a, T b, T c, T d) {
   three2.x = a;
   three2.y = b;
   three2.z = c;
-  __builtin_zero_non_value_bits(&three2);
+  __builtin_clear_padding(&three2);
   assert(memcmp(&three1, &three2, sizeof(Three)) == 0);
 
   using N = Normal<T>;
@@ -143,7 +143,7 @@ void testAllForType(T a, T b, T c, T d) {
   memset(&normal2, 42, sizeof(N));
   normal2.a = a;
   normal2.b = b;
-  __builtin_zero_non_value_bits(&normal2);
+  __builtin_clear_padding(&normal2);
   assert(memcmp(&normal1, &normal2, sizeof(N)) == 0);
 
   using H = HasBase<A1, A2, T>;
@@ -162,7 +162,7 @@ void testAllForType(T a, T b, T c, T d) {
   base2.y = d;
   base2.z = a;
   assert(memcmp(&base1, &base2, sizeof(H)) != 0);
-  __builtin_zero_non_value_bits(&base2);
+  __builtin_clear_padding(&base2);
   unsigned i = 0;
   assert(memcmp(&base1, &base2, sizeof(H)) == 0);
 }
@@ -191,7 +191,7 @@ void otherTests() {
   u2->buf[2] = 3;
   u2->buf[3] = 4;
   assert(memcmp(u1, u2, sizeof(UnsizedTail)) != 0);
-  __builtin_zero_non_value_bits(u2);
+  __builtin_clear_padding(u2);
   assert(memcmp(u1, u2, sizeof(UnsizedTail)) == 0);
 
   using B = BasicWithPadding<8, 4, char>;
@@ -204,7 +204,7 @@ void otherTests() {
   basic2->x = 1;
   basic2->y = 2;
   assert(memcmp(basic1, basic2, sizeof(B)) != 0);
-  __builtin_zero_non_value_bits(basic2);
+  __builtin_clear_padding(basic2);
   assert(memcmp(basic1, basic2, sizeof(B)) == 0);
   delete basic2;
   delete basic1;
@@ -219,7 +219,7 @@ void otherTests() {
   basic4->x = 1;
   basic4->y = 2;
   assert(memcmp(basic3, basic4, sizeof(B)) != 0);
-  __builtin_zero_non_value_bits(const_cast<volatile B *>(basic4));
+  __builtin_clear_padding(const_cast<volatile B *>(basic4));
   assert(memcmp(basic3, basic4, sizeof(B)) == 0);
   delete basic4;
   delete basic3;
@@ -233,104 +233,173 @@ struct Foo {
 typedef float Float4Vec __attribute__((ext_vector_type(4)));
 typedef float Float3Vec __attribute__((ext_vector_type(3)));
 
-struct S1 {
- int x = 0;
- char c = 0;
-};
+void primitiveTests()
+{
+  // no padding
+  {
+    int i1 = 42, i2 = 42;
+    __builtin_clear_padding(&i1); // does nothing
+    assert(i1 == 42);
+    assert(memcmp(&i1, &i2, sizeof(int)) == 0);
+  }
 
-struct S2{
-  [[no_unique_address]] S1 s1;
-  bool b;
-  long double l;
-  bool b2;
-};
+  // long double
+  {
+    long double d1, d2;
+    memset(&d1, 42, sizeof(long double));
+    memset(&d2, 0, sizeof(long double));
 
-struct S3{
-  [[no_unique_address]] S1 s1;
-  bool b;
-};
+    d1 = 3.0L;
+    d2 = 3.0L;
 
-struct alignas(32) S4 {
-  int i;
-};
-struct B1{
+    __builtin_clear_padding(&d1);
+    assert(d1 == 3.0L);
+    assert(memcmp(&d1, &d2, sizeof(long double)) == 0);
+  }
+}
 
-};
+void structTests()
+{
+  // no_unique_address
+  {
+    struct S1 {
+     int x;
+     char c;
+    };
 
-struct B2 {
-  int x;
-};
-struct B3{
-  char c;
-};
+    struct S2{
+      [[no_unique_address]] S1 s;
+      bool b;
+    };
 
-struct B4{
-  bool b;
-};
+    S2 s1, s2;
+    memset(&s1, 42, sizeof(S2));
+    memset(&s2, 0, sizeof(S2));
 
-struct B5{
-  int x2;
-};
+    s1.s.x = 4;
+    s1.s.c = 'a';
+    s1.b = true;
+    s2.s.x = 4;
+    s2.s.c = 'a';
+    s2.b = true;
 
-struct D:B1,B2,B3,B4,B5{
-  long double l;
-  bool b2;
-};
+    assert(memcmp(&s1, &s2, sizeof(S2)) != 0);
+    __builtin_clear_padding(&s1);
+    assert(s1.s.x == 4);
+    assert(s1.s.c == 'a');
+    assert(s1.b == true);
 
+    assert(memcmp(&s1, &s2, sizeof(S2)) == 0);
+  }
 
-int main() {
-  /*
-  S2 s2{};
+  // struct with long double
+  {
+    struct S{
+      long double l;
+      bool b;
+    };
 
-  memset(&s2, 42, sizeof(S2));
-  s2.s1.x = 0x12345678;
-  s2.s1.c = 0xff;
-  s2.b = true;
-  s2.l = 3.333;
-  s2.b2 = true;
-  print_bytes(&s2);
-  __builtin_zero_non_value_bits(&s2);
-  print_bytes(&s2);
+    S s1, s2;
+    memset(&s1, 42, sizeof(S));
+    memset(&s2, 0, sizeof(S));
 
-  D s2{};
-  memset(&s2, 42, sizeof(D));
-  s2.x = 0x12345678;
-  s2.c = 0xff;
-  s2.b = true;
-  s2.x2 = 0x87654321;
-  s2.l = 3.333;
-  s2.b2 = true;
-  print_bytes(&s2);
-  __builtin_zero_non_value_bits(&s2);
-  print_bytes(&s2);
+    s1.l = 3.0L;
+    s1.b = true;
+    s2.l = 3.0L;
+    s2.b = true;
 
-  S3 s2[2];
+    assert(memcmp(&s1, &s2, sizeof(S)) != 0);
+    __builtin_clear_padding(&s1);
+    assert(s1.l == 3.0L);
+    assert(s1.b == true);
+    assert(memcmp(&s1, &s2, sizeof(S)) == 0);
+  }
 
-  memset(&s2, 42, 2*sizeof(S3));
-  s2[0].s1.x = 0x12345678;
-  s2[0].s1.c = 0xff;
-  s2[0].b = true;
-  s2[1].s1.x = 0x12345678;
-  s2[1].s1.c = 0xff;
-  s2[1].b = true;
-  print_bytes(&s2);
-  __builtin_zero_non_value_bits(&s2);
-  print_bytes(&s2);
+  // EBO
+  {
+    struct Empty{};
+    struct B {
+      int i;
+    };
+    struct S : Empty, B {
+      bool b;
+    }; 
 
-  */
-/*
-  S4 s2[2];
+    S s1, s2;
+    memset(&s1, 42, sizeof(S));
+    memset(&s2, 0, sizeof(S));
 
-  memset(&s2, 42, 2*sizeof(S4));
-  s2[0].i = 0x12345678;
-  s2[1].i = 0x12345678;
-  print_bytes(&s2);
-  __builtin_zero_non_value_bits(&s2);
-  print_bytes(&s2);
+    s1.i = 4;
+    s1.b = true;
+    s2.i = 4;
+    s2.b = true;
 
+    assert(memcmp(&s1, &s2, sizeof(S)) != 0);
+    __builtin_clear_padding(&s1);
+    assert(s1.i == 4);
+    assert(s1.b == true);
+    assert(memcmp(&s1, &s2, sizeof(S)) == 0);
+  }
 
-  assert(false);
-*/
+  // padding between bases
+  {
+    struct B1 {
+      char c1;
+    };
+    struct B2 {
+      alignas(4) char c2;
+    };
+
+    struct S: B1, B2 {};
+
+    S s1, s2;
+    memset(&s1, 42, sizeof(S));
+    memset(&s2, 0, sizeof(S));
+
+    s1.c1 = 'a';
+    s1.c2 = 'b';
+    s2.c1 = 'a';
+    s2.c2 = 'b';
+
+    assert(memcmp(&s1, &s2, sizeof(S)) != 0);
+    __builtin_clear_padding(&s1);
+    assert(s1.c1 == 'a');
+    assert(s1.c2 == 'b');
+    assert(memcmp(&s1, &s2, sizeof(S)) == 0);
+  }
+
+  // padding after last base
+  {
+    struct B1 {
+      char c1;
+    };
+    struct B2 {
+      char c2;
+    };
+
+    struct S: B1, B2 {
+      alignas(4) char c3;
+    };
+
+    S s1, s2;
+    memset(&s1, 42, sizeof(S));
+    memset(&s2, 0, sizeof(S));
+
+    s1.c1 = 'a';
+    s1.c2 = 'b';
+    s1.c3 = 'c';
+    s2.c1 = 'a';
+    s2.c2 = 'b';
+    s2.c3 = 'c';
+
+    assert(memcmp(&s1, &s2, sizeof(S)) != 0);
+    __builtin_clear_padding(&s1);
+    assert(s1.c1 == 'a');
+    assert(s1.c2 == 'b');
+    assert(s1.c3 == 'c');
+    assert(memcmp(&s1, &s2, sizeof(S)) == 0);
+  }
+
   testAllForType<32, 16, char>(11, 22, 33, 44);
   testAllForType<64, 32, char>(4, 5, 6, 7);
   testAllForType<32, 16, volatile char>(11, 22, 33, 44);
@@ -355,5 +424,133 @@ int main() {
   testAllForType<128, 128, Float4Vec>(4, 5, 6, 7);
 
   otherTests();
+}
+
+void unionTests() {
+  // different length, do not clear object repr bits of non-active member
+  {
+    union u {
+      int i;
+      char c;
+    };
+
+    u u1, u2;
+    memset(&u1, 42, sizeof(u));
+    memset(&u2, 42, sizeof(u));
+    u1.c = '4';
+    u2.c = '4';
+
+    __builtin_clear_padding(&u1); // should have no effect
+    assert(u1.c == '4');
+
+    assert(memcmp(&u1, &u2, sizeof(u)) == 0);
+  }
+
+  // tail padding of longest member
+  {
+    struct s {
+      alignas(8) char c1;
+    };
+
+    union u {
+      s s1;
+      char c2;
+    };
+
+    u u1, u2;
+    memset(&u1, 42, sizeof(u));
+    memset(&u2, 0, sizeof(u));
+
+    u1.s1.c1 = '4';
+    u2.s1.c1 = '4';
+
+    assert(memcmp(&u1, &u2, sizeof(u)) != 0);
+    __builtin_clear_padding(&u1);
+    assert(u1.s1.c1 == '4');
+    assert(memcmp(&u1, &u2, sizeof(u)) == 0);
+  }
+}
+
+void arrayTests() {
+  // no padding
+  {
+    int i1[2] = {1, 2};
+    int i2[2] = {1, 2};
+
+    __builtin_clear_padding(&i1);
+    assert(i1[0]==1);
+    assert(i1[1]==2);
+    assert(memcmp(&i1, &i2, 2*sizeof(int)) == 0);
+  }
+
+  // long double
+  {
+    long double d1[2], d2[2];
+    memset(&d1, 42, 2*sizeof(long double));
+    memset(&d2, 0, 2*sizeof(long double));
+
+    d1[0] = 3.0L;
+    d1[1] = 4.0L;
+    d2[0] = 3.0L;
+    d2[1] = 4.0L;
+
+    __builtin_clear_padding(&d1);
+    assert(d1[0] == 3.0L);
+    assert(d2[1] == 4.0L);
+    assert(memcmp(&d1, &d2, 2*sizeof(long double)) == 0);
+  }
+
+  // struct
+  {
+    struct S {
+      int i1;
+      char c1;
+      int i2;
+      char c2;
+    };
+
+    S s1[2], s2[2];
+    memset(&s1, 42, 2*sizeof(S));
+    memset(&s2, 0, 2*sizeof(S));
+
+    s1[0].i1 = 1;
+    s1[0].c1 = 'a';
+    s1[0].i2 = 2;
+    s1[0].c2 = 'b';
+    s1[1].i1 = 3;
+    s1[1].c1 = 'c';
+    s1[1].i2 = 4;
+    s1[1].c2 = 'd';
+
+    s2[0].i1 = 1;
+    s2[0].c1 = 'a';
+    s2[0].i2 = 2;
+    s2[0].c2 = 'b';
+    s2[1].i1 = 3;
+    s2[1].c1 = 'c';
+    s2[1].i2 = 4;
+    s2[1].c2 = 'd';
+
+    assert(memcmp(&s1, &s2, 2*sizeof(S)) != 0);
+    __builtin_clear_padding(&s1);
+
+    assert(s1[0].i1 == 1);
+    assert(s1[0].c1 == 'a');
+    assert(s1[0].i2 == 2);
+    assert(s1[0].c2 == 'b');
+    assert(s1[1].i1 == 3);
+    assert(s1[1].c1 == 'c');
+    assert(s1[1].i2 == 4);
+    assert(s1[1].c2 == 'd');
+    assert(memcmp(&s1, &s2, 2*sizeof(S)) == 0);
+  }
+}
+
+int main(int, const char**) {
+  primitiveTests();
+  unionTests();
+  structTests();
+  arrayTests();
+
   return 0;
 }

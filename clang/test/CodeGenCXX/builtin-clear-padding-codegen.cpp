@@ -49,7 +49,7 @@ struct alignas(4) Baz : Foo {
 // CHECK: store i8 0, i8* [[PAD_7]]
 // CHECK: ret void
 void testBaz(Baz *baz) {
-  __builtin_zero_non_value_bits(baz);
+  __builtin_clear_padding(baz);
 }
 
 struct UnsizedTail {
@@ -78,7 +78,7 @@ struct UnsizedTail {
 // CHECK: store i8 0, i8* [[PAD_4]]
 // CHECK: ret void
 void testUnsizedTail(UnsizedTail *u) {
-  __builtin_zero_non_value_bits(u);
+  __builtin_clear_padding(u);
 }
 
 struct ArrOfStructsWithPadding {
@@ -108,5 +108,5 @@ struct ArrOfStructsWithPadding {
 // CHECK: store i8 0, i8* [[PAD_4]]
 // CHECK: ret void
 void testArrOfStructsWithPadding(ArrOfStructsWithPadding *arr) {
-  __builtin_zero_non_value_bits(arr);
+  __builtin_clear_padding(arr);
 }
