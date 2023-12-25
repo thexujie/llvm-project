@@ -1712,7 +1712,8 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
                          SmallVectorImpl<ISD::OutputArg> &Outs,
                          const TargetLowering &TLI, const DataLayout &DL) {
   SmallVector<EVT, 4> ValueVTs;
-  ComputeValueVTs(TLI, DL, ReturnType, ValueVTs);
+  SmallVector<Type *, 4> ValueTys;
+  ComputeValueVTs(TLI, DL, ReturnType, ValueVTs, /*MemVTs=*/nullptr, &ValueTys);
   unsigned NumValues = ValueVTs.size();
   if (NumValues == 0) return;
 
@@ -1744,6 +1745,12 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
     ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
     if (attr.hasRetAttr(Attribute::InReg))
       Flags.setInReg();
+
+    if (ValueTys[j]->isPointerTy()) {
+      Flags.setPointer();
+      Flags.setPointerAddrSpace(
+          cast<PointerType>(ValueTys[j])->getAddressSpace());
+    }
 
     // Propagate extension type if any
     if (attr.hasRetAttr(Attribute::SExt))
