@@ -788,9 +788,6 @@ enum VectorMemoryAccessKind { ScalarBroadcast, Contiguous, Gather };
 static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
 
   auto targetShape = linalgOp.getStaticLoopRanges();
-  assert(((llvm::count_if(targetShape,
-                          [](int64_t dimSize) { return dimSize > 1; }) == 1)) &&
-         "n-D vectors are not yet supported");
   assert(targetShape.back() != 1 &&
          "1-D vectors with the trailing dim eqaual 1 are not yet supported");
 
@@ -806,12 +803,8 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
   Operation *defOp = val.getDefiningOp();
   assert(defOp && "This is neither a block argument nor an operation result");
 
-  // IndexOp is loop invariant as long as its result remains constant across
-  // iterations. Given the assumptions on the loop ranges above, only the
-  // trailing loop dim ever changes.
-  auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
   if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp))
-    return (indexOp.getDim() != trailingLoopDim);
+    return false;
 
   auto *ancestor = block->findAncestorOpInBlock(*defOp);
 
@@ -830,50 +823,23 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
   return result;
 }
 
-/// Check whether \p val could be used for calculating the trailing index for a
-/// contiguous load operation.
-///
-/// There are currently 3 types of values that are allowed here:
-///   1. loop-invariant values,
-///   2. values that increment by 1 with every loop iteration,
-///   3. results of basic arithmetic operations (linear and continuous)
-///      involving 1., 2. and 3.
-/// This method returns True if indeed only such values are used in calculating
-/// \p val.
-///
-/// Additionally, the trailing index for a contiguous load operation should
-/// increment by 1 with every loop iteration, i.e. be based on:
-///   * `linalg.index <dim>` ,
-/// where <dim> is the trailing dim of the iteration space. \p foundIndexOp is
-/// updated to `true` when such an op is found.
-static bool isContiguousLoadIdx(LinalgOp &linalgOp, Value &val,
-                                bool &foundIndexOp) {
-
+static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val, int64_t valuePosInExtract) {
   auto targetShape = linalgOp.getStaticLoopRanges();
-  assert(((llvm::count_if(targetShape,
-                          [](int64_t dimSize) { return dimSize > 1; }) == 1)) &&
-         "n-D vectors are not yet supported");
   assert(targetShape.back() != 1 &&
          "1-D vectors with the trailing dim 1 are not yet supported");
 
-  // Blocks outside _this_ linalg.generic are effectively loop invariant.
-  // However, analysing block arguments for _this_ linalg.generic Op is a bit
-  // tricky. Just bail out in the latter case.
-  // TODO: We could try analysing the corresponding affine map here.
   auto *block = linalgOp.getBlock();
   if (isa<BlockArgument>(val))
-    return llvm::all_of(block->getArguments(),
-                        [&val](Value v) { return (v != val); });
+    return false;
 
   Operation *defOp = val.getDefiningOp();
-  assert(defOp && "This is neither a block argument nor an operation result");
+  assert(defOp && "This is not an operation result");
 
-  // Given the assumption on the loop ranges above, only the trailing loop
-  // index is not constant.
-  auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
+  auto loopDim = linalgOp.getStaticLoopRanges().size() - valuePosInExtract;
   if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp)) {
-    foundIndexOp = (indexOp.getDim() == trailingLoopDim);
-    return true;
+    if (indexOp.getDim() == loopDim) {
+      return true;
+    }
   }
 
   auto *ancestor = block->findAncestorOpInBlock(*defOp);
@@ -889,9 +855,9 @@ static bool isContiguousLoadIdx(LinalgOp &linalgOp, Value &val,
 
   bool result = false;
   for (auto op : ancestor->getOperands())
-    result |= isContiguousLoadIdx(linalgOp, op, foundIndexOp);
+    result |= isProperLinalgIdx(linalgOp, op, valuePosInExtract);
 
-  return result;
+  return result;  
 }
 
 /// Check whether \p extractOp would be a gather or a contiguous load Op after
@@ -915,14 +881,7 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   if (linalgOp.hasDynamicShape())
     return VectorMemoryAccessKind::Gather;
 
-  // 1. Assume that it's a gather load when reading _into_:
-  //    * an n-D vector, like`tensor<1x2x4xi32` or`tensor<2x1x4xi32>`, or
-  //    * a 1-D vector with the trailing dim equal 1, e.g. `tensor<1x4x1xi32`.
-  // TODO: Relax these conditions.
-  // FIXME: This condition assumes non-dynamic sizes.
-  if ((llvm::count_if(targetShape,
-                      [](int64_t dimSize) { return dimSize > 1; }) != 1) ||
-      targetShape.back() == 1)
+  if (targetShape.back() == 1)
     return VectorMemoryAccessKind::Gather;
 
   // 2. Assume that it's a gather load when reading _from_ a tensor for which
@@ -931,51 +890,28 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   if (inputShape.getShape().back() == 1)
     return VectorMemoryAccessKind::Gather;
 
-  bool leadingIdxsLoopInvariant = true;
+  bool isLoopInvariantLoad = true;
+  bool isProperLinalgIdxLoad = true;
 
-  // 3. Analyze the leading indices of `extractOp`.
-  // Look at the way each index is calculated and decide whether it is suitable
-  // for a contiguous load, i.e. whether it's loop invariant.
   auto indices = extractOp.getIndices();
-  auto leadIndices = indices.drop_back(1);
-
-  for (auto [i, indexVal] : llvm::enumerate(leadIndices)) {
+  for (auto [i, indexVal] : llvm::enumerate(indices)) {
     if (inputShape.getShape()[i] == 1)
       continue;
 
-    leadingIdxsLoopInvariant &= isLoopInvariantIdx(linalgOp, indexVal);
+    isLoopInvariantLoad &= isLoopInvariantIdx(linalgOp, indexVal);
+    isProperLinalgIdxLoad &= isProperLinalgIdx(linalgOp, indexVal, i);
+
+    if (!isLoopInvariantLoad && !isProperLinalgIdxLoad) {
+      LDBG("Found gather load: " << extractOp);
+      return VectorMemoryAccessKind::Gather;
+    }
   }
 
-  if (!leadingIdxsLoopInvariant) {
-    LDBG("Found gather load: " << extractOp);
-    return VectorMemoryAccessKind::Gather;
-  }
-
-  // 4. Analyze the trailing index for `extractOp`.
-  // At this point we know that the leading indices are loop invariant. This
-  // means that is potentially a scalar or a contiguous load. We can decide
-  // based on the trailing idx.
-  auto extractOpTrailingIdx = indices.back();
-
-  // 4a. Scalar broadcast load
-  // If the trailing index is loop invariant then this is a scalar load.
-  if (leadingIdxsLoopInvariant &&
-      isLoopInvariantIdx(linalgOp, extractOpTrailingIdx)) {
+  if (isLoopInvariantLoad) {
     LDBG("Found scalar broadcast load: " << extractOp);
-
     return VectorMemoryAccessKind::ScalarBroadcast;
   }
-
-  // 4b. Contiguous loads
-  // The trailing `extractOp` index should increment with every loop iteration.
-  // This effectively means that it must be based on the trailing loop index.
-  // This is what the following bool captures.
-  bool foundIndexOp = false;
-  bool isContiguousLoad =
-      isContiguousLoadIdx(linalgOp, extractOpTrailingIdx, foundIndexOp);
-  isContiguousLoad &= foundIndexOp;
-
-  if (isContiguousLoad) {
+  else if (!isLoopInvariantLoad && isProperLinalgIdxLoad) {
     LDBG("Found contigous load: " << extractOp);
     return VectorMemoryAccessKind::Contiguous;
   }
