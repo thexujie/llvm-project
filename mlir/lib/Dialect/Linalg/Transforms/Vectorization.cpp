@@ -26,6 +26,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/RegionUtils.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallVector.h"
@@ -803,8 +804,20 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
   Operation *defOp = val.getDefiningOp();
   assert(defOp && "This is neither a block argument nor an operation result");
 
-  if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp))
+  if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp)) {
+    // If target shape is of the form 1x1x1x..xn and val is obtained from a
+    // linalg.index op, it will be loop invariant only if index op's dim is not
+    // the trailing dimension.
+    if (llvm::count_if(targetShape,
+                       [](int64_t dimSize) { return dimSize > 1; }) == 1 &&
+        targetShape.back() != 1) {
+      auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
+      return indexOp.getDim() != trailingLoopDim;
+    }
+    // val will be loop variant in some of the other cases.
+    // TODO: Relax this condition
     return false;
+  }
 
   auto *ancestor = block->findAncestorOpInBlock(*defOp);
 
@@ -823,11 +836,17 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
   return result;
 }
 
-static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val, int64_t valuePosInExtract) {
+// Determine if the val is obtained from a linalg.index op for the dimension at
+// which it is used to extract a value from the tensor and if it could be used
+// for contigous memory access.
+static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val,
+                              uint64_t valuePosInExtract) {
   auto targetShape = linalgOp.getStaticLoopRanges();
   assert(targetShape.back() != 1 &&
          "1-D vectors with the trailing dim 1 are not yet supported");
 
+  // val can't be a result of linalg.index for this linalg.generic if it is a
+  // block argument.
   auto *block = linalgOp.getBlock();
   if (isa<BlockArgument>(val))
     return false;
@@ -835,11 +854,17 @@ static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val, int64_t valuePosIn
   Operation *defOp = val.getDefiningOp();
   assert(defOp && "This is not an operation result");
 
-  auto loopDim = linalgOp.getStaticLoopRanges().size() - valuePosInExtract;
   if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp)) {
-    if (indexOp.getDim() == loopDim) {
-      return true;
+    // If target shape is of the form 1x1x1x..xn and val is obtained from a
+    // linalg.index op, it will be used for contiguous access only when it is
+    // obtained for the trailing dimension.
+    if (llvm::count_if(targetShape,
+                       [](int64_t dimSize) { return dimSize > 1; }) == 1 &&
+        targetShape.back() != 1) {
+      auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
+      return indexOp.getDim() == trailingLoopDim;
     }
+    return indexOp.getDim() == valuePosInExtract;
   }
 
   auto *ancestor = block->findAncestorOpInBlock(*defOp);
@@ -848,7 +873,7 @@ static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val, int64_t valuePosIn
     return false;
 
   // Conservatively reject Ops that could lead to indices with stride other
-  // than 1.
+  // than 1 after processing the result of linalg.index.
   if (!isa<arith::AddIOp, arith::SubIOp, arith::ConstantOp, linalg::IndexOp>(
           ancestor))
     return false;
@@ -857,7 +882,7 @@ static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val, int64_t valuePosIn
   for (auto op : ancestor->getOperands())
     result |= isProperLinalgIdx(linalgOp, op, valuePosInExtract);
 
-  return result;  
+  return result;
 }
 
 /// Check whether \p extractOp would be a gather or a contiguous load Op after
@@ -899,7 +924,9 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
       continue;
 
     isLoopInvariantLoad &= isLoopInvariantIdx(linalgOp, indexVal);
-    isProperLinalgIdxLoad &= isProperLinalgIdx(linalgOp, indexVal, i);
+    isProperLinalgIdxLoad &= !isLoopInvariantLoad
+                                 ? isProperLinalgIdx(linalgOp, indexVal, i)
+                                 : isProperLinalgIdxLoad;
 
     if (!isLoopInvariantLoad && !isProperLinalgIdxLoad) {
       LDBG("Found gather load: " << extractOp);
@@ -910,8 +937,7 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   if (isLoopInvariantLoad) {
     LDBG("Found scalar broadcast load: " << extractOp);
     return VectorMemoryAccessKind::ScalarBroadcast;
-  }
-  else if (!isLoopInvariantLoad && isProperLinalgIdxLoad) {
+  } else if (!isLoopInvariantLoad && isProperLinalgIdxLoad) {
     LDBG("Found contigous load: " << extractOp);
     return VectorMemoryAccessKind::Contiguous;
   }
@@ -984,9 +1010,6 @@ vectorizeTensorExtract(RewriterBase &rewriter, VectorizationState &state,
   //   * for vector indices (e.g. `vector<1x1x4xindex>`) - extract the bottom
   //    (0th) element and use that.
   SmallVector<Value> transferReadIdxs;
-  auto resTrailingDim = resultType.getShape().back();
-  auto zero = rewriter.create<arith::ConstantOp>(
-      loc, rewriter.getI32Type(), rewriter.getZeroAttr(rewriter.getI32Type()));
   for (size_t i = 0; i < extractOp.getIndices().size(); i++) {
     auto idx = bvm.lookup(extractOp.getIndices()[i]);
     if (idx.getType().isIndex()) {
@@ -994,11 +1017,11 @@ vectorizeTensorExtract(RewriterBase &rewriter, VectorizationState &state,
       continue;
     }
 
-    auto indexAs1dVector = rewriter.create<vector::ShapeCastOp>(
-        loc, VectorType::get({resTrailingDim}, rewriter.getIndexType()),
-        bvm.lookup(extractOp.getIndices()[i]));
-    transferReadIdxs.push_back(
-        rewriter.create<vector::ExtractElementOp>(loc, indexAs1dVector, zero));
+    auto idxShapedType = dyn_cast<ShapedType>(idx.getType());
+    SmallVector<int64_t> extractIndicesVec(idxShapedType.getRank(), 0);
+
+    transferReadIdxs.push_back(rewriter.create<vector::ExtractOp>(
+        loc, idx, ArrayRef<int64_t>(extractIndicesVec)));
   }
 
   // `tensor.extract_element` is always in-bounds, hence the following holds.
