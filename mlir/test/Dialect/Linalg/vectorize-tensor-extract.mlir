@@ -613,11 +613,11 @@ module attributes {transform.with_named_sequence} {
 
 // -----
 
-func.func @vectorize_nd_tensor_extract_gather(%arg0: tensor<80x16x17x18x19xf32>, %extracted_slice : tensor<4x5x6x7x8xf32>) -> tensor<4x5x6x7x8xf32> {
+func.func @vectorize_nd_tensor_extract_gather(%arg0: tensor<80x16x17x18x19xf32>, %extracted_slice : tensor<4x5x6x7xf32>) -> tensor<4x5x6x7xf32> {
   %1 = linalg.generic {
-    indexing_maps = [affine_map<(d0, d1, d2, d3, d4) -> (d0, d1, d2, d3, d4)>],
-    iterator_types = ["parallel", "parallel", "parallel", "parallel", "parallel"]
-  } outs(%extracted_slice : tensor<4x5x6x7x8xf32>) {
+    indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>],
+    iterator_types = ["parallel", "parallel", "parallel", "parallel"]
+  } outs(%extracted_slice : tensor<4x5x6x7xf32>) {
   ^bb0(%out: f32):
     %2 = linalg.index 0 : index
     %3 = linalg.index 1 : index
@@ -625,16 +625,50 @@ func.func @vectorize_nd_tensor_extract_gather(%arg0: tensor<80x16x17x18x19xf32>,
     %5 = linalg.index 3 : index
     %extracted = tensor.extract %arg0[%2, %3, %4, %5, %5] : tensor<80x16x17x18x19xf32>
     linalg.yield %extracted : f32
-  } -> tensor<4x5x6x7x8xf32>
-  return %1 : tensor<4x5x6x7x8xf32>
+  } -> tensor<4x5x6x7xf32>
+  return %1 : tensor<4x5x6x7xf32>
 }
 
 // CHECK-LABEL:   func.func @vectorize_nd_tensor_extract_gather(
-//  CHECK-SAME:     %[[ARG0:.*]]: tensor<80x16x17x18x19xf32>, %[[ARG1:.*]]: tensor<4x5x6x7x8xf32>) -> tensor<4x5x6x7x8xf32> {
+//  CHECK-SAME:     %[[ARG0:.*]]: tensor<80x16x17x18x19xf32>, %[[ARG1:.*]]: tensor<4x5x6x7xf32>) -> tensor<4x5x6x7xf32> {
 //       CHECK:   %[[CST:.*]] = arith.constant dense<[0, 1, 2, 3]> : vector<4xindex>
 //       CHECK:   %[[C0:.*]] = arith.constant 0 : index
-//       CHECK:   %[[VAL:.*]] = vector.gather %[[ARG0]][%[[C0]], %[[C0]], %[[C0]], %[[C0]], %[[C0]]] [%{{.*}}], %{{.*}}, %{{.*}} : tensor<80x16x17x18x19xf32>, vector<4x5x6x7x8xindex>, vector<4x5x6x7x8xi1>, vector<4x5x6x7x8xf32> into vector<4x5x6x7x8xf32>
-//       CHECK:   %{{.*}} = vector.transfer_write %[[VAL]], %[[ARG1]][%[[C0]], %[[C0]], %[[C0]], %[[C0]], %[[C0]]] {in_bounds = [true, true, true, true, true]} : vector<4x5x6x7x8xf32>, tensor<4x5x6x7x8xf32>
+//       CHECK:   %[[VAL:.*]] = vector.gather %[[ARG0]][%[[C0]], %[[C0]], %[[C0]], %[[C0]], %[[C0]]] [%{{.*}}], %{{.*}}, %{{.*}} : tensor<80x16x17x18x19xf32>, vector<4x5x6x7xindex>, vector<4x5x6x7xi1>, vector<4x5x6x7xf32> into vector<4x5x6x7xf32>
+//       CHECK:   %{{.*}} = vector.transfer_write %[[VAL]], %[[ARG1]][%[[C0]], %[[C0]], %[[C0]], %[[C0]]] {in_bounds = [true, true, true, true]} : vector<4x5x6x7xf32>, tensor<4x5x6x7xf32>
+
+module attributes {transform.with_named_sequence} {
+  transform.named_sequence @__transform_main(%arg1: !transform.any_op {transform.readonly}) {
+     %0 = transform.structured.match ops{["linalg.generic"]} in %arg1 : (!transform.any_op) -> !transform.any_op
+     %1 = transform.get_parent_op %0 {isolated_from_above} : (!transform.any_op) -> !transform.any_op
+     %2 = transform.structured.vectorize_children_and_apply_patterns %1 { vectorize_nd_extract } : (!transform.any_op) -> !transform.any_op
+     transform.yield
+   }
+}
+
+// -----
+
+func.func @vectorize_nd_tensor_extract_gather_constant_indices(%arg0: tensor<80x16x17x18x19xf32>, %extracted_slice : tensor<6x7x8xf32>) -> tensor<6x7x8xf32> {
+  %c5 = arith.constant 5 : index
+  %1 = linalg.generic {
+    indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1, d2)>],
+    iterator_types = ["parallel", "parallel", "parallel"]
+  } outs(%extracted_slice : tensor<6x7x8xf32>) {
+  ^bb0(%out: f32):
+    %2 = linalg.index 0 : index
+    %3 = linalg.index 1 : index
+    %4 = linalg.index 2 : index
+    %extracted = tensor.extract %arg0[%c5, %c5, %2, %3, %4] : tensor<80x16x17x18x19xf32>
+    linalg.yield %extracted : f32
+  } -> tensor<6x7x8xf32>
+  return %1 : tensor<6x7x8xf32>
+}
+
+// CHECK-LABEL:   func.func @vectorize_nd_tensor_extract_gather_constant_indices(
+//  CHECK-SAME:     %[[ARG0:.*]]: tensor<80x16x17x18x19xf32>, %[[ARG1:.*]]: tensor<6x7x8xf32>) -> tensor<6x7x8xf32> {
+//       CHECK:   %[[CST:.*]] = arith.constant dense<[0, 1, 2, 3, 4, 5]> : vector<6xindex>
+//       CHECK:   %[[C0:.*]] = arith.constant 0 : index
+//       CHECK:   %[[VAL:.*]] = vector.gather %[[ARG0]][%[[C0]], %[[C0]], %[[C0]], %[[C0]], %[[C0]]] [%{{.*}}], %{{.*}}, %{{.*}} : tensor<80x16x17x18x19xf32>, vector<6x7x8xindex>, vector<6x7x8xi1>, vector<6x7x8xf32> into vector<6x7x8xf32>
+//       CHECK:   %{{.*}} = vector.transfer_write %[[VAL]], %[[ARG1]][%[[C0]], %[[C0]], %[[C0]]] {in_bounds = [true, true, true]} : vector<6x7x8xf32>, tensor<6x7x8xf32>
 
 module attributes {transform.with_named_sequence} {
   transform.named_sequence @__transform_main(%arg1: !transform.any_op {transform.readonly}) {
