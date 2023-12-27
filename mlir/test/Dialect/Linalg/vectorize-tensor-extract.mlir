@@ -645,7 +645,7 @@ module attributes {transform.with_named_sequence} {
    }
 }
 
- // -----
+// -----
 
 func.func @vectorize_nd_tensor_extract_contigous_complex(%6: tensor<45x80x16x17xf32>, %arg0: index, %arg1: index, %arg2: index, %arg3: index, %extracted_slice : tensor<1x4x5x6xf32>) -> tensor<1x4x5x6xf32> {
   %0 = linalg.generic {

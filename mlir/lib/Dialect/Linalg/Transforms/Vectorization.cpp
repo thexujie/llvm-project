@@ -836,9 +836,20 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
   return result;
 }
 
-// Determine if the val is obtained from a linalg.index op for the dimension at
-// which it is used to extract a value from the tensor and if it could be used
-// for contigous memory access.
+// Determine if the \p val is obtained from a linalg.index op for the dimension
+// at which it is used to extract a value from the tensor and if it could be
+// used for contigous memory access. For example:
+//    %val1 = lingalg.index 0 : index
+//    %e1 = tensor.extract %arg0[%val1, ..] : tensor<3x3xf32> would return true
+// while the following situation
+//    %val1 = lingalg.index 0 : index
+//    %e1 = tensor.extract %arg0[.., %val1] : tensor<3x3xf32> would return false
+// TODO: Relax this requirement to cover cases for contiguous access where inner
+// dimensions of the tensor vary using linalg.generic while outer dimensions are
+// kept constant.
+// Ex. %c0 = arith.constant 0 : index
+//     %val1 = linalg.index 0 : index
+//     %e1 = tensor.extract %arg0[%c0, %val1] : tensor<3x3xf32>
 static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val,
                               uint64_t valuePosInExtract) {
   auto targetShape = linalgOp.getStaticLoopRanges();
@@ -906,6 +917,10 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   if (linalgOp.hasDynamicShape())
     return VectorMemoryAccessKind::Gather;
 
+  // 1. Assume that it's a gather load when reading _into_ a 1-D vector with the
+  // trailing dim equal 1, e.g. `tensor<1x4x1xi32`.
+  // TODO: Relax this condition.
+  // FIXME: This condition assumes non-dynamic sizes.
   if (targetShape.back() == 1)
     return VectorMemoryAccessKind::Gather;
 
@@ -918,6 +933,9 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   bool isLoopInvariantLoad = true;
   bool isProperLinalgIdxLoad = true;
 
+  // 3. Analyze the indices of `extractOp`.
+  // Look at the way each index is calculated and decide whether it is suitable
+  // for a contiguous load.
   auto indices = extractOp.getIndices();
   for (auto [i, indexVal] : llvm::enumerate(indices)) {
     if (inputShape.getShape()[i] == 1)
@@ -928,6 +946,12 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
                                  ? isProperLinalgIdx(linalgOp, indexVal, i)
                                  : isProperLinalgIdxLoad;
 
+    // 4a. The load can't be scalar broadcast or contiguous if one of the
+    //     indices is not
+    //     i.  Loop invariant
+    //     ii. Not obtained from a linalg.index with its dimension attribute
+    //         same as the dimension at which this indice was used in
+    //         `extractOp`.
     if (!isLoopInvariantLoad && !isProperLinalgIdxLoad) {
       LDBG("Found gather load: " << extractOp);
       return VectorMemoryAccessKind::Gather;
@@ -935,9 +959,16 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   }
 
   if (isLoopInvariantLoad) {
+    // 4b. It is a scalar broadcast load if all indices of `extractOp` are loop
+    //     invariant.
     LDBG("Found scalar broadcast load: " << extractOp);
     return VectorMemoryAccessKind::ScalarBroadcast;
   } else if (!isLoopInvariantLoad && isProperLinalgIdxLoad) {
+    // 4c. It is a contiguous load if
+    //     i.  All indices which are not loop invariant and
+    //     ii. They are obtained from `linalg.index` ops with their dimension
+    //     attributes same as the dimension at which those indices are used in
+    //     `extractOp`.
     LDBG("Found contigous load: " << extractOp);
     return VectorMemoryAccessKind::Contiguous;
   }
