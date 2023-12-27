@@ -1174,9 +1174,8 @@ static VPActiveLaneMaskPHIRecipe *addVPLaneMaskPhiAndUpdateExitBranch(
       "index.part.next");
 
   // Create the active lane mask instruction in the VPlan preheader.
-  auto *EntryALM =
-      Builder.createNaryOp(VPInstruction::ActiveLaneMask, {EntryIncrement, TC},
-                           DL, "active.lane.mask.entry");
+  auto *EntryALM = Builder.createGetActiveLaneMask(EntryIncrement, TC, DL,
+                                                   "active.lane.mask.entry");
 
   // Now create the ActiveLaneMaskPhi recipe in the main loop using the
   // preheader ActiveLaneMask instruction.
@@ -1190,9 +1189,8 @@ static VPActiveLaneMaskPHIRecipe *addVPLaneMaskPhiAndUpdateExitBranch(
   auto *InLoopIncrement =
       Builder.createOverflowingOp(VPInstruction::CanonicalIVIncrementForPart,
                                   {IncrementValue}, {false, false}, DL);
-  auto *ALM = Builder.createNaryOp(VPInstruction::ActiveLaneMask,
-                                   {InLoopIncrement, TripCount}, DL,
-                                   "active.lane.mask.next");
+  auto *ALM = Builder.createGetActiveLaneMask(InLoopIncrement, TripCount, DL,
+                                              "active.lane.mask.next");
   LaneMaskPhi->addOperand(ALM);
 
   // Replace the original terminator with BranchOnCond. We have to invert the
@@ -1266,15 +1264,15 @@ void VPlanTransforms::addActiveLaneMask(
          "Must have widened canonical IV when tail folding!");
   auto *WideCanonicalIV =
       cast<VPWidenCanonicalIVRecipe>(*FoundWidenCanonicalIVUser);
-  VPSingleDefRecipe *LaneMask;
+  VPValue *LaneMask;
   if (UseActiveLaneMaskForControlFlow) {
     LaneMask = addVPLaneMaskPhiAndUpdateExitBranch(
         Plan, DataAndControlFlowWithoutRuntimeCheck);
   } else {
     VPBuilder B = VPBuilder::getToInsertAfter(WideCanonicalIV);
-    LaneMask = B.createNaryOp(VPInstruction::ActiveLaneMask,
-                              {WideCanonicalIV, Plan.getTripCount()}, nullptr,
-                              "active.lane.mask");
+    LaneMask = B.createGetActiveLaneMask(WideCanonicalIV, Plan.getTripCount(),
+                                         WideCanonicalIV->getDebugLoc(),
+                                         "active.lane.mask");
   }
 
   // Walk users of WideCanonicalIV and replace all compares of the form
