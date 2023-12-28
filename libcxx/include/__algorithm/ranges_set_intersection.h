@@ -37,9 +37,7 @@ namespace ranges {
 template <class _InIter1, class _InIter2, class _OutIter>
 using set_intersection_result = in_in_out_result<_InIter1, _InIter2, _OutIter>;
 
-namespace __set_intersection {
-
-struct __fn {
+struct __set_intersection {
   template <input_iterator _InIter1,
             sentinel_for<_InIter1> _Sent1,
             input_iterator _InIter2,
@@ -95,10 +93,8 @@ struct __fn {
   }
 };
 
-} // namespace __set_intersection
-
 inline namespace __cpo {
-inline constexpr auto set_intersection = __set_intersection::__fn{};
+inline constexpr auto set_intersection = __set_intersection{};
 } // namespace __cpo
 } // namespace ranges
 

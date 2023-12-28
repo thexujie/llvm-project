@@ -32,9 +32,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace ranges {
-namespace __partition_point {
-
-struct __fn {
+struct __partition_point {
   // TODO(ranges): delegate to the classic algorithm.
   template <class _Iter, class _Sent, class _Proj, class _Pred>
   _LIBCPP_HIDE_FROM_ABI constexpr static _Iter
@@ -74,10 +72,8 @@ struct __fn {
   }
 };
 
-} // namespace __partition_point
-
 inline namespace __cpo {
-inline constexpr auto partition_point = __partition_point::__fn{};
+inline constexpr auto partition_point = __partition_point{};
 } // namespace __cpo
 } // namespace ranges
 

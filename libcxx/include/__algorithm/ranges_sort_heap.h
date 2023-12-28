@@ -37,9 +37,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace ranges {
-namespace __sort_heap {
-
-struct __fn {
+struct __sort_heap {
   template <class _Iter, class _Sent, class _Comp, class _Proj>
   _LIBCPP_HIDE_FROM_ABI constexpr static _Iter
   __sort_heap_fn_impl(_Iter __first, _Sent __last, _Comp& __comp, _Proj& __proj) {
@@ -66,10 +64,8 @@ struct __fn {
   }
 };
 
-} // namespace __sort_heap
-
 inline namespace __cpo {
-inline constexpr auto sort_heap = __sort_heap::__fn{};
+inline constexpr auto sort_heap = __sort_heap{};
 } // namespace __cpo
 } // namespace ranges
 

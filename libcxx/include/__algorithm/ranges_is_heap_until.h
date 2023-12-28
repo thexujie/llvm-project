@@ -32,9 +32,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace ranges {
-namespace __is_heap_until {
-
-struct __fn {
+struct __is_heap_until {
   template <class _Iter, class _Sent, class _Proj, class _Comp>
   _LIBCPP_HIDE_FROM_ABI constexpr static _Iter
   __is_heap_until_fn_impl(_Iter __first, _Sent __last, _Comp& __comp, _Proj& __proj) {
@@ -62,10 +60,8 @@ struct __fn {
   }
 };
 
-} // namespace __is_heap_until
-
 inline namespace __cpo {
-inline constexpr auto is_heap_until = __is_heap_until::__fn{};
+inline constexpr auto is_heap_until = __is_heap_until{};
 } // namespace __cpo
 } // namespace ranges
 

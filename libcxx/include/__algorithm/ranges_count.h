@@ -31,8 +31,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace ranges {
-namespace __count {
-struct __fn {
+struct __count {
   template <input_iterator _Iter, sentinel_for<_Iter> _Sent, class _Type, class _Proj = identity>
     requires indirect_binary_predicate<ranges::equal_to, projected<_Iter, _Proj>, const _Type*>
   _LIBCPP_NODISCARD_EXT _LIBCPP_HIDE_FROM_ABI constexpr iter_difference_t<_Iter>
@@ -47,10 +46,9 @@ struct __fn {
     return std::__count<_RangeAlgPolicy>(ranges::begin(__r), ranges::end(__r), __value, __proj);
   }
 };
-} // namespace __count
 
 inline namespace __cpo {
-inline constexpr auto count = __count::__fn{};
+inline constexpr auto count = __count{};
 } // namespace __cpo
 } // namespace ranges
 

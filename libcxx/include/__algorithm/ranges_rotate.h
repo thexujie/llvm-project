@@ -30,9 +30,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 namespace ranges {
-namespace __rotate {
-
-struct __fn {
+struct __rotate {
   template <class _Iter, class _Sent>
   _LIBCPP_HIDE_FROM_ABI constexpr static subrange<_Iter> __rotate_fn_impl(_Iter __first, _Iter __middle, _Sent __last) {
     auto __ret = std::__rotate<_RangeAlgPolicy>(std::move(__first), std::move(__middle), std::move(__last));
@@ -52,10 +50,8 @@ struct __fn {
   }
 };
 
-} // namespace __rotate
-
 inline namespace __cpo {
-inline constexpr auto rotate = __rotate::__fn{};
+inline constexpr auto rotate = __rotate{};
 } // namespace __cpo
 } // namespace ranges
 
