@@ -109,14 +109,15 @@ void addCygMingDefines(const LangOptions &Opts, MacroBuilder &Builder) {
 // Driver code
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
-                                           const TargetOptions &Opts) {
+std::unique_ptr<TargetInfo> AllocateTargetImpl(const llvm::Triple &Triple,
+                                               const TargetOptions &Opts) {
   llvm::Triple::OSType os = Triple.getOS();
 
   switch (Triple.getArch()) {
   default:
     return nullptr;
 
+  // Keep this in sync with llvm Triple.cpp getCLayouts
   case llvm::Triple::arc:
     return std::make_unique<ARCTargetInfo>(Triple, Opts);
 
@@ -750,6 +751,15 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
         return std::make_unique<LoongArch64TargetInfo>(Triple, Opts);
     }
   }
+}
+std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
+                                           const TargetOptions &Opts) {
+
+  std::unique_ptr<TargetInfo> target = AllocateTargetImpl(Triple, Opts);
+  if (target != nullptr) {
+    target->validateCLayouts();
+  }
+  return target;
 }
 } // namespace targets
 } // namespace clang

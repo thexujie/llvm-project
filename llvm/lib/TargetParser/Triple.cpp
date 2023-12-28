@@ -1942,6 +1942,206 @@ VersionTuple Triple::getCanonicalVersionForOS(OSType OSKind,
   }
 }
 
+Triple::CLayouts Triple::getCLayouts() const {
+  Triple::CLayouts Layouts;
+
+  // Default to a 32-bit RISC platform
+  Layouts.LongDoubleWidth = 64;
+  Layouts.LongDoubleAlign = 64;
+  Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+
+  enum ArchType arch = getArch();
+
+  // Keep this in sync with clang Targets.cpp AllocateTargetImpl
+  if (arch == arc) {
+    Layouts.LongDoubleAlign = 32;
+  } else if (arch == xcore) {
+    Layouts.LongDoubleAlign = 32;
+  } else if (arch == hexagon) {
+    // default configuration
+  } else if (arch == lanai) {
+    // default configuration
+  } else if (arch == aarch64_32 || arch == aarch64) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+
+    if (isOSWindows()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else if (isOSDarwin()) {
+      Layouts.LongDoubleWidth = Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    }
+  } else if (arch == arm || arch == thumb || arch == armeb || arch == thumbeb) {
+    if (isOSNaCl()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else if (isOSWindows()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    }
+  } else if (arch == avr) {
+    Layouts.LongDoubleWidth = 32;
+    Layouts.LongDoubleAlign = 8;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEsingle();
+  } else if (arch == bpfeb || arch == bpfel) {
+    // default configuration
+  } else if (arch == msp430) {
+    Layouts.LongDoubleWidth = 64;
+    Layouts.LongDoubleAlign = 16;
+  } else if (arch == mips || arch == mipsel || arch == mips64 ||
+             arch == mips64el) {
+    if (isMIPS32()) {
+      // o32
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else {
+      // n32 & n64
+      Layouts.LongDoubleWidth = 128;
+      Layouts.LongDoubleAlign = 128;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+      if (isOSFreeBSD()) {
+        Layouts.LongDoubleWidth = 64;
+        Layouts.LongDoubleAlign = 64;
+        Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+      }
+    }
+  } else if (arch == m68k) {
+    // default configuration
+  } else if (arch == le32 || arch == le64) {
+    // default configuration
+  } else if (arch == ppc || arch == ppcle || arch == ppc64 || arch == ppc64le) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::PPCDoubleDouble();
+
+    if (arch == ppc || arch == ppcle) {
+      if (isOSAIX()) {
+        Layouts.LongDoubleWidth = 64;
+        Layouts.LongDoubleAlign = 32;
+        Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+      } else if (isOSFreeBSD() || isOSNetBSD() || isOSOpenBSD() || isMusl()) {
+        Layouts.LongDoubleWidth = Layouts.LongDoubleAlign = 64;
+        Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+      }
+    }
+  } else if (arch == nvptx || arch == nvptx) {
+    // nvcc does not copy set long double layouts
+  } else if (arch == amdgcn || arch == r600) {
+    // default configuration
+  } else if (arch == riscv32 || arch == riscv64) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  } else if (arch == sparc || arch == sparcel) {
+    // default configuration
+  } else if (arch == sparcv9) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  } else if (arch == systemz) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 64;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  } else if (arch == tce || arch == tcele) {
+    Layouts.LongDoubleWidth = 32;
+    Layouts.LongDoubleAlign = 32;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEsingle();
+  } else if (arch == x86) {
+    Layouts.LongDoubleWidth = 96;
+    Layouts.LongDoubleAlign = 32;
+    Layouts.LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
+
+    if (isOSDarwin()) {
+      Layouts.LongDoubleWidth = 128;
+      Layouts.LongDoubleAlign = 128;
+    } else if (isAndroid()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else if (isOHOSFamily()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else if (isOSWindows()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+
+      if (isWindowsCygwinEnvironment()) {
+        Layouts.LongDoubleWidth = 64;
+        Layouts.LongDoubleAlign = 64;
+      }
+    } else if (isOSNaCl()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    } else if (isOSIAMCU()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    }
+  } else if (arch == x86_64) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
+
+    if (isOSDarwin()) {
+      Layouts.LongDoubleWidth = 128;
+      Layouts.LongDoubleAlign = 128;
+    } else if (isOSLinux() && isAndroid()) {
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+    } else if (isOSLinux() && isOHOSFamily()) {
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+    } else if (isOSWindows()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+
+      if (isWindowsGNUEnvironment()) {
+        Layouts.LongDoubleWidth = 128;
+        Layouts.LongDoubleAlign = 128;
+      }
+    } else if (isOSNaCl()) {
+      Layouts.LongDoubleWidth = 64;
+      Layouts.LongDoubleAlign = 64;
+      Layouts.LongDoubleFormat = &llvm::APFloat::IEEEdouble();
+    }
+  } else if (arch == spir || arch == spir64 || arch == spirv ||
+             arch == spirv32 || arch == spirv64) {
+    // default configuration
+  } else if (arch == wasm32 || arch == wasm64) {
+    Layouts.LongDoubleWidth = Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+
+    if (isOSEmscripten()) {
+      Layouts.LongDoubleAlign = 64;
+    }
+  } else if (arch == dxil) {
+    // default configuration
+  } else if (arch == renderscript32) {
+    // default configuration
+  } else if (arch == renderscript64) {
+    // same as aarch64 on linux
+    Layouts.LongDoubleWidth = Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  } else if (arch == ve) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  } else if (arch == csky) {
+    Layouts.LongDoubleAlign = 32;
+  } else if (arch == loongarch32 || arch == loongarch64) {
+    Layouts.LongDoubleWidth = 128;
+    Layouts.LongDoubleAlign = 128;
+    Layouts.LongDoubleFormat = &llvm::APFloat::IEEEquad();
+  }
+
+  return Layouts;
+}
+
 // HLSL triple environment orders are relied on in the front end
 static_assert(Triple::Vertex - Triple::Pixel == 1,
               "incorrect HLSL stage order");
