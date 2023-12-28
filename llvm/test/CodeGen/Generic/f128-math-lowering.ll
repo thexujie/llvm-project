@@ -33,11 +33,11 @@ declare fp128 @llvm.cbrt.f128(fp128)
 
 define fp128 @test_ceilf128(fp128 %a) {
 ; CHECK-LABEL:      test_ceilf128:
-; CHECK-AARCH64:    b ceill
-; CHECK-RISCV32:    call ceill@plt
-; CHECK-S390X:      brasl {{%.*}} ceill@PLT
-; CHECK-X64:        jmp ceill@PLT
-; CHECK-X86:        calll ceill
+; CHECK-AARCH64:    b ceilf128
+; CHECK-RISCV32:    call ceilf128@plt
+; CHECK-S390X:      brasl {{%.*}} ceilf128@PLT
+; CHECK-X64:        jmp ceilf128@PLT
+; CHECK-X86:        calll ceilf128
 start:
   %0 = tail call fp128 @llvm.ceil.f128(fp128 %a)
   ret fp128 %0
@@ -138,11 +138,11 @@ declare fp128 @llvm.copysign.f128(fp128, fp128)
 
 define fp128 @test_cosf128(fp128 %a) {
 ; CHECK-LABEL:      test_cosf128:
-; CHECK-AARCH64:    b cosl
-; CHECK-RISCV32:    call cosl@plt
-; CHECK-S390X:      brasl {{%.*}} cosl@PLT
-; CHECK-X64:        jmp cosl@PLT
-; CHECK-X86:        calll cosl
+; CHECK-AARCH64:    b cosf128
+; CHECK-RISCV32:    call cosf128@plt
+; CHECK-S390X:      brasl {{%.*}} cosf128@PLT
+; CHECK-X64:        jmp cosf128@PLT
+; CHECK-X86:        calll cosf128
 start:
   %0 = tail call fp128 @llvm.cos.f128(fp128 %a)
   ret fp128 %0
@@ -153,11 +153,11 @@ declare fp128 @llvm.cos.f128(fp128)
 
 define fp128 @test_exp2f128(fp128 %a) {
 ; CHECK-LABEL:      test_exp2f128:
-; CHECK-AARCH64:    b exp2l
-; CHECK-RISCV32:    call exp2l@plt
-; CHECK-S390X:      brasl {{%.*}} exp2l@PLT
-; CHECK-X64:        jmp exp2l@PLT
-; CHECK-X86:        calll exp2l
+; CHECK-AARCH64:    b exp2f128
+; CHECK-RISCV32:    call exp2f128@plt
+; CHECK-S390X:      brasl {{%.*}} exp2f128@PLT
+; CHECK-X64:        jmp exp2f128@PLT
+; CHECK-X86:        calll exp2f128
 start:
   %0 = tail call fp128 @llvm.exp2.f128(fp128 %a)
   ret fp128 %0
@@ -183,11 +183,11 @@ declare fp128 @llvm.__exp2f128_finite.f128(fp128)
 
 define fp128 @test_expf128(fp128 %a) {
 ; CHECK-LABEL:      test_expf128:
-; CHECK-AARCH64:    b expl
-; CHECK-RISCV32:    call expl@plt
-; CHECK-S390X:      brasl {{%.*}} expl@PLT
-; CHECK-X64:        jmp expl@PLT
-; CHECK-X86:        calll expl
+; CHECK-AARCH64:    b expf128
+; CHECK-RISCV32:    call expf128@plt
+; CHECK-S390X:      brasl {{%.*}} expf128@PLT
+; CHECK-X64:        jmp expf128@PLT
+; CHECK-X86:        calll expf128
 start:
   %0 = tail call fp128 @llvm.exp.f128(fp128 %a)
   ret fp128 %0
@@ -213,11 +213,11 @@ declare fp128 @llvm.__expf128_finite.f128(fp128)
 
 define fp128 @test_floorf128(fp128 %a) {
 ; CHECK-LABEL:      test_floorf128:
-; CHECK-AARCH64:    b floorl
-; CHECK-RISCV32:    call floorl@plt
-; CHECK-S390X:      brasl {{%.*}} floorl@PLT
-; CHECK-X64:        jmp floorl@PLT
-; CHECK-X86:        calll floorl
+; CHECK-AARCH64:    b floorf128
+; CHECK-RISCV32:    call floorf128@plt
+; CHECK-S390X:      brasl {{%.*}} floorf128@PLT
+; CHECK-X64:        jmp floorf128@PLT
+; CHECK-X86:        calll floorf128
 start:
   %0 = tail call fp128 @llvm.floor.f128(fp128 %a)
   ret fp128 %0
@@ -228,11 +228,11 @@ declare fp128 @llvm.floor.f128(fp128)
 
 define fp128 @test_fmaf128(fp128 %a, fp128 %b, fp128 %c) {
 ; CHECK-LABEL:      test_fmaf128:
-; CHECK-AARCH64:    b fmal
-; CHECK-RISCV32:    call fmal@plt
-; CHECK-S390X:      brasl {{%.*}} fmal@PLT
-; CHECK-X64:        jmp fmal@PLT
-; CHECK-X86:        calll fmal
+; CHECK-AARCH64:    b fmaf128
+; CHECK-RISCV32:    call fmaf128@plt
+; CHECK-S390X:      brasl {{%.*}} fmaf128@PLT
+; CHECK-X64:        jmp fmaf128@PLT
+; CHECK-X86:        calll fmaf128
 start:
   %0 = tail call fp128 @llvm.fma.f128(fp128 %a, fp128 %b, fp128 %c)
   ret fp128 %0
@@ -288,11 +288,11 @@ declare fp128 @llvm.fmod.f128(fp128, fp128)
 
 define { fp128, i32 } @test_frexpf128(fp128 %a) {
 ; CHECK-LABEL:      test_frexpf128:
-; CHECK-AARCH64:    bl frexpl
-; CHECK-RISCV32:    call frexpl@plt
-; CHECK-S390X:      brasl {{%.*}} frexpl@PLT
-; CHECK-X64:        callq frexpl@PLT
-; CHECK-X86:        calll frexpl
+; CHECK-AARCH64:    bl frexpf128
+; CHECK-RISCV32:    call frexpf128@plt
+; CHECK-S390X:      brasl {{%.*}} frexpf128@PLT
+; CHECK-X64:        callq frexpf128@PLT
+; CHECK-X86:        calll frexpf128
 start:
   %0 = tail call { fp128, i32 } @llvm.frexp.f128(fp128 %a)
   ret { fp128, i32 } %0
@@ -303,11 +303,11 @@ declare { fp128, i32 } @llvm.frexp.f128(fp128)
 
 define fp128 @test_ldexpf128(fp128 %a, i32 %b) {
 ; CHECK-LABEL:      test_ldexpf128:
-; CHECK-AARCH64:    b ldexpl
-; CHECK-RISCV32:    call ldexpl@plt
-; CHECK-S390X:      brasl {{%.*}} ldexpl@PLT
-; CHECK-X64:        jmp ldexpl@PLT
-; CHECK-X86:        calll ldexpl
+; CHECK-AARCH64:    b ldexpf128
+; CHECK-RISCV32:    call ldexpf128@plt
+; CHECK-S390X:      brasl {{%.*}} ldexpf128@PLT
+; CHECK-X64:        jmp ldexpf128@PLT
+; CHECK-X86:        calll ldexpf128
 start:
   %0 = tail call fp128 @llvm.ldexp.f128(fp128 %a, i32 %b)
   ret fp128 %0
@@ -318,11 +318,11 @@ declare fp128 @llvm.ldexp.f128(fp128, i32)
 
 define i64 @test_llrintf128(fp128 %a) {
 ; CHECK-LABEL:      test_llrintf128:
-; CHECK-AARCH64:    b llrintl
-; CHECK-RISCV32:    call llrintl@plt
-; CHECK-S390X:      brasl {{%.*}} llrintl@PLT
-; CHECK-X64:        jmp llrintl@PLT
-; CHECK-X86:        calll llrintl
+; CHECK-AARCH64:    b llrintf128
+; CHECK-RISCV32:    call llrintf128@plt
+; CHECK-S390X:      brasl {{%.*}} llrintf128@PLT
+; CHECK-X64:        jmp llrintf128@PLT
+; CHECK-X86:        calll llrintf128
 start:
   %0 = tail call i64 @llvm.llrint.f128(fp128 %a)
   ret i64 %0
@@ -333,11 +333,11 @@ declare i64 @llvm.llrint.f128(fp128)
 
 define i64 @test_llroundf128(fp128 %a) {
 ; CHECK-LABEL:      test_llroundf128:
-; CHECK-AARCH64:    b llroundl
-; CHECK-RISCV32:    call llroundl@plt
-; CHECK-S390X:      brasl {{%.*}} llroundl@PLT
-; CHECK-X64:        jmp llroundl@PLT
-; CHECK-X86:        calll llroundl
+; CHECK-AARCH64:    b llroundf128
+; CHECK-RISCV32:    call llroundf128@plt
+; CHECK-S390X:      brasl {{%.*}} llroundf128@PLT
+; CHECK-X64:        jmp llroundf128@PLT
+; CHECK-X86:        calll llroundf128
 start:
   %0 = tail call i64 @llvm.llround.i64.f128(fp128 %a)
   ret i64 %0
@@ -348,11 +348,11 @@ declare i64 @llvm.llround.i64.f128(fp128)
 
 define fp128 @test_log10f128(fp128 %a) {
 ; CHECK-LABEL:      test_log10f128:
-; CHECK-AARCH64:    b log10l
-; CHECK-RISCV32:    call log10l@plt
-; CHECK-S390X:      brasl {{%.*}} log10l@PLT
-; CHECK-X64:        jmp log10l@PLT
-; CHECK-X86:        calll log10l
+; CHECK-AARCH64:    b log10f128
+; CHECK-RISCV32:    call log10f128@plt
+; CHECK-S390X:      brasl {{%.*}} log10f128@PLT
+; CHECK-X64:        jmp log10f128@PLT
+; CHECK-X86:        calll log10f128
 start:
   %0 = tail call fp128 @llvm.log10.f128(fp128 %a)
   ret fp128 %0
@@ -378,11 +378,11 @@ declare fp128 @llvm.__log10f128_finite.f128(fp128)
 
 define fp128 @test_log2f128(fp128 %a) {
 ; CHECK-LABEL:      test_log2f128:
-; CHECK-AARCH64:    b log2l
-; CHECK-RISCV32:    call log2l@plt
-; CHECK-S390X:      brasl {{%.*}} log2l@PLT
-; CHECK-X64:        jmp log2l@PLT
-; CHECK-X86:        calll log2l
+; CHECK-AARCH64:    b log2f128
+; CHECK-RISCV32:    call log2f128@plt
+; CHECK-S390X:      brasl {{%.*}} log2f128@PLT
+; CHECK-X64:        jmp log2f128@PLT
+; CHECK-X86:        calll log2f128
 start:
   %0 = tail call fp128 @llvm.log2.f128(fp128 %a)
   ret fp128 %0
@@ -408,11 +408,11 @@ declare fp128 @llvm.__log2f128_finite.f128(fp128)
 
 define fp128 @test_logf128(fp128 %a) {
 ; CHECK-LABEL:      test_logf128:
-; CHECK-AARCH64:    b logl
-; CHECK-RISCV32:    call logl@plt
-; CHECK-S390X:      brasl {{%.*}} logl@PLT
-; CHECK-X64:        jmp logl@PLT
-; CHECK-X86:        calll logl
+; CHECK-AARCH64:    b logf128
+; CHECK-RISCV32:    call logf128@plt
+; CHECK-S390X:      brasl {{%.*}} logf128@PLT
+; CHECK-X64:        jmp logf128@PLT
+; CHECK-X86:        calll logf128
 start:
   %0 = tail call fp128 @llvm.log.f128(fp128 %a)
   ret fp128 %0
@@ -438,11 +438,11 @@ declare fp128 @llvm.__logf128_finite.f128(fp128)
 
 define i64 @test_lrintf128(fp128 %a) {
 ; CHECK-LABEL:      test_lrintf128:
-; CHECK-AARCH64:    b lrintl
-; CHECK-RISCV32:    call lrintl@plt
-; CHECK-S390X:      brasl {{%.*}} lrintl@PLT
-; CHECK-X64:        jmp lrintl@PLT
-; CHECK-X86:        calll lrintl
+; CHECK-AARCH64:    b lrintf128
+; CHECK-RISCV32:    call lrintf128@plt
+; CHECK-S390X:      brasl {{%.*}} lrintf128@PLT
+; CHECK-X64:        jmp lrintf128@PLT
+; CHECK-X86:        calll lrintf128
 start:
   %0 = tail call i64 @llvm.lrint.f128(fp128 %a)
   ret i64 %0
@@ -453,11 +453,11 @@ declare i64 @llvm.lrint.f128(fp128)
 
 define i64 @test_lroundf128(fp128 %a) {
 ; CHECK-LABEL:      test_lroundf128:
-; CHECK-AARCH64:    b lroundl
-; CHECK-RISCV32:    call lroundl@plt
-; CHECK-S390X:      brasl {{%.*}} lroundl@PLT
-; CHECK-X64:        jmp lroundl@PLT
-; CHECK-X86:        calll lroundl
+; CHECK-AARCH64:    b lroundf128
+; CHECK-RISCV32:    call lroundf128@plt
+; CHECK-S390X:      brasl {{%.*}} lroundf128@PLT
+; CHECK-X64:        jmp lroundf128@PLT
+; CHECK-X86:        calll lroundf128
 start:
   %0 = tail call i64 @llvm.lround.i64.f128(fp128 %a)
   ret i64 %0
@@ -468,11 +468,11 @@ declare i64 @llvm.lround.i64.f128(fp128)
 
 define fp128 @test_nearbyintf128(fp128 %a) {
 ; CHECK-LABEL:      test_nearbyintf128:
-; CHECK-AARCH64:    b nearbyintl
-; CHECK-RISCV32:    call nearbyintl@plt
-; CHECK-S390X:      brasl {{%.*}} nearbyintl@PLT
-; CHECK-X64:        jmp nearbyintl@PLT
-; CHECK-X86:        calll nearbyintl
+; CHECK-AARCH64:    b nearbyintf128
+; CHECK-RISCV32:    call nearbyintf128@plt
+; CHECK-S390X:      brasl {{%.*}} nearbyintf128@PLT
+; CHECK-X64:        jmp nearbyintf128@PLT
+; CHECK-X86:        calll nearbyintf128
 start:
   %0 = tail call fp128 @llvm.nearbyint.f128(fp128 %a)
   ret fp128 %0
@@ -483,11 +483,11 @@ declare fp128 @llvm.nearbyint.f128(fp128)
 
 define fp128 @test_powf128(fp128 %a, fp128 %b) {
 ; CHECK-LABEL:      test_powf128:
-; CHECK-AARCH64:    b powl
-; CHECK-RISCV32:    call powl@plt
-; CHECK-S390X:      brasl {{%.*}} powl@PLT
-; CHECK-X64:        jmp powl@PLT
-; CHECK-X86:        calll powl
+; CHECK-AARCH64:    b powf128
+; CHECK-RISCV32:    call powf128@plt
+; CHECK-S390X:      brasl {{%.*}} powf128@PLT
+; CHECK-X64:        jmp powf128@PLT
+; CHECK-X86:        calll powf128
 start:
   %0 = tail call fp128 @llvm.pow.f128(fp128 %a, fp128 %b)
   ret fp128 %0
@@ -513,8 +513,8 @@ declare fp128 @llvm.__powf128_finite.f128(fp128, fp128)
 
 define fp128 @test_rintf128(fp128 %a) {
 ; CHECK-LABEL:      test_rintf128:
-; CHECK-AARCH64:    b rintl
-; CHECK-RISCV32:    call rintl@plt
+; CHECK-AARCH64:    b rintf128
+; CHECK-RISCV32:    call rintf128@plt
 ;
 ; CHECK-S390X-LABEL: test_rintf128:
 ; CHECK-S390X:       # %bb.0: # %start
@@ -525,8 +525,8 @@ define fp128 @test_rintf128(fp128 %a) {
 ; CHECK-S390X-NEXT:    std %f2, 8(%r2)
 ; CHECK-S390X-NEXT:    br %r14
 ;
-; CHECK-X64:        jmp rintl@PLT
-; CHECK-X86:        calll rintl
+; CHECK-X64:        jmp rintf128@PLT
+; CHECK-X86:        calll rintf128
 start:
   %0 = tail call fp128 @llvm.rint.f128(fp128 %a)
   ret fp128 %0
@@ -537,11 +537,11 @@ declare fp128 @llvm.rint.f128(fp128)
 
 define fp128 @test_roundevenf128(fp128 %a) {
 ; CHECK-LABEL:      test_roundevenf128:
-; CHECK-AARCH64:    b roundevenl
-; CHECK-RISCV32:    call roundevenl@plt
-; CHECK-S390X:      brasl {{%.*}} roundevenl@PLT
-; CHECK-X64:        jmp roundevenl@PLT
-; CHECK-X86:        calll roundevenl
+; CHECK-AARCH64:    b roundevenf128
+; CHECK-RISCV32:    call roundevenf128@plt
+; CHECK-S390X:      brasl {{%.*}} roundevenf128@PLT
+; CHECK-X64:        jmp roundevenf128@PLT
+; CHECK-X86:        calll roundevenf128
 start:
   %0 = tail call fp128 @llvm.roundeven.f128(fp128 %a)
   ret fp128 %0
@@ -552,11 +552,11 @@ declare fp128 @llvm.roundeven.f128(fp128)
 
 define fp128 @test_roundf128(fp128 %a) {
 ; CHECK-LABEL:      test_roundf128:
-; CHECK-AARCH64:    b roundl
-; CHECK-RISCV32:    call roundl@plt
-; CHECK-S390X:      brasl {{%.*}} roundl@PLT
-; CHECK-X64:        jmp roundl@PLT
-; CHECK-X86:        calll roundl
+; CHECK-AARCH64:    b roundf128
+; CHECK-RISCV32:    call roundf128@plt
+; CHECK-S390X:      brasl {{%.*}} roundf128@PLT
+; CHECK-X64:        jmp roundf128@PLT
+; CHECK-X86:        calll roundf128
 start:
   %0 = tail call fp128 @llvm.round.f128(fp128 %a)
   ret fp128 %0
@@ -567,11 +567,11 @@ declare fp128 @llvm.round.f128(fp128)
 
 define fp128 @test_sinf128(fp128 %a) {
 ; CHECK-LABEL:      test_sinf128:
-; CHECK-AARCH64:    b sinl
-; CHECK-RISCV32:    call sinl@plt
-; CHECK-S390X:      brasl {{%.*}} sinl@PLT
-; CHECK-X64:        jmp sinl@PLT
-; CHECK-X86:        calll sinl
+; CHECK-AARCH64:    b sinf128
+; CHECK-RISCV32:    call sinf128@plt
+; CHECK-S390X:      brasl {{%.*}} sinf128@PLT
+; CHECK-X64:        jmp sinf128@PLT
+; CHECK-X86:        calll sinf128
 start:
   %0 = tail call fp128 @llvm.sin.f128(fp128 %a)
   ret fp128 %0
@@ -582,11 +582,11 @@ declare fp128 @llvm.sin.f128(fp128)
 
 define fp128 @test_sqrtf128(fp128 %a) {
 ; CHECK-LABEL:      test_sqrtf128:
-; CHECK-AARCH64:    b sqrtl
-; CHECK-RISCV32:    call sqrtl@plt
+; CHECK-AARCH64:    b sqrtf128
+; CHECK-RISCV32:    call sqrtf128@plt
 ; CHECK-S390X:      sqxbr {{%.*}} {{%.*}}
-; CHECK-X64:        jmp sqrtl@PLT
-; CHECK-X86:        calll sqrtl
+; CHECK-X64:        jmp sqrtf128@PLT
+; CHECK-X86:        calll sqrtf128
 start:
   %0 = tail call fp128 @llvm.sqrt.f128(fp128 %a)
   ret fp128 %0
@@ -597,11 +597,11 @@ declare fp128 @llvm.sqrt.f128(fp128)
 
 define fp128 @test_truncf128(fp128 %a) {
 ; CHECK-LABEL:      test_truncf128:
-; CHECK-AARCH64:    b truncl
-; CHECK-RISCV32:    call truncl@plt
-; CHECK-S390X:      brasl {{%.*}} truncl@PLT
-; CHECK-X64:        jmp truncl@PLT
-; CHECK-X86:        calll truncl
+; CHECK-AARCH64:    b truncf128
+; CHECK-RISCV32:    call truncf128@plt
+; CHECK-S390X:      brasl {{%.*}} truncf128@PLT
+; CHECK-X64:        jmp truncf128@PLT
+; CHECK-X86:        calll truncf128
 start:
   %0 = tail call fp128 @llvm.trunc.f128(fp128 %a)
   ret fp128 %0
