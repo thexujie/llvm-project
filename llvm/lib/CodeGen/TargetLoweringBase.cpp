@@ -221,6 +221,44 @@ void TargetLoweringBase::InitLibcalls(const Triple &TT) {
     setLibcallName(RTLIB::FREXP_F128, nullptr);
     setLibcallName(RTLIB::FREXP_PPCF128, nullptr);
   }
+
+  if (TT.isLongDoubleF128()) {
+    // Use the more available long double functions for fp128 if possible
+    setLibcallName(RTLIB::REM_F128, "fmodl");
+    setLibcallName(RTLIB::FMA_F128, "fmal");
+    setLibcallName(RTLIB::SQRT_F128, "sqrtl");
+    setLibcallName(RTLIB::CBRT_F128, "cbrtl");
+    setLibcallName(RTLIB::LOG_F128, "logl");
+    setLibcallName(RTLIB::LOG_FINITE_F128, "__logl_finite");
+    setLibcallName(RTLIB::LOG2_F128, "log2l");
+    setLibcallName(RTLIB::LOG2_FINITE_F128, "__log2l_finite");
+    setLibcallName(RTLIB::LOG10_F128, "log10l");
+    setLibcallName(RTLIB::LOG10_FINITE_F128, "__log10l_finite");
+    setLibcallName(RTLIB::EXP_F128, "expl");
+    setLibcallName(RTLIB::EXP_FINITE_F128, "__expl_finite");
+    setLibcallName(RTLIB::EXP2_F128, "exp2l");
+    setLibcallName(RTLIB::EXP2_FINITE_F128, "__exp2l_finite");
+    setLibcallName(RTLIB::SIN_F128, "sinl");
+    setLibcallName(RTLIB::COS_F128, "cosl");
+    setLibcallName(RTLIB::POW_F128, "powl");
+    setLibcallName(RTLIB::POW_FINITE_F128, "__powl_finite");
+    setLibcallName(RTLIB::CEIL_F128, "ceill");
+    setLibcallName(RTLIB::TRUNC_F128, "truncl");
+    setLibcallName(RTLIB::RINT_F128, "rintl");
+    setLibcallName(RTLIB::NEARBYINT_F128, "nearbyintl");
+    setLibcallName(RTLIB::ROUND_F128, "roundl");
+    setLibcallName(RTLIB::ROUNDEVEN_F128, "roundevenl");
+    setLibcallName(RTLIB::FLOOR_F128, "floorl");
+    setLibcallName(RTLIB::COPYSIGN_F128, "copysignl");
+    setLibcallName(RTLIB::FMIN_F128, "fminl");
+    setLibcallName(RTLIB::FMAX_F128, "fmaxl");
+    setLibcallName(RTLIB::LROUND_F128, "lroundl");
+    setLibcallName(RTLIB::LLROUND_F128, "llroundl");
+    setLibcallName(RTLIB::LRINT_F128, "lrintl");
+    setLibcallName(RTLIB::LLRINT_F128, "llrintl");
+    setLibcallName(RTLIB::LDEXP_F128, "ldexpl");
+    setLibcallName(RTLIB::FREXP_F128, "frexpl");
+  }
 }
 
 /// GetFPLibCall - Helper to return the right libcall for the given floating
