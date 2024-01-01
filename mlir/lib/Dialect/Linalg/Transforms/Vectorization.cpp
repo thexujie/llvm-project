@@ -814,7 +814,7 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
       auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
       return indexOp.getDim() != trailingLoopDim;
     }
-    // val will be loop variant in some of the other cases.
+    // val will be loop variant in most other cases.
     // TODO: Relax this condition
     return false;
   }
@@ -841,7 +841,7 @@ static bool isLoopInvariantIdx(LinalgOp &linalgOp, Value &val) {
 // used for contigous memory access. For example:
 //    %val1 = lingalg.index 0 : index
 //    %e1 = tensor.extract %arg0[%val1, ..] : tensor<3x3xf32> would return true
-// while the following situation
+// while the following case
 //    %val1 = lingalg.index 0 : index
 //    %e1 = tensor.extract %arg0[.., %val1] : tensor<3x3xf32> would return false
 // TODO: Relax this requirement to cover cases for contiguous access where inner
@@ -867,12 +867,18 @@ static bool isProperLinalgIdx(LinalgOp &linalgOp, Value &val,
 
   if (auto indexOp = dyn_cast<linalg::IndexOp>(defOp)) {
     // If target shape is of the form 1x1x1x..xn and val is obtained from a
-    // linalg.index op, it will be used for contiguous access only when it is
+    // linalg.index op, it can be used for contiguous access only when it is
     // obtained for the trailing dimension.
     if (llvm::count_if(targetShape,
                        [](int64_t dimSize) { return dimSize > 1; }) == 1 &&
         targetShape.back() != 1) {
       auto trailingLoopDim = linalgOp.getStaticLoopRanges().size() - 1;
+      
+      // This is special handling of the case when n dimensional tensor is 
+      // accessed like [p, p's, p, c, c's, c, idx_for_trailing_loop_dim]
+      // where: 
+      // p = properLinalgIdx
+      // c = loopInvariantIdx
       return indexOp.getDim() == trailingLoopDim;
     }
     return indexOp.getDim() == valuePosInExtract;
@@ -918,7 +924,7 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
     return VectorMemoryAccessKind::Gather;
 
   // 1. Assume that it's a gather load when reading _into_ a 1-D vector with the
-  // trailing dim equal 1, e.g. `tensor<1x4x1xi32`.
+  // trailing dim equal 1, e.g. `vector<1x4x1xi32>`.
   // TODO: Relax this condition.
   // FIXME: This condition assumes non-dynamic sizes.
   if (targetShape.back() == 1)
@@ -927,6 +933,7 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
   // 2. Assume that it's a gather load when reading _from_ a tensor for which
   // the trailing dimension is 1, e.g. `tensor<1x4x1xi32>`.
   // TODO: Relax this condition.
+  // FIXME: This condition assumes non-dynamic sizes.
   if (inputShape.getShape().back() == 1)
     return VectorMemoryAccessKind::Gather;
 
@@ -965,10 +972,10 @@ getTensorExtractMemoryAccessPattern(tensor::ExtractOp extractOp,
     return VectorMemoryAccessKind::ScalarBroadcast;
   } else if (!isLoopInvariantLoad && isProperLinalgIdxLoad) {
     // 4c. It is a contiguous load if
-    //     i.  All indices which are not loop invariant and
-    //     ii. They are obtained from `linalg.index` ops with their dimension
-    //     attributes same as the dimension at which those indices are used in
-    //     `extractOp`.
+    //     i.  Some indices are not loop invariant and
+    //     ii. Loop variant indices are obtained from `linalg.index` ops with 
+    //         their dimension attributes same as the dimension at which those 
+    //         indices are used in `extractOp`.
     LDBG("Found contigous load: " << extractOp);
     return VectorMemoryAccessKind::Contiguous;
   }
