@@ -246,6 +246,9 @@ Changes to the C API
   the fast-math flags of an instruction, as well as ``LLVMCanValueUseFastMathFlags``
   for checking if an instruction can use such flags
 
+* Added ``LLVMDIBuilderCreateEnumeratorOfArbitraryPrecision`` for creating
+  debugging metadata of enumerators larger than 64 bits.
+
 Changes to the CodeGen infrastructure
 -------------------------------------
 
