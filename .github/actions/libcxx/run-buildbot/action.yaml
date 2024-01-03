@@ -1,0 +1,44 @@
+name: 'Run Buildbot for libc++'
+description: 'Invoke the run-buildbot script with the specified parameters'
+
+inputs:
+  configuration:
+    description: 'the configuration to build'
+    required: true
+  cxx:
+    description: 'C++ compiler'
+    required: true
+  cc:
+    description: 'C compiler'
+    required: true
+  enable_clang_tidy:
+    description: 'enable clang-tidy'
+    required: false
+    default: 'OFF'
+  enable_std_modules:
+    description: 'enable std modules'
+    required: false
+    default: 'OFF'
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    - name: ${{ inputs.configuration }}.${{ inputs.cxx }}
+      run: libcxx/utils/ci/run-buildbot ${{ inputs.configuration }}
+      shell: bash
+      env:
+        CC: ${{ inputs.cc }}
+        CXX: ${{ inputs.cxx }}
+        ENABLE_CLANG_TIDY: ${{ inputs.enable_clang_tidy }}
+        ENABLE_STD_MODULES: ${{ inputs.enable_std_modules }}
+    - uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: ${{ inputs.configuration }}-${{ inputs.cxx }}-results
+        path: |
+          **/test-results.xml
+          **/*.abilist
+          **/CMakeError.log
+          **/CMakeOutput.log
+          **/crash_diagnostics/*
