@@ -52,6 +52,7 @@ static const char *RISCVGImplications[] = {
 // NOTE: This table should be sorted alphabetically by extension name.
 static const RISCVSupportedExtension SupportedExtensions[] = {
     {"a", {2, 1}},
+    {"b", {1, 0}},
     {"c", {2, 0}},
     {"d", {2, 2}},
     {"e", {2, 0}},
@@ -1106,6 +1107,7 @@ Error RISCVISAInfo::checkDependency() {
   return Error::success();
 }
 
+static const char *ImpliedExtsB[] = {"zba", "zbb", "zbs"};
 static const char *ImpliedExtsD[] = {"f"};
 static const char *ImpliedExtsF[] = {"zicsr"};
 static const char *ImpliedExtsV[] = {"zvl128b", "zve64d"};
@@ -1181,6 +1183,7 @@ struct ImpliedExtsEntry {
 
 // Note: The table needs to be sorted by name.
 static constexpr ImpliedExtsEntry ImpliedExts[] = {
+    {{"b"}, {ImpliedExtsB}},
     {{"d"}, {ImpliedExtsD}},
     {{"f"}, {ImpliedExtsF}},
     {{"v"}, {ImpliedExtsV}},
