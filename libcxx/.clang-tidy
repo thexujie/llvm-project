@@ -56,8 +56,12 @@ CheckOptions:
     value: _
   - key:   readability-identifier-naming.TemplateParameterIgnoredRegexp
     value: (.*\:auto|expr-type) # This is https://llvm.org/PR56464
-  - key:   readability-identifier-naming.ValueTemplateParameterIgnoredRegexp # TODO: enforce naming of variable parameters
-    value: .*
+  - key:   readability-identifier-naming.ValueTemplateParameterCase
+    value: lower_case
+  - key:   readability-identifier-naming.ValueTemplateParameterPrefix
+    value: __
+  - key:   readability-identifier-naming.ValueTemplateParameterIgnoredRegexp
+    value: _[A-Z].* # TODO: Converge on a single style for value template parameters
 
 # TODO: investigate these checks
 # bugprone-branch-clone,
