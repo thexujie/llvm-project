@@ -114,7 +114,7 @@ bool RISCVELFTargetObjectFile::isConstantInSmallSection(
 MCSection *RISCVELFTargetObjectFile::getSectionForConstant(
     const DataLayout &DL, SectionKind Kind, const Constant *C,
     Align &Alignment) const {
-  if (isConstantInSmallSection(DL, C))
+  if (C && isConstantInSmallSection(DL, C))
     return SmallDataSection;
 
   // Otherwise, we work the same as ELF.
