@@ -1783,12 +1783,12 @@ if.else:
 define i8 @src_2_bitfield_op(i8 %x, i8 %y) {
 ; CHECK-LABEL: @src_2_bitfield_op(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR:%.*]] = and i8 [[X]], 24
-; CHECK-NEXT:    [[BF_LSHR1228:%.*]] = add i8 [[BF_LSHR]], [[Y]]
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1228]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 11
+; CHECK-NEXT:    [[TMP1:%.*]] = and i8 [[Y:%.*]], 11
+; CHECK-NEXT:    [[TMP2:%.*]] = add nuw nsw i8 [[TMP0]], [[TMP1]]
+; CHECK-NEXT:    [[TMP3:%.*]] = xor i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[TMP4:%.*]] = and i8 [[TMP3]], 20
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP2]], [[TMP4]]
 ; CHECK-NEXT:    ret i8 [[BF_SET20]]
 ;
 entry:
@@ -1804,11 +1804,10 @@ entry:
 define i8 @src_2_bitfield_const(i8 %x) {
 ; CHECK-LABEL: @src_2_bitfield_const(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[X:%.*]], 1
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR1228:%.*]] = add i8 [[X]], 8
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1228]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 11
+; CHECK-NEXT:    [[TMP1:%.*]] = add nuw nsw i8 [[TMP0]], 9
+; CHECK-NEXT:    [[TMP2:%.*]] = and i8 [[X]], 20
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP1]], [[TMP2]]
 ; CHECK-NEXT:    ret i8 [[BF_SET20]]
 ;
 entry:
@@ -1824,16 +1823,12 @@ entry:
 define i8 @src_3_bitfield_op(i8 %x, i8 %y) {
 ; CHECK-LABEL: @src_3_bitfield_op(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR:%.*]] = and i8 [[X]], 24
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[BF_LSHR]], [[Y]]
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
-; CHECK-NEXT:    [[BF_LSHR22:%.*]] = and i8 [[X]], -32
-; CHECK-NEXT:    [[BF_LSHR2547:%.*]] = add i8 [[BF_LSHR22]], [[Y]]
-; CHECK-NEXT:    [[BF_VALUE30:%.*]] = and i8 [[BF_LSHR2547]], -32
-; CHECK-NEXT:    [[BF_SET33:%.*]] = or disjoint i8 [[BF_SET20]], [[BF_VALUE30]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 107
+; CHECK-NEXT:    [[TMP1:%.*]] = and i8 [[Y:%.*]], 107
+; CHECK-NEXT:    [[TMP2:%.*]] = add nuw i8 [[TMP0]], [[TMP1]]
+; CHECK-NEXT:    [[TMP3:%.*]] = xor i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[TMP4:%.*]] = and i8 [[TMP3]], -108
+; CHECK-NEXT:    [[BF_SET33:%.*]] = xor i8 [[TMP2]], [[TMP4]]
 ; CHECK-NEXT:    ret i8 [[BF_SET33]]
 ;
 entry:
@@ -1853,14 +1848,10 @@ entry:
 define i8 @src_3_bitfield_const(i8 %x) {
 ; CHECK-LABEL: @src_3_bitfield_const(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[X:%.*]], 1
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[X]], 8
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
-; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X]], -32
-; CHECK-NEXT:    [[BF_VALUE30:%.*]] = add i8 [[TMP0]], 32
-; CHECK-NEXT:    [[BF_SET33:%.*]] = or disjoint i8 [[BF_SET20]], [[BF_VALUE30]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 107
+; CHECK-NEXT:    [[TMP1:%.*]] = add nuw i8 [[TMP0]], 41
+; CHECK-NEXT:    [[TMP2:%.*]] = and i8 [[X]], -108
+; CHECK-NEXT:    [[BF_SET33:%.*]] = xor i8 [[TMP1]], [[TMP2]]
 ; CHECK-NEXT:    ret i8 [[BF_SET33]]
 ;
 entry:
@@ -1940,12 +1931,12 @@ entry:
 define i8 @src_bit_arithmetic_bitsize_1_high(i8 %x, i8 %y) {
 ; CHECK-LABEL: @src_bit_arithmetic_bitsize_1_high(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR:%.*]] = and i8 [[X]], 120
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[BF_LSHR]], [[Y]]
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 120
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 59
+; CHECK-NEXT:    [[TMP1:%.*]] = and i8 [[Y:%.*]], 59
+; CHECK-NEXT:    [[TMP2:%.*]] = add nuw nsw i8 [[TMP0]], [[TMP1]]
+; CHECK-NEXT:    [[TMP3:%.*]] = xor i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[TMP4:%.*]] = and i8 [[TMP3]], 68
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP2]], [[TMP4]]
 ; CHECK-NEXT:    [[BF_LSHR22:%.*]] = and i8 [[X]], -128
 ; CHECK-NEXT:    [[BF_LSHR2547:%.*]] = add i8 [[BF_LSHR22]], [[Y]]
 ; CHECK-NEXT:    [[BF_VALUE30:%.*]] = and i8 [[BF_LSHR2547]], -128
@@ -1998,12 +1989,12 @@ entry:
 define i8 @src_bit_arithmetic_bitmask_mid_over_high(i8 %x, i8 %y) {
 ; CHECK-LABEL: @src_bit_arithmetic_bitmask_mid_over_high(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR:%.*]] = and i8 [[X]], 56
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[BF_LSHR]], [[Y]]
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 56
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 27
+; CHECK-NEXT:    [[TMP1:%.*]] = and i8 [[Y:%.*]], 27
+; CHECK-NEXT:    [[TMP2:%.*]] = add nuw nsw i8 [[TMP0]], [[TMP1]]
+; CHECK-NEXT:    [[TMP3:%.*]] = xor i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[TMP4:%.*]] = and i8 [[TMP3]], 36
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP2]], [[TMP4]]
 ; CHECK-NEXT:    [[BF_LSHR22:%.*]] = and i8 [[X]], -32
 ; CHECK-NEXT:    [[BF_LSHR2547:%.*]] = add i8 [[BF_LSHR22]], [[Y]]
 ; CHECK-NEXT:    [[BF_VALUE30:%.*]] = and i8 [[BF_LSHR2547]], -32
@@ -2056,12 +2047,12 @@ entry:
 define i8 @src_bit_arithmetic_bitmask_high_under_mid(i8 %x, i8 %y) {
 ; CHECK-LABEL: @src_bit_arithmetic_bitmask_high_under_mid(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR:%.*]] = and i8 [[X]], 24
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[BF_LSHR]], [[Y]]
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 11
+; CHECK-NEXT:    [[TMP1:%.*]] = and i8 [[Y:%.*]], 11
+; CHECK-NEXT:    [[TMP2:%.*]] = add nuw nsw i8 [[TMP0]], [[TMP1]]
+; CHECK-NEXT:    [[TMP3:%.*]] = xor i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[TMP4:%.*]] = and i8 [[TMP3]], 20
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP2]], [[TMP4]]
 ; CHECK-NEXT:    [[BF_LSHR22:%.*]] = and i8 [[X]], -16
 ; CHECK-NEXT:    [[BF_LSHR2547:%.*]] = add i8 [[BF_LSHR22]], [[Y]]
 ; CHECK-NEXT:    [[BF_VALUE30:%.*]] = and i8 [[BF_LSHR2547]], -16
@@ -2163,11 +2154,10 @@ entry:
 define i8 @src_bit_arithmetic_addition_under_bitmask_high(i8 %x) {
 ; CHECK-LABEL: @src_bit_arithmetic_addition_under_bitmask_high(
 ; CHECK-NEXT:  entry:
-; CHECK-NEXT:    [[NARROW:%.*]] = add i8 [[X:%.*]], 1
-; CHECK-NEXT:    [[BF_VALUE:%.*]] = and i8 [[NARROW]], 7
-; CHECK-NEXT:    [[BF_LSHR1244:%.*]] = add i8 [[X]], 8
-; CHECK-NEXT:    [[BF_SHL:%.*]] = and i8 [[BF_LSHR1244]], 24
-; CHECK-NEXT:    [[BF_SET20:%.*]] = or disjoint i8 [[BF_VALUE]], [[BF_SHL]]
+; CHECK-NEXT:    [[TMP0:%.*]] = and i8 [[X:%.*]], 11
+; CHECK-NEXT:    [[TMP1:%.*]] = add nuw nsw i8 [[TMP0]], 9
+; CHECK-NEXT:    [[TMP2:%.*]] = and i8 [[X]], 20
+; CHECK-NEXT:    [[BF_SET20:%.*]] = xor i8 [[TMP1]], [[TMP2]]
 ; CHECK-NEXT:    [[BF_LSHR22:%.*]] = and i8 [[X]], -32
 ; CHECK-NEXT:    [[BF_SET33:%.*]] = or disjoint i8 [[BF_SET20]], [[BF_LSHR22]]
 ; CHECK-NEXT:    ret i8 [[BF_SET33]]
