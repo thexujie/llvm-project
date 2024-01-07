@@ -17,7 +17,7 @@ struct Empty {};
 
 // CHECK: define{{.*}} i32 @empty_arg(i32 noundef %a)
 // CHECK-GNU-C: define{{.*}} i32 @empty_arg(i32 noundef %a)
-// CHECK-GNU-CXX: define{{.*}} i32 @empty_arg(i8 %e.coerce, i32 noundef %a)
+// CHECK-GNU-CXX: define{{.*}} i32 @empty_arg(i64 %e.coerce, i32 noundef %a)
 EXTERNC int empty_arg(struct Empty e, int a) {
   return a;
 }
@@ -53,7 +53,7 @@ struct SortOfEmpty {
 
 // CHECK: define{{.*}} i32 @sort_of_empty_arg(i32 noundef %a)
 // CHECK-GNU-C: define{{.*}} i32 @sort_of_empty_arg(i32 noundef %a)
-// CHECK-GNU-CXX: define{{.*}} i32 @sort_of_empty_arg(i8 %e.coerce, i32 noundef %a)
+// CHECK-GNU-CXX: define{{.*}} i32 @sort_of_empty_arg(i64 %e.coerce, i32 noundef %a)
 EXTERNC int sort_of_empty_arg(struct Empty e, int a) {
   return a;
 }
@@ -65,3 +65,22 @@ EXTERNC struct SortOfEmpty sort_of_empty_ret(void) {
   struct SortOfEmpty e;
   return e;
 }
+
+// CHECK-GNU-CXX: define{{.*}} i32 @empty_align8_arg(i64 %a.coerce, i32 noundef %b)
+struct EmptyAlign8 { int __attribute__((aligned(8))) : 0; };
+EXTERNC int empty_align8_arg(struct EmptyAlign8 a, int b) {
+  return b;
+}
+
+// CHECK-GNU-CXX: define{{.*}} i32 @empty_align16_arg(i128 %a.coerce, i32 noundef %b)
+struct EmptyAlign16 { long long int __attribute__((aligned(16))) : 0; };
+EXTERNC int empty_align16_arg(struct EmptyAlign16 a, int b) {
+  return b;
+}
+
+// CHECK-GNU-CXX: define{{.*}} i32 @empty_align32_arg(ptr noundef %a, i32 noundef %b)
+struct EmptyAlign32 { long long int __attribute__((aligned(32))) : 0; };
+EXTERNC int empty_align32_arg(struct EmptyAlign32 a, int b) {
+  return b;
+}
+

@@ -297,8 +297,12 @@ AArch64ABIInfo::classifyArgumentType(QualType Ty, bool IsVariadic,
                                      CGCXXABI::RAA_DirectInMemory);
   }
 
-  // Empty records are always ignored on Darwin, but actually passed in C++ mode
-  // elsewhere for GNU compatibility.
+  // AAPCS64 does not say that empty records are ignored as arguments,
+  // but other compilers do so in certain situations, and we copy that behavior.
+  // Those situations are in fact language-mode-specific, which seems really
+  // unfortunate, but it's something we just have to accept. If this doesn't
+  // apply, just fall through to the standard argument-handling path.
+  // Darwin overrides the psABI here to ignore all empty records in all modes.
   uint64_t Size = getContext().getTypeSize(Ty);
   bool IsEmpty = isEmptyRecord(getContext(), Ty, true);
   if (IsEmpty || Size == 0) {
@@ -309,7 +313,6 @@ AArch64ABIInfo::classifyArgumentType(QualType Ty, bool IsVariadic,
     // 0.
     if (IsEmpty && Size == 0)
       return ABIArgInfo::getIgnore();
-    return ABIArgInfo::getDirect(llvm::Type::getInt8Ty(getVMContext()));
   }
 
   // Homogeneous Floating-point Aggregates (HFAs) need to be expanded.
