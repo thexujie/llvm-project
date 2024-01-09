@@ -4013,10 +4013,10 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     const auto isAttributeParen = [](const FormatToken *Paren) {
       return Paren && Paren->isOneOf(TT_AttributeLParen, TT_AttributeRParen);
     };
-    if (isAttributeParen(&Left) || isAttributeParen(&Right) ||
-        isAttributeParen(Left.Previous) || isAttributeParen(Right.Next)) {
-      return Style.SpacesInParensOptions.InAttributeSpecifiers;
-    }
+    if (isAttributeParen(&Left) || isAttributeParen(&Right))
+      return Style.SpacesInParensOptions.InAttributeSpecifiers == FormatStyle::SIPCS_Always;
+    if (isAttributeParen(Left.Previous) || isAttributeParen(Right.Next))
+      return Style.SpacesInParensOptions.InAttributeSpecifiers != FormatStyle::SIPCS_Never;
     return Style.SpacesInParensOptions.Other;
   }
   if (Right.isOneOf(tok::semi, tok::comma))
