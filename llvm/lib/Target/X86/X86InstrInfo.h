@@ -29,8 +29,10 @@ class X86Subtarget;
 namespace X86 {
 
 enum AsmComments {
+  // For instr that was compressed from EVEX to LEGACY.
+  AC_EVEX_2_LEGACY = MachineInstr::TAsmComments,
   // For instr that was compressed from EVEX to VEX.
-  AC_EVEX_2_VEX = MachineInstr::TAsmComments
+  AC_EVEX_2_VEX = AC_EVEX_2_LEGACY << 1
 };
 
 /// Return a pair of condition code for the given predicate and whether
@@ -149,6 +151,17 @@ class X86InstrInfo final : public X86GenInstrInfo {
 
 public:
   explicit X86InstrInfo(X86Subtarget &STI);
+
+  /// Given a machine instruction descriptor, returns the register
+  /// class constraint for OpNum, or NULL. Returned register class
+  /// may be different from the definition in the TD file, e.g.
+  /// GR*RegClass (definition in TD file)
+  /// ->
+  /// GR*_NOREX2RegClass (Returned register class)
+  const TargetRegisterClass *
+  getRegClass(const MCInstrDesc &MCID, unsigned OpNum,
+              const TargetRegisterInfo *TRI,
+              const MachineFunction &MF) const override;
 
   /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
   /// such, whenever a client has an instance of instruction info, it should
@@ -647,6 +660,9 @@ protected:
   bool accumulateInstrSeqToRootLatency(MachineInstr &Root) const override {
     return false;
   }
+
+  void getFrameIndexOperands(SmallVectorImpl<MachineOperand> &Ops,
+                             int FI) const override;
 
 private:
   /// This is a helper for convertToThreeAddress for 8 and 16-bit instructions.

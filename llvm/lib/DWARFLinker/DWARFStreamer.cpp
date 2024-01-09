@@ -291,14 +291,13 @@ void DwarfStreamer::emitLineStrings(const NonRelocatableStringpool &Pool) {
   }
 }
 
-void DwarfStreamer::emitDebugNames(
-    AccelTable<DWARF5AccelTableStaticData> &Table) {
+void DwarfStreamer::emitDebugNames(DWARF5AccelTable &Table) {
   if (EmittedUnits.empty())
     return;
 
   // Build up data structures needed to emit this section.
   std::vector<std::variant<MCSymbol *, uint64_t>> CompUnits;
-  DenseMap<unsigned, size_t> UniqueIdToCuMap;
+  DenseMap<unsigned, unsigned> UniqueIdToCuMap;
   unsigned Id = 0;
   for (auto &CU : EmittedUnits) {
     CompUnits.push_back(CU.LabelBegin);
@@ -307,10 +306,19 @@ void DwarfStreamer::emitDebugNames(
   }
 
   Asm->OutStreamer->switchSection(MOFI->getDwarfDebugNamesSection());
+  dwarf::Form Form = DIEInteger::BestForm(/*IsSigned*/ false,
+                                          (uint64_t)UniqueIdToCuMap.size() - 1);
+  /// llvm-dwarfutil doesn't support type units + .debug_names right now.
+  // FIXME: add support for type units + .debug_names. For now the behavior is
+  // unsuported.
   emitDWARF5AccelTable(
       Asm.get(), Table, CompUnits,
-      [&UniqueIdToCuMap](const DWARF5AccelTableStaticData &Entry) {
-        return UniqueIdToCuMap[Entry.getCUIndex()];
+      [&](const DWARF5AccelTableData &Entry)
+          -> std::optional<DWARF5AccelTable::UnitIndexAndEncoding> {
+        if (UniqueIdToCuMap.size() > 1)
+          return {{UniqueIdToCuMap[Entry.getUnitID()],
+                   {dwarf::DW_IDX_compile_unit, Form}}};
+        return std::nullopt;
       });
 }
 
@@ -851,21 +859,35 @@ void DwarfStreamer::emitLineTablePrologueV5IncludeAndFileTable(
   for (auto Include : P.IncludeDirectories)
     emitLineTableString(P, Include, DebugStrPool, DebugLineStrPool);
 
+  bool HasChecksums = P.ContentTypes.HasMD5;
+  bool HasInlineSources = P.ContentTypes.HasSource;
+
   if (P.FileNames.empty()) {
     // file_name_entry_format_count (ubyte).
     MS->emitInt8(0);
     LineSectionSize += 1;
   } else {
     // file_name_entry_format_count (ubyte).
-    MS->emitInt8(2);
+    MS->emitInt8(2 + (HasChecksums ? 1 : 0) + (HasInlineSources ? 1 : 0));
     LineSectionSize += 1;
 
     // file_name_entry_format (sequence of ULEB128 pairs).
+    auto StrForm = P.FileNames[0].Name.getForm();
     LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_LNCT_path);
-    LineSectionSize += MS->emitULEB128IntValue(P.FileNames[0].Name.getForm());
+    LineSectionSize += MS->emitULEB128IntValue(StrForm);
 
     LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_LNCT_directory_index);
     LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_FORM_data1);
+
+    if (HasChecksums) {
+      LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_LNCT_MD5);
+      LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_FORM_data16);
+    }
+
+    if (HasInlineSources) {
+      LineSectionSize += MS->emitULEB128IntValue(dwarf::DW_LNCT_LLVM_source);
+      LineSectionSize += MS->emitULEB128IntValue(StrForm);
+    }
   }
 
   // file_names_count (ULEB128).
@@ -876,6 +898,14 @@ void DwarfStreamer::emitLineTablePrologueV5IncludeAndFileTable(
     emitLineTableString(P, File.Name, DebugStrPool, DebugLineStrPool);
     MS->emitInt8(File.DirIdx);
     LineSectionSize += 1;
+    if (HasChecksums) {
+      MS->emitBinaryData(
+          StringRef(reinterpret_cast<const char *>(File.Checksum.data()),
+                    File.Checksum.size()));
+      LineSectionSize += File.Checksum.size();
+    }
+    if (HasInlineSources)
+      emitLineTableString(P, File.Source, DebugStrPool, DebugLineStrPool);
   }
 }
 

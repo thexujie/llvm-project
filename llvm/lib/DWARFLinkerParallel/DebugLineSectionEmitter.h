@@ -10,7 +10,6 @@
 #define LLVM_LIB_DWARFLINKERPARALLEL_DEBUGLINESECTIONEMITTER_H
 
 #include "DWARFEmitterImpl.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/DWARFLinkerParallel/AddressesMap.h"
 #include "llvm/DWARFLinkerParallel/DWARFLinker.h"
 #include "llvm/DebugInfo/DWARF/DWARFObject.h"
@@ -150,6 +149,7 @@ private:
       // A null-terminated string containing the full or relative path name of a
       // source file.
       Section.emitString(File.Name.getForm(), *FileNameStr);
+
       // An unsigned LEB128 number representing the directory index of a
       // directory in the include_directories section.
       encodeULEB128(File.DirIdx, Section.OS);
@@ -197,7 +197,7 @@ private:
       Section.emitIntVal(0, 1);
     } else {
       // file_name_entry_format_count (ubyte).
-      Section.emitIntVal(2, 1);
+      Section.emitIntVal(2 + (P.ContentTypes.HasMD5 ? 1 : 0), 1);
 
       // file_name_entry_format (sequence of ULEB128 pairs).
       encodeULEB128(dwarf::DW_LNCT_path, Section.OS);
@@ -205,6 +205,11 @@ private:
 
       encodeULEB128(dwarf::DW_LNCT_directory_index, Section.OS);
       encodeULEB128(dwarf::DW_FORM_data1, Section.OS);
+
+      if (P.ContentTypes.HasMD5) {
+        encodeULEB128(dwarf::DW_LNCT_MD5, Section.OS);
+        encodeULEB128(dwarf::DW_FORM_data16, Section.OS);
+      }
     }
 
     // file_names_count (ULEB128).
@@ -222,6 +227,12 @@ private:
       // source file.
       Section.emitString(File.Name.getForm(), *FileNameStr);
       Section.emitIntVal(File.DirIdx, 1);
+
+      if (P.ContentTypes.HasMD5) {
+        Section.emitBinaryData(
+            StringRef(reinterpret_cast<const char *>(File.Checksum.data()),
+                      File.Checksum.size()));
+      }
     }
   }
 

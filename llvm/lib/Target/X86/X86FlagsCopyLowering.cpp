@@ -24,15 +24,11 @@
 #include "X86InstrBuilder.h"
 #include "X86InstrInfo.h"
 #include "X86Subtarget.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -177,7 +173,6 @@ static FlagArithMnemonic getMnemonicFromOpcode(unsigned Opcode) {
 
 #define LLVM_EXPAND_ADC_SBB_INSTR(MNEMONIC)                                    \
   LLVM_EXPAND_INSTR_SIZES(MNEMONIC, rr)                                        \
-  LLVM_EXPAND_INSTR_SIZES(MNEMONIC, rr_REV)                                    \
   LLVM_EXPAND_INSTR_SIZES(MNEMONIC, rm)                                        \
   LLVM_EXPAND_INSTR_SIZES(MNEMONIC, mr)                                        \
   case X86::MNEMONIC##8ri:                                                     \
