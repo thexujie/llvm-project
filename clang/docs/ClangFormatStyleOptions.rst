@@ -5688,6 +5688,7 @@ the configuration (without a prefix: ``Auto``).
     # Example of usage:
     SpacesInParens: Custom
     SpacesInParensOptions:
+      InAttributeSpecifiers: NonConsecutive
       InConditionalStatements: true
       InEmptyParentheses: true
 
@@ -5703,12 +5704,35 @@ the configuration (without a prefix: ``Auto``).
       InConditionalStatements: true
       Other: true
 
-  * ``bool InAttributeSpecifiers`` Put a space in parentheses of attribute specifiers.
+  * ``SpacesInParensCustomStyle InAttributeSpecifiers``
+    Put a space in parentheses of attribute specifiers.
 
     .. code-block:: c++
 
-       true:                                  false:
-       __attribute__( ( noreturn ) )    vs.     __attribute__((noreturn))
+       Always:
+       __attribute__( ( noreturn ) )
+
+    .. code-block:: c++
+
+      NonConsecutive:
+      _attribute__(( noreturn ))
+
+    .. code-block:: c++
+
+      Never:
+      _attribute__((noreturn))
+
+    Possible values:
+
+    * ``SIPCS_Never`` (in configuration: ``Never``)
+      Never put spaces in parens.
+
+    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
+      Only put spaces in parens not followed by the same consecutive parens.
+
+    * ``SIPCS_Always`` (in configuration: ``Always``)
+      Always put spaces in parens.
+
 
   * ``bool InConditionalStatements`` Put a space in parentheses only inside conditional statements
     (``for/if/while/switch...``).
