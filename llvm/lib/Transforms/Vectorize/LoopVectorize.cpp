@@ -4689,7 +4689,7 @@ LoopVectorizationCostModel::computeMaxVF(ElementCount UserVF, unsigned UserIC) {
   // found modulo the vectorization factor is not zero, try to fold the tail
   // by masking.
   // FIXME: look for a smaller MaxVF that does divide TC rather than masking.
-  if (Legal->prepareToFoldTailByMasking()) {
+  if (Legal->canFoldTailByMasking()) {
     CanFoldTailByMasking = true;
     return MaxFactors;
   }
@@ -7307,6 +7307,9 @@ LoopVectorizationPlanner::plan(ElementCount UserVF, unsigned UserIC) {
       CM.invalidateCostModelingDecisions();
   }
 
+  if (CM.foldTailByMasking())
+    Legal->prepareToFoldTailByMasking();
+
   ElementCount MaxUserVF =
       UserVF.isScalable() ? MaxFactors.ScalableVF : MaxFactors.FixedVF;
   bool UserVFIsLegal = ElementCount::isKnownLE(UserVF, MaxUserVF);
@@ -8680,10 +8683,12 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
       VPBB->setName(BB->getName());
     Builder.setInsertPoint(VPBB);
 
-    if (VPBB == HeaderVPBB)
-      RecipeBuilder.createHeaderMask(*Plan);
-    else if (NeedsMasks)
-      RecipeBuilder.createBlockInMask(BB, *Plan);
+    if (NeedsMasks) {
+      if (VPBB == HeaderVPBB)
+        RecipeBuilder.createHeaderMask(*Plan);
+      else
+        RecipeBuilder.createBlockInMask(BB, *Plan);
+    }
 
     // Introduce each ingredient into VPlan.
     // TODO: Model and preserve debug intrinsics in VPlan.
