@@ -3979,10 +3979,20 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     else if (Right.is(tok::r_paren) && Right.MatchingParen)
       LeftParen = Right.MatchingParen;
     if (LeftParen) {
-      if (LeftParen->is(TT_ConditionLParen))
-        return true;
-      if (LeftParen->Previous && isKeywordWithCondition(*LeftParen->Previous))
-        return true;
+      if (LeftParen->is(TT_ConditionLParen) || (LeftParen->Previous &&
+              isKeywordWithCondition(*LeftParen->Previous))) {
+        if (Style.SpacesInParensOptions.InConditionalStatements ==
+            FormatStyle::SIPCS_Always) {
+          return true;
+        }
+        const FormatToken *RightParen = LeftParen->MatchingParen;
+        if (LeftParen->Next && LeftParen->Next->isNot(tok::l_paren))
+          return true;
+        if (RightParen && RightParen->Previous &&
+            RightParen->Previous->isNot(tok::r_paren)) {
+          return true;
+        }
+      }
     }
   }
 
