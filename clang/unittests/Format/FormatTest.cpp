@@ -16828,6 +16828,23 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("SomeType *__attribute__((attr)) *a = NULL;", Spaces);
   verifyFormat("void __attribute__((naked)) foo(int bar)", Spaces);
   verifyFormat("void f() __attribute__((asdf));", Spaces);
+  verifyFormat("x = (int32)y;", Spaces);
+  verifyFormat("y = ((int (*)(int))foo)(x);", Spaces);
+  verifyFormat("decltype(x) y = 42;", Spaces);
+  verifyFormat("decltype((x)) y = z;", Spaces);
+  verifyFormat("decltype((foo())) a = foo();", Spaces);
+  verifyFormat("decltype((bar(10))) a = bar(11);", Spaces);
+  verifyFormat("if ((x - y) && (a ^ b))\n"
+               "  f();\n",
+               Spaces);
+  verifyFormat("for (int i = 0; i < 10; i = (i + 1))\n"
+               "  foo(i);",
+               Spaces);
+  verifyFormat("switch (x * (y + z)) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
@@ -16865,6 +16882,23 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("SomeType *__attribute__( ( attr ) ) *a = NULL;", Spaces);
   verifyFormat("void __attribute__( ( naked ) ) foo( int bar )", Spaces);
   verifyFormat("void f() __attribute__( ( asdf ) );", Spaces);
+  verifyFormat("x = (int32)y;", Spaces);
+  verifyFormat("y = ( (int (*)(int))foo )( x );", Spaces);
+  verifyFormat("decltype( x ) y = 42;", Spaces);
+  verifyFormat("decltype( ( x ) ) y = z;", Spaces);
+  verifyFormat("decltype( ( foo() ) ) a = foo();", Spaces);
+  verifyFormat("decltype( ( bar( 10 ) ) ) a = bar( 11 );", Spaces);
+  verifyFormat("if ( ( x - y ) && ( a ^ b ) )\n"
+               "  f();\n",
+               Spaces);
+  verifyFormat("for ( int i = 0; i < 10; i = ( i+1 ) )\n"
+               "  foo( i );",
+               Spaces);
+  verifyFormat("switch ( x * ( y + z ) ) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
@@ -16877,6 +16911,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("#define AA(X) sizeof((( X * )NULL)->a)", Spaces);
   verifyFormat("my_int a = ( my_int )sizeof(int);", Spaces);
   verifyFormat("#define x (( int )-1)", Spaces);
+  verifyFormat("y = (( int (*)(int) )foo)(x);", Spaces);
 
   // Run the first set of tests again with:
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
@@ -16909,7 +16944,27 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("SomeType *__attribute__((attr)) *a = NULL;", Spaces);
   verifyFormat("void __attribute__((naked)) foo(int bar)", Spaces);
   verifyFormat("void f( ) __attribute__((asdf));", Spaces);
+  verifyFormat("x = ( int32 )y;", Spaces);
+  verifyFormat("y = (( int (*)(int) )foo)(x);", Spaces);
+  verifyFormat("decltype(x) y = 42;", Spaces);
+  verifyFormat("decltype((x)) y = z;", Spaces);
+  verifyFormat("decltype((foo( ))) a = foo( );", Spaces);
+  verifyFormat("decltype((bar(10))) a = bar(11);", Spaces);
+  verifyFormat("if ((x - y) && (a ^ b))\n"
+               "  f( );\n",
+               Spaces);
+  verifyFormat("for (int i = 0; i < 10; i = (i+1))\n"
+               "  foo(i);",
+               Spaces);
+  verifyFormat("switch (x * (y + z)) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
 
+  // Check NonConsecutive spaces
+  Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
+  Spaces.SpacesInParensOptions = {};
   Spaces.SpacesInParensOptions.InAttributeSpecifiers =
       FormatStyle::SIPCS_Always;
   verifyFormat("SomeType *__attribute__( ( attr ) ) *a = NULL;", Spaces);
@@ -16921,6 +16976,142 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("void __attribute__(( naked )) foo(int bar)", Spaces);
   verifyFormat("void f( ) __attribute__(( asdf ));", Spaces); 
   Spaces.SpacesInParensOptions.InAttributeSpecifiers = FormatStyle::SIPCS_Never;
+
+  Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
+  Spaces.SpacesInParensOptions = {};
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Always;
+  verifyFormat("x = ( int32 )y;", Spaces);
+  verifyFormat("y = (( int (*)(int) )foo)(x);", Spaces);
+  Spaces.SpacesInParensOptions.InCStyleCasts =
+      FormatStyle::SIPCS_NonConsecutive;
+  verifyFormat("x = ( int32 )y;", Spaces);
+  verifyFormat("y = ((int (*)(int))foo)(x);", Spaces);
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Never;
+  verifyFormat("x = (int32)y;", Spaces);
+  verifyFormat("y = ((int (*)(int))foo)(x);", Spaces);
+
+  Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
+  Spaces.SpacesInParensOptions = {}; 
+  Spaces.SpacesInParensOptions.InConditionalStatements =
+      FormatStyle::SIPCS_Always;
+  verifyFormat("while ( (bool)1 )\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("for ( ;; )\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("if ( true )\n"
+               "  f();\n"
+               "else if ( true )\n"
+               "  f();",
+               Spaces);
+  verifyFormat("do {\n"
+               "  do_something((int)i);\n"
+               "} while ( something() );",
+               Spaces);
+  verifyFormat("switch ( x ) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+  verifyFormat("if ( (x - y) && (a ^ b) )\n"
+               "  f();\n",
+               Spaces);
+  verifyFormat("for ( int i = 0; i < 10; i = (i+1) )\n"
+               "  foo(i);",
+               Spaces);
+  verifyFormat("switch ( x * (y + z) ) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+  Spaces.SpacesInParensOptions.InConditionalStatements =
+      FormatStyle::SIPCS_NonConsecutive;
+  verifyFormat("while ((bool)1)\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("for ( ;; )\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("if ( true )\n"
+               "  f();\n"
+               "else if ( true )\n"
+               "  f();",
+               Spaces);
+  verifyFormat("do {\n"
+               "  do_something((int)i);\n"
+               "} while (something());",
+               Spaces);
+  verifyFormat("switch ( x ) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+  verifyFormat("if ((x - y) && (a ^ b))\n"
+               "  f();\n",
+               Spaces);
+  verifyFormat("for (int i = 0; i < 10; i = (i+1))\n"
+               "  foo(i);",
+               Spaces);
+  verifyFormat("switch (x * (y + z)) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+  Spaces.SpacesInParensOptions.InConditionalStatements =
+      FormatStyle::SIPCS_Never;
+  verifyFormat("while ((bool)1)\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("for (;;)\n"
+               "  continue;",
+               Spaces);
+  verifyFormat("if (true)\n"
+               "  f();\n"
+               "else if (true)\n"
+               "  f();",
+               Spaces);
+  verifyFormat("do {\n"
+               "  do_something((int)i);\n"
+               "} while (something());",
+               Spaces);
+  verifyFormat("switch (x) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+  verifyFormat("if ((x - y) && (a ^ b))\n"
+               "  f();\n",
+               Spaces);
+  verifyFormat("for (int i = 0; i < 10; i = (i+1))\n"
+               "  foo(i);",
+               Spaces);
+  verifyFormat("switch (x * (y + z)) {\n"
+               "default:\n"
+               "  break;\n"
+               "}",
+               Spaces);
+
+  Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
+  Spaces.SpacesInParensOptions = {}; 
+  Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
+  verifyFormat("decltype( x ) y = 42;", Spaces);
+  verifyFormat("decltype( ( x ) ) y = z;", Spaces);
+  verifyFormat("decltype( ( foo() ) ) a = foo();", Spaces);
+  verifyFormat("decltype( ( bar( 10 ) ) ) a = bar( 11 );", Spaces);
+  verifyFormat("x = foo( ( a * ( b - c ) ) );", Spaces);
+  Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_NonConsecutive;
+  verifyFormat("decltype( x ) y = 42;", Spaces);
+  verifyFormat("decltype(( x )) y = z;", Spaces);
+  verifyFormat("decltype((foo())) a = foo();", Spaces);
+  verifyFormat("decltype((bar( 10 ))) a = bar( 11 );", Spaces);
+  verifyFormat("x = foo((a * ( b - c )));", Spaces);
+  Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Never;
+  verifyFormat("decltype(x) y = 42;", Spaces);
+  verifyFormat("decltype((x)) y = z;", Spaces);
+  verifyFormat("decltype((foo())) a = foo();", Spaces);
+  verifyFormat("decltype((bar(10))) a = bar( 11 );", Spaces);
+  verifyFormat("x = foo((a * (b - c)));", Spaces);
 
   // Run the first set of tests again with:
   Spaces.SpaceAfterCStyleCast = true;
