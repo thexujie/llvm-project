@@ -3972,7 +3972,6 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
   }
   if (Style.SpacesInParensOptions.InConditionalStatements !=
       FormatStyle::SIPCS_Never) {
-    // TODO: check consecutive parens
     const FormatToken *LeftParen = nullptr;
     if (Left.is(tok::l_paren))
       LeftParen = &Left;
@@ -3985,10 +3984,10 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
             FormatStyle::SIPCS_Always) {
           return true;
         }
+        // check for non-repeated parens
         const FormatToken *RightParen = LeftParen->MatchingParen;
-        if (LeftParen->Next && LeftParen->Next->isNot(tok::l_paren))
-          return true;
-        if (RightParen && RightParen->Previous &&
+        if (LeftParen->Next && LeftParen->Next->isNot(tok::l_paren) &&
+            RightParen && RightParen->Previous &&
             RightParen->Previous->isNot(tok::r_paren)) {
           return true;
         }
