@@ -162,7 +162,8 @@ def AMDGPUPostLegalizerCombiner: GICombiner<
 
 def AMDGPURegBankCombiner : GICombiner<
   "AMDGPURegBankCombinerImpl",
-  [unmerge_merge, unmerge_cst, unmerge_undef,
+  [unmerge_merge, unmerge_cst, unmerge_undef, trunc_ext_fold,
+   anyext_trunc_fold, select_constant_cmp,
    zext_trunc_fold, int_minmax_to_med3, ptr_add_immed_chain,
    fp_minmax_to_clamp, fp_minmax_to_med3, fmed3_intrinsic_to_clamp]> {
 }

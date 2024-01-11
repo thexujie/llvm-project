@@ -2698,16 +2698,44 @@ void AMDGPURegisterBankInfo::applyMappingImpl(
   case AMDGPU::G_SEXT:
   case AMDGPU::G_ZEXT:
   case AMDGPU::G_ANYEXT: {
+    Register DstReg = MI.getOperand(0).getReg();
     Register SrcReg = MI.getOperand(1).getReg();
     LLT SrcTy = MRI.getType(SrcReg);
     const bool Signed = Opc == AMDGPU::G_SEXT;
+
+    const LLT S16 = LLT::scalar(16);
+    const LLT S32 = LLT::scalar(32);
+    const LLT S64 = LLT::scalar(64);
 
     assert(OpdMapper.getVRegs(1).empty());
 
     const RegisterBank *SrcBank =
       OpdMapper.getInstrMapping().getOperandMapping(1).BreakDown[0].RegBank;
 
-    Register DstReg = MI.getOperand(0).getReg();
+    LLT SelType = MRI.getType(DstReg);
+
+    // Extending SGPR S1 to S16/32/64.
+    if (SrcBank == &AMDGPU::SGPRRegBank &&
+        MRI.getType(SrcReg) == LLT::scalar(1)) {
+      assert(SelType == S32 || SelType == S16 || SelType == S64);
+      B.setInstrAndDebugLoc(MI);
+
+      Register False = B.buildConstant(SelType, 0).getReg(0);
+      MRI.setRegBank(False, AMDGPU::SGPRRegBank);
+
+      Register True = B.buildConstant(SelType, Signed ? -1 : 1).getReg(0);
+      MRI.setRegBank(True, AMDGPU::SGPRRegBank);
+
+      Register SrcExt = B.buildZExt(S32, SrcReg).getReg(0);
+      MRI.setRegBank(SrcExt, AMDGPU::SGPRRegBank);
+
+      B.buildSelect(DstReg, SrcExt, True, False);
+      MRI.setRegBank(DstReg, *SrcBank);
+
+      MI.eraseFromParent();
+      return;
+    }
+
     LLT DstTy = MRI.getType(DstReg);
     if (DstTy.isScalar() &&
         SrcBank != &AMDGPU::SGPRRegBank &&
@@ -2751,7 +2779,7 @@ void AMDGPURegisterBankInfo::applyMappingImpl(
         SrcBank->getID() == AMDGPU::SGPRRegBankID;
 
       // TODO: Should s16 select be legal?
-      LLT SelType = UseSel64 ? LLT::scalar(64) : LLT::scalar(32);
+      LLT SelType = UseSel64 ? S64 : S32;
       auto True = B.buildConstant(SelType, Signed ? -1 : 1);
       auto False = B.buildConstant(SelType, 0);
 
