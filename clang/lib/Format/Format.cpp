@@ -757,6 +757,10 @@ struct ScalarEnumerationTraits<FormatStyle::SpacesInParensCustomStyle> {
     IO.enumCase(Value, "Never", FormatStyle::SIPCS_Never);
     IO.enumCase(Value, "NonConsecutive", FormatStyle::SIPCS_NonConsecutive);
     IO.enumCase(Value, "Always", FormatStyle::SIPCS_Always);
+
+    // For backward compatibility.
+    IO.enumCase(Value, "true", FormatStyle::SIPCS_Always);
+    IO.enumCase(Value, "false", FormatStyle::SIPCS_Never);
   }
 };
 
@@ -1201,23 +1205,27 @@ template <> struct MappingTraits<FormatStyle> {
     if (Style.SpacesInParens != FormatStyle::SIPO_Custom &&
         (SpacesInParentheses || SpaceInEmptyParentheses ||
          SpacesInConditionalStatement || SpacesInCStyleCastParentheses)) {
+      const auto CoerceBooleanToSIPCS = [](const bool enabled) {
+        return enabled ? FormatStyle::SIPCS_Always : FormatStyle::SIPCS_Never;
+      };
       if (SpacesInParentheses) {
         // set all options except InCStyleCasts and InEmptyParentheses
-        // to true for backward compatibility.
+        // to true/Always for backward compatibility.
         Style.SpacesInParensOptions.InAttributeSpecifiers =
             FormatStyle::SIPCS_Always;
-        Style.SpacesInParensOptions.InConditionalStatements = true;
+        Style.SpacesInParensOptions.InConditionalStatements =
+            FormatStyle::SIPCS_Always;
         Style.SpacesInParensOptions.InCStyleCasts =
-            SpacesInCStyleCastParentheses;
+            CoerceBooleanToSIPCS(SpacesInCStyleCastParentheses);
         Style.SpacesInParensOptions.InEmptyParentheses =
             SpaceInEmptyParentheses;
-        Style.SpacesInParensOptions.Other = true;
+        Style.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
       } else {
         Style.SpacesInParensOptions = {};
         Style.SpacesInParensOptions.InConditionalStatements =
-            SpacesInConditionalStatement;
+            CoerceBooleanToSIPCS(SpacesInConditionalStatement);
         Style.SpacesInParensOptions.InCStyleCasts =
-            SpacesInCStyleCastParentheses;
+            CoerceBooleanToSIPCS(SpacesInCStyleCastParentheses);
         Style.SpacesInParensOptions.InEmptyParentheses =
             SpaceInEmptyParentheses;
       }

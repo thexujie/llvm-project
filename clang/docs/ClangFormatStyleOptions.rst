@@ -5689,7 +5689,7 @@ the configuration (without a prefix: ``Auto``).
     SpacesInParens: Custom
     SpacesInParensOptions:
       InAttributeSpecifiers: NonConsecutive
-      InConditionalStatements: true
+      InConditionalStatements: Always
       InEmptyParentheses: true
 
   Nested configuration flags:
@@ -5714,13 +5714,13 @@ the configuration (without a prefix: ``Auto``).
 
     .. code-block:: c++
 
-      NonConsecutive:
-      _attribute__(( noreturn ))
+       NonConsecutive:
+       _attribute__(( noreturn ))
 
     .. code-block:: c++
 
-      Never:
-      _attribute__((noreturn))
+       Never:
+       _attribute__((noreturn))
 
     Possible values:
 
@@ -5734,21 +5734,72 @@ the configuration (without a prefix: ``Auto``).
       Always put spaces in parens.
 
 
-  * ``bool InConditionalStatements`` Put a space in parentheses only inside conditional statements
+  * ``SpacesInParensCustomStyle InConditionalStatements``
+    Put a space in parentheses only inside conditional statements
     (``for/if/while/switch...``).
 
     .. code-block:: c++
 
-       true:                                  false:
-       if ( a )  { ... }              vs.     if (a) { ... }
-       while ( i < 5 )  { ... }               while (i < 5) { ... }
-
-  * ``bool InCStyleCasts`` Put a space in C style casts.
+       Always:
+       if ( ( a ) )  { ... }
+       while ( i < 5 )  { ... }
 
     .. code-block:: c++
 
-       true:                                  false:
-       x = ( int32 )y                 vs.     x = (int32)y
+      NonConsecutive:
+      if (( a )) { ... }
+      while ( i < 5 ) { ... }
+
+    .. code-block:: c++
+
+      Never:
+      if ((a)) { ... }
+      while (i < 5) { ... }
+
+    Possible values:
+
+    * ``SIPCS_Never`` (in configuration: ``Never``)
+      Never put spaces in parens.
+
+    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
+      Only put spaces in parens not followed by the same consecutive parens.
+
+    * ``SIPCS_Always`` (in configuration: ``Always``)
+      Always put spaces in parens.
+
+
+  * ``SpacesInParensCustomStyle InCStyleCasts``
+    Put a space in C style casts.
+
+    .. code-block:: c++
+
+      Always:                                  false:
+      x = ( int32 )y                 vs.     x = (int32)y
+      y = (( int (*)(int) )foo)(x);
+
+    .. code-block:: c++
+
+      NonConsecutive:
+      x = ( int32 )y
+      y = ((int (*)(int))foo)(x);
+
+    .. code-block:: c++
+
+      Never:
+      x = (int32)y
+      y = ((int (*)(int))foo)(x);
+
+    Possible values:
+
+    * ``SIPCS_Never`` (in configuration: ``Never``)
+      Never put spaces in parens.
+
+    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
+      Only put spaces in parens not followed by the same consecutive parens.
+
+    * ``SIPCS_Always`` (in configuration: ``Always``)
+      Always put spaces in parens.
+
 
   * ``bool InEmptyParentheses`` Put a space in parentheses only if the parentheses are empty i.e. '()'
 
@@ -5762,12 +5813,44 @@ the configuration (without a prefix: ``Auto``).
          }                                    }
        }                                    }
 
-  * ``bool Other`` Put a space in parentheses not covered by preceding options.
+  * ``SpacesInParensCustomStyle Other``
+    Put a space in parentheses not covered by preceding options.
 
     .. code-block:: c++
 
-       true:                                  false:
-       t f( Deleted & ) & = delete;   vs.     t f(Deleted &) & = delete;
+      Always:
+      t f( Deleted & ) & = delete;
+      decltype( ( x ) )
+      x = ( (int32)y )
+      y = ( (int ( * )( int ))foo )( x );
+
+    .. code-block:: c++
+
+      NonConsecutive:
+      t f( Deleted & ) & = delete;
+      decltype(( x ))
+      x = ((int32))y
+      y = ((int ( * )( int ))foo)( x );
+
+    .. code-block:: c++
+
+      Never:
+      t f(Deleted &) & = delete;
+      decltype((x))
+      x = ((int32))y
+      y = ((int (*)(int))foo)(x);
+
+    Possible values:
+
+    * ``SIPCS_Never`` (in configuration: ``Never``)
+      Never put spaces in parens.
+
+    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
+      Only put spaces in parens not followed by the same consecutive parens.
+
+    * ``SIPCS_Always`` (in configuration: ``Always``)
+      Always put spaces in parens.
+
 
 
 .. _SpacesInParentheses:

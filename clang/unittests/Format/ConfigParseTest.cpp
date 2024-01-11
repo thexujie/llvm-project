@@ -232,10 +232,6 @@ TEST(ConfigParseTest, ParsesConfigurationBools) {
   CHECK_PARSE_NESTED_BOOL(SpaceBeforeParensOptions, AfterIfMacros);
   CHECK_PARSE_NESTED_BOOL(SpaceBeforeParensOptions, AfterOverloadedOperator);
   CHECK_PARSE_NESTED_BOOL(SpaceBeforeParensOptions, BeforeNonEmptyParentheses);
-  CHECK_PARSE_NESTED_BOOL(SpacesInParensOptions, InCStyleCasts);
-  CHECK_PARSE_NESTED_BOOL(SpacesInParensOptions, InConditionalStatements);
-  CHECK_PARSE_NESTED_BOOL(SpacesInParensOptions, InEmptyParentheses);
-  CHECK_PARSE_NESTED_BOOL(SpacesInParensOptions, Other);
 }
 
 #undef CHECK_PARSE_BOOL
@@ -627,20 +623,32 @@ TEST(ConfigParseTest, ParsesConfiguration) {
               SpaceBeforeParensOptions.AfterPlacementOperator,
               FormatStyle::SpaceBeforeParensCustom::APO_Leave);
 
-  Style.SpacesInParens = FormatStyle::SIPO_Custom;
-  Style.SpacesInParensOptions.InAttributeSpecifiers = FormatStyle::SIPCS_Never;
-  CHECK_PARSE("SpacesInParensOptions:\n"
-              "  InAttributeSpecifiers: Always",
-              SpacesInParensOptions.InAttributeSpecifiers,
-              FormatStyle::SIPCS_Always);
-  CHECK_PARSE("SpacesInParensOptions:\n"
-              "  InAttributeSpecifiers: Never",
-              SpacesInParensOptions.InAttributeSpecifiers,
-              FormatStyle::SIPCS_Never);
-  CHECK_PARSE("SpacesInParensOptions:\n"
-              "  InAttributeSpecifiers: NonConsecutive",
-              SpacesInParensOptions.InAttributeSpecifiers,
-              FormatStyle::SIPCS_NonConsecutive);
+#define CHECK_SPACES_IN_PARENS_OPTIONS(FIELD)                                  \
+  do {                                                                         \
+    Style.SpacesInParens = FormatStyle::SIPO_Custom;                           \
+    Style.SpacesInParensOptions.FIELD = FormatStyle::SIPCS_Never;              \
+    CHECK_PARSE("SpacesInParensOptions:\n  " #FIELD ": Always",                \
+                SpacesInParensOptions.FIELD, FormatStyle::SIPCS_Always);       \
+    CHECK_PARSE("SpacesInParensOptions:\n  " #FIELD ": Never",                 \
+                SpacesInParensOptions.FIELD, FormatStyle::SIPCS_Never);        \
+    CHECK_PARSE("SpacesInParensOptions:\n  " #FIELD ": NonConsecutive",        \
+                SpacesInParensOptions.FIELD,                                   \
+                FormatStyle::SIPCS_NonConsecutive);                            \
+    /* For backwards compatibility */                                          \
+    CHECK_PARSE("SpacesInParensOptions:\n  " #FIELD ": false",                 \
+                SpacesInParensOptions.FIELD, FormatStyle::SIPCS_Never);        \
+    CHECK_PARSE("SpacesInParensOptions:\n  " #FIELD ": true",                  \
+                SpacesInParensOptions.FIELD, FormatStyle::SIPCS_Always);       \
+  } while (false)
+
+  CHECK_SPACES_IN_PARENS_OPTIONS(InAttributeSpecifiers);
+  CHECK_SPACES_IN_PARENS_OPTIONS(InConditionalStatements);
+  CHECK_SPACES_IN_PARENS_OPTIONS(InCStyleCasts);
+  CHECK_PARSE_NESTED_BOOL(SpacesInParensOptions, InEmptyParentheses);
+  CHECK_SPACES_IN_PARENS_OPTIONS(Other);
+
+#undef CHECK_SPACES_IN_PARENS_OPTIONS
+
   // For backward compatibility:
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
@@ -649,23 +657,27 @@ TEST(ConfigParseTest, ParsesConfiguration) {
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Always, true,
-                  false, false, true));
+              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Always,
+              FormatStyle::SIPCS_Always, FormatStyle::SIPCS_Never, false,
+              FormatStyle::SIPCS_Always));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInConditionalStatement: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never, true,
-                  false, false, false));
+              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
+              FormatStyle::SIPCS_Always, FormatStyle::SIPCS_Never, false,
+              FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInCStyleCastParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never, false,
-                  true, false, false));
+              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
+              FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Always, false,
+              FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpaceInEmptyParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never, false,
-                  false, true, false));
+              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
+              FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Never, true,
+              FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
 

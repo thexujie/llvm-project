@@ -11174,14 +11174,14 @@ TEST_F(FormatTest, UnderstandsFunctionRefQualification) {
   FormatStyle Spaces = getLLVMStyle();
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
-  Spaces.SpacesInParensOptions.InCStyleCasts = true;
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Always;
   verifyFormat("Deleted &operator=(const Deleted &) & = default;", Spaces);
   verifyFormat("SomeType MemberFunction(const Deleted &) & = delete;", Spaces);
   verifyFormat("Deleted &operator=(const Deleted &) &;", Spaces);
   verifyFormat("SomeType MemberFunction(const Deleted &) &;", Spaces);
 
-  Spaces.SpacesInParensOptions.InCStyleCasts = false;
-  Spaces.SpacesInParensOptions.Other = true;
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Never;
+  Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
   verifyFormat("Deleted &operator=( const Deleted & ) & = default;", Spaces);
   verifyFormat("SomeType MemberFunction( const Deleted & ) & = delete;",
                Spaces);
@@ -13747,7 +13747,7 @@ TEST_F(FormatTest, LayoutCxx11BraceInitializers) {
   FormatStyle SpaceBetweenBraces = getLLVMStyle();
   SpaceBetweenBraces.SpacesInAngles = FormatStyle::SIAS_Always;
   SpaceBetweenBraces.SpacesInParens = FormatStyle::SIPO_Custom;
-  SpaceBetweenBraces.SpacesInParensOptions.Other = true;
+  SpaceBetweenBraces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
   SpaceBetweenBraces.SpacesInSquareBrackets = true;
   verifyFormat("vector< int > x{ 1, 2, 3, 4 };", SpaceBetweenBraces);
   verifyFormat("f( {}, { {}, {} }, MyMap[ { k, v } ] );", SpaceBetweenBraces);
@@ -16831,8 +16831,9 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
-  Spaces.SpacesInParensOptions.Other = true;
-  Spaces.SpacesInParensOptions.InConditionalStatements = true;
+  Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
+  Spaces.SpacesInParensOptions.InConditionalStatements =
+      FormatStyle::SIPCS_Always;
   Spaces.SpacesInParensOptions.InAttributeSpecifiers =
       FormatStyle::SIPCS_Always;
   verifyFormat("do_something( ::globalVar );", Spaces);
@@ -16867,7 +16868,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
-  Spaces.SpacesInParensOptions.InCStyleCasts = true;
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Always;
   verifyFormat("Type *A = ( Type * )P;", Spaces);
   verifyFormat("Type *A = ( vector<Type *, int *> )P;", Spaces);
   verifyFormat("x = ( int32 )y;", Spaces);
@@ -16881,7 +16882,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
   Spaces.SpacesInParensOptions = {};
   Spaces.SpacesInParensOptions.InEmptyParentheses = true;
-  Spaces.SpacesInParensOptions.InCStyleCasts = true;
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Always;
   verifyFormat("call(x, y, z);", Spaces);
   verifyFormat("call( );", Spaces);
   verifyFormat("std::function<void(int, int)> callback;", Spaces);
@@ -16957,7 +16958,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("void f( ) __attribute__((asdf));", Spaces);
 
   // Run subset of tests again with:
-  Spaces.SpacesInParensOptions.InCStyleCasts = false;
+  Spaces.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Never;
   Spaces.SpaceAfterCStyleCast = true;
   verifyFormat("while ((bool) 1)\n"
                "  continue;",
@@ -24095,10 +24096,10 @@ TEST_F(FormatTest, AtomicQualifier) {
   verifyFormat("vector<_Atomic(uint64_t)* attr> x;", Style);
 
   Style.SpacesInParens = FormatStyle::SIPO_Custom;
-  Style.SpacesInParensOptions.InCStyleCasts = true;
+  Style.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Always;
   verifyFormat("x = ( _Atomic(uint64_t) )*a;", Style);
-  Style.SpacesInParensOptions.InCStyleCasts = false;
-  Style.SpacesInParensOptions.Other = true;
+  Style.SpacesInParensOptions.InCStyleCasts = FormatStyle::SIPCS_Never;
+  Style.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
   verifyFormat("x = (_Atomic( uint64_t ))*a;", Style);
   verifyFormat("x = (_Atomic( uint64_t ))&a;", Style);
 }
@@ -24162,7 +24163,8 @@ TEST_F(FormatTest, SpacesInConditionalStatement) {
   Spaces.IfMacros.clear();
   Spaces.IfMacros.push_back("MYIF");
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
-  Spaces.SpacesInParensOptions.InConditionalStatements = true;
+  Spaces.SpacesInParensOptions.InConditionalStatements =
+      FormatStyle::SIPCS_Always;
   verifyFormat("for ( int i = 0; i; i++ )\n  continue;", Spaces);
   verifyFormat("if ( !a )\n  return;", Spaces);
   verifyFormat("if ( a )\n  return;", Spaces);

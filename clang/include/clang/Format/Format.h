@@ -4558,28 +4558,49 @@ struct FormatStyle {
     ///    __attribute__( ( noreturn ) )
     /// \endcode
     /// \code
-    ///   NonConsecutive:
-    ///   _attribute__(( noreturn ))
+    ///    NonConsecutive:
+    ///    _attribute__(( noreturn ))
     /// \endcode
     /// \code
-    ///   Never:
-    ///   _attribute__((noreturn))
+    ///    Never:
+    ///    _attribute__((noreturn))
     /// \endcode
     SpacesInParensCustomStyle InAttributeSpecifiers;
     /// Put a space in parentheses only inside conditional statements
     /// (``for/if/while/switch...``).
     /// \code
-    ///    true:                                  false:
-    ///    if ( a )  { ... }              vs.     if (a) { ... }
-    ///    while ( i < 5 )  { ... }               while (i < 5) { ... }
+    ///    Always:
+    ///    if ( ( a ) )  { ... }
+    ///    while ( i < 5 )  { ... }
     /// \endcode
-    bool InConditionalStatements;
+    /// \code
+    ///   NonConsecutive:
+    ///   if (( a )) { ... }
+    ///   while ( i < 5 ) { ... }
+    /// \endcode
+    /// \code
+    ///   Never:
+    ///   if ((a)) { ... }
+    ///   while (i < 5) { ... }
+    /// \endcode
+    SpacesInParensCustomStyle InConditionalStatements;
     /// Put a space in C style casts.
     /// \code
-    ///    true:                                  false:
-    ///    x = ( int32 )y                 vs.     x = (int32)y
+    ///   Always:                                  false:
+    ///   x = ( int32 )y                 vs.     x = (int32)y
+    ///   y = (( int (*)(int) )foo)(x);
     /// \endcode
-    bool InCStyleCasts;
+    /// \code
+    ///   NonConsecutive:
+    ///   x = ( int32 )y
+    ///   y = ((int (*)(int))foo)(x);
+    /// \endcode
+    /// \code
+    ///   Never:
+    ///   x = (int32)y
+    ///   y = ((int (*)(int))foo)(x);
+    /// \endcode
+    SpacesInParensCustomStyle InCStyleCasts;
     /// Put a space in parentheses only if the parentheses are empty i.e. '()'
     /// \code
     ///    true:                                false:
@@ -4593,18 +4614,39 @@ struct FormatStyle {
     bool InEmptyParentheses;
     /// Put a space in parentheses not covered by preceding options.
     /// \code
-    ///    true:                                  false:
-    ///    t f( Deleted & ) & = delete;   vs.     t f(Deleted &) & = delete;
+    ///   Always:
+    ///   t f( Deleted & ) & = delete;
+    ///   decltype( ( x ) )
+    ///   x = ( (int32)y )
+    ///   y = ( (int ( * )( int ))foo )( x );
     /// \endcode
-    bool Other;
+    /// \code
+    ///   NonConsecutive:
+    ///   t f( Deleted & ) & = delete;
+    ///   decltype(( x ))
+    ///   x = ((int32))y
+    ///   y = ((int ( * )( int ))foo)( x );
+    /// \endcode
+    /// \code
+    ///   Never:
+    ///   t f(Deleted &) & = delete;
+    ///   decltype((x))
+    ///   x = ((int32))y 
+    ///   y = ((int (*)(int))foo)(x);
+    /// \endcode
+    SpacesInParensCustomStyle Other;
 
     SpacesInParensCustom()
-        : InAttributeSpecifiers(SIPCS_Never), InConditionalStatements(false),
-          InCStyleCasts(false), InEmptyParentheses(false), Other(false) {}
+        : InAttributeSpecifiers(SIPCS_Never),
+          InConditionalStatements(SIPCS_Never),
+          InCStyleCasts(SIPCS_Never), InEmptyParentheses(false),
+          Other(SIPCS_Never) {}
 
     SpacesInParensCustom(SpacesInParensCustomStyle InAttributeSpecifiers,
-                         bool InConditionalStatements, bool InCStyleCasts,
-                         bool InEmptyParentheses, bool Other)
+                         SpacesInParensCustomStyle InConditionalStatements,
+                         SpacesInParensCustomStyle InCStyleCasts,
+                         bool InEmptyParentheses,
+                         SpacesInParensCustomStyle Other)
         : InAttributeSpecifiers(InAttributeSpecifiers),
           InConditionalStatements(InConditionalStatements),
           InCStyleCasts(InCStyleCasts), InEmptyParentheses(InEmptyParentheses),
@@ -4631,7 +4673,7 @@ struct FormatStyle {
   ///   SpacesInParens: Custom
   ///   SpacesInParensOptions:
   ///     InAttributeSpecifiers: NonConsecutive
-  ///     InConditionalStatements: true
+  ///     InConditionalStatements: Always
   ///     InEmptyParentheses: true
   /// \endcode
   /// \version 17
