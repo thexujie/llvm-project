@@ -4006,9 +4006,9 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     const auto AddSpace = [&](FormatStyle::SpacesInParensCustomStyle Option) {
       if (Option == FormatStyle::SIPCS_Always)
         return true;
-      if (Option == FormatStyle::SIPCS_NonConsecutive) {
-        if (NotConsecutiveParens(LeftParen, RightParen))
-          return true;
+      if (Option == FormatStyle::SIPCS_NonConsecutive &&
+          NotConsecutiveParens(LeftParen, RightParen)) {
+        return true;
       }
       return false;
     };
