@@ -3970,30 +3970,6 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
        Right.is(tok::r_brace) && Right.isNot(BK_Block))) {
     return Style.SpacesInParensOptions.InEmptyParentheses;
   }
-  if (Style.SpacesInParensOptions.InConditionalStatements !=
-      FormatStyle::SIPCS_Never) {
-    const FormatToken *LeftParen = nullptr;
-    if (Left.is(tok::l_paren))
-      LeftParen = &Left;
-    else if (Right.is(tok::r_paren) && Right.MatchingParen)
-      LeftParen = Right.MatchingParen;
-    if (LeftParen) {
-      if (LeftParen->is(TT_ConditionLParen) || (LeftParen->Previous &&
-              isKeywordWithCondition(*LeftParen->Previous))) {
-        if (Style.SpacesInParensOptions.InConditionalStatements ==
-            FormatStyle::SIPCS_Always) {
-          return true;
-        }
-        // check for non-repeated parens
-        const FormatToken *RightParen = LeftParen->MatchingParen;
-        if (LeftParen->Next && LeftParen->Next->isNot(tok::l_paren) &&
-            RightParen && RightParen->Previous &&
-            RightParen->Previous->isNot(tok::r_paren)) {
-          return true;
-        }
-      }
-    }
-  }
 
   // trailing return type 'auto': []() -> auto {}, auto foo() -> auto {}
   if (Left.is(tok::kw_auto) && Right.isOneOf(TT_LambdaLBrace, TT_FunctionLBrace,
@@ -4017,26 +3993,45 @@ bool TokenAnnotator::spaceRequiredBetween(const AnnotatedLine &Line,
     return true;
   }
 
-  // TODO: check consecutive parens
   if (Left.is(tok::l_paren) || Right.is(tok::r_paren)) {
-    if (Right.is(TT_CastRParen) ||
-        (Left.MatchingParen && Left.MatchingParen->is(TT_CastRParen))) {
-      return Style.SpacesInParensOptions.InCStyleCasts !=
-             FormatStyle::SIPCS_Never;
+    const FormatToken *LeftParen =
+        Left.is(tok::l_paren) ? &Left : Right.MatchingParen;
+    const FormatToken *RightParen =
+        LeftParen ? LeftParen->MatchingParen : nullptr;
+
+    auto NotConsecutiveParens = [&](auto *Left, auto *Right) {
+      return Left && Left->Next && Left->Next->isNot(tok::l_paren) && Right &&
+             Right->Previous && Right->Previous->isNot(tok::r_paren);
+    };
+    const auto AddSpace = [&](FormatStyle::SpacesInParensCustomStyle Option) {
+      if (Option == FormatStyle::SIPCS_Always)
+        return true;
+      if (Option == FormatStyle::SIPCS_NonConsecutive) {
+        if (NotConsecutiveParens(LeftParen, RightParen))
+          return true;
+      }
+      return false;
+    };
+
+    if (LeftParen && (LeftParen->is(TT_ConditionLParen) ||
+                      (LeftParen->Previous &&
+                       isKeywordWithCondition(*LeftParen->Previous)))) {
+      return AddSpace(Style.SpacesInParensOptions.InConditionalStatements);
     }
-    const auto isAttributeParen = [](const FormatToken *Paren) {
+    if (RightParen && RightParen->is(TT_CastRParen))
+      return AddSpace(Style.SpacesInParensOptions.InCStyleCasts);
+    const auto IsAttributeParen = [](const FormatToken *Paren) {
       return Paren && Paren->isOneOf(TT_AttributeLParen, TT_AttributeRParen);
     };
-    if (isAttributeParen(&Left) || isAttributeParen(&Right)) {
-      return Style.SpacesInParensOptions.InAttributeSpecifiers ==
-             FormatStyle::SIPCS_Always;
+    if (IsAttributeParen(LeftParen) || IsAttributeParen(RightParen))
+      return AddSpace(Style.SpacesInParensOptions.InAttributeSpecifiers);
+    if ((LeftParen && IsAttributeParen(LeftParen->Previous)) ||
+        (RightParen && IsAttributeParen(RightParen->Next))) {
+      return AddSpace(Style.SpacesInParensOptions.InAttributeSpecifiers);
     }
-    if (isAttributeParen(Left.Previous) || isAttributeParen(Right.Next)) {
-      return Style.SpacesInParensOptions.InAttributeSpecifiers !=
-             FormatStyle::SIPCS_Never;
-    }
-    return Style.SpacesInParensOptions.Other != FormatStyle::SIPCS_Never;
+    return AddSpace(Style.SpacesInParensOptions.Other);
   }
+
   if (Right.isOneOf(tok::semi, tok::comma))
     return false;
   if (Right.is(tok::less) && Line.Type == LT_ObjCDecl) {
