@@ -5773,8 +5773,8 @@ the configuration (without a prefix: ``Auto``).
 
     .. code-block:: c++
 
-      Always:                                  false:
-      x = ( int32 )y                 vs.     x = (int32)y
+      Always:
+      x = ( int32 )y
       y = (( int (*)(int) )foo)(x);
 
     .. code-block:: c++

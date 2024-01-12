@@ -4586,8 +4586,8 @@ struct FormatStyle {
     SpacesInParensCustomStyle InConditionalStatements;
     /// Put a space in C style casts.
     /// \code
-    ///   Always:                                  false:
-    ///   x = ( int32 )y                 vs.     x = (int32)y
+    ///   Always:
+    ///   x = ( int32 )y
     ///   y = (( int (*)(int) )foo)(x);
     /// \endcode
     /// \code
