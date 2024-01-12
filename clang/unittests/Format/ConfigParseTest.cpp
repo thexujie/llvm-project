@@ -657,27 +657,27 @@ TEST(ConfigParseTest, ParsesConfiguration) {
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Always,
-              FormatStyle::SIPCS_Always, FormatStyle::SIPCS_Never, false,
-              FormatStyle::SIPCS_Always));
+              FormatStyle::SpacesInParensCustom(
+                  FormatStyle::SIPCS_Always, FormatStyle::SIPCS_Always,
+                  FormatStyle::SIPCS_Never, false, FormatStyle::SIPCS_Always));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInConditionalStatement: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
-              FormatStyle::SIPCS_Always, FormatStyle::SIPCS_Never, false,
-              FormatStyle::SIPCS_Never));
+              FormatStyle::SpacesInParensCustom(
+                  FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Always,
+                  FormatStyle::SIPCS_Never, false, FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpacesInCStyleCastParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
-              FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Always, false,
-              FormatStyle::SIPCS_Never));
+              FormatStyle::SpacesInParensCustom(
+                  FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Never,
+                  FormatStyle::SIPCS_Always, false, FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
   CHECK_PARSE("SpaceInEmptyParentheses: true", SpacesInParensOptions,
-              FormatStyle::SpacesInParensCustom(FormatStyle::SIPCS_Never,
-              FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Never, true,
-              FormatStyle::SIPCS_Never));
+              FormatStyle::SpacesInParensCustom(
+                  FormatStyle::SIPCS_Never, FormatStyle::SIPCS_Never,
+                  FormatStyle::SIPCS_Never, true, FormatStyle::SIPCS_Never));
   Style.SpacesInParens = FormatStyle::SIPO_Never;
   Style.SpacesInParensOptions = {};
 
