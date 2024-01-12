@@ -17082,7 +17082,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
       FormatStyle::SIPCS_NonConsecutive;
   verifyFormat("SomeType *__attribute__(( attr )) *a = NULL;", Spaces);
   verifyFormat("void __attribute__(( naked )) foo(int bar)", Spaces);
-  verifyFormat("void f() __attribute__(( asdf ));", Spaces); 
+  verifyFormat("void f() __attribute__(( asdf ));", Spaces);
   Spaces.SpacesInParensOptions.InAttributeSpecifiers = FormatStyle::SIPCS_Never;
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
@@ -17099,7 +17099,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
   verifyFormat("y = ((int (*)(int))foo)(x);", Spaces);
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
-  Spaces.SpacesInParensOptions = {}; 
+  Spaces.SpacesInParensOptions = {};
   Spaces.SpacesInParensOptions.InConditionalStatements =
       FormatStyle::SIPCS_Always;
   verifyFormat("while ( (bool)1 )\n"
@@ -17201,7 +17201,7 @@ TEST_F(FormatTest, ConfigurableSpacesInParens) {
                Spaces);
 
   Spaces.SpacesInParens = FormatStyle::SIPO_Custom;
-  Spaces.SpacesInParensOptions = {}; 
+  Spaces.SpacesInParensOptions = {};
   Spaces.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
   verifyFormat("decltype( x ) y = 42;", Spaces);
   verifyFormat("decltype( ( x ) ) y = z;", Spaces);
