@@ -7790,10 +7790,10 @@ SDValue RISCVTargetLowering::lowerINSERT_VECTOR_ELT(SDValue Op,
 
   // If we know the index we're going to insert at, we can shrink Vec so that
   // we're performing the scalar inserts and slideup on a smaller LMUL.
-  MVT OrigContainerVT = ContainerVT;
-  SDValue OrigVec = Vec;
-  SDValue AlignedIdx;
   if (auto *IdxC = dyn_cast<ConstantSDNode>(Idx)) {
+    MVT OrigContainerVT = ContainerVT;
+    SDValue OrigVec = Vec;
+    SDValue AlignedIdx;
     const unsigned OrigIdx = IdxC->getZExtValue();
     // Do we know an upper bound on LMUL?
     if (auto ShrunkVT = getSmallestVTForIndex(ContainerVT, OrigIdx,
@@ -7820,9 +7820,17 @@ SDValue RISCVTargetLowering::lowerINSERT_VECTOR_ELT(SDValue Op,
       ContainerVT = M1VT;
     }
 
-    if (AlignedIdx)
+    if (AlignedIdx) {
       Vec = DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, ContainerVT, Vec,
                         AlignedIdx);
+      Vec = DAG.getNode(ISD::INSERT_VECTOR_ELT, DL, ContainerVT, Vec,
+                        Val, Idx);
+      Vec = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, OrigContainerVT, OrigVec,
+                        Vec, AlignedIdx);
+      if (!VecVT.isFixedLengthVector())
+        return Vec;
+      return convertFromScalableVector(VecVT, Vec, DAG, Subtarget);
+    }
   }
 
   MVT XLenVT = Subtarget.getXLenVT();
@@ -7851,10 +7859,6 @@ SDValue RISCVTargetLowering::lowerINSERT_VECTOR_ELT(SDValue Op,
       if (!VecVT.isFloatingPoint())
         Val = DAG.getNode(ISD::ANY_EXTEND, DL, XLenVT, Val);
       Vec = DAG.getNode(Opc, DL, ContainerVT, Vec, Val, VL);
-
-      if (AlignedIdx)
-        Vec = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, OrigContainerVT, OrigVec,
-                          Vec, AlignedIdx);
       if (!VecVT.isFixedLengthVector())
         return Vec;
       return convertFromScalableVector(VecVT, Vec, DAG, Subtarget);
@@ -7886,11 +7890,6 @@ SDValue RISCVTargetLowering::lowerINSERT_VECTOR_ELT(SDValue Op,
                              Tail, ValInVec, ValHi, I32Mask, InsertI64VL);
       // Bitcast back to the right container type.
       ValInVec = DAG.getBitcast(ContainerVT, ValInVec);
-
-      if (AlignedIdx)
-        ValInVec =
-            DAG.getNode(ISD::INSERT_SUBVECTOR, DL, OrigContainerVT, OrigVec,
-                        ValInVec, AlignedIdx);
       if (!VecVT.isFixedLengthVector())
         return ValInVec;
       return convertFromScalableVector(VecVT, ValInVec, DAG, Subtarget);
@@ -7921,9 +7920,6 @@ SDValue RISCVTargetLowering::lowerINSERT_VECTOR_ELT(SDValue Op,
   SDValue Slideup = getVSlideup(DAG, Subtarget, DL, ContainerVT, Vec, ValInVec,
                                 Idx, Mask, InsertVL, Policy);
 
-  if (AlignedIdx)
-    Slideup = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, OrigContainerVT, OrigVec,
-                          Slideup, AlignedIdx);
   if (!VecVT.isFixedLengthVector())
     return Slideup;
   return convertFromScalableVector(VecVT, Slideup, DAG, Subtarget);
