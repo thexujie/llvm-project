@@ -484,6 +484,7 @@ regex typeinfo
 regex vector
 regex version
 scoped_allocator cstddef
+scoped_allocator cstdint
 scoped_allocator limits
 scoped_allocator new
 scoped_allocator tuple
@@ -662,6 +663,7 @@ unordered_set tuple
 unordered_set version
 utility compare
 utility cstddef
+utility cstdint
 utility initializer_list
 utility limits
 utility version
