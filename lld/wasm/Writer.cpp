@@ -732,6 +732,8 @@ static bool shouldImport(Symbol *sym) {
   if (config->shared && sym->isWeak() && !sym->isUndefined() &&
       !sym->isHidden())
     return true;
+  if (sym->isShared())
+    return true;
   if (!sym->isUndefined())
     return false;
   if (sym->isWeak() && !config->relocatable && !config->isPic)
@@ -789,8 +791,11 @@ void Writer::calculateExports() {
       continue;
     if (!sym->isLive())
       continue;
+    if (isa<SharedFunctionSymbol>(sym) || sym->isShared())
+      continue;
 
     StringRef name = sym->getName();
+    LLVM_DEBUG(dbgs() << "Export: " << name << "\n");
     WasmExport export_;
     if (auto *f = dyn_cast<DefinedFunction>(sym)) {
       if (std::optional<StringRef> exportName = f->function->getExportName()) {
@@ -818,7 +823,6 @@ void Writer::calculateExports() {
       export_ = {name, WASM_EXTERNAL_TABLE, t->getTableNumber()};
     }
 
-    LLVM_DEBUG(dbgs() << "Export: " << name << "\n");
     out.exportSec->exports.push_back(export_);
     out.exportSec->exportedSymbols.push_back(sym);
   }
@@ -829,7 +833,7 @@ void Writer::populateSymtab() {
     return;
 
   for (Symbol *sym : symtab->symbols())
-    if (sym->isUsedInRegularObj && sym->isLive())
+    if (sym->isUsedInRegularObj && sym->isLive() && !sym->isShared())
       out.linkingSec->addToSymtab(sym);
 
   for (ObjFile *file : symtab->objectFiles) {

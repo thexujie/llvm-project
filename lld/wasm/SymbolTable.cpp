@@ -34,6 +34,7 @@ void SymbolTable::addFile(InputFile *file, StringRef symName) {
 
   // .so file
   if (auto *f = dyn_cast<SharedFile>(file)) {
+    f->parse();
     sharedFiles.push_back(f);
     return;
   }
@@ -305,11 +306,86 @@ static bool shouldReplace(const Symbol *existing, InputFile *newFile,
     return true;
   }
 
+  // Similarly with shared symbols
+  if (existing->isShared()) {
+    LLVM_DEBUG(dbgs() << "replacing existing shared symbol\n");
+    return true;
+  }
+
   // Neither symbol is week. They conflict.
   error("duplicate symbol: " + toString(*existing) + "\n>>> defined in " +
         toString(existing->getFile()) + "\n>>> defined in " +
         toString(newFile));
   return true;
+}
+
+Symbol *SymbolTable::addSharedFunction(StringRef name, uint32_t flags,
+                                       InputFile *file,
+                                       const WasmSignature *sig) {
+  LLVM_DEBUG(dbgs() << "addSharedFunction: " << name << " [" << toString(*sig)
+                    << "]\n");
+  Symbol *s;
+  bool wasInserted;
+  std::tie(s, wasInserted) = insert(name, file);
+
+  auto replaceSym = [&](Symbol *sym) {
+    replaceSymbol<SharedFunctionSymbol>(sym, name, flags, file, sig);
+  };
+
+  if (wasInserted) {
+    replaceSym(s);
+    return s;
+  }
+
+  auto existingFunction = dyn_cast<FunctionSymbol>(s);
+  if (!existingFunction) {
+    reportTypeError(s, file, WASM_SYMBOL_TYPE_FUNCTION);
+    return s;
+  }
+
+  // Shared symbols should never deplace locally-defined ones
+  if (s->isDefined()) {
+    return s;
+  }
+
+  LLVM_DEBUG(dbgs() << "resolving existing undefined symbol: " << s->getName()
+                    << "\n");
+
+  bool checkSig = true;
+  if (auto ud = dyn_cast<UndefinedFunction>(existingFunction))
+    checkSig = ud->isCalledDirectly;
+
+  if (checkSig && !signatureMatches(existingFunction, sig)) {
+    Symbol *variant;
+    if (getFunctionVariant(s, sig, file, &variant))
+      // New variant, always replace
+      replaceSym(variant);
+    else
+      // Variant already exists, replace it
+      replaceSym(variant);
+
+    // This variant we found take the place in the symbol table as the primary
+    // variant.
+    replace(name, variant);
+    return variant;
+  }
+
+  replaceSym(s);
+  return s;
+}
+
+Symbol *SymbolTable::addSharedData(StringRef name, uint32_t flags,
+                                   InputFile *file) {
+  LLVM_DEBUG(dbgs() << "addSharedData: " << name << "\n");
+  Symbol *s;
+  bool wasInserted;
+  std::tie(s, wasInserted) = insert(name, file);
+
+  if (wasInserted || s->isUndefined()) {
+    replaceSymbol<SharedData>(s, name, flags, file);
+  }
+
+  return s;
 }
 
 Symbol *SymbolTable::addDefinedFunction(StringRef name, uint32_t flags,

@@ -60,12 +60,13 @@ void MarkLive::enqueue(Symbol *sym) {
 
   sym->markLive();
 
-  // Mark ctor functions in the object that defines this symbol live.
+  // Mark as live the ctor functions in the object that defines this symbol.
   // The ctor functions are all referenced by the synthetic callCtors
   // function. However, this function does not contain relocations so we
   // have to manually mark the ctors as live.
   if (needInitFunctions)
-    enqueueInitFunctions(cast<ObjFile>(file));
+    if (auto obj = dyn_cast<ObjFile>(file))
+      enqueueInitFunctions(obj);
 
   if (InputChunk *chunk = sym->getChunk())
     queue.push_back(chunk);
