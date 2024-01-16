@@ -1814,6 +1814,82 @@ bool ByteCodeExprGen<Emitter>::VisitSizeOfPackExpr(const SizeOfPackExpr *E) {
   return this->emitConst(E->getPackLength(), E);
 }
 
+template <class Emitter>
+bool ByteCodeExprGen<Emitter>::VisitCXXNewExpr(const CXXNewExpr *E) {
+  assert(classifyPrim(E->getType()) == PT_Ptr);
+  const Expr *Init = E->getInitializer();
+  QualType ElementType = E->getAllocatedType();
+  std::optional<PrimType> ElemT = classify(ElementType);
+
+  const Descriptor *Desc;
+  if (ElemT) {
+    if (E->isArray())
+      Desc = nullptr; // We're not going to use it in this case.
+    else
+      Desc = P.createDescriptor(E, *ElemT, Descriptor::InlineDescMD,
+                                /*IsConst=*/false, /*IsTemporary=*/false,
+                                /*IsMutable=*/false);
+  } else {
+    Desc = P.createDescriptor(
+        E, ElementType.getTypePtr(),
+        E->isArray() ? std::nullopt : Descriptor::InlineDescMD,
+        /*IsConst=*/false, /*IsTemporary=*/false, /*IsMutable=*/false, Init);
+  }
+
+  if (E->isArray()) {
+    assert(E->getArraySize());
+    PrimType SizeT = classifyPrim((*E->getArraySize())->getType());
+
+    if (!this->visit(*E->getArraySize()))
+      return false;
+
+    if (ElemT) {
+      // N primitive elements.
+      if (!this->emitAllocN(SizeT, *ElemT, E, E))
+        return false;
+    } else {
+      // N Composite elements.
+      if (!this->emitAllocCN(SizeT, Desc, E))
+        return false;
+    }
+
+  } else {
+    // Allocate just one element.
+    if (!this->emitAlloc(Desc, E))
+      return false;
+
+    if (Init) {
+      if (ElemT) {
+        if (!this->visit(Init))
+          return false;
+
+        if (!this->emitInit(*ElemT, E))
+          return false;
+      } else {
+        // Composite.
+        if (!this->visitInitializer(Init))
+          return false;
+      }
+    }
+  }
+
+  if (DiscardResult)
+    return this->emitPopPtr(E);
+
+  return true;
+}
+
+template <class Emitter>
+bool ByteCodeExprGen<Emitter>::VisitCXXDeleteExpr(const CXXDeleteExpr *E) {
+  const Expr *Arg = E->getArgument();
+
+  // Arg must be an lvalue.
+  if (!this->visit(Arg))
+    return false;
+
+  return this->emitFree(E->isArrayForm(), E);
+}
+
 template <class Emitter> bool ByteCodeExprGen<Emitter>::discard(const Expr *E) {
   if (E->containsErrors())
     return false;

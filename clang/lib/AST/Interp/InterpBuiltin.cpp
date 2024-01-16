@@ -639,7 +639,8 @@ bool InterpretBuiltin(InterpState &S, CodePtr OpPC, const Function *F,
   InterpFrame *Frame = S.Current;
   APValue Dummy;
 
-  std::optional<PrimType> ReturnT = S.getContext().classify(Call->getType());
+  std::optional<PrimType> ReturnT =
+      S.getContext().classify(Call); //->getType());
 
   // If classify failed, we assume void.
   assert(ReturnT || Call->getType()->isVoidType());
