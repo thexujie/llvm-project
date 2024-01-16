@@ -565,6 +565,9 @@ Improvements to Clang's time-trace
   definition. Another time trace scope variable of ``ParseFunctionDefinition``
   is also added to record the name of the defined function.
 
+- Clang now specifies that using ``auto`` in a lambda parameter is a C++14 extension when
+  appropriate. (`#46059: <https://github.com/llvm/llvm-project/issues/46059>`_).
+
 Bug Fixes in This Version
 -------------------------
 - Fixed an issue where a class template specialization whose declaration is
