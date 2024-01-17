@@ -652,7 +652,7 @@ LogicalResult GPUPrintfConversion::matchAndRewrite(
     return rewriter.create<mlir::spirv::SpecConstantOp>(
         loc, rewriter.getStringAttr(specCstName), attr);
   };
- 
+
   // define GlobalVarOp with printf format string using SpecConstants
   // and make composite of SpecConstants
   {
@@ -695,7 +695,7 @@ LogicalResult GPUPrintfConversion::matchAndRewrite(
 
     globalVar->setAttr("Constant", rewriter.getUnitAttr());
   }
- 
+
   // Get SSA value of Global variable
   mlir::Value globalPtr =
       rewriter.create<mlir::spirv::AddressOfOp>(loc, globalVar);
