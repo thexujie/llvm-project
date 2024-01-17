@@ -10,6 +10,15 @@
 /// Memory legalizer - implements memory model. More information can be
 /// found here:
 ///   http://llvm.org/docs/AMDGPUUsage.html#memory-model
+///
+/// Notes on the Vulkan Memory Model:
+/// - vulkan:private is fully cached.
+///   - Private atomic operations are not supported.
+/// - vulkan:nonprivate bypasses all caches not coherent for GFXIP.
+///   - vulkan:nonprivate does not flush/invalidate caches for release/acquire
+///     ordering (but it does insert waitcnts)
+/// - When the vulkan memory model is enabled, non atomic load/stores also
+///   bypasses all caches by default.
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,6 +43,11 @@ using namespace llvm::AMDGPU;
 static cl::opt<bool> AmdgcnSkipCacheInvalidations(
     "amdgcn-skip-cache-invalidations", cl::init(false), cl::Hidden,
     cl::desc("Use this to skip inserting cache invalidating instructions."));
+
+static cl::opt<cl::boolOrDefault>
+    ForceVulkanMM("amdgcn-force-vulkan-memorymodel", cl::init(cl::BOU_UNSET),
+                  cl::Hidden,
+                  cl::desc("Force enable/disable the Vulkan Memory Model"));
 
 namespace {
 
@@ -86,6 +100,13 @@ enum class SIAtomicAddrSpace {
   LLVM_MARK_AS_BITMASK_ENUM(/* LargestFlag = */ ALL)
 };
 
+// Vulkan-specific modifiers.
+enum class VulkanOpKind {
+  None,
+  NonPrivate,
+  Private,
+};
+
 class SIMemOpInfo final {
 private:
 
@@ -99,6 +120,7 @@ private:
   bool IsCrossAddressSpaceOrdering = false;
   bool IsVolatile = false;
   bool IsNonTemporal = false;
+  VulkanOpKind VKOK;
   bool IsLastUse = false;
 
   SIMemOpInfo(
@@ -108,12 +130,12 @@ private:
       SIAtomicAddrSpace InstrAddrSpace = SIAtomicAddrSpace::ALL,
       bool IsCrossAddressSpaceOrdering = true,
       AtomicOrdering FailureOrdering = AtomicOrdering::SequentiallyConsistent,
-      bool IsVolatile = false, bool IsNonTemporal = false,
-      bool IsLastUse = false)
+      VulkanOpKind VKOK = VulkanOpKind::None, bool IsVolatile = false,
+      bool IsNonTemporal = false, bool IsLastUse = false)
       : Ordering(Ordering), FailureOrdering(FailureOrdering), Scope(Scope),
         OrderingAddrSpace(OrderingAddrSpace), InstrAddrSpace(InstrAddrSpace),
         IsCrossAddressSpaceOrdering(IsCrossAddressSpaceOrdering),
-        IsVolatile(IsVolatile), IsNonTemporal(IsNonTemporal),
+        IsVolatile(IsVolatile), IsNonTemporal(IsNonTemporal), VKOK(VKOK),
         IsLastUse(IsLastUse) {
 
     if (Ordering == AtomicOrdering::NotAtomic) {
@@ -154,6 +176,9 @@ private:
   }
 
 public:
+  /// \returns the type of vulkan operation this is.
+  VulkanOpKind getVulkanOpKind() const { return VKOK; }
+
   /// \returns Atomic synchronization scope of the machine instruction used to
   /// create this SIMemOpInfo.
   SIAtomicScope getScope() const {
@@ -217,10 +242,7 @@ public:
 class SIMemOpAccess final {
 private:
   AMDGPUMachineModuleInfo *MMI = nullptr;
-
-  /// Reports unsupported message \p Msg for \p MI to LLVM context.
-  void reportUnsupported(const MachineBasicBlock::iterator &MI,
-                         const char *Msg) const;
+  bool HasVulkanMM = false;
 
   /// Inspects the target synchronization scope \p SSID and determines
   /// the SI atomic scope it corresponds to, the address spaces it
@@ -237,10 +259,12 @@ private:
   std::optional<SIMemOpInfo>
   constructFromMIWithMMO(const MachineBasicBlock::iterator &MI) const;
 
+  VulkanOpKind getVulkanOpKind(const MachineInstr &MI) const;
+
 public:
   /// Construct class to support accessing the machine memory operands
   /// of instructions in the machine function \p MF.
-  SIMemOpAccess(MachineFunction &MF);
+  SIMemOpAccess(MachineFunction &MF, bool HasVulkanMM);
 
   /// \returns Load info if \p MI is a load operation, "std::nullopt" otherwise.
   std::optional<SIMemOpInfo>
@@ -271,12 +295,14 @@ protected:
   /// Instruction info.
   const SIInstrInfo *TII = nullptr;
 
+  bool SupportsVulkanMM;
+
   IsaVersion IV;
 
   /// Whether to insert cache invalidating instructions.
   bool InsertCacheInv;
 
-  SICacheControl(const GCNSubtarget &ST);
+  SICacheControl(const GCNSubtarget &ST, bool SupportsVulkanMM);
 
   /// Sets named bit \p BitName to "true" if present in instruction \p MI.
   /// \returns Returns true if \p MI is modified, false otherwise.
@@ -284,6 +310,8 @@ protected:
                       AMDGPU::CPol::CPol Bit) const;
 
 public:
+  /// Whether this target supports the Vulkan memory model.
+  bool supportsVulkanMM() const { return SupportsVulkanMM; }
 
   /// Create a cache control for the subtarget \p ST.
   static std::unique_ptr<SICacheControl> create(const GCNSubtarget &ST);
@@ -358,6 +386,10 @@ public:
                              bool IsCrossAddrSpaceOrdering,
                              Position Pos) const = 0;
 
+  /// Sets GLC bit to "true" if present in \p MI. Returns true if \p MI
+  /// is modified, false otherwise.
+  virtual bool enableGLCBit(const MachineBasicBlock::iterator &MI) const = 0;
+
   /// Virtual destructor to allow derivations to be deleted.
   virtual ~SICacheControl() = default;
 
@@ -372,7 +404,7 @@ protected:
 
   /// Sets GLC bit to "true" if present in \p MI. Returns true if \p MI
   /// is modified, false otherwise.
-  bool enableGLCBit(const MachineBasicBlock::iterator &MI) const {
+  bool enableGLCBit(const MachineBasicBlock::iterator &MI) const override {
     return enableNamedBit(MI, AMDGPU::CPol::GLC);
   }
 
@@ -383,8 +415,8 @@ protected:
   }
 
 public:
-
-  SIGfx6CacheControl(const GCNSubtarget &ST) : SICacheControl(ST) {}
+  SIGfx6CacheControl(const GCNSubtarget &ST, bool SupportsVulkanMM = true)
+      : SICacheControl(ST, SupportsVulkanMM) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -424,8 +456,8 @@ public:
 
 class SIGfx7CacheControl : public SIGfx6CacheControl {
 public:
-
-  SIGfx7CacheControl(const GCNSubtarget &ST) : SIGfx6CacheControl(ST) {}
+  SIGfx7CacheControl(const GCNSubtarget &ST, bool SupportsVulkanMM = true)
+      : SIGfx6CacheControl(ST, SupportsVulkanMM) {}
 
   bool insertAcquire(MachineBasicBlock::iterator &MI,
                      SIAtomicScope Scope,
@@ -436,8 +468,9 @@ public:
 
 class SIGfx90ACacheControl : public SIGfx7CacheControl {
 public:
-
-  SIGfx90ACacheControl(const GCNSubtarget &ST) : SIGfx7CacheControl(ST) {}
+  // GFX90A is an accelerator, not used for GFX.
+  SIGfx90ACacheControl(const GCNSubtarget &ST)
+      : SIGfx7CacheControl(ST, /*SupportsVulkanMM*/ false) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -628,6 +661,7 @@ public:
 
 class SIMemoryLegalizer final : public MachineFunctionPass {
 private:
+  bool IsVulkanMemoryModel = false;
 
   /// Cache Control.
   std::unique_ptr<SICacheControl> CC = nullptr;
@@ -679,13 +713,37 @@ public:
   bool runOnMachineFunction(MachineFunction &MF) override;
 };
 
-} // end namespace anonymous
-
-void SIMemOpAccess::reportUnsupported(const MachineBasicBlock::iterator &MI,
-                                      const char *Msg) const {
+void reportUnsupported(const MachineBasicBlock::iterator &MI, const char *Msg,
+                       bool Warn = false) {
   const Function &Func = MI->getParent()->getParent()->getFunction();
-  DiagnosticInfoUnsupported Diag(Func, Msg, MI->getDebugLoc());
+  DiagnosticInfoUnsupported Diag(Func, Msg, MI->getDebugLoc(),
+                                 Warn ? DS_Warning : DS_Error);
   Func.getContext().diagnose(Diag);
+}
+
+} // namespace
+
+VulkanOpKind SIMemOpAccess::getVulkanOpKind(const MachineInstr &MI) const {
+  VulkanOpKind VKOK = VulkanOpKind::None;
+
+  if (auto MMRA = MMRAMetadata(MI.getMMRAMetadata())) {
+    if (MMRA.hasTag("vulkan", "private"))
+      return VulkanOpKind::Private;
+    else if (MMRA.hasTag("vulkan", "nonprivate"))
+      return VulkanOpKind::NonPrivate;
+  }
+
+  // Don't cry if amdgcn-force-vulkan-memorymodel=0, that way it can be used as
+  // an escape hatch to force-ignore vulkan MMRAs.
+  if (!HasVulkanMM && VKOK != VulkanOpKind::None &&
+      ForceVulkanMM != cl::BOU_FALSE) {
+    report_fatal_error(
+        "vulkan:private/nonprivate annotations can only be honored if the "
+        "Vulkan memory model is enabled. Strip vulkan MMRAs or disable the "
+        "Vulkan memory model using -amdgcn-force-vulkan-memorymodel=0");
+  }
+
+  return VulkanOpKind::None;
 }
 
 std::optional<std::tuple<SIAtomicScope, SIAtomicAddrSpace, bool>>
@@ -737,7 +795,8 @@ SIAtomicAddrSpace SIMemOpAccess::toSIAtomicAddrSpace(unsigned AS) const {
   return SIAtomicAddrSpace::OTHER;
 }
 
-SIMemOpAccess::SIMemOpAccess(MachineFunction &MF) {
+SIMemOpAccess::SIMemOpAccess(MachineFunction &MF, bool HasVulkanMM)
+    : HasVulkanMM(HasVulkanMM) {
   MMI = &MF.getMMI().getObjFileInfo<AMDGPUMachineModuleInfo>();
 }
 
@@ -799,8 +858,9 @@ std::optional<SIMemOpInfo> SIMemOpAccess::constructFromMIWithMMO(
     }
   }
   return SIMemOpInfo(Ordering, Scope, OrderingAddrSpace, InstrAddrSpace,
-                     IsCrossAddressSpaceOrdering, FailureOrdering, IsVolatile,
-                     IsNonTemporal, IsLastUse);
+                     IsCrossAddressSpaceOrdering, FailureOrdering,
+                     getVulkanOpKind(*MI), IsVolatile, IsNonTemporal,
+                     IsLastUse);
 }
 
 std::optional<SIMemOpInfo>
@@ -860,8 +920,9 @@ SIMemOpAccess::getAtomicFenceInfo(const MachineBasicBlock::iterator &MI) const {
     return std::nullopt;
   }
 
-  return SIMemOpInfo(Ordering, Scope, OrderingAddrSpace, SIAtomicAddrSpace::ATOMIC,
-                     IsCrossAddressSpaceOrdering, AtomicOrdering::NotAtomic);
+  return SIMemOpInfo(Ordering, Scope, OrderingAddrSpace,
+                     SIAtomicAddrSpace::ATOMIC, IsCrossAddressSpaceOrdering,
+                     AtomicOrdering::NotAtomic, getVulkanOpKind(*MI));
 }
 
 std::optional<SIMemOpInfo> SIMemOpAccess::getAtomicCmpxchgOrRmwInfo(
@@ -878,7 +939,8 @@ std::optional<SIMemOpInfo> SIMemOpAccess::getAtomicCmpxchgOrRmwInfo(
   return constructFromMIWithMMO(MI);
 }
 
-SICacheControl::SICacheControl(const GCNSubtarget &ST) : ST(ST) {
+SICacheControl::SICacheControl(const GCNSubtarget &ST, bool SupportsVulkanMM)
+    : ST(ST), SupportsVulkanMM(SupportsVulkanMM) {
   TII = ST.getInstrInfo();
   IV = getIsaVersion(ST.getCPU());
   InsertCacheInv = !AmdgcnSkipCacheInvalidations;
@@ -2452,34 +2514,53 @@ bool SIMemoryLegalizer::expandLoad(const SIMemOpInfo &MOI,
 
   bool Changed = false;
 
+  auto Scope = MOI.getScope();
+
   if (MOI.isAtomic()) {
     if (MOI.getOrdering() == AtomicOrdering::Monotonic ||
         MOI.getOrdering() == AtomicOrdering::Acquire ||
         MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent) {
-      Changed |= CC->enableLoadCacheBypass(MI, MOI.getScope(),
-                                           MOI.getOrderingAddrSpace());
+      Changed |=
+          CC->enableLoadCacheBypass(MI, Scope, MOI.getOrderingAddrSpace());
     }
 
     if (MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent)
-      Changed |= CC->insertWait(MI, MOI.getScope(),
-                                MOI.getOrderingAddrSpace(),
-                                SIMemOp::LOAD | SIMemOp::STORE,
-                                MOI.getIsCrossAddressSpaceOrdering(),
-                                Position::BEFORE);
+      Changed |= CC->insertWait(
+          MI, Scope, MOI.getOrderingAddrSpace(), SIMemOp::LOAD | SIMemOp::STORE,
+          MOI.getIsCrossAddressSpaceOrdering(), Position::BEFORE);
 
     if (MOI.getOrdering() == AtomicOrdering::Acquire ||
         MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent) {
-      Changed |= CC->insertWait(MI, MOI.getScope(),
-                                MOI.getInstrAddrSpace(),
-                                SIMemOp::LOAD,
-                                MOI.getIsCrossAddressSpaceOrdering(),
-                                Position::AFTER);
-      Changed |= CC->insertAcquire(MI, MOI.getScope(),
-                                   MOI.getOrderingAddrSpace(),
-                                   Position::AFTER);
+      Changed |=
+          CC->insertWait(MI, Scope, MOI.getInstrAddrSpace(), SIMemOp::LOAD,
+                         MOI.getIsCrossAddressSpaceOrdering(), Position::AFTER);
+      // vulkan:nonprivate does not flush cache.
+      if (MOI.getVulkanOpKind() != VulkanOpKind::NonPrivate) {
+        Changed |= CC->insertAcquire(MI, Scope, MOI.getOrderingAddrSpace(),
+                                     Position::AFTER);
+      }
     }
 
     return Changed;
+  }
+
+  switch (MOI.getVulkanOpKind()) {
+  case VulkanOpKind::None:
+    // For the Vulkan memory model, non-annotated, non-atomic stores bypass the
+    // cache.
+    if (IsVulkanMemoryModel && !MOI.isAtomic())
+      Changed |= CC->enableLoadCacheBypass(MI, SIAtomicScope::AGENT,
+                                           MOI.getInstrAddrSpace());
+    break;
+  case VulkanOpKind::NonPrivate:
+    Changed |= CC->enableLoadCacheBypass(MI, SIAtomicScope::AGENT,
+                                         MOI.getInstrAddrSpace());
+    break;
+  case VulkanOpKind::Private:
+    if (MOI.isAtomic())
+      report_fatal_error(
+          "vulkan:private should not be emitted on atomic instructions!");
+    break;
   }
 
   // Atomic instructions already bypass caches to the scope specified by the
@@ -2498,22 +2579,49 @@ bool SIMemoryLegalizer::expandStore(const SIMemOpInfo &MOI,
 
   bool Changed = false;
 
+  auto Scope = MOI.getScope();
+
   if (MOI.isAtomic()) {
+    if (MOI.getVulkanOpKind() == VulkanOpKind::Private)
+      report_fatal_error(
+          "vulkan:private should not be emitted on atomic instructions!");
+
     if (MOI.getOrdering() == AtomicOrdering::Monotonic ||
         MOI.getOrdering() == AtomicOrdering::Release ||
         MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent) {
-      Changed |= CC->enableStoreCacheBypass(MI, MOI.getScope(),
-                                            MOI.getOrderingAddrSpace());
+      Changed |=
+          CC->enableStoreCacheBypass(MI, Scope, MOI.getOrderingAddrSpace());
     }
 
     if (MOI.getOrdering() == AtomicOrdering::Release ||
-        MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent)
-      Changed |= CC->insertRelease(MI, MOI.getScope(),
-                                   MOI.getOrderingAddrSpace(),
+        MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent) {
+      // TODO: don't flush cache on gfx90a. vulkan:nonprivate does not flush
+      // cache.
+      Changed |= CC->insertRelease(MI, Scope, MOI.getOrderingAddrSpace(),
                                    MOI.getIsCrossAddressSpaceOrdering(),
                                    Position::BEFORE);
+    }
 
     return Changed;
+  }
+
+  switch (MOI.getVulkanOpKind()) {
+  case VulkanOpKind::None:
+    // For the Vulkan memory model, non-annotated, non-atomic stores bypass the
+    // cache.
+    if (IsVulkanMemoryModel && !MOI.isAtomic())
+      Changed |= CC->enableStoreCacheBypass(MI, SIAtomicScope::AGENT,
+                                            MOI.getInstrAddrSpace());
+    break;
+  case VulkanOpKind::NonPrivate:
+    Changed |= CC->enableStoreCacheBypass(MI, SIAtomicScope::AGENT,
+                                          MOI.getInstrAddrSpace());
+    break;
+  case VulkanOpKind::Private:
+    if (MOI.isAtomic())
+      report_fatal_error(
+          "vulkan:private should not be emitted on atomic instructions!");
+    break;
   }
 
   // Atomic instructions already bypass caches to the scope specified by the
@@ -2538,6 +2646,22 @@ bool SIMemoryLegalizer::expandAtomicFence(const SIMemOpInfo &MOI,
 
   // Refine based on MMRAs. They can override the OrderingAddrSpace
   auto OrderingAddrSpace = MOI.getOrderingAddrSpace();
+  bool OnlyWait = false;
+
+  switch (MOI.getVulkanOpKind()) {
+  case VulkanOpKind::None:
+    break;
+  case VulkanOpKind::NonPrivate:
+    // vulkan:nonprivate fences don't flush the cache and just insert waitcnts.
+    OnlyWait = true;
+    // TODO: check that's it's acq/rel only?
+    break;
+  case VulkanOpKind::Private:
+    reportUnsupported(
+        MI, "vulkan:private may not be used on fences - deleting fence",
+        /*Warn=*/true);
+    return true;
+  }
 
   // TODO: Use an enum/parse this sooner?
   // TODO: Do we need to handle these MMRAs on load/stores/atomicrmw as well?
@@ -2560,6 +2684,7 @@ bool SIMemoryLegalizer::expandAtomicFence(const SIMemOpInfo &MOI,
           MI, MOI.getScope(), OrderingAddrSpace, SIMemOp::LOAD | SIMemOp::STORE,
           MOI.getIsCrossAddressSpaceOrdering(), Position::BEFORE);
 
+    // FIXME: this inserts cache flush instead of wait for gfx90a.
     if (MOI.getOrdering() == AtomicOrdering::Release ||
         MOI.getOrdering() == AtomicOrdering::AcquireRelease ||
         MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent)
@@ -2573,6 +2698,9 @@ bool SIMemoryLegalizer::expandAtomicFence(const SIMemOpInfo &MOI,
       Changed |= CC->insertRelease(MI, MOI.getScope(), OrderingAddrSpace,
                                    MOI.getIsCrossAddressSpaceOrdering(),
                                    Position::BEFORE);
+
+    if (OnlyWait)
+      return Changed;
 
     // TODO: If both release and invalidate are happening they could be combined
     // to use the single "BUFFER_WBINV*" instruction. This could be done by
@@ -2597,7 +2725,15 @@ bool SIMemoryLegalizer::expandAtomicCmpxchgOrRmw(const SIMemOpInfo &MOI,
 
   bool Changed = false;
 
+  if (MOI.getVulkanOpKind() == VulkanOpKind::Private)
+    report_fatal_error(
+        "vulkan:private should not be emitted on atomic instructions!");
+
   if (MOI.isAtomic()) {
+    if (MOI.getVulkanOpKind() == VulkanOpKind::NonPrivate)
+      Changed |= CC->enableRMWCacheBypass(MI, SIAtomicScope::AGENT,
+                                          MOI.getInstrAddrSpace());
+
     if (MOI.getOrdering() == AtomicOrdering::Monotonic ||
         MOI.getOrdering() == AtomicOrdering::Acquire ||
         MOI.getOrdering() == AtomicOrdering::Release ||
@@ -2607,6 +2743,8 @@ bool SIMemoryLegalizer::expandAtomicCmpxchgOrRmw(const SIMemOpInfo &MOI,
                                           MOI.getInstrAddrSpace());
     }
 
+    // TODO: don't flush cache on gfx90a. vulkan:nonprivate does not flush
+    // cache.
     if (MOI.getOrdering() == AtomicOrdering::Release ||
         MOI.getOrdering() == AtomicOrdering::AcquireRelease ||
         MOI.getOrdering() == AtomicOrdering::SequentiallyConsistent ||
@@ -2627,9 +2765,10 @@ bool SIMemoryLegalizer::expandAtomicCmpxchgOrRmw(const SIMemOpInfo &MOI,
                                                    SIMemOp::STORE,
                                 MOI.getIsCrossAddressSpaceOrdering(),
                                 Position::AFTER);
-      Changed |= CC->insertAcquire(MI, MOI.getScope(),
-                                   MOI.getOrderingAddrSpace(),
-                                   Position::AFTER);
+      // Don't flush the cache for non private.
+      if (MOI.getVulkanOpKind() != VulkanOpKind::NonPrivate)
+        Changed |= CC->insertAcquire(
+            MI, MOI.getScope(), MOI.getOrderingAddrSpace(), Position::AFTER);
     }
 
     return Changed;
@@ -2638,11 +2777,28 @@ bool SIMemoryLegalizer::expandAtomicCmpxchgOrRmw(const SIMemOpInfo &MOI,
   return Changed;
 }
 
+static bool HasVulkanMM(MachineFunction &MF) {
+  Module *M = MF.getFunction().getParent();
+  if (auto *MD = mdconst::extract_or_null<ConstantInt>(
+          M->getModuleFlag("amdgpu.vulkan.memory-model")))
+    return MD->getZExtValue() == 1;
+  return false;
+}
+
 bool SIMemoryLegalizer::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
 
-  SIMemOpAccess MOA(MF);
+  if (ForceVulkanMM != cl::BOU_UNSET)
+    IsVulkanMemoryModel = (ForceVulkanMM == cl::BOU_TRUE);
+  else
+    IsVulkanMemoryModel = HasVulkanMM(MF);
+
+  SIMemOpAccess MOA(MF, IsVulkanMemoryModel);
   CC = SICacheControl::create(MF.getSubtarget<GCNSubtarget>());
+
+  if (IsVulkanMemoryModel && !CC->supportsVulkanMM())
+    report_fatal_error("target does not support the Vulkan Memory Model!",
+                       false);
 
   for (auto &MBB : MF) {
     for (auto MI = MBB.begin(); MI != MBB.end(); ++MI) {
@@ -2678,6 +2834,7 @@ bool SIMemoryLegalizer::runOnMachineFunction(MachineFunction &MF) {
   }
 
   Changed |= removeAtomicPseudoMIs();
+
   return Changed;
 }
 
