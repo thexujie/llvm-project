@@ -374,6 +374,7 @@ bool AtomicInfo::emitMemSetZeroIfNecessary() const {
 static void emitAtomicCmpXchg(CodeGenFunction &CGF, AtomicExpr *E, bool IsWeak,
                               Address Dest, Address Ptr,
                               Address Val1, Address Val2,
+                              Address ExpectedResult,
                               uint64_t Size,
                               llvm::AtomicOrdering SuccessOrder,
                               llvm::AtomicOrdering FailureOrder,
@@ -408,7 +409,15 @@ static void emitAtomicCmpXchg(CodeGenFunction &CGF, AtomicExpr *E, bool IsWeak,
 
   CGF.Builder.SetInsertPoint(StoreExpectedBB);
   // Update the memory at Expected with Old's value.
-  CGF.Builder.CreateStore(Old, Val1);
+
+  llvm::Type *ExpectedType = ExpectedResult.getElementType();
+  uint64_t OriginalSizeInBits = CGF.CGM.getDataLayout().getTypeSizeInBits(ExpectedType);
+  if (OriginalSizeInBits / 8 == Size) {
+    CGF.Builder.CreateStore(Old, ExpectedResult);
+  } else {
+    // How to just store N bytes to ExpectedResult ?
+    CGF.Builder.CreateStore(Old, ExpectedResult);
+  }
   // Finally, branch to the exit point.
   CGF.Builder.CreateBr(ContinueBB);
 
@@ -423,6 +432,7 @@ static void emitAtomicCmpXchg(CodeGenFunction &CGF, AtomicExpr *E, bool IsWeak,
 static void emitAtomicCmpXchgFailureSet(CodeGenFunction &CGF, AtomicExpr *E,
                                         bool IsWeak, Address Dest, Address Ptr,
                                         Address Val1, Address Val2,
+                                        Address ExpectedResult,
                                         llvm::Value *FailureOrderVal,
                                         uint64_t Size,
                                         llvm::AtomicOrdering SuccessOrder,
@@ -453,7 +463,7 @@ static void emitAtomicCmpXchgFailureSet(CodeGenFunction &CGF, AtomicExpr *E,
     // success argument". This condition has been lifted and the only
     // precondition is 31.7.2.18. Effectively treat this as a DR and skip
     // language version checks.
-    emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, Size, SuccessOrder,
+    emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, ExpectedResult, Size, SuccessOrder,
                       FailureOrder, Scope);
     return;
   }
@@ -478,17 +488,17 @@ static void emitAtomicCmpXchgFailureSet(CodeGenFunction &CGF, AtomicExpr *E,
 
   // Emit all the different atomics
   CGF.Builder.SetInsertPoint(MonotonicBB);
-  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2,
+  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, ExpectedResult,
                     Size, SuccessOrder, llvm::AtomicOrdering::Monotonic, Scope);
   CGF.Builder.CreateBr(ContBB);
 
   CGF.Builder.SetInsertPoint(AcquireBB);
-  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, Size, SuccessOrder,
+  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, ExpectedResult, Size, SuccessOrder,
                     llvm::AtomicOrdering::Acquire, Scope);
   CGF.Builder.CreateBr(ContBB);
 
   CGF.Builder.SetInsertPoint(SeqCstBB);
-  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, Size, SuccessOrder,
+  emitAtomicCmpXchg(CGF, E, IsWeak, Dest, Ptr, Val1, Val2, ExpectedResult, Size, SuccessOrder,
                     llvm::AtomicOrdering::SequentiallyConsistent, Scope);
   CGF.Builder.CreateBr(ContBB);
 
@@ -521,6 +531,7 @@ static llvm::Value *EmitPostAtomicMinMax(CGBuilderTy &Builder,
 
 static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *E, Address Dest,
                          Address Ptr, Address Val1, Address Val2,
+                         Address ExpectedResult,
                          llvm::Value *IsWeak, llvm::Value *FailureOrder,
                          uint64_t Size, llvm::AtomicOrdering Order,
                          llvm::SyncScope::ID Scope) {
@@ -537,13 +548,13 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__hip_atomic_compare_exchange_strong:
   case AtomicExpr::AO__opencl_atomic_compare_exchange_strong:
     emitAtomicCmpXchgFailureSet(CGF, E, false, Dest, Ptr, Val1, Val2,
-                                FailureOrder, Size, Order, Scope);
+                                ExpectedResult, FailureOrder, Size, Order, Scope);
     return;
   case AtomicExpr::AO__c11_atomic_compare_exchange_weak:
   case AtomicExpr::AO__opencl_atomic_compare_exchange_weak:
   case AtomicExpr::AO__hip_atomic_compare_exchange_weak:
     emitAtomicCmpXchgFailureSet(CGF, E, true, Dest, Ptr, Val1, Val2,
-                                FailureOrder, Size, Order, Scope);
+                                ExpectedResult, FailureOrder, Size, Order, Scope);
     return;
   case AtomicExpr::AO__atomic_compare_exchange:
   case AtomicExpr::AO__atomic_compare_exchange_n:
@@ -551,7 +562,7 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *E, Address Dest,
   case AtomicExpr::AO__scoped_atomic_compare_exchange_n: {
     if (llvm::ConstantInt *IsWeakC = dyn_cast<llvm::ConstantInt>(IsWeak)) {
       emitAtomicCmpXchgFailureSet(CGF, E, IsWeakC->getZExtValue(), Dest, Ptr,
-                                  Val1, Val2, FailureOrder, Size, Order, Scope);
+                                  Val1, Val2, ExpectedResult, FailureOrder, Size, Order, Scope);
     } else {
       // Create all the relevant BB's
       llvm::BasicBlock *StrongBB =
@@ -565,12 +576,12 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *E, Address Dest,
 
       CGF.Builder.SetInsertPoint(StrongBB);
       emitAtomicCmpXchgFailureSet(CGF, E, false, Dest, Ptr, Val1, Val2,
-                                  FailureOrder, Size, Order, Scope);
+                                  ExpectedResult, FailureOrder, Size, Order, Scope);
       CGF.Builder.CreateBr(ContBB);
 
       CGF.Builder.SetInsertPoint(WeakBB);
       emitAtomicCmpXchgFailureSet(CGF, E, true, Dest, Ptr, Val1, Val2,
-                                  FailureOrder, Size, Order, Scope);
+                                  ExpectedResult, FailureOrder, Size, Order, Scope);
       CGF.Builder.CreateBr(ContBB);
 
       CGF.Builder.SetInsertPoint(ContBB);
@@ -755,6 +766,7 @@ EmitValToTemp(CodeGenFunction &CGF, Expr *E) {
 
 static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *Expr, Address Dest,
                          Address Ptr, Address Val1, Address Val2,
+                         Address OriginalVal1,
                          llvm::Value *IsWeak, llvm::Value *FailureOrder,
                          uint64_t Size, llvm::AtomicOrdering Order,
                          llvm::Value *Scope) {
@@ -763,7 +775,7 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *Expr, Address Dest,
   // LLVM atomic instructions always have synch scope. If clang atomic
   // expression has no scope operand, use default LLVM synch scope.
   if (!ScopeModel) {
-    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
+    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, FailureOrder, Size,
                  Order, CGF.CGM.getLLVMContext().getOrInsertSyncScopeID(""));
     return;
   }
@@ -773,7 +785,7 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *Expr, Address Dest,
     auto SCID = CGF.getTargetHooks().getLLVMSyncScopeID(
         CGF.CGM.getLangOpts(), ScopeModel->map(SC->getZExtValue()),
         Order, CGF.CGM.getLLVMContext());
-    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
+    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, FailureOrder, Size,
                  Order, SCID);
     return;
   }
@@ -799,7 +811,7 @@ static void EmitAtomicOp(CodeGenFunction &CGF, AtomicExpr *Expr, Address Dest,
       SI->addCase(Builder.getInt32(S), B);
 
     Builder.SetInsertPoint(B);
-    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, IsWeak, FailureOrder, Size,
+    EmitAtomicOp(CGF, Expr, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, FailureOrder, Size,
                  Order,
                  CGF.getTargetHooks().getLLVMSyncScopeID(CGF.CGM.getLangOpts(),
                                                          ScopeModel->map(S),
@@ -1029,6 +1041,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
   LValue AtomicVal = MakeAddrLValue(Ptr, AtomicTy);
   AtomicInfo Atomics(*this, AtomicVal);
 
+  Address OriginalVal1 = Val1;
   if (ShouldCastToIntPtrTy) {
     Ptr = Atomics.castToAtomicIntPointer(Ptr);
     if (Val1.isValid())
@@ -1468,30 +1481,30 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     if (llvm::isValidAtomicOrderingCABI(ord))
       switch ((llvm::AtomicOrderingCABI)ord) {
       case llvm::AtomicOrderingCABI::relaxed:
-        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                      llvm::AtomicOrdering::Monotonic, Scope);
         break;
       case llvm::AtomicOrderingCABI::consume:
       case llvm::AtomicOrderingCABI::acquire:
         if (IsStore)
           break; // Avoid crashing on code with undefined behavior
-        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                      llvm::AtomicOrdering::Acquire, Scope);
         break;
       case llvm::AtomicOrderingCABI::release:
         if (IsLoad)
           break; // Avoid crashing on code with undefined behavior
-        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                      llvm::AtomicOrdering::Release, Scope);
         break;
       case llvm::AtomicOrderingCABI::acq_rel:
         if (IsLoad || IsStore)
           break; // Avoid crashing on code with undefined behavior
-        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                      llvm::AtomicOrdering::AcquireRelease, Scope);
         break;
       case llvm::AtomicOrderingCABI::seq_cst:
-        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+        EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                      llvm::AtomicOrdering::SequentiallyConsistent, Scope);
         break;
       }
@@ -1527,12 +1540,12 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
 
   // Emit all the different atomics
   Builder.SetInsertPoint(MonotonicBB);
-  EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+  EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                llvm::AtomicOrdering::Monotonic, Scope);
   Builder.CreateBr(ContBB);
   if (!IsStore) {
     Builder.SetInsertPoint(AcquireBB);
-    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                  llvm::AtomicOrdering::Acquire, Scope);
     Builder.CreateBr(ContBB);
     SI->addCase(Builder.getInt32((int)llvm::AtomicOrderingCABI::consume),
@@ -1542,7 +1555,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
   }
   if (!IsLoad) {
     Builder.SetInsertPoint(ReleaseBB);
-    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                  llvm::AtomicOrdering::Release, Scope);
     Builder.CreateBr(ContBB);
     SI->addCase(Builder.getInt32((int)llvm::AtomicOrderingCABI::release),
@@ -1550,14 +1563,14 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
   }
   if (!IsLoad && !IsStore) {
     Builder.SetInsertPoint(AcqRelBB);
-    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+    EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                  llvm::AtomicOrdering::AcquireRelease, Scope);
     Builder.CreateBr(ContBB);
     SI->addCase(Builder.getInt32((int)llvm::AtomicOrderingCABI::acq_rel),
                 AcqRelBB);
   }
   Builder.SetInsertPoint(SeqCstBB);
-  EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, IsWeak, OrderFail, Size,
+  EmitAtomicOp(*this, E, Dest, Ptr, Val1, Val2, OriginalVal1, IsWeak, OrderFail, Size,
                llvm::AtomicOrdering::SequentiallyConsistent, Scope);
   Builder.CreateBr(ContBB);
   SI->addCase(Builder.getInt32((int)llvm::AtomicOrderingCABI::seq_cst),
