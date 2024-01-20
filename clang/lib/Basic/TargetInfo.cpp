@@ -926,17 +926,17 @@ bool TargetInfo::validateInputConstraint(
 }
 
 void TargetInfo::validateCLayouts() const {
-  llvm::Triple::CLayouts TripleLayouts = Triple.getCLayouts();
+  llvm::Triple::CLayouts TripleLayouts = Triple.getCLayouts(getABI());
   if (__builtin_expect(LongDoubleWidth != TripleLayouts.LongDoubleWidth ||
                            LongDoubleAlign != TripleLayouts.LongDoubleAlign ||
                            LongDoubleFormat != TripleLayouts.LongDoubleFormat,
                        0)) {
-    fprintf(stderr, "'long double' width got %d, expected %d\n",
+    fprintf(stderr, "Clang's 'long double' width is %d, LLVM expected %d\n",
             LongDoubleWidth, TripleLayouts.LongDoubleWidth);
-    fprintf(stderr, "'long double' align got %d, expected %d\n",
+    fprintf(stderr, "Clang's long double' alignment is %d, LLVM expected %d\n",
             LongDoubleAlign, TripleLayouts.LongDoubleAlign);
     fprintf(
-        stderr, "'long double' format got %d, expected  %d\n",
+        stderr, "Clang's long double' format is %d, LLVM expected %d\n",
         llvm::APFloatBase::SemanticsToEnum(*LongDoubleFormat),
         llvm::APFloatBase::SemanticsToEnum(*TripleLayouts.LongDoubleFormat));
     llvm_unreachable("Clang & LLVM layout mismatch");

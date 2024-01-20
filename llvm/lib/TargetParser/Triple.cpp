@@ -1942,7 +1942,7 @@ VersionTuple Triple::getCanonicalVersionForOS(OSType OSKind,
   }
 }
 
-Triple::CLayouts Triple::getCLayouts() const {
+Triple::CLayouts Triple::getCLayouts(const StringRef &ABIName) const {
   Triple::CLayouts Layouts;
 
   // Default to a 32-bit RISC platform
