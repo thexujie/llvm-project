@@ -5,3 +5,5 @@ set(LIBCXX_TEST_TOOLS_PATH ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
 if(LIBCXX_ENABLE_CLANG_TIDY)
   add_subdirectory(clang_tidy_checks)
 endif()
+
+add_subdirectory(check_output)

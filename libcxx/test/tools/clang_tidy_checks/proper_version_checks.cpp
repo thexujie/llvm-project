@@ -36,9 +36,6 @@ private:
         clang::CharSourceRange::getTokenRange(condition_range),
         preprocessor_.getSourceManager(),
         preprocessor_.getLangOpts());
-    if (preprocessor_.getSourceManager().isInMainFile(location))
-      return;
-
     if (condition.starts_with("_LIBCPP_STD_VER") && condition.find(">") != std::string_view::npos &&
         condition.find(">=") == std::string_view::npos)
       check_.diag(location, "_LIBCPP_STD_VER >= version should be used instead of _LIBCPP_STD_VER > prev_version");
