@@ -823,6 +823,10 @@ void JSONNodeDumper::VisitNamedDecl(const NamedDecl *ND) {
     if (VD && VD->hasLocalStorage())
       return;
 
+    // Do not mangle template deduction guides.
+    if (isa<CXXDeductionGuideDecl>(ND))
+      return;
+
     std::string MangledName = ASTNameGen.getName(ND);
     if (!MangledName.empty())
       JOS.attribute("mangledName", MangledName);
@@ -926,7 +930,7 @@ void JSONNodeDumper::VisitFunctionDecl(const FunctionDecl *FD) {
     JOS.attribute("storageClass", VarDecl::getStorageClassSpecifierString(SC));
   attributeOnlyIfTrue("inline", FD->isInlineSpecified());
   attributeOnlyIfTrue("virtual", FD->isVirtualAsWritten());
-  attributeOnlyIfTrue("pure", FD->isPure());
+  attributeOnlyIfTrue("pure", FD->isPureVirtual());
   attributeOnlyIfTrue("explicitlyDeleted", FD->isDeletedAsWritten());
   attributeOnlyIfTrue("constexpr", FD->isConstexpr());
   attributeOnlyIfTrue("variadic", FD->isVariadic());
@@ -1352,12 +1356,11 @@ void JSONNodeDumper::VisitCXXNewExpr(const CXXNewExpr *NE) {
   attributeOnlyIfTrue("isPlacement", NE->getNumPlacementArgs() != 0);
   switch (NE->getInitializationStyle()) {
   case CXXNewInitializationStyle::None:
-  case CXXNewInitializationStyle::Implicit:
     break;
-  case CXXNewInitializationStyle::Call:
+  case CXXNewInitializationStyle::Parens:
     JOS.attribute("initStyle", "call");
     break;
-  case CXXNewInitializationStyle::List:
+  case CXXNewInitializationStyle::Braces:
     JOS.attribute("initStyle", "list");
     break;
   }

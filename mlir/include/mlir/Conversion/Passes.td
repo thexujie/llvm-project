@@ -564,10 +564,6 @@ def ConvertGPUToSPIRV : Pass<"convert-gpu-to-spirv", "ModuleOp"> {
     Option<"use64bitIndex", "use-64bit-index",
            "bool", /*default=*/"false",
            "Use 64-bit integers to convert index types">,
-    Option<"useCoopMatrixNV", "use-coop-matrix-nv",
-           "bool", /*default=*/"false",
-           "Use the NV cooperative matrix extension insted of the KHR extension"
-           " to lower GPU WMMA ops">,
   ];
 }
 
@@ -886,6 +882,12 @@ def ConvertSCFToOpenMPPass : Pass<"convert-scf-to-openmp", "ModuleOp"> {
   let summary = "Convert SCF parallel loop to OpenMP parallel + workshare "
                 "constructs.";
 
+  let options = [
+    Option<"numThreads", "num-threads", "unsigned",
+           /*default=kUseOpenMPDefaultNumThreads*/"0",
+           "Number of threads to use">
+  ];
+
   let dependentDialects = ["omp::OpenMPDialect", "LLVM::LLVMDialect",
                            "memref::MemRefDialect"];
 }
@@ -1094,6 +1096,19 @@ def TosaToLinalgNamed
 }
 
 //===----------------------------------------------------------------------===//
+// TosaToMLProgram
+//===----------------------------------------------------------------------===//
+
+def TosaToMLProgram : Pass<"tosa-to-mlprogram", "ModuleOp"> {
+  let summary = "Lower TOSA to the MLProgram dialect";
+  let dependentDialects = ["ml_program::MLProgramDialect"];
+  let description = [{
+    Pass that converts TOSA's variable operator operations to the equivalent
+    MLProgram operations.
+  }];
+}
+
+//===----------------------------------------------------------------------===//
 // TosaToSCF
 //===----------------------------------------------------------------------===//
 
@@ -1204,6 +1219,7 @@ def ConvertVectorToSCF : Pass<"convert-vector-to-scf"> {
 def ConvertVectorToArmSME : Pass<"convert-vector-to-arm-sme"> {
   let summary = "Lower the operations from the vector dialect into the ArmSME "
                 "dialect";
+  let constructor = "mlir::createConvertVectorToArmSMEPass()";
   let description = [{
     Pass that converts vector dialect operations into equivalent ArmSME dialect
     operations.
@@ -1224,6 +1240,20 @@ def ConvertArmSMEToSCF : Pass<"convert-arm-sme-to-scf"> {
     "arith::ArithDialect",
     "vector::VectorDialect",
     "arm_sme::ArmSMEDialect"
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// ArmSMEToLLVM
+//===----------------------------------------------------------------------===//
+
+def ConvertArmSMEToLLVM : Pass<"convert-arm-sme-to-llvm"> {
+  let summary = "Lower the operations from the ArmSME dialect into the LLVM "
+                "dialect";
+  let constructor = "mlir::createConvertArmSMEToLLVMPass()";
+  let dependentDialects = [
+    "arm_sme::ArmSMEDialect",
+    "LLVM::LLVMDialect"
   ];
 }
 
@@ -1265,10 +1295,6 @@ def ConvertVectorToLLVMPass : Pass<"convert-vector-to-llvm"> {
     Option<"armSVE", "enable-arm-sve",
            "bool", /*default=*/"false",
            "Enables the use of ArmSVE dialect while lowering the vector "
-       "dialect.">,
-    Option<"armSME", "enable-arm-sme",
-           "bool", /*default=*/"false",
-           "Enables the use of ArmSME dialect while lowering the vector "
        "dialect.">,
     Option<"x86Vector", "enable-x86vector",
            "bool", /*default=*/"false",

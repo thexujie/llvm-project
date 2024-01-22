@@ -53,6 +53,10 @@ Expected<aarch32::EdgeKind_aarch32> getJITLinkEdgeKind(uint32_t ELFType) {
     return aarch32::Thumb_MovwAbsNC;
   case ELF::R_ARM_THM_MOVT_ABS:
     return aarch32::Thumb_MovtAbs;
+  case ELF::R_ARM_THM_MOVW_PREL_NC:
+    return aarch32::Thumb_MovwPrelNC;
+  case ELF::R_ARM_THM_MOVT_PREL:
+    return aarch32::Thumb_MovtPrel;
   }
 
   return make_error<JITLinkError>(
@@ -83,6 +87,10 @@ Expected<uint32_t> getELFRelocationType(Edge::Kind Kind) {
     return ELF::R_ARM_THM_MOVW_ABS_NC;
   case aarch32::Thumb_MovtAbs:
     return ELF::R_ARM_THM_MOVT_ABS;
+  case aarch32::Thumb_MovwPrelNC:
+    return ELF::R_ARM_THM_MOVW_PREL_NC;
+  case aarch32::Thumb_MovtPrel:
+    return ELF::R_ARM_THM_MOVT_PREL;
   }
 
   return make_error<JITLinkError>(formatv("Invalid aarch32 edge {0:d}: ",
@@ -165,14 +173,13 @@ private:
 
     auto FixupAddress = orc::ExecutorAddr(FixupSect.sh_addr) + Rel.r_offset;
     Edge::OffsetT Offset = FixupAddress - BlockToFix.getAddress();
-    Edge E(*Kind, Offset, *GraphSymbol, 0);
 
     Expected<int64_t> Addend =
-        aarch32::readAddend(*Base::G, BlockToFix, E, ArmCfg);
+        aarch32::readAddend(*Base::G, BlockToFix, Offset, *Kind, ArmCfg);
     if (!Addend)
       return Addend.takeError();
 
-    E.setAddend(*Addend);
+    Edge E(*Kind, Offset, *GraphSymbol, *Addend);
     LLVM_DEBUG({
       dbgs() << "    ";
       printEdge(dbgs(), BlockToFix, E, getELFAArch32EdgeKindName(*Kind));
@@ -209,12 +216,12 @@ public:
         ArmCfg(std::move(ArmCfg)) {}
 };
 
-template <aarch32::StubsFlavor Flavor>
+template <typename StubsManagerType>
 Error buildTables_ELF_aarch32(LinkGraph &G) {
   LLVM_DEBUG(dbgs() << "Visiting edges in graph:\n");
 
-  aarch32::StubsManager<Flavor> PLT;
-  visitExistingEdges(G, PLT);
+  StubsManagerType StubsManager;
+  visitExistingEdges(G, StubsManager);
   return Error::success();
 }
 
@@ -250,7 +257,7 @@ createLinkGraphFromELFObject_aarch32(MemoryBufferRef ObjectBuffer) {
   case v7:
   case v8_A:
     ArmCfg = aarch32::getArmConfigForCPUArch(Arch);
-    assert(ArmCfg.Stubs != aarch32::Unsupported &&
+    assert(ArmCfg.Stubs != aarch32::StubsFlavor::Unsupported &&
            "Provide a config for each supported CPU");
     break;
   default:
@@ -302,11 +309,11 @@ void link_ELF_aarch32(std::unique_ptr<LinkGraph> G,
       PassCfg.PrePrunePasses.push_back(markAllSymbolsLive);
 
     switch (ArmCfg.Stubs) {
-    case aarch32::Thumbv7:
+    case aarch32::StubsFlavor::v7:
       PassCfg.PostPrunePasses.push_back(
-          buildTables_ELF_aarch32<aarch32::Thumbv7>);
+          buildTables_ELF_aarch32<aarch32::StubsManager_v7>);
       break;
-    case aarch32::Unsupported:
+    case aarch32::StubsFlavor::Unsupported:
       llvm_unreachable("Check before building graph");
     }
   }

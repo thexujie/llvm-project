@@ -103,7 +103,7 @@ static void visitPrebuiltModule(StringRef PrebuiltModuleFilename,
 static std::string makeObjFileName(StringRef FileName) {
   SmallString<128> ObjFileName(FileName);
   llvm::sys::path::replace_extension(ObjFileName, "o");
-  return std::string(ObjFileName.str());
+  return std::string(ObjFileName);
 }
 
 /// Deduce the dependency target based on the output file and input files.
@@ -255,6 +255,8 @@ public:
     ScanInstance.getHeaderSearchOpts().ModulesStrictContextHash = true;
     ScanInstance.getHeaderSearchOpts().ModulesSkipDiagnosticOptions = true;
     ScanInstance.getHeaderSearchOpts().ModulesSkipHeaderSearchPaths = true;
+    ScanInstance.getHeaderSearchOpts().ModulesSkipPragmaDiagnosticMappings =
+        true;
 
     // Avoid some checks and module map parsing when loading PCM files.
     ScanInstance.getPreprocessorOpts().ModulesCheckRelocated = false;
