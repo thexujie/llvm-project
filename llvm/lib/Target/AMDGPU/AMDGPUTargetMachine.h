@@ -38,6 +38,9 @@ public:
   static bool EnableFunctionCalls;
   static bool EnableLowerModuleLDS;
 
+  /// Asserts whether we can assume whole program visibility during codegen.
+  bool HasWholeProgramVisibility = false;
+
   AMDGPUTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                       StringRef FS, TargetOptions Options,
                       std::optional<Reloc::Model> RM,

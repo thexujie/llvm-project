@@ -54,6 +54,7 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Transforms/IPO/WholeProgramDevirt.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <memory>
 #include <optional>
@@ -717,9 +718,10 @@ static int compileModule(char **argv, LLVMContext &Context) {
       TPC.setInitialized();
       PM.add(createPrintMIRPass(*OS));
       PM.add(createFreeMachineFunctionPass());
-    } else if (Target->addPassesToEmitFile(
-                   PM, *OS, DwoOut ? &DwoOut->os() : nullptr,
-                   codegen::getFileType(), NoVerify, MMIWP)) {
+    } else if (Target->addPassesToEmitFile(PM, *OS,
+                                           DwoOut ? &DwoOut->os() : nullptr,
+                                           codegen::getFileType(), NoVerify,
+                                           MMIWP, TheTriple.isAMDGPU())) {
       reportError("target does not support generation of this file type");
     }
 
