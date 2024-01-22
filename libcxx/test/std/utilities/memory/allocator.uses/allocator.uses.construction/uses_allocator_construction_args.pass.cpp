@@ -167,11 +167,11 @@ constexpr void testOne() {
       (void)ret;
     }
     {
-      //using PairType = const std::pair<int, int>;
-      //const PairType p(1, 2);
+      using PairType = const std::pair<int, int>;
+      PairType p(1, 2);
 
       std::same_as<std::tuple<std::piecewise_construct_t, std::tuple<const int&&>, std::tuple<const int&&>>> auto ret =
-          test_uses_allocator_construction_args<PairType>(a, std::move(std::pair<int, int>(3, 4)));
+          test_uses_allocator_construction_args<PairType>(a, std::move(p));
       (void)ret;
     }
   }
