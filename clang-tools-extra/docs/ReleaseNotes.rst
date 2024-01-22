@@ -72,6 +72,9 @@ Code actions
 - The extract variable tweak gained support for extracting lambda expressions to a variable.
 - A new tweak was added for turning unscoped into scoped enums.
 
+- The abbreviate function template tweak was introduced.
+  It allows converting function templates to their abbreviated form using auto parameters.
+
 Signature help
 ^^^^^^^^^^^^^^
 
