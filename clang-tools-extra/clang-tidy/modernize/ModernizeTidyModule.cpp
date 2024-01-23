@@ -32,6 +32,7 @@
 #include "UseBoolLiteralsCheck.h"
 #include "UseConstraintsCheck.h"
 #include "UseDefaultMemberInitCheck.h"
+#include "UseDigitSeparatorCheck.h"
 #include "UseEmplaceCheck.h"
 #include "UseEqualsDefaultCheck.h"
 #include "UseEqualsDeleteCheck.h"
@@ -68,6 +69,8 @@ public:
     CheckFactories.registerCheck<MakeSharedCheck>("modernize-make-shared");
     CheckFactories.registerCheck<MakeUniqueCheck>("modernize-make-unique");
     CheckFactories.registerCheck<PassByValueCheck>("modernize-pass-by-value");
+    CheckFactories.registerCheck<UseDigitSeparatorCheck>(
+        "modernize-use-digit-separator");
     CheckFactories.registerCheck<UseStartsEndsWithCheck>(
         "modernize-use-starts-ends-with");
     CheckFactories.registerCheck<UseStdNumbersCheck>(

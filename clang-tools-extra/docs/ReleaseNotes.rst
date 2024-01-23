@@ -210,6 +210,11 @@ New checks
 
   Replace ``enable_if`` with C++20 requires clauses.
 
+- New :doc:`modernize-use-digit-separator
+  <clang-tidy/checks/modernize/use-digit-separator>` check.
+
+  Looks for long integral constants and inserts the digits separator (') appropriately.
+
 - New :doc:`modernize-use-starts-ends-with
   <clang-tidy/checks/modernize/use-starts-ends-with>` check.
 
