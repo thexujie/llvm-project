@@ -4533,16 +4533,6 @@ struct FormatStyle {
   /// \version 17
   SpacesInParensStyle SpacesInParens;
 
-  /// Selective control over spaces in parens.
-  enum SpacesInParensCustomStyle : int8_t {
-    /// Never put spaces in parens.
-    SIPCS_Never,
-    /// Only put spaces in parens not followed by the same consecutive parens.
-    SIPCS_NonConsecutive,
-    /// Always put spaces in parens.
-    SIPCS_Always
-  };
-
   /// Precise control over the spacing in parentheses.
   /// \code
   ///   # Should be declared this way:
@@ -4552,55 +4542,53 @@ struct FormatStyle {
   ///     Other: true
   /// \endcode
   struct SpacesInParensCustom {
+    /// Override any of the following options to prevent addition of space
+    /// between the first two parentheses in situations where a pair of
+    /// parentheses have been used.
+    /// \code
+    ///   true:
+    ///   __attribute__(( noreturn ))
+    ///   __decltype__(( x ))
+    ///   if (( a = b ))
+    /// \endcode
+    ///  false:
+    ///    Uses the applicable option.
+    bool ExceptDoubleParentheses;
     /// Put a space in parentheses of attribute specifiers.
     /// \code
-    ///    Always:
+    ///    true:
     ///    __attribute__( ( noreturn ) )
     /// \endcode
     /// \code
-    ///    NonConsecutive:
-    ///    _attribute__(( noreturn ))
-    /// \endcode
-    /// \code
-    ///    Never:
+    ///    false:
     ///    _attribute__((noreturn))
     /// \endcode
-    SpacesInParensCustomStyle InAttributeSpecifiers;
+    bool InAttributeSpecifiers;
     /// Put a space in parentheses only inside conditional statements
     /// (``for/if/while/switch...``).
     /// \code
-    ///    Always:
+    ///    true:
     ///    if ( ( a ) )  { ... }
     ///    while ( i < 5 )  { ... }
     /// \endcode
     /// \code
-    ///   NonConsecutive:
-    ///   if (( a )) { ... }
-    ///   while ( i < 5 ) { ... }
-    /// \endcode
-    /// \code
-    ///   Never:
+    ///   false:
     ///   if ((a)) { ... }
     ///   while (i < 5) { ... }
     /// \endcode
-    SpacesInParensCustomStyle InConditionalStatements;
+    bool InConditionalStatements;
     /// Put a space in C style casts.
     /// \code
-    ///   Always:
+    ///   true:
     ///   x = ( int32 )y
     ///   y = (( int (*)(int) )foo)(x);
     /// \endcode
     /// \code
-    ///   NonConsecutive:
-    ///   x = ( int32 )y
-    ///   y = ((int (*)(int))foo)(x);
-    /// \endcode
-    /// \code
-    ///   Never:
+    ///   false:
     ///   x = (int32)y
     ///   y = ((int (*)(int))foo)(x);
     /// \endcode
-    SpacesInParensCustomStyle InCStyleCasts;
+    bool InCStyleCasts;
     /// Put a space in parentheses only if the parentheses are empty i.e. '()'
     /// \code
     ///    true:                                false:
@@ -4614,45 +4602,39 @@ struct FormatStyle {
     bool InEmptyParentheses;
     /// Put a space in parentheses not covered by preceding options.
     /// \code
-    ///   Always:
+    ///   true:
     ///   t f( Deleted & ) & = delete;
     ///   decltype( ( x ) )
     ///   x = ( (int32)y )
     ///   y = ( (int ( * )( int ))foo )( x );
     /// \endcode
     /// \code
-    ///   NonConsecutive:
-    ///   t f( Deleted & ) & = delete;
-    ///   decltype(( x ))
-    ///   x = ((int32))y
-    ///   y = ((int ( * )( int ))foo)( x );
-    /// \endcode
-    /// \code
-    ///   Never:
+    ///   false:
     ///   t f(Deleted &) & = delete;
     ///   decltype((x))
     ///   x = ((int32))y
     ///   y = ((int (*)(int))foo)(x);
     /// \endcode
-    SpacesInParensCustomStyle Other;
+    bool Other;
 
     SpacesInParensCustom()
-        : InAttributeSpecifiers(SIPCS_Never),
-          InConditionalStatements(SIPCS_Never), InCStyleCasts(SIPCS_Never),
-          InEmptyParentheses(false), Other(SIPCS_Never) {}
+        : ExceptDoubleParentheses(false), InAttributeSpecifiers(false),
+          InConditionalStatements(false), InCStyleCasts(false),
+          InEmptyParentheses(false), Other(false) {}
 
-    SpacesInParensCustom(SpacesInParensCustomStyle InAttributeSpecifiers,
-                         SpacesInParensCustomStyle InConditionalStatements,
-                         SpacesInParensCustomStyle InCStyleCasts,
-                         bool InEmptyParentheses,
-                         SpacesInParensCustomStyle Other)
-        : InAttributeSpecifiers(InAttributeSpecifiers),
+    SpacesInParensCustom(bool ExceptDoubleParentheses,
+                         bool InAttributeSpecifiers,
+                         bool InConditionalStatements, bool InCStyleCasts,
+                         bool InEmptyParentheses, bool Other)
+        : ExceptDoubleParentheses(ExceptDoubleParentheses),
+          InAttributeSpecifiers(InAttributeSpecifiers),
           InConditionalStatements(InConditionalStatements),
           InCStyleCasts(InCStyleCasts), InEmptyParentheses(InEmptyParentheses),
           Other(Other) {}
 
     bool operator==(const SpacesInParensCustom &R) const {
-      return InAttributeSpecifiers == R.InAttributeSpecifiers &&
+      return ExceptDoubleParentheses == R.ExceptDoubleParentheses &&
+             InAttributeSpecifiers == R.InAttributeSpecifiers &&
              InConditionalStatements == R.InConditionalStatements &&
              InCStyleCasts == R.InCStyleCasts &&
              InEmptyParentheses == R.InEmptyParentheses && Other == R.Other;
@@ -4671,8 +4653,8 @@ struct FormatStyle {
   ///   # Example of usage:
   ///   SpacesInParens: Custom
   ///   SpacesInParensOptions:
-  ///     InAttributeSpecifiers: NonConsecutive
-  ///     InConditionalStatements: Always
+  ///     InAttributeSpecifiers: false
+  ///     InConditionalStatements: true
   ///     InEmptyParentheses: true
   /// \endcode
   /// \version 17

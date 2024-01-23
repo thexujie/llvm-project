@@ -750,22 +750,9 @@ template <> struct MappingTraits<FormatStyle::SpacesInLineComment> {
   }
 };
 
-template <>
-struct ScalarEnumerationTraits<FormatStyle::SpacesInParensCustomStyle> {
-  static void enumeration(IO &IO,
-                          FormatStyle::SpacesInParensCustomStyle &Value) {
-    IO.enumCase(Value, "Never", FormatStyle::SIPCS_Never);
-    IO.enumCase(Value, "NonConsecutive", FormatStyle::SIPCS_NonConsecutive);
-    IO.enumCase(Value, "Always", FormatStyle::SIPCS_Always);
-
-    // For backward compatibility.
-    IO.enumCase(Value, "true", FormatStyle::SIPCS_Always);
-    IO.enumCase(Value, "false", FormatStyle::SIPCS_Never);
-  }
-};
-
 template <> struct MappingTraits<FormatStyle::SpacesInParensCustom> {
   static void mapping(IO &IO, FormatStyle::SpacesInParensCustom &Spaces) {
+    IO.mapOptional("ExceptDoubleParentheses", Spaces.ExceptDoubleParentheses);
     IO.mapOptional("InAttributeSpecifiers", Spaces.InAttributeSpecifiers);
     IO.mapOptional("InCStyleCasts", Spaces.InCStyleCasts);
     IO.mapOptional("InConditionalStatements", Spaces.InConditionalStatements);
@@ -1205,27 +1192,22 @@ template <> struct MappingTraits<FormatStyle> {
     if (Style.SpacesInParens != FormatStyle::SIPO_Custom &&
         (SpacesInParentheses || SpaceInEmptyParentheses ||
          SpacesInConditionalStatement || SpacesInCStyleCastParentheses)) {
-      const auto CoerceBooleanToSIPCS = [](const bool enabled) {
-        return enabled ? FormatStyle::SIPCS_Always : FormatStyle::SIPCS_Never;
-      };
       if (SpacesInParentheses) {
-        // set all options except InCStyleCasts and InEmptyParentheses
-        // to true/Always for backward compatibility.
-        Style.SpacesInParensOptions.InAttributeSpecifiers =
-            FormatStyle::SIPCS_Always;
-        Style.SpacesInParensOptions.InConditionalStatements =
-            FormatStyle::SIPCS_Always;
+        // for backward compatibility.
+        Style.SpacesInParensOptions.ExceptDoubleParentheses = false;
+        Style.SpacesInParensOptions.InAttributeSpecifiers = true;
+        Style.SpacesInParensOptions.InConditionalStatements = true;
         Style.SpacesInParensOptions.InCStyleCasts =
-            CoerceBooleanToSIPCS(SpacesInCStyleCastParentheses);
+            SpacesInCStyleCastParentheses;
         Style.SpacesInParensOptions.InEmptyParentheses =
             SpaceInEmptyParentheses;
-        Style.SpacesInParensOptions.Other = FormatStyle::SIPCS_Always;
+        Style.SpacesInParensOptions.Other = true;
       } else {
         Style.SpacesInParensOptions = {};
         Style.SpacesInParensOptions.InConditionalStatements =
-            CoerceBooleanToSIPCS(SpacesInConditionalStatement);
+            SpacesInConditionalStatement;
         Style.SpacesInParensOptions.InCStyleCasts =
-            CoerceBooleanToSIPCS(SpacesInCStyleCastParentheses);
+            SpacesInCStyleCastParentheses;
         Style.SpacesInParensOptions.InEmptyParentheses =
             SpaceInEmptyParentheses;
       }

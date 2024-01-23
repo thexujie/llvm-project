@@ -1284,10 +1284,9 @@ clang-format
 - Add ``SkipMacroDefinitionBody`` option.
 - Add ``InAttributeSpecifiers`` style option to ``SpacesInParensOptions``
   to control addition of spaces after the ``__attribute__`` keyword.
-- Add ``NonConsecutive`` sub-option for ``InAttributeSpecifiers``,
-  ``InConditionalStatements``, ``InCStyleCasts``, and ``Other`` options of
-  ``SpacesInParensOptions`` to control addition of spaces between consecutive
-  parentheses.
+- Add ``ExceptDoubleParentheses`` sub-option for ``SpacesInParensOptions``
+  to override addition of spaces between multiple, non-redundant parentheses
+  similar to the rules used for ``RemoveParentheses``.
 
 libclang
 --------

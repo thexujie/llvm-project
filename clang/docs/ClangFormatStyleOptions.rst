@@ -5688,8 +5688,8 @@ the configuration (without a prefix: ``Auto``).
     # Example of usage:
     SpacesInParens: Custom
     SpacesInParensOptions:
-      InAttributeSpecifiers: NonConsecutive
-      InConditionalStatements: Always
+      InAttributeSpecifiers: false
+      InConditionalStatements: true
       InEmptyParentheses: true
 
   Nested configuration flags:
@@ -5704,102 +5704,59 @@ the configuration (without a prefix: ``Auto``).
       InConditionalStatements: true
       Other: true
 
-  * ``SpacesInParensCustomStyle InAttributeSpecifiers``
-    Put a space in parentheses of attribute specifiers.
+  * ``bool ExceptDoubleParentheses`` Override any of the following options to prevent addition of space
+    between the first two parentheses in situations where a pair of
+    parentheses have been used.
 
     .. code-block:: c++
 
-       Always:
+      true:
+      __attribute__(( noreturn ))
+      __decltype__(( x ))
+      if (( a = b ))
+     false:
+       Uses the applicable option.
+
+  * ``bool InAttributeSpecifiers`` Put a space in parentheses of attribute specifiers.
+
+    .. code-block:: c++
+
+       true:
        __attribute__( ( noreturn ) )
 
     .. code-block:: c++
 
-       NonConsecutive:
-       _attribute__(( noreturn ))
-
-    .. code-block:: c++
-
-       Never:
+       false:
        _attribute__((noreturn))
 
-    Possible values:
-
-    * ``SIPCS_Never`` (in configuration: ``Never``)
-      Never put spaces in parens.
-
-    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
-      Only put spaces in parens not followed by the same consecutive parens.
-
-    * ``SIPCS_Always`` (in configuration: ``Always``)
-      Always put spaces in parens.
-
-
-  * ``SpacesInParensCustomStyle InConditionalStatements``
-    Put a space in parentheses only inside conditional statements
+  * ``bool InConditionalStatements`` Put a space in parentheses only inside conditional statements
     (``for/if/while/switch...``).
 
     .. code-block:: c++
 
-       Always:
+       true:
        if ( ( a ) )  { ... }
        while ( i < 5 )  { ... }
 
     .. code-block:: c++
 
-      NonConsecutive:
-      if (( a )) { ... }
-      while ( i < 5 ) { ... }
-
-    .. code-block:: c++
-
-      Never:
+      false:
       if ((a)) { ... }
       while (i < 5) { ... }
 
-    Possible values:
-
-    * ``SIPCS_Never`` (in configuration: ``Never``)
-      Never put spaces in parens.
-
-    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
-      Only put spaces in parens not followed by the same consecutive parens.
-
-    * ``SIPCS_Always`` (in configuration: ``Always``)
-      Always put spaces in parens.
-
-
-  * ``SpacesInParensCustomStyle InCStyleCasts``
-    Put a space in C style casts.
+  * ``bool InCStyleCasts`` Put a space in C style casts.
 
     .. code-block:: c++
 
-      Always:
+      true:
       x = ( int32 )y
       y = (( int (*)(int) )foo)(x);
 
     .. code-block:: c++
 
-      NonConsecutive:
-      x = ( int32 )y
-      y = ((int (*)(int))foo)(x);
-
-    .. code-block:: c++
-
-      Never:
+      false:
       x = (int32)y
       y = ((int (*)(int))foo)(x);
-
-    Possible values:
-
-    * ``SIPCS_Never`` (in configuration: ``Never``)
-      Never put spaces in parens.
-
-    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
-      Only put spaces in parens not followed by the same consecutive parens.
-
-    * ``SIPCS_Always`` (in configuration: ``Always``)
-      Always put spaces in parens.
-
 
   * ``bool InEmptyParentheses`` Put a space in parentheses only if the parentheses are empty i.e. '()'
 
@@ -5813,12 +5770,11 @@ the configuration (without a prefix: ``Auto``).
          }                                    }
        }                                    }
 
-  * ``SpacesInParensCustomStyle Other``
-    Put a space in parentheses not covered by preceding options.
+  * ``bool Other`` Put a space in parentheses not covered by preceding options.
 
     .. code-block:: c++
 
-      Always:
+      true:
       t f( Deleted & ) & = delete;
       decltype( ( x ) )
       x = ( (int32)y )
@@ -5826,31 +5782,11 @@ the configuration (without a prefix: ``Auto``).
 
     .. code-block:: c++
 
-      NonConsecutive:
-      t f( Deleted & ) & = delete;
-      decltype(( x ))
-      x = ((int32))y
-      y = ((int ( * )( int ))foo)( x );
-
-    .. code-block:: c++
-
-      Never:
+      false:
       t f(Deleted &) & = delete;
       decltype((x))
       x = ((int32))y
       y = ((int (*)(int))foo)(x);
-
-    Possible values:
-
-    * ``SIPCS_Never`` (in configuration: ``Never``)
-      Never put spaces in parens.
-
-    * ``SIPCS_NonConsecutive`` (in configuration: ``NonConsecutive``)
-      Only put spaces in parens not followed by the same consecutive parens.
-
-    * ``SIPCS_Always`` (in configuration: ``Always``)
-      Always put spaces in parens.
-
 
 
 .. _SpacesInParentheses:
