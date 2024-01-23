@@ -72,6 +72,9 @@ Code actions
 - The extract variable tweak gained support for extracting lambda expressions to a variable.
 - A new tweak was added for turning unscoped into scoped enums.
 
+- The inline concept requirement tweak was introduced.
+  It allows inlining of simple require clauses into the template declaration.
+
 Signature help
 ^^^^^^^^^^^^^^
 
