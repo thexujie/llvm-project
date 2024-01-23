@@ -1567,6 +1567,18 @@ LogicalResult CancellationPointOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// RegionOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult StructuredRegionOp::verify() {
+  Operation *parentOp = (*this)->getParentOp();
+  assert(parentOp && "'omp.region' op must have a parent");
+  if (!isa<OpenMPDialect>(parentOp->getDialect()))
+    return emitOpError() << "must be used under an OpenMP Dialect operation";
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // DataBoundsOp
 //===----------------------------------------------------------------------===//
 
