@@ -4542,18 +4542,51 @@ struct FormatStyle {
   ///     Other: true
   /// \endcode
   struct SpacesInParensCustom {
+    /// Override any of the following options to prevent addition of space
+    /// between the first two parentheses in situations where a pair of
+    /// parentheses have been used.
+    /// \code
+    ///   true:
+    ///   __attribute__(( noreturn ))
+    ///   __decltype__(( x ))
+    ///   if (( a = b ))
+    /// \endcode
+    ///  false:
+    ///    Uses the applicable option.
+    bool ExceptDoubleParentheses;
+    /// Put a space in parentheses of attribute specifiers.
+    /// \code
+    ///    true:
+    ///    __attribute__( ( noreturn ) )
+    /// \endcode
+    /// \code
+    ///    false:
+    ///    _attribute__((noreturn))
+    /// \endcode
+    bool InAttributeSpecifiers;
     /// Put a space in parentheses only inside conditional statements
     /// (``for/if/while/switch...``).
     /// \code
-    ///    true:                                  false:
-    ///    if ( a )  { ... }              vs.     if (a) { ... }
-    ///    while ( i < 5 )  { ... }               while (i < 5) { ... }
+    ///    true:
+    ///    if ( ( a ) )  { ... }
+    ///    while ( i < 5 )  { ... }
+    /// \endcode
+    /// \code
+    ///   false:
+    ///   if ((a)) { ... }
+    ///   while (i < 5) { ... }
     /// \endcode
     bool InConditionalStatements;
     /// Put a space in C style casts.
     /// \code
-    ///    true:                                  false:
-    ///    x = ( int32 )y                 vs.     x = (int32)y
+    ///   true:
+    ///   x = ( int32 )y
+    ///   y = (( int (*)(int) )foo)(x);
+    /// \endcode
+    /// \code
+    ///   false:
+    ///   x = (int32)y
+    ///   y = ((int (*)(int))foo)(x);
     /// \endcode
     bool InCStyleCasts;
     /// Put a space in parentheses only if the parentheses are empty i.e. '()'
@@ -4569,23 +4602,40 @@ struct FormatStyle {
     bool InEmptyParentheses;
     /// Put a space in parentheses not covered by preceding options.
     /// \code
-    ///    true:                                  false:
-    ///    t f( Deleted & ) & = delete;   vs.     t f(Deleted &) & = delete;
+    ///   true:
+    ///   t f( Deleted & ) & = delete;
+    ///   decltype( ( x ) )
+    ///   x = ( (int32)y )
+    ///   y = ( (int ( * )( int ))foo )( x );
+    /// \endcode
+    /// \code
+    ///   false:
+    ///   t f(Deleted &) & = delete;
+    ///   decltype((x))
+    ///   x = ((int32))y
+    ///   y = ((int (*)(int))foo)(x);
     /// \endcode
     bool Other;
 
     SpacesInParensCustom()
-        : InConditionalStatements(false), InCStyleCasts(false),
+        : ExceptDoubleParentheses(false), InAttributeSpecifiers(false),
+          InConditionalStatements(false), InCStyleCasts(false),
           InEmptyParentheses(false), Other(false) {}
 
-    SpacesInParensCustom(bool InConditionalStatements, bool InCStyleCasts,
+    SpacesInParensCustom(bool ExceptDoubleParentheses,
+                         bool InAttributeSpecifiers,
+                         bool InConditionalStatements, bool InCStyleCasts,
                          bool InEmptyParentheses, bool Other)
-        : InConditionalStatements(InConditionalStatements),
+        : ExceptDoubleParentheses(ExceptDoubleParentheses),
+          InAttributeSpecifiers(InAttributeSpecifiers),
+          InConditionalStatements(InConditionalStatements),
           InCStyleCasts(InCStyleCasts), InEmptyParentheses(InEmptyParentheses),
           Other(Other) {}
 
     bool operator==(const SpacesInParensCustom &R) const {
-      return InConditionalStatements == R.InConditionalStatements &&
+      return ExceptDoubleParentheses == R.ExceptDoubleParentheses &&
+             InAttributeSpecifiers == R.InAttributeSpecifiers &&
+             InConditionalStatements == R.InConditionalStatements &&
              InCStyleCasts == R.InCStyleCasts &&
              InEmptyParentheses == R.InEmptyParentheses && Other == R.Other;
     }
@@ -4603,6 +4653,7 @@ struct FormatStyle {
   ///   # Example of usage:
   ///   SpacesInParens: Custom
   ///   SpacesInParensOptions:
+  ///     InAttributeSpecifiers: false
   ///     InConditionalStatements: true
   ///     InEmptyParentheses: true
   /// \endcode
