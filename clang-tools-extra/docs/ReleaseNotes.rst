@@ -377,6 +377,12 @@ Changes in existing checks
   to ignore unused parameters when they are marked as unused and parameters of
   deleted functions and constructors.
 
+- Improved :doc:`cppcoreguidelines-special-member-functions
+  <clang-tidy/checks/cppcoreguidelines/special-member-functions>` check with a
+  new option `AllowImplicitlyDeletedCopyOrMove`, which removes the requirement
+  for explicit copy or move special member functions when they are already
+  implicitly deleted.
+
 - Improved :doc:`google-readability-casting
   <clang-tidy/checks/google/readability-casting>` check to ignore constructor
   calls disguised as functional casts.
