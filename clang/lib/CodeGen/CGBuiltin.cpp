@@ -60,8 +60,13 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
 #include "llvm/TargetParser/X86TargetParser.h"
+#include <algorithm>
 #include <optional>
 #include <sstream>
+
+
+
+#include <iostream>
 
 using namespace clang;
 using namespace CodeGen;
@@ -2525,6 +2530,139 @@ static RValue EmitHipStdParUnsupportedBuiltin(CodeGenFunction *CGF,
   return RValue::get(CGF->Builder.CreateCall(UBF, Args));
 }
 
+template <class T>
+void RecursivelyClearPaddingImpl(CodeGenFunction &CGF, Value *Ptr, QualType Ty, size_t CurrentStartOffset, size_t &RunningOffset, T&& WriteZeroAtOffset);
+
+template <class T>
+void ClearPaddingStruct(CodeGenFunction &CGF, Value *Ptr, QualType Ty, StructType *ST, 
+                        size_t CurrentStartOffset, size_t &RunningOffset, T&& WriteZeroAtOffset) {
+  std::cerr << "\n struct! " << ST->getName().data() << std::endl;
+  auto SL = CGF.CGM.getModule().getDataLayout().getStructLayout(ST);
+
+  auto R = dyn_cast<CXXRecordDecl>(Ty->getAsRecordDecl());
+  if(!R) {
+    std::cerr << "\n not a CXXRecordDecl" << std::endl;
+
+  }
+  const ASTRecordLayout &ASTLayout = CGF.getContext().getASTRecordLayout(R);
+  for (auto Base : R->bases()) {
+    std::cerr << "\n\n base!"  << std::endl;
+    // Zero padding between base elements.
+    auto BaseRecord = cast<CXXRecordDecl>(Base.getType()->getAsRecordDecl());
+    auto Offset = static_cast<size_t>(
+        ASTLayout.getBaseClassOffset(BaseRecord).getQuantity());
+    // Recursively zero out base classes.
+    auto Index = SL->getElementContainingOffset(Offset);
+    Value *Idx = CGF.Builder.getSize(Index);
+    llvm::Type *CurrentBaseType = CGF.ConvertTypeForMem(Base.getType());
+    Value *BaseElement = CGF.Builder.CreateGEP(CurrentBaseType, Ptr, Idx);
+    RecursivelyClearPaddingImpl(CGF, BaseElement, Base.getType(), CurrentStartOffset + Offset, RunningOffset, WriteZeroAtOffset);
+  }
+
+  size_t NumFields = std::distance(R->field_begin(), R->field_end());
+  auto CurrentField = R->field_begin();
+  for (size_t I = 0; I < NumFields; ++I, ++CurrentField) {
+    // Size needs to be in bytes so we can compare it later.
+    auto Offset = ASTLayout.getFieldOffset(I) / 8;
+    auto Index = SL->getElementContainingOffset(Offset);
+    Value *Idx = CGF.Builder.getSize(Index);
+    llvm::Type *CurrentFieldType = CGF.ConvertTypeForMem(CurrentField->getType());
+    Value *Element = CGF.Builder.CreateGEP(CurrentFieldType, Ptr, Idx);
+    RecursivelyClearPaddingImpl(CGF, Element, CurrentField->getType(), CurrentStartOffset + Offset, RunningOffset, WriteZeroAtOffset);
+  }
+}
+
+template <class T>
+void ClearPaddingConstantArray(CodeGenFunction &CGF, Value *Ptr, llvm::Type *Type, ConstantArrayType const *AT, 
+                               size_t CurrentStartOffset, size_t &RunningOffset, T&& WriteZeroAtOffset) {
+  for (size_t ArrIndex = 0; ArrIndex < AT->getSize().getLimitedValue();
+       ++ArrIndex) {
+
+    QualType ElementQualType = AT->getElementType();
+
+    auto *ElementRecord = ElementQualType->getAsRecordDecl();
+    if(!ElementRecord){
+      std::cerr<< "\n\n null!" << std::endl;
+    }
+    auto ElementAlign =ElementRecord?
+        CGF.getContext().getASTRecordLayout(ElementRecord).getAlignment():
+        CGF.getContext().getTypeAlignInChars(ElementQualType);
+
+      std::cerr<< "\n\n align: " << ElementAlign.getQuantity() << std::endl;
+    
+    // Value *Idx = CGF.Builder.getSize(0);
+    // Value *ArrayElement = CGF.Builder.CreateGEP(ElementType, Ptr, Idx);
+
+    Address FieldElementAddr{Ptr, Type, ElementAlign};
+
+    auto Element =
+        CGF.Builder.CreateConstArrayGEP(FieldElementAddr, ArrIndex);
+    auto *ElementType = CGF.ConvertTypeForMem(ElementQualType);
+    auto AllocSize = CGF.CGM.getModule().getDataLayout().getTypeAllocSize(ElementType);
+    std::cerr << "\n\n clearing array index! " << ArrIndex << std::endl;
+    RecursivelyClearPaddingImpl(CGF, Element.getPointer(), ElementQualType, CurrentStartOffset + ArrIndex * AllocSize.getKnownMinValue(), RunningOffset, WriteZeroAtOffset);
+  }
+}
+
+template <class T>
+void RecursivelyClearPaddingImpl(CodeGenFunction &CGF, Value *Ptr, QualType Ty, size_t CurrentStartOffset, 
+                                 size_t& RunningOffset, T&& WriteZeroAtOffset) {
+
+  std::cerr << "\n\n  zero padding before current  ["<< RunningOffset << ", " << CurrentStartOffset<< ")"<< std::endl;
+  for (; RunningOffset < CurrentStartOffset; ++RunningOffset) {
+    WriteZeroAtOffset(RunningOffset);
+  }
+  auto Type = CGF.ConvertTypeForMem(Ty);
+  auto Size = CGF.CGM.getModule()
+                    .getDataLayout()
+                    .getTypeSizeInBits(Type)
+                    .getKnownMinValue() / 8;
+
+  if (auto *AT = dyn_cast<ConstantArrayType>(Ty)) {
+    ClearPaddingConstantArray(CGF, Ptr, Type, AT, CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
+  }
+  else if (auto *ST = dyn_cast<StructType>(Type); ST && Ty->isRecordType()) {
+    ClearPaddingStruct(CGF, Ptr, Ty, ST, CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
+  } else if (Ty->isAtomicType()) {
+    RecursivelyClearPaddingImpl(CGF, Ptr, Ty.getAtomicUnqualifiedType(), CurrentStartOffset, RunningOffset, WriteZeroAtOffset);
+  } else {
+    std::cerr << "\n\n increment running offset from: " << RunningOffset << " to " << RunningOffset + Size << std::endl;
+    RunningOffset = std::max(RunningOffset, CurrentStartOffset + static_cast<size_t>(Size));
+  }
+
+}
+
+static void RecursivelyClearPadding(CodeGenFunction &CGF, Value *Ptr,
+                                        QualType Ty) {
+  auto *I8Ptr = CGF.Builder.CreateBitCast(Ptr, CGF.Int8PtrTy);
+  auto *Zero = ConstantInt::get(CGF.Int8Ty, 0);
+  auto WriteZeroAtOffset = [&](size_t Offset) {
+    auto *Index = ConstantInt::get(CGF.IntTy, Offset);
+    auto *Element = CGF.Builder.CreateGEP(CGF.Int8Ty, I8Ptr, Index);
+    CGF.Builder.CreateAlignedStore(
+        Zero, Element,
+        CharUnits::One().alignmentAtOffset(CharUnits::fromQuantity(Offset)));
+  };
+
+
+  size_t RunningOffset = 0;
+
+  RecursivelyClearPaddingImpl(CGF, Ptr, Ty, 0, RunningOffset, WriteZeroAtOffset);
+
+  // Clear tail padding
+  auto Type = CGF.ConvertTypeForMem(Ty);
+  
+  auto Size = CGF.CGM.getModule()
+                    .getDataLayout()
+                    .getTypeAllocSize(Type)
+                    .getKnownMinValue();
+
+  std::cerr << "\n\n  zero tail padding  ["<< RunningOffset << ", " << Size << ")"<< std::endl;
+  for (; RunningOffset < Size; ++RunningOffset) {
+    WriteZeroAtOffset(RunningOffset);
+  }
+}
+
 RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
@@ -4390,6 +4528,13 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       Ptr = Builder.CreateLaunderInvariantGroup(Ptr);
 
     return RValue::get(Ptr);
+  }
+  case Builtin::BI__builtin_clear_padding: {
+    const Expr *Op = E->getArg(0);
+    Value *Address = EmitScalarExpr(Op);
+    auto PointeeTy = Op->getType()->getPointeeType();
+    RecursivelyClearPadding(*this, Address, PointeeTy);
+    return RValue::get(nullptr);
   }
   case Builtin::BI__sync_fetch_and_add:
   case Builtin::BI__sync_fetch_and_sub:
