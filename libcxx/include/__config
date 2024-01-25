@@ -838,11 +838,11 @@ typedef __char32_t char32_t;
 #  endif
 
 // TODO: Remove this workaround once we drop support for Clang 16
-#if __has_warning("-Wc++23-extensions")
-#  define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++23-extensions")
-#else
-#  define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++2b-extensions")
-#endif
+#  if __has_warning("-Wc++23-extensions")
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++23-extensions")
+#  else
+#    define _LIBCPP_CLANG_DIAGNOSTIC_IGNORED_CXX23_EXTENSION _LIBCPP_CLANG_DIAGNOSTIC_IGNORED("-Wc++2b-extensions")
+#  endif
 
 // Clang modules take a significant compile time hit when pushing and popping diagnostics.
 // Since all the headers are marked as system headers in the modulemap, we can simply disable this
@@ -1451,6 +1451,12 @@ __sanitizer_verify_double_ended_contiguous_container(const void*, const void*, c
 #    define _LIBCPP_DIAGNOSE_WARNING(...) __attribute__((__diagnose_if__(__VA_ARGS__, "warning")))
 #  else
 #    define _LIBCPP_DIAGNOSE_WARNING(...)
+#  endif
+
+#  if __has_attribute(__diagnose_if__)
+#    define _LIBCPP_DIAGNOSE_ERROR(...) __attribute__((__diagnose_if__(__VA_ARGS__, "error")))
+#  else
+#    define _LIBCPP_DIAGNOSE_ERROR(...)
 #  endif
 
 // Use a function like macro to imply that it must be followed by a semicolon
