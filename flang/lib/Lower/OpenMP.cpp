@@ -1501,9 +1501,8 @@ bool ClauseProcessor::processDistSchedule(
     mlir::Value &chunkSize) const {
   if (auto *distScheduleClause = findUniqueClause<ClauseTy::DistSchedule>()) {
     scheduleStatic = converter.getFirOpBuilder().getUnitAttr();
-    if (const auto *expr = Fortran::semantics::GetExpr(distScheduleClause->v)) {
+    if (const auto *expr = Fortran::semantics::GetExpr(distScheduleClause->v))
       chunkSize = fir::getBase(converter.genExprValue(*expr, stmtCtx));
-    }
     return true;
   }
   return false;
