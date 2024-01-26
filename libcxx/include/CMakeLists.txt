@@ -653,6 +653,7 @@ set(files
   __ranges/view_interface.h
   __ranges/views.h
   __ranges/zip_view.h
+  __ranges/zip_transform_view.h
   __split_buffer
   __std_clang_module
   __std_mbstate_t.h

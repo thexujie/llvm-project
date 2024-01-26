@@ -245,6 +245,13 @@ struct __zip_view_iterator_category_base<_Const, _Views...> {
   using iterator_category = input_iterator_tag;
 };
 
+struct __zip_view_iterator_access {
+  template <class _Iter>
+  _LIBCPP_HIDE_FROM_ABI static constexpr decltype(auto) __get_underlying(_Iter& __iter) noexcept {
+    return (__iter.__current_);
+  }
+};
+
 template <input_range... _Views>
   requires(view<_Views> && ...) && (sizeof...(_Views) > 0)
 template <bool _Const>
@@ -262,6 +269,8 @@ class zip_view<_Views...>::__iterator : public __zip_view_iterator_category_base
   friend class zip_view<_Views...>::__sentinel;
 
   friend class zip_view<_Views...>;
+
+  friend __zip_view_iterator_access;
 
 public:
   using iterator_concept = decltype(__get_zip_view_iterator_tag<_Const, _Views...>());
