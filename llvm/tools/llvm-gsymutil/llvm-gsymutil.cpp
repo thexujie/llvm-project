@@ -92,6 +92,7 @@ static uint64_t SegmentSize;
 static bool Quiet;
 static std::vector<uint64_t> LookupAddresses;
 static bool LookupAddressesFromStdin;
+static std::string SymbolTableFilename;
 
 static void parseArgs(int argc, char **argv) {
   GSYMUtilOptTable Tbl;
@@ -110,8 +111,9 @@ static void parseArgs(int argc, char **argv) {
         "information in each GSYM file.\n"
         "Specify a single GSYM file along with one or more --lookup options to "
         "lookup addresses within that GSYM file.\n"
-        "Use the --convert option to specify a file with option --out-file "
-        "option to convert to GSYM format.\n";
+        "Use the --convert option to specify a file (with --symtab-file if "
+        "needed) "
+        "with option --out-file option to convert to GSYM format.\n";
 
     Tbl.printHelp(llvm::outs(), "llvm-gsymutil [options] <input GSYM files>",
                   Overview);
@@ -169,6 +171,9 @@ static void parseArgs(int argc, char **argv) {
   }
 
   LookupAddressesFromStdin = Args.hasArg(OPT_addresses_from_stdin);
+
+  if (const llvm::opt::Arg *A = Args.getLastArg(OPT_symtab_file_EQ))
+    SymbolTableFilename = A->getValue();
 }
 
 /// @}
@@ -358,7 +363,38 @@ static llvm::Error handleObjectFile(ObjectFile &Obj,
     return Err;
 
   // Get the UUID and convert symbol table to GSYM.
-  if (auto Err = ObjectFileTransformer::convert(Obj, LogOS, Gsym))
+  // Use a separate file for symbol table if specified
+  std::string SymtabFile = SymbolTableFilename;
+  ErrorOr<std::unique_ptr<MemoryBuffer>> SymtabBuffOrErr = nullptr;
+  std::unique_ptr<MemoryBuffer> SymtabBuffer = nullptr;
+  if (!SymtabFile.empty()) {
+    outs() << "Using symbol table file: " << SymbolTableFilename << "\n";
+    SymtabBuffOrErr = MemoryBuffer::getFileOrSTDIN(SymtabFile);
+    error(SymtabFile, SymtabBuffOrErr.getError());
+    SymtabBuffer = std::move(SymtabBuffOrErr.get());
+    Expected<std::unique_ptr<Binary>> SymtabBinOrErr =
+        object::createBinary(*SymtabBuffer);
+    error(SymtabFile, errorToErrorCode(SymtabBinOrErr.takeError()));
+    if (auto Symtab = dyn_cast<ObjectFile>(SymtabBinOrErr->get())) {
+      Triple ObjTriple(Obj.makeTriple());
+      Triple SymtabTriple(Symtab->makeTriple());
+      if (ObjTriple.getArchName() != SymtabTriple.getArchName())
+        return createStringError(std::errc::invalid_argument,
+                                 "Cannot use symbol table file %s in %s for "
+                                 "binary in %s architecture.",
+                                 SymtabFile.c_str(),
+                                 ObjTriple.getArchName().data(),
+                                 SymtabTriple.getArchName().data());
+      if (auto Err = ObjectFileTransformer::convert(*Symtab, LogOS, Gsym))
+        return Err;
+    } else
+      return createStringError(std::errc::invalid_argument,
+                               "Input symbol table file %s is not a "
+                               "valid object file.\n"
+                               "Supported files are ELF and mach-o "
+                               "(exclude universal binary) files.",
+                               SymtabFile.c_str());
+  } else if (auto Err = ObjectFileTransformer::convert(Obj, LogOS, Gsym))
     return Err;
 
   // Finalize the GSYM to make it ready to save to disk. This will remove
@@ -400,6 +436,12 @@ static llvm::Error handleBuffer(StringRef Filename, MemoryBufferRef Buffer,
     if (auto Err = handleObjectFile(*Obj, OutFile))
       return Err;
   } else if (auto *Fat = dyn_cast<MachOUniversalBinary>(BinOrErr->get())) {
+    // Symbol table file is not accepted with universal binary
+    std::string SymtabFile = SymbolTableFilename;
+    if (!SymtabFile.empty())
+      return createStringError(std::errc::invalid_argument,
+                               "--symtab-file is not accepted for "
+                               "universal binary conversion");
     // Iterate over all contained architectures and filter out any that were
     // not specified with the "--arch <arch>" option. If the --arch option was
     // not specified on the command line, we will process all architectures.

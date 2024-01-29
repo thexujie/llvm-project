@@ -35,3 +35,6 @@ defm address : Eq<"address", "Lookup an address in a GSYM file">;
 def addresses_from_stdin :
   FF<"addresses-from-stdin",
      "Lookup addresses in a GSYM file that are read from stdin\nEach input line is expected to be of the following format: <addr> <gsym-path>">;
+defm symtab_file :
+  Eq<"symtab-file",
+     "Specify a separate file for symbol table to GSYM conversion.\nIn case the symbol table and debug info are not in the same binary. Does not support universal binary.">;
