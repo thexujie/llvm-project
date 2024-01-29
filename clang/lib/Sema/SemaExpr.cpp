@@ -7834,16 +7834,17 @@ Sema::BuildCompoundLiteralExpr(SourceLocation LParenLoc, TypeSourceInfo *TInfo,
     // We should diagnose underspecified declaration, unless the identifier has
     // been diagnosed as being a redefinition, since the tag is made anonymous.
     if (Range.fullyContains(TagRange) && Tag->getDecl()->getIdentifier()) {
-      Diag(TagRange.getBegin(),
-           diag::err_c23_underspecified_object_declaration)
-          << (unsigned)Tag->getDecl()->getTagKind()
-          << Tag->getDecl()->getName() << TagRange;
+      Diag(TagRange.getBegin(), diag::err_c23_underspecified_object_declaration)
+          << (unsigned)Tag->getDecl()->getTagKind() << Tag->getDecl()->getName()
+          << TagRange;
       return ExprError();
     }
   } else if (!literalType->isDependentType() &&
-             RequireCompleteType(LParenLoc, literalType,
-               diag::err_typecheck_decl_incomplete_type,
-               SourceRange(LParenLoc, LiteralExpr->getSourceRange().getEnd())))
+             RequireCompleteType(
+                 LParenLoc, literalType,
+                 diag::err_typecheck_decl_incomplete_type,
+                 SourceRange(LParenLoc,
+                             LiteralExpr->getSourceRange().getEnd())))
     return ExprError();
 
   InitializedEntity Entity
