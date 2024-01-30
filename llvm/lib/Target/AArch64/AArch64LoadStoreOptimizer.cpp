@@ -2213,6 +2213,9 @@ bool AArch64LoadStoreOpt::isMatchingMovConstInsn(MachineInstr &MemMI,
     // movz + movk hold a large offset of a Ld/St instruction.
     MachineBasicBlock::iterator B = MI.getParent()->begin();
     MachineBasicBlock::iterator MBBI = &MI;
+    // Skip the scene when the MI is the first instruction of a block.
+    if (MBBI == B)
+      return false;
     MBBI = prev_nodbg(MBBI, B);
     MachineInstr &MovzMI = *MBBI;
     if (MovzMI.getOpcode() == AArch64::MOVZWi) {
