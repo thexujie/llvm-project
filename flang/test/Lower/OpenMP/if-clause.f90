@@ -12,6 +12,7 @@ program main
   ! - TARGET UPDATE
   ! - TASKLOOP
   ! - TASKLOOP SIMD
+  ! TODO Update worksharing-loop SIMD tests to expect 'if' clause
 
   ! ----------------------------------------------------------------------------
   ! DISTRIBUTE PARALLEL DO SIMD
@@ -23,7 +24,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp distribute parallel do simd
@@ -35,8 +36,9 @@ program main
   ! CHECK-NOT:  if({{.*}})
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp distribute parallel do simd if(.true.)
   do i = 1, 10
   end do
@@ -46,8 +48,9 @@ program main
   ! CHECK-NOT:  if({{.*}})
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp distribute parallel do simd if(parallel: .true.) if(simd: .false.)
   do i = 1, 10
   end do
@@ -57,7 +60,7 @@ program main
   ! CHECK-NOT:  if({{.*}})
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp distribute parallel do simd if(parallel: .true.)
@@ -70,8 +73,9 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp distribute parallel do simd if(simd: .true.)
   do i = 1, 10
   end do
@@ -161,12 +165,16 @@ program main
   !$omp end do simd
 
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp do simd if(.true.)
   do i = 1, 10
   end do
   !$omp end do simd
 
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp do simd if(simd: .true.)
   do i = 1, 10
   end do
@@ -236,6 +244,8 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp parallel do simd if(.true.)
   do i = 1, 10
   end do
@@ -244,6 +254,8 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp parallel do simd if(parallel: .true.) if(simd: .false.)
   do i = 1, 10
   end do
@@ -263,6 +275,8 @@ program main
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp parallel do simd if(simd: .true.)
   do i = 1, 10
   end do
@@ -438,6 +452,8 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target parallel do simd if(.true.)
   do i = 1, 10
   end do
@@ -448,6 +464,8 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target parallel do simd if(target: .true.) if(parallel: .false.) &
   !$omp&                        if(simd: .true.)
   do i = 1, 10
@@ -473,6 +491,8 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
   ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target parallel do simd if(parallel: .true.) if(simd: .false.)
   do i = 1, 10
   end do
@@ -755,7 +775,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd
@@ -772,8 +792,9 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(.true.)
   do i = 1, 10
   end do
@@ -788,8 +809,9 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(target: .true.) if(teams: .false.) if(parallel: .true.) if(simd: .false.)
   do i = 1, 10
   end do
@@ -806,7 +828,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(target: .true.)
@@ -825,7 +847,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(teams: .true.)
@@ -844,7 +866,7 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(parallel: .true.)
@@ -864,8 +886,9 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp target teams distribute parallel do simd if(simd: .true.)
   do i = 1, 10
   end do
@@ -1146,7 +1169,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp teams distribute parallel do simd
@@ -1161,8 +1184,9 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp teams distribute parallel do simd if(.true.)
   do i = 1, 10
   end do
@@ -1175,8 +1199,9 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp teams distribute parallel do simd if(teams: .false.) if(parallel: .true.) if(simd: .false.)
   do i = 1, 10
   end do
@@ -1190,7 +1215,7 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp teams distribute parallel do simd if(teams: .true.)
@@ -1206,7 +1231,7 @@ program main
   ! CHECK-SAME: {
   ! CHECK:      omp.parallel
   ! CHECK-SAME: if({{.*}})
-  ! CHECK:      omp.simdloop
+  ! CHECK:      omp.wsloop
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
   !$omp teams distribute parallel do simd if(parallel: .true.)
@@ -1223,8 +1248,9 @@ program main
   ! CHECK:      omp.parallel
   ! CHECK-NOT:  if({{.*}})
   ! CHECK-SAME: {
-  ! CHECK:      omp.simdloop
-  ! CHECK-SAME: if({{.*}})
+  ! CHECK:      omp.wsloop
+  ! CHECK-NOT:  if({{.*}})
+  ! CHECK-SAME: {
   !$omp teams distribute parallel do simd if(simd: .true.)
   do i = 1, 10
   end do

@@ -15,7 +15,7 @@ program main
 
   ! CHECK: omp.distribute
   ! CHECK: omp.parallel
-  ! CHECK: omp.simdloop
+  ! CHECK: omp.wsloop
   !$omp distribute parallel do simd
   do i = 1, 10
   end do
@@ -111,7 +111,7 @@ program main
   ! CHECK: omp.teams
   ! CHECK: omp.distribute
   ! CHECK: omp.parallel
-  ! CHECK: omp.simdloop
+  ! CHECK: omp.wsloop
   !$omp target teams distribute parallel do simd
   do i = 1, 10
   end do
@@ -174,7 +174,7 @@ program main
   ! CHECK: omp.teams
   ! CHECK: omp.distribute
   ! CHECK: omp.parallel
-  ! CHECK: omp.simdloop
+  ! CHECK: omp.wsloop
   !$omp teams distribute parallel do simd
   do i = 1, 10
   end do
