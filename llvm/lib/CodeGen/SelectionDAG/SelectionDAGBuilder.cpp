@@ -9105,7 +9105,7 @@ getRegistersForValue(SelectionDAG &DAG, const SDLoc &DL,
   // Get the actual register value type.  This is important, because the user
   // may have asked for (e.g.) the AX register in i32 type.  We need to
   // remember that AX is actually i16 to get the right extension.
-  const MVT RegVT = *TRI.legalclasstypes_begin(*RC);
+  MVT RegVT = *TRI.legalclasstypes_begin(*RC);
 
   if (OpInfo.ConstraintVT != MVT::Other && RegVT != MVT::Untyped) {
     // If this is an FP operand in an integer register (or visa versa), or more
@@ -9138,6 +9138,17 @@ getRegistersForValue(SelectionDAG &DAG, const SDLoc &DL,
           OpInfo.CallOperand =
               DAG.getNode(ISD::BITCAST, DL, VT, OpInfo.CallOperand);
         OpInfo.ConstraintVT = VT;
+      }
+      // If the RegisterClass contains more than one types like RISCV
+      // FPR16RegClass which has [f16, bf16], We should check if the
+      // OpInfo.ConstraintVT can directly be assigned to the RegVT.
+    } else if ((OpInfo.Type == InlineAsm::isOutput ||
+                OpInfo.Type == InlineAsm::isInput) &&
+               TRI.isTypeLegalForClass(*RC, OpInfo.ConstraintVT)) {
+      if (RegVT != OpInfo.ConstraintVT &&
+          RegVT.getSizeInBits() == OpInfo.ConstraintVT.getSizeInBits() &&
+          RegVT.isFloatingPoint() && OpInfo.ConstraintVT.isFloatingPoint()) {
+        RegVT = OpInfo.ConstraintVT;
       }
     }
   }
