@@ -866,14 +866,17 @@ static void collectReductionInfo(
   // Collect the reduction information.
   reductionInfos.reserve(numReductions);
   for (unsigned i = 0; i < numReductions; ++i) {
-    llvm::OpenMPIRBuilder::AtomicReductionGenTy atomicGen = nullptr;
+    llvm::OpenMPIRBuilder::AtomicReductionGenCB atomicGen = nullptr;
     if (owningAtomicReductionGens[i])
       atomicGen = owningAtomicReductionGens[i];
     llvm::Value *variable =
         moduleTranslation.lookupValue(loop.getReductionVars()[i]);
-    reductionInfos.push_back(
-        {moduleTranslation.convertType(reductionDecls[i].getType()), variable,
-         privateReductionVariables[i], owningReductionGens[i], atomicGen});
+    reductionInfos.push_back(llvm::OpenMPIRBuilder::ReductionInfo(
+        moduleTranslation.convertType(reductionDecls[i].getType()), variable,
+        privateReductionVariables[i],
+        /*EvaluationKind=*/llvm::OpenMPIRBuilder::EvaluationKindTy::Scalar,
+        owningReductionGens[i],
+        /*ReductionGenClang=*/nullptr, atomicGen));
   }
 }
 
