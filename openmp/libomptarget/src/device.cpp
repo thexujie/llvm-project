@@ -77,17 +77,7 @@ DeviceTy::~DeviceTy() {
 }
 
 llvm::Error DeviceTy::init() {
-  // Make call to init_requires if it exists for this plugin.
-  int32_t Ret = 0;
-  if (RTL->init_requires)
-    Ret = RTL->init_requires(PM->getRequirements());
-  if (Ret != OFFLOAD_SUCCESS)
-    return llvm::createStringError(
-        llvm::inconvertibleErrorCode(),
-        "Failed to initialize requirements for device %d\n", DeviceID);
-
-  Ret = RTL->init_device(RTLDeviceID);
-  if (Ret != OFFLOAD_SUCCESS)
+  if (RTL->init_device(RTLDeviceID) != OFFLOAD_SUCCESS)
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                    "Failed to initialize device %d\n",
                                    DeviceID);
@@ -310,6 +300,10 @@ void DeviceTy::dumpOffloadEntries() {
 }
 
 bool DeviceTy::useAutoZeroCopy() {
+  // Automatic zero-copy only applies when unfiied shared memory is disabled.
+  if (PM->getRequirements() & OMP_REQ_UNIFIED_SHARED_MEMORY)
+    return false;
+
   if (RTL->use_auto_zero_copy)
     return RTL->use_auto_zero_copy(RTLDeviceID);
   return false;

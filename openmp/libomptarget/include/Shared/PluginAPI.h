@@ -45,9 +45,6 @@ int32_t __tgt_rtl_is_data_exchangable(int32_t SrcDevId, int32_t DstDevId);
 // functions)
 int32_t __tgt_rtl_supports_empty_images();
 
-// Initialize the requires flags for the device.
-int64_t __tgt_rtl_init_requires(int64_t RequiresFlags);
-
 // Initialize the specified device. In case of success return 0; otherwise
 // return an error code.
 int32_t __tgt_rtl_init_device(int32_t ID);
