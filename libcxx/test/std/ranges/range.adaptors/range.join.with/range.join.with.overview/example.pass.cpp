@@ -17,7 +17,7 @@
 //     cout << c;
 //   }
 //   // The above prints the-quick-brown-fox
-// — end example]
+// - end example]
 
 #include <ranges>
 
