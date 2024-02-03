@@ -122,7 +122,7 @@ export namespace std {
 
     namespace views {
       using std::ranges::views::repeat;
-    }  // namespace views
+    } // namespace views
 #endif // _LIBCPP_STD_VER >= 23
 
 #ifndef _LIBCPP_HAS_NO_LOCALIZATION
@@ -273,7 +273,7 @@ export namespace std {
 
     namespace views {
       using std::ranges::views::zip;
-    }  // namespace views
+    } // namespace views
 #endif // _LIBCPP_STD_VER >= 23
 
 #if 0
