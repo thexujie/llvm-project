@@ -163,7 +163,7 @@ public:
   std::iter_reference_t<It> operator*() const;
   ForwardIteratorWithInputCategory& operator++();
   ForwardIteratorWithInputCategory operator++(int);
-  friend bool operator==(const ForwardIteratorWithInputCategory&, const ForwardIteratorWithInputCategory&);
+  bool operator==(const ForwardIteratorWithInputCategory&) const;
 };
 
 template <class It>
