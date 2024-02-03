@@ -376,7 +376,7 @@ struct Iter {
   ValueType& operator*() const;
   Iter& operator++();
   Iter operator++(int);
-  friend bool operator==(const Iter&, const Iter&);
+  bool operator==(const Iter&) const;
 };
 
 static_assert(std::forward_iterator<Iter<int, void*>>);
