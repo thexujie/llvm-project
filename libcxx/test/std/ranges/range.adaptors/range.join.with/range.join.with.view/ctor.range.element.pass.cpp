@@ -220,12 +220,12 @@ constexpr void test_constraints() {
   }
 
   { // `Pattern` is not constructible from `single_view<range_value_t<InnerRng>>`
-    using R       = InputView;
-    using Pattern = test_view<forward_iterator>;
+    using R   = InputView;
+    using Pat = test_view<forward_iterator>;
     static_assert(std::ranges::input_range<R>);
     static_assert(std::constructible_from<View, std::views::all_t<R>>);
-    static_assert(!std::constructible_from<Pattern, std::ranges::single_view<int>>);
-    static_assert(!std::constructible_from<std::ranges::join_with_view<View, Pattern>, R, int>);
+    static_assert(!std::constructible_from<Pat, std::ranges::single_view<int>>);
+    static_assert(!std::constructible_from<std::ranges::join_with_view<View, Pat>, R, int>);
   }
 }
 
