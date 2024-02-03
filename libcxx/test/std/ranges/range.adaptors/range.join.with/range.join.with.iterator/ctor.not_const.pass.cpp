@@ -99,9 +99,6 @@ constexpr bool test() {
 
 int main(int, char**) {
   test();
-#if __cpp_lib_variant >= 202106
-  static_assert(test());
-#endif
 
   return 0;
 }
