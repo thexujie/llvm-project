@@ -149,8 +149,7 @@ using ForwardViewButInputWhenConst =
 
 template <class It>
 class ForwardIteratorWithInputCategory {
-  using Self = ForwardIteratorWithInputCategory;
-  It it_     = It();
+  It it_ = It();
 
 public:
   using value_type        = std::iter_value_t<It>;
@@ -162,9 +161,9 @@ public:
   explicit ForwardIteratorWithInputCategory(It it);
 
   std::iter_reference_t<It> operator*() const;
-  Self& operator++();
-  Self operator++(int);
-  friend bool operator==(const Self&, const Self&);
+  ForwardIteratorWithInputCategory& operator++();
+  ForwardIteratorWithInputCategory operator++(int);
+  friend bool operator==(const ForwardIteratorWithInputCategory&, const ForwardIteratorWithInputCategory&);
 };
 
 template <class It>
