@@ -40,7 +40,6 @@ Implemented Papers
 
 - P2637R3 - Member ``visit``
 - P2652R2 - Disallow User Specialization of ``allocator_traits``
-- P2441R2 - ``views::join_with`` (in the experimental library)
 - P2711R1 - Making multi-param constructors of ``views`` ``explicit``
 - P2770R0 - Stashing stashing ``iterators`` for proper flattening
 
