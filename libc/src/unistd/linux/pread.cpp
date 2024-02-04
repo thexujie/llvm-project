@@ -19,15 +19,18 @@ namespace LIBC_NAMESPACE {
 
 LLVM_LIBC_FUNCTION(ssize_t, pread,
                    (int fd, void *buf, size_t count, off_t offset)) {
-#ifdef LIBC_TARGET_ARCH_IS_RISCV32
-  static_assert(sizeof(off_t) == 8);
-  ssize_t ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(
-      SYS_pread64, fd, buf, count, (long)offset,
-      (long)(((uint64_t)(offset)) >> 32));
-#else
-  ssize_t ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf,
-                                                      count, offset);
-#endif
+  ssize_t ret;
+  if constexpr (sizeof(off_t) == 8 && sizeof(size_t) == 4) {
+    // This is a 32-bit system with a 64-bit offset.
+    long offset_low = static_cast<long>(offset);
+    long offset_high = static_cast<long>(offset >> 32);
+    ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf, count,
+                                                offset_low, offset_high);
+  } else {
+    ret = LIBC_NAMESPACE::syscall_impl<ssize_t>(SYS_pread64, fd, buf, count,
+                                                offset);
+  }
+
   if (ret < 0) {
     libc_errno = static_cast<int>(-ret);
     return -1;
