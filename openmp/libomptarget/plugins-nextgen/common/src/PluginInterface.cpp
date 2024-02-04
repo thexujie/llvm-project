@@ -852,6 +852,7 @@ Error GenericDeviceTy::deinit(GenericPluginTy &Plugin) {
 
   return deinitImpl();
 }
+
 Expected<DeviceImageTy *>
 GenericDeviceTy::loadBinary(GenericPluginTy &Plugin,
                             const __tgt_device_image *InputTgtImage) {
@@ -1637,11 +1638,6 @@ int32_t __tgt_rtl_init_device(int32_t DeviceId) {
 
 int32_t __tgt_rtl_number_of_devices() { return Plugin::get().getNumDevices(); }
 
-int64_t __tgt_rtl_init_requires(int64_t RequiresFlags) {
-  Plugin::get().setRequiresFlag(RequiresFlags);
-  return OFFLOAD_SUCCESS;
-}
-
 int32_t __tgt_rtl_is_data_exchangable(int32_t SrcDeviceId,
                                       int32_t DstDeviceId) {
   return Plugin::get().isDataExchangable(SrcDeviceId, DstDeviceId);
@@ -1989,8 +1985,6 @@ int32_t __tgt_rtl_use_auto_zero_copy(int32_t DeviceId) {
   // Automatic zero-copy only applies to programs that did
   // not request unified_shared_memory and are deployed on an
   // APU with XNACK enabled.
-  if (Plugin::get().getRequiresFlags() & OMP_REQ_UNIFIED_SHARED_MEMORY)
-    return false;
   return Plugin::get().getDevice(DeviceId).useAutoZeroCopy();
 }
 

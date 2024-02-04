@@ -1020,12 +1020,6 @@ struct GenericPluginTy {
     return *RPCServer;
   }
 
-  /// Get the OpenMP requires flags set for this plugin.
-  int64_t getRequiresFlags() const { return RequiresFlags; }
-
-  /// Set the OpenMP requires flags for this plugin.
-  void setRequiresFlag(int64_t Flags) { RequiresFlags = Flags; }
-
   /// Initialize a device within the plugin.
   Error initDevice(int32_t DeviceId);
 

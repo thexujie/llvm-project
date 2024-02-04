@@ -30,7 +30,6 @@ PLUGIN_API_HANDLE(data_exchange, false);
 PLUGIN_API_HANDLE(data_exchange_async, false);
 PLUGIN_API_HANDLE(data_delete, true);
 PLUGIN_API_HANDLE(launch_kernel, true);
-PLUGIN_API_HANDLE(init_requires, false);
 PLUGIN_API_HANDLE(synchronize, false);
 PLUGIN_API_HANDLE(query_async, false);
 PLUGIN_API_HANDLE(supports_empty_images, false);
