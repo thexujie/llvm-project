@@ -19413,6 +19413,18 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
   return Res;
 }
 
+MVT RISCVTargetLowering::getRegVTFromInlineAsmConstraint(
+    const TargetRegisterInfo *TRI, const TargetRegisterClass *RC,
+    const MVT ConstraintVT) const {
+  // FPR16RegClass contains [f16, bf16], and when the ConstraintVT is bf16, we
+  // should choose the bf16 instead of the first type, which is f16.
+  if (ConstraintVT == MVT::bf16 && RC == &RISCV::FPR16RegClass) {
+    return MVT::bf16;
+  }
+
+  return TargetLowering::getRegVTFromInlineAsmConstraint(TRI, RC, ConstraintVT);
+}
+
 InlineAsm::ConstraintCode
 RISCVTargetLowering::getInlineAsmMemConstraint(StringRef ConstraintCode) const {
   // Currently only support length 1 constraints.
