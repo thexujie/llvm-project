@@ -1414,7 +1414,7 @@ namespace dr96 { // dr96: no
     // FIXME: This is ill-formed, because 'f' is not a template-id and does not
     // name a class template.
     // FIXME: What about alias templates?
-    int k2 = a.template f(1);
+    int k2 = a.template f(1); // expected-error {{a template argument list is expected after a name prefixed by the template keyword}}
     A::template S<int> s;
     B<A::template S> b;
   }
