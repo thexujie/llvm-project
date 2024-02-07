@@ -20,6 +20,8 @@
 #include <fcntl.h>
 #include <thread>
 
+#include <atomic>
+
 #ifndef _WIN32
 #include <poll.h>
 #include <sys/socket.h>
