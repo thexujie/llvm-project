@@ -1350,50 +1350,6 @@ public:
     Value *ScratchpadWidth = nullptr;
   };
 
-  /// A class that manages the reduction info to facilitate lowering of
-  /// reductions at multiple levels of parallelism. For example handling teams
-  /// and parallel reductions on GPUs
-  class ReductionInfoManager {
-  private:
-    SmallVector<ReductionInfo> ReductionInfos;
-    std::optional<InsertPointTy> PrivateVarAllocaIP;
-
-  public:
-    ReductionInfoManager(){};
-    void clear() {
-      ReductionInfos.clear();
-      PrivateVarAllocaIP.reset();
-    }
-
-    Value *allocatePrivateReductionVar(IRBuilderBase &builder,
-                                       InsertPointTy &allocaIP, Type *VarType) {
-      Type *ptrTy = PointerType::getUnqual(builder.getContext());
-      Value *var = builder.CreateAlloca(VarType);
-      var->setName("private_redvar");
-      Value *castVar = builder.CreatePointerBitCastOrAddrSpaceCast(var, ptrTy);
-      ReductionInfos.push_back(ReductionInfo(castVar));
-      return castVar;
-    }
-
-    ReductionInfo getReductionInfo(unsigned Index) {
-      return ReductionInfos[Index];
-    }
-    ReductionInfo setReductionInfo(unsigned Index, ReductionInfo &RI) {
-      return ReductionInfos[Index] = RI;
-    }
-    Value *getPrivateReductionVariable(unsigned Index) {
-      return ReductionInfos[Index].PrivateVariable;
-    }
-    SmallVector<ReductionInfo> &getReductionInfos() { return ReductionInfos; }
-
-    bool hasPrivateVarAllocaIP() { return PrivateVarAllocaIP.has_value(); }
-    InsertPointTy getPrivateVarAllocaIP() {
-      assert(PrivateVarAllocaIP.has_value() && "AllocaIP not set");
-      return *PrivateVarAllocaIP;
-    }
-    void setPrivateVarAllocaIP(InsertPointTy IP) { PrivateVarAllocaIP = IP; }
-  };
-
   /// Supporting functions for Reductions CodeGen.
 private:
   /// Emit the llvm.used metadata.
@@ -2089,9 +2045,6 @@ public:
 
   /// Info manager to keep track of target regions.
   OffloadEntriesInfoManager OffloadInfoManager;
-
-  /// Info manager to keep track of reduction information;
-  ReductionInfoManager RIManager;
 
   /// The target triple of the underlying module.
   const Triple T;
