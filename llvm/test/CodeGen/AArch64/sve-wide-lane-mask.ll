@@ -351,9 +351,7 @@ define void @f_h_2(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE-NEXT:    whilelo p1.b, x8, x9
 ; CHECK-SVE-NEXT:    punpkhi p0.h, p1.b
 ; CHECK-SVE-NEXT:    punpklo p1.h, p1.b
-; CHECK-SVE-NEXT:    mov z0.h, p1/z, #1 // =0x1
-; CHECK-SVE-NEXT:    fmov w13, s0
-; CHECK-SVE-NEXT:    tbnz w13, #0, .LBB4_2
+; CHECK-SVE-NEXT:    b.mi .LBB4_2
 ; CHECK-SVE-NEXT:  .LBB4_3: // %for.cond.cleanup
 ; CHECK-SVE-NEXT:    ret
 ;
@@ -378,9 +376,7 @@ define void @f_h_2(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE2p1-NEXT:    st1h { z1.h }, p1, [x10, x8, lsl #1]
 ; CHECK-SVE2p1-NEXT:    addvl x8, x8, #1
 ; CHECK-SVE2p1-NEXT:    whilelo { p0.h, p1.h }, x8, x9
-; CHECK-SVE2p1-NEXT:    mov z0.h, p0/z, #1 // =0x1
-; CHECK-SVE2p1-NEXT:    fmov w12, s0
-; CHECK-SVE2p1-NEXT:    tbnz w12, #0, .LBB4_2
+; CHECK-SVE2p1-NEXT:    b.mi .LBB4_2
 ; CHECK-SVE2p1-NEXT:  .LBB4_3: // %for.cond.cleanup
 ; CHECK-SVE2p1-NEXT:    ret
 entry:
@@ -456,9 +452,7 @@ define void @f3(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE-NEXT:    whilelo p1.s, x8, x9
 ; CHECK-SVE-NEXT:    punpkhi p0.h, p1.b
 ; CHECK-SVE-NEXT:    punpklo p1.h, p1.b
-; CHECK-SVE-NEXT:    mov z1.d, p1/z, #1 // =0x1
-; CHECK-SVE-NEXT:    fmov x13, d1
-; CHECK-SVE-NEXT:    tbnz w13, #0, .LBB5_2
+; CHECK-SVE-NEXT:    b.mi .LBB5_2
 ; CHECK-SVE-NEXT:  .LBB5_3: // %for.cond.cleanup
 ; CHECK-SVE-NEXT:    ret
 ;
@@ -484,9 +478,7 @@ define void @f3(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE2p1-NEXT:    st1d { z2.d }, p1, [x10, x8, lsl #3]
 ; CHECK-SVE2p1-NEXT:    incw x8
 ; CHECK-SVE2p1-NEXT:    whilelo { p0.d, p1.d }, x8, x9
-; CHECK-SVE2p1-NEXT:    mov z1.d, p0/z, #1 // =0x1
-; CHECK-SVE2p1-NEXT:    fmov x12, d1
-; CHECK-SVE2p1-NEXT:    tbnz w12, #0, .LBB5_2
+; CHECK-SVE2p1-NEXT:    b.mi .LBB5_2
 ; CHECK-SVE2p1-NEXT:  .LBB5_3: // %for.cond.cleanup
 ; CHECK-SVE2p1-NEXT:    ret
 entry:
@@ -752,15 +744,13 @@ define void @f_h_4(ptr noalias %dst, ptr %src, i32 %n) #0 {
 ; CHECK-SVE-NEXT:    st1h { z2.h }, p1, [x13, x10, lsl #1]
 ; CHECK-SVE-NEXT:    st1h { z3.h }, p0, [x12, x10, lsl #1]
 ; CHECK-SVE-NEXT:    add x10, x9, x10
-; CHECK-SVE-NEXT:    whilelo p1.b, x18, x8
+; CHECK-SVE-NEXT:    whilelo p2.b, x18, x8
 ; CHECK-SVE-NEXT:    whilelo p3.b, x10, x8
-; CHECK-SVE-NEXT:    punpkhi p0.h, p1.b
-; CHECK-SVE-NEXT:    punpklo p1.h, p1.b
+; CHECK-SVE-NEXT:    punpkhi p0.h, p2.b
+; CHECK-SVE-NEXT:    punpklo p1.h, p2.b
 ; CHECK-SVE-NEXT:    punpkhi p2.h, p3.b
 ; CHECK-SVE-NEXT:    punpklo p3.h, p3.b
-; CHECK-SVE-NEXT:    mov z0.h, p3/z, #1 // =0x1
-; CHECK-SVE-NEXT:    fmov w18, s0
-; CHECK-SVE-NEXT:    tbnz w18, #0, .LBB7_2
+; CHECK-SVE-NEXT:    b.mi .LBB7_2
 ; CHECK-SVE-NEXT:  .LBB7_3: // %for.cond.cleanup
 ; CHECK-SVE-NEXT:    ret
 ;
@@ -799,9 +789,7 @@ define void @f_h_4(ptr noalias %dst, ptr %src, i32 %n) #0 {
 ; CHECK-SVE2p1-NEXT:    addvl x9, x9, #2
 ; CHECK-SVE2p1-NEXT:    whilelo { p0.h, p1.h }, x16, x8
 ; CHECK-SVE2p1-NEXT:    whilelo { p2.h, p3.h }, x9, x8
-; CHECK-SVE2p1-NEXT:    mov z0.h, p2/z, #1 // =0x1
-; CHECK-SVE2p1-NEXT:    fmov w16, s0
-; CHECK-SVE2p1-NEXT:    tbnz w16, #0, .LBB7_2
+; CHECK-SVE2p1-NEXT:    b.mi .LBB7_2
 ; CHECK-SVE2p1-NEXT:  .LBB7_3: // %for.cond.cleanup
 ; CHECK-SVE2p1-NEXT:    ret
 entry:
@@ -918,21 +906,19 @@ define void @f_d_4(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE-NEXT:    ld1d { z4.d }, p0/z, [x13, x9, lsl #3]
 ; CHECK-SVE-NEXT:    fmul z2.d, z2.d, z0.d
 ; CHECK-SVE-NEXT:    fmul z3.d, z3.d, z0.d
-; CHECK-SVE-NEXT:    fmul z4.d, z4.d, z0.d
 ; CHECK-SVE-NEXT:    st1d { z1.d }, p3, [x0, x9, lsl #3]
+; CHECK-SVE-NEXT:    fmul z1.d, z4.d, z0.d
 ; CHECK-SVE-NEXT:    st1d { z2.d }, p2, [x12, x9, lsl #3]
 ; CHECK-SVE-NEXT:    st1d { z3.d }, p1, [x11, x9, lsl #3]
-; CHECK-SVE-NEXT:    st1d { z4.d }, p0, [x10, x9, lsl #3]
+; CHECK-SVE-NEXT:    whilelo p3.s, x18, x8
+; CHECK-SVE-NEXT:    st1d { z1.d }, p0, [x10, x9, lsl #3]
 ; CHECK-SVE-NEXT:    add x9, x16, x9
-; CHECK-SVE-NEXT:    whilelo p1.s, x18, x8
-; CHECK-SVE-NEXT:    whilelo p3.s, x9, x8
-; CHECK-SVE-NEXT:    punpkhi p0.h, p1.b
-; CHECK-SVE-NEXT:    punpklo p1.h, p1.b
-; CHECK-SVE-NEXT:    punpkhi p2.h, p3.b
-; CHECK-SVE-NEXT:    punpklo p3.h, p3.b
-; CHECK-SVE-NEXT:    mov z1.d, p3/z, #1 // =0x1
-; CHECK-SVE-NEXT:    fmov x18, d1
-; CHECK-SVE-NEXT:    tbnz w18, #0, .LBB8_2
+; CHECK-SVE-NEXT:    punpkhi p0.h, p3.b
+; CHECK-SVE-NEXT:    punpklo p1.h, p3.b
+; CHECK-SVE-NEXT:    whilelo p4.s, x9, x8
+; CHECK-SVE-NEXT:    punpkhi p2.h, p4.b
+; CHECK-SVE-NEXT:    punpklo p3.h, p4.b
+; CHECK-SVE-NEXT:    b.mi .LBB8_2
 ; CHECK-SVE-NEXT:  .LBB8_3: // %for.cond.cleanup
 ; CHECK-SVE-NEXT:    ret
 ;
@@ -968,15 +954,13 @@ define void @f_d_4(ptr noalias %dst, ptr readonly %src, i32 %n) #0 {
 ; CHECK-SVE2p1-NEXT:    fmul z4.d, z4.d, z0.d
 ; CHECK-SVE2p1-NEXT:    st1d { z1.d }, p2, [x0, x9, lsl #3]
 ; CHECK-SVE2p1-NEXT:    st1d { z2.d }, p3, [x12, x9, lsl #3]
-; CHECK-SVE2p1-NEXT:    whilelo { p2.d, p3.d }, x15, x8
-; CHECK-SVE2p1-NEXT:    mov z1.d, p2/z, #1 // =0x1
 ; CHECK-SVE2p1-NEXT:    st1d { z3.d }, p0, [x11, x9, lsl #3]
 ; CHECK-SVE2p1-NEXT:    st1d { z4.d }, p1, [x10, x9, lsl #3]
 ; CHECK-SVE2p1-NEXT:    incw x9, all, mul #3
 ; CHECK-SVE2p1-NEXT:    whilelo { p0.d, p1.d }, x9, x8
+; CHECK-SVE2p1-NEXT:    whilelo { p2.d, p3.d }, x15, x8
 ; CHECK-SVE2p1-NEXT:    mov x9, x15
-; CHECK-SVE2p1-NEXT:    fmov x17, d1
-; CHECK-SVE2p1-NEXT:    tbnz w17, #0, .LBB8_2
+; CHECK-SVE2p1-NEXT:    b.mi .LBB8_2
 ; CHECK-SVE2p1-NEXT:  .LBB8_3: // %for.cond.cleanup
 ; CHECK-SVE2p1-NEXT:    ret
 entry:

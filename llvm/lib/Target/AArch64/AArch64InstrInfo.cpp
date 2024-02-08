@@ -1183,6 +1183,7 @@ bool AArch64InstrInfo::analyzeCompare(const MachineInstr &MI, Register &SrcReg,
     break;
   case AArch64::PTEST_PP:
   case AArch64::PTEST_PP_ANY:
+  case AArch64::PTEST_PP_FIRST:
     SrcReg = MI.getOperand(0).getReg();
     SrcReg2 = MI.getOperand(1).getReg();
     // Not sure about the mask and value for now...
@@ -1354,12 +1355,25 @@ static bool areCFlagsAccessedBetweenInstrs(
   return false;
 }
 
-std::pair<bool, unsigned>
+std::tuple<bool, unsigned, MachineInstr *>
 AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
                                       MachineInstr *Pred,
                                       const MachineRegisterInfo *MRI) const {
   unsigned MaskOpcode = Mask->getOpcode();
   unsigned PredOpcode = Pred->getOpcode();
+
+  // Handle a COPY from the LSB of the results of paired WHILEcc instruction.
+  if ((PredOpcode == TargetOpcode::COPY &&
+       Pred->getOperand(1).getSubReg() == AArch64::psub0) ||
+      // Handle unpack of the LSB of the result of a WHILEcc instruction.
+      PredOpcode == AArch64::PUNPKLO_PP) {
+    MachineInstr *MI = MRI->getUniqueVRegDef(Pred->getOperand(1).getReg());
+    if (MI && isWhileOpcode(MI->getOpcode())) {
+      Pred = MI;
+      PredOpcode = MI->getOpcode();
+    }
+  }
+
   bool PredIsPTestLike = isPTestLikeOpcode(PredOpcode);
   bool PredIsWhileLike = isWhileOpcode(PredOpcode);
 
@@ -1368,17 +1382,18 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     // instruction and the condition is "any" since WHILcc does an implicit
     // PTEST(ALL, PG) check and PG is always a subset of ALL.
     if ((Mask == Pred) && PTest->getOpcode() == AArch64::PTEST_PP_ANY)
-      return {true, 0};
+      return {true, 0, Pred};
 
-    // For PTEST(PTRUE_ALL, WHILE), if the element size matches, the PTEST is
-    // redundant since WHILE performs an implicit PTEST with an all active
-    // mask.
+    // For PTEST(PTRUE_ALL, WHILE), since WHILE performs an implicit PTEST
+    // with an all active mask, the PTEST is redundant if ether the element
+    // size matches or the PTEST condition is "first".
     if (isPTrueOpcode(MaskOpcode) && Mask->getOperand(1).getImm() == 31 &&
-        getElementSizeForOpcode(MaskOpcode) ==
-            getElementSizeForOpcode(PredOpcode))
-      return {true, 0};
+        (PTest->getOpcode() == AArch64::PTEST_PP_FIRST ||
+         getElementSizeForOpcode(MaskOpcode) ==
+             getElementSizeForOpcode(PredOpcode)))
+      return {true, 0, Pred};
 
-    return {false, 0};
+    return {false, 0, nullptr};
   }
 
   if (PredIsPTestLike) {
@@ -1387,7 +1402,7 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     // "any" since PG is always a subset of the governing predicate of the
     // ptest-like instruction.
     if ((Mask == Pred) && PTest->getOpcode() == AArch64::PTEST_PP_ANY)
-      return {true, 0};
+      return {true, 0, Pred};
 
     // For PTEST(PTRUE_ALL, PTEST_LIKE), the PTEST is redundant if the
     // the element size matches and either the PTEST_LIKE instruction uses
@@ -1397,7 +1412,7 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
             getElementSizeForOpcode(PredOpcode)) {
       auto PTestLikeMask = MRI->getUniqueVRegDef(Pred->getOperand(1).getReg());
       if (Mask == PTestLikeMask || PTest->getOpcode() == AArch64::PTEST_PP_ANY)
-        return {true, 0};
+        return {true, 0, Pred};
     }
 
     // For PTEST(PG, PTEST_LIKE(PG, ...)), the PTEST is redundant since the
@@ -1426,9 +1441,9 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     uint64_t PredElementSize = getElementSizeForOpcode(PredOpcode);
     if (Mask == PTestLikeMask && (PredElementSize == AArch64::ElementSizeB ||
                                   PTest->getOpcode() == AArch64::PTEST_PP_ANY))
-      return {true, 0};
+      return {true, 0, Pred};
 
-    return {false, 0};
+    return {false, 0, nullptr};
   }
 
   // If OP in PTEST(PG, OP(PG, ...)) has a flag-setting variant change the
@@ -1450,7 +1465,7 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     // may be different and we can't remove the ptest.
     auto *PredMask = MRI->getUniqueVRegDef(Pred->getOperand(1).getReg());
     if (Mask != PredMask)
-      return {false, 0};
+      return {false, 0, nullptr};
     break;
   }
   case AArch64::BRKN_PPzP: {
@@ -1459,7 +1474,7 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     // PTEST(PTRUE_B(31), BRKN(PG, A, B)) -> BRKNS(PG, A, B).
     if ((MaskOpcode != AArch64::PTRUE_B) ||
         (Mask->getOperand(1).getImm() != 31))
-      return {false, 0};
+      return {false, 0, nullptr};
     break;
   }
   case AArch64::PTRUE_B:
@@ -1467,10 +1482,10 @@ AArch64InstrInfo::canRemovePTestInstr(MachineInstr *PTest, MachineInstr *Mask,
     break;
   default:
     // Bail out if we don't recognize the input
-    return {false, 0};
+    return {false, 0, nullptr};
   }
 
-  return {true, convertToFlagSettingOpc(PredOpcode)};
+  return {true, convertToFlagSettingOpc(PredOpcode), Pred};
 }
 
 /// optimizePTestInstr - Attempt to remove a ptest of a predicate-generating
@@ -1480,7 +1495,10 @@ bool AArch64InstrInfo::optimizePTestInstr(
     const MachineRegisterInfo *MRI) const {
   auto *Mask = MRI->getUniqueVRegDef(MaskReg);
   auto *Pred = MRI->getUniqueVRegDef(PredReg);
-  auto [canRemove, NewOp] = canRemovePTestInstr(PTest, Mask, Pred, MRI);
+  bool canRemove;
+  unsigned NewOp;
+  std::tie(canRemove, NewOp, Pred) =
+      canRemovePTestInstr(PTest, Mask, Pred, MRI);
   if (!canRemove)
     return false;
 
@@ -1558,7 +1576,8 @@ bool AArch64InstrInfo::optimizeCompareInstr(
   }
 
   if (CmpInstr.getOpcode() == AArch64::PTEST_PP ||
-      CmpInstr.getOpcode() == AArch64::PTEST_PP_ANY)
+      CmpInstr.getOpcode() == AArch64::PTEST_PP_ANY ||
+      CmpInstr.getOpcode() == AArch64::PTEST_PP_FIRST)
     return optimizePTestInstr(&CmpInstr, SrcReg, SrcReg2, MRI);
 
   if (SrcReg2 != 0)
