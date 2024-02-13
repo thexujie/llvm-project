@@ -147,22 +147,13 @@ static bool isValidWorkshareLoopScheduleType(OMPScheduleType SchedType) {
 
 Function *GLOBAL_ReductionFunc = nullptr;
 
-static const omp::GV &getGridValue(const Triple &T, StringRef Features) {
-  if (T.isAMDGPU()) {
-    if (Features.count("+wavefrontsize64"))
-      return omp::getAMDGPUGridValues<64>();
-    return omp::getAMDGPUGridValues<32>();
-  }
-  if (T.isNVPTX())
-    return omp::NVPTXGridValues;
-  llvm_unreachable("No grid value available for this architecture!");
-}
-
 static const omp::GV &getGridValue(const Triple &T, Function *Kernel) {
   if (T.isAMDGPU()) {
     StringRef Features =
         Kernel->getFnAttribute("target-features").getValueAsString();
-    return getGridValue(T, Features);
+    if (Features.count("+wavefrontsize64"))
+      return omp::getAMDGPUGridValues<64>();
+    return omp::getAMDGPUGridValues<32>();
   }
   if (T.isNVPTX())
     return omp::NVPTXGridValues;
@@ -3310,12 +3301,6 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
   AttrBldr.removeAttribute(Attribute::OptimizeNone);
   FuncAttrs = FuncAttrs.addFnAttributes(Ctx, AttrBldr);
 
-  // Set the grid value in the config needed for lowering later on
-  if (GridValue.has_value())
-    Config.setGridValue(GridValue.value());
-  else
-    Config.setGridValue(getGridValue(T, Config.TargetFeatures));
-
   Function *ReductionFunc = nullptr;
   if (GLOBAL_ReductionFunc) {
     ReductionFunc = GLOBAL_ReductionFunc;
@@ -3326,6 +3311,12 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
         ReductionGenCBTy, FuncAttrs);
     Builder.restoreIP(CodeGenIP);
   }
+
+  // Set the grid value in the config needed for lowering later on
+  if (GridValue.has_value())
+    Config.setGridValue(GridValue.value());
+  else
+    Config.setGridValue(getGridValue(T, ReductionFunc));
 
   uint32_t SrcLocStrSize;
   Constant *SrcLocStr = getOrCreateDefaultSrcLocStr(SrcLocStrSize);
@@ -5884,9 +5875,6 @@ OpenMPIRBuilder::createTargetInit(const LocationDescription &Loc, bool IsSPMD,
 
   Function *Kernel = Builder.GetInsertBlock()->getParent();
 
-  // Set the grid value in the config needed for lowering later on
-  Config.setGridValue(getGridValue(T, Config.TargetFeatures));
-
   // Manifest the launch configuration in the metadata matching the kernel
   // environment.
   if (MinTeamsVal > 1 || MaxTeamsVal > 0)
@@ -6141,10 +6129,6 @@ void OpenMPIRBuilder::setOutlinedTargetRegionFunctionAttributes(
     OutlinedFn->setVisibility(GlobalValue::ProtectedVisibility);
     if (T.isAMDGCN())
       OutlinedFn->setCallingConv(CallingConv::AMDGPU_KERNEL);
-    if (!Config.TargetCPU.empty())
-      OutlinedFn->addFnAttr("target-cpu", Config.TargetCPU);
-    if (!Config.TargetFeatures.empty())
-      OutlinedFn->addFnAttr("target-features", Config.TargetFeatures);
   }
 }
 
