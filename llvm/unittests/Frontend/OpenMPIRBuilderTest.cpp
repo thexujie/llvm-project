@@ -4980,8 +4980,12 @@ TEST_F(OpenMPIRBuilderTest, CreateReductions) {
   Builder.restoreIP(AfterIP);
 
   OpenMPIRBuilder::ReductionInfo ReductionInfos[] = {
-      {SumType, SumReduced, SumPrivatized, sumReduction, sumAtomicReduction},
-      {XorType, XorReduced, XorPrivatized, xorReduction, xorAtomicReduction}};
+      {SumType, SumReduced, SumPrivatized,
+       /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKindTy::Scalar,
+       sumReduction, /*ReductionGenClang=*/nullptr, sumAtomicReduction},
+      {XorType, XorReduced, XorPrivatized,
+       /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKindTy::Scalar,
+       xorReduction, /*ReductionGenClang=*/nullptr, xorAtomicReduction}};
 
   OMPBuilder.createReductions(BodyIP, BodyAllocaIP, ReductionInfos);
 
@@ -5232,10 +5236,14 @@ TEST_F(OpenMPIRBuilderTest, CreateTwoReductions) {
 
   OMPBuilder.createReductions(
       FirstBodyIP, FirstBodyAllocaIP,
-      {{SumType, SumReduced, SumPrivatized, sumReduction, sumAtomicReduction}});
+      {{SumType, SumReduced, SumPrivatized,
+        /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKindTy::Scalar,
+        sumReduction, /*ReductionGenClang=*/nullptr, sumAtomicReduction}});
   OMPBuilder.createReductions(
       SecondBodyIP, SecondBodyAllocaIP,
-      {{XorType, XorReduced, XorPrivatized, xorReduction, xorAtomicReduction}});
+      {{XorType, XorReduced, XorPrivatized,
+        /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKindTy::Scalar,
+        xorReduction, /*ReductionGenClang=*/nullptr, xorAtomicReduction}});
 
   Builder.restoreIP(AfterIP);
   Builder.CreateRetVoid();
