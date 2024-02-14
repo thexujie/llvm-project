@@ -3147,13 +3147,13 @@ std::string OpenMPIRBuilder::getReductionFuncName(StringRef Name) const {
 }
 
 Function *OpenMPIRBuilder::createReductionFunction(
-    StringRef ReducerName, ArrayRef<ReductionInfo> ReductionInfos, bool IsGPU,
+    StringRef ReducerName, ArrayRef<ReductionInfo> ReductionInfos,
     ReductionGenCBTy ReductionGenCBTy, AttributeList FuncAttrs) {
   auto *FuncTy = FunctionType::get(Builder.getVoidTy(),
                                    {Builder.getPtrTy(), Builder.getPtrTy()},
                                    /* IsVarArg */ false);
   std::string Name = getReductionFuncName(ReducerName);
-  auto *ReductionFunc =
+  Function *ReductionFunc =
       Function::Create(FuncTy, GlobalVariable::InternalLinkage, Name, &M);
   ReductionFunc->setAttributes(FuncAttrs);
   ReductionFunc->addParamAttr(0, Attribute::NoUndef);
@@ -3162,33 +3162,27 @@ Function *OpenMPIRBuilder::createReductionFunction(
       BasicBlock::Create(M.getContext(), "entry", ReductionFunc);
   Builder.SetInsertPoint(EntryBB);
 
+  // Need to alloca memory here and deal with the pointers before getting
+  // LHS/RHS pointers out
   Value *LHSArrayPtr = nullptr;
   Value *RHSArrayPtr = nullptr;
-  if (IsGPU) {
-    // Need to alloca memory here and deal with the pointers before getting
-    // LHS/RHS pointers out
-    //
-    Argument *Arg0 = ReductionFunc->getArg(0);
-    Argument *Arg1 = ReductionFunc->getArg(1);
-    Type *Arg0Type = Arg0->getType();
-    Type *Arg1Type = Arg1->getType();
+  Argument *Arg0 = ReductionFunc->getArg(0);
+  Argument *Arg1 = ReductionFunc->getArg(1);
+  Type *Arg0Type = Arg0->getType();
+  Type *Arg1Type = Arg1->getType();
 
-    Value *LHSAlloca =
-        Builder.CreateAlloca(Arg0Type, nullptr, Arg0->getName() + ".addr");
-    Value *RHSAlloca =
-        Builder.CreateAlloca(Arg1Type, nullptr, Arg1->getName() + ".addr");
-    Value *LHSAddrCast = Builder.CreatePointerBitCastOrAddrSpaceCast(
-        LHSAlloca, Arg0Type, LHSAlloca->getName() + ".ascast");
-    Value *RHSAddrCast = Builder.CreatePointerBitCastOrAddrSpaceCast(
-        RHSAlloca, Arg1Type, RHSAlloca->getName() + ".ascast");
-    Builder.CreateStore(Arg0, LHSAddrCast);
-    Builder.CreateStore(Arg1, RHSAddrCast);
-    LHSArrayPtr = Builder.CreateLoad(Arg0Type, LHSAddrCast);
-    RHSArrayPtr = Builder.CreateLoad(Arg1Type, RHSAddrCast);
-  } else {
-    LHSArrayPtr = ReductionFunc->getArg(0);
-    RHSArrayPtr = ReductionFunc->getArg(1);
-  }
+  Value *LHSAlloca =
+      Builder.CreateAlloca(Arg0Type, nullptr, Arg0->getName() + ".addr");
+  Value *RHSAlloca =
+      Builder.CreateAlloca(Arg1Type, nullptr, Arg1->getName() + ".addr");
+  Value *LHSAddrCast = Builder.CreatePointerBitCastOrAddrSpaceCast(
+      LHSAlloca, Arg0Type, LHSAlloca->getName() + ".ascast");
+  Value *RHSAddrCast = Builder.CreatePointerBitCastOrAddrSpaceCast(
+      RHSAlloca, Arg1Type, RHSAlloca->getName() + ".ascast");
+  Builder.CreateStore(Arg0, LHSAddrCast);
+  Builder.CreateStore(Arg1, RHSAddrCast);
+  LHSArrayPtr = Builder.CreateLoad(Arg0Type, LHSAddrCast);
+  RHSArrayPtr = Builder.CreateLoad(Arg1Type, RHSAddrCast);
 
   Type *RedArrayTy = ArrayType::get(Builder.getPtrTy(), ReductionInfos.size());
   Type *IndexTy = Builder.getIndexTy(
@@ -3462,6 +3456,54 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
   return Builder.saveIP();
 }
 
+static Function *getFreshReductionFunc(Module &M) {
+  Type *VoidTy = Type::getVoidTy(M.getContext());
+  Type *Int8PtrTy = PointerType::getUnqual(M.getContext());
+  auto *FuncTy =
+      FunctionType::get(VoidTy, {Int8PtrTy, Int8PtrTy}, /* IsVarArg */ false);
+  return Function::Create(FuncTy, GlobalVariable::InternalLinkage,
+                          ".omp.reduction.func", &M);
+}
+
+static void populateReductionFunction(
+    Function *ReductionFunc,
+    ArrayRef<OpenMPIRBuilder::ReductionInfo> ReductionInfos,
+    IRBuilder<> &Builder) {
+  Module *Module = ReductionFunc->getParent();
+  BasicBlock *ReductionFuncBlock =
+      BasicBlock::Create(Module->getContext(), "", ReductionFunc);
+  Builder.SetInsertPoint(ReductionFuncBlock);
+  Value *LHSArrayPtr = nullptr;
+  Value *RHSArrayPtr = nullptr;
+  LHSArrayPtr = ReductionFunc->getArg(0);
+  RHSArrayPtr = ReductionFunc->getArg(1);
+
+  unsigned NumReductions = ReductionInfos.size();
+  Type *RedArrayTy = ArrayType::get(Builder.getPtrTy(), NumReductions);
+
+  for (auto En : enumerate(ReductionInfos)) {
+    const OpenMPIRBuilder::ReductionInfo &RI = En.value();
+    Value *LHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, LHSArrayPtr, 0, En.index());
+    Value *LHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), LHSI8PtrPtr);
+    Value *LHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
+        LHSI8Ptr, RI.Variable->getType());
+    Value *LHS = Builder.CreateLoad(RI.ElementType, LHSPtr);
+    Value *RHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, RHSArrayPtr, 0, En.index());
+    Value *RHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), RHSI8PtrPtr);
+    Value *RHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
+        RHSI8Ptr, RI.PrivateVariable->getType());
+    Value *RHS = Builder.CreateLoad(RI.ElementType, RHSPtr);
+    Value *Reduced;
+    Builder.restoreIP(RI.ReductionGen(Builder.saveIP(), LHS, RHS, Reduced));
+    if (!Builder.GetInsertBlock())
+      return;
+    Builder.CreateStore(Reduced, LHSPtr);
+  }
+  Builder.CreateRetVoid();
+}
+
 OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
     const LocationDescription &Loc, InsertPointTy AllocaIP,
     ArrayRef<ReductionInfo> ReductionInfos, bool IsNoWait, bool IsByRef,
@@ -3518,8 +3560,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
   const DataLayout &DL = Module->getDataLayout();
   unsigned RedArrayByteSize = DL.getTypeStoreSize(RedArrayTy);
   Constant *RedArraySize = Builder.getInt64(RedArrayByteSize);
-  Function *ReductionFunc = createReductionFunction(
-      Builder.GetInsertBlock()->getParent()->getName(), ReductionInfos);
+  Function *ReductionFunc = getFreshReductionFunc(M);
   Value *Lock = getOMPCriticalRegionLock(".reduction");
   Function *ReduceFunc = getOrCreateRuntimeFunctionPtr(
       IsNoWait ? RuntimeFunction::OMPRTL___kmpc_reduce_nowait
@@ -3595,6 +3636,10 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
     Builder.CreateUnreachable();
   }
 
+  // Populate the outlined reduction function using the elementwise reduction
+  // function. Partial values are extracted from the type-erased array of
+  // pointers to private variables.
+  populateReductionFunction(ReductionFunc, ReductionInfos, Builder);
   Builder.SetInsertPoint(ContinuationBlock);
   return Builder.saveIP();
 }
