@@ -4986,7 +4986,7 @@ TEST_F(OpenMPIRBuilderTest, CreateReductions) {
       {XorType, XorReduced, XorPrivatized,
        /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKindTy::Scalar,
        xorReduction, /*ReductionGenClang=*/nullptr, xorAtomicReduction}};
-
+  OMPBuilder.Config.setIsGPU(false);
   OMPBuilder.createReductions(BodyIP, BodyAllocaIP, ReductionInfos);
 
   Builder.restoreIP(AfterIP);
@@ -5234,6 +5234,7 @@ TEST_F(OpenMPIRBuilderTest, CreateTwoReductions) {
       /* NumThreads */ nullptr, OMP_PROC_BIND_default,
       /* IsCancellable */ false);
 
+  OMPBuilder.Config.setIsGPU(false);
   OMPBuilder.createReductions(
       FirstBodyIP, FirstBodyAllocaIP,
       {{SumType, SumReduced, SumPrivatized,
