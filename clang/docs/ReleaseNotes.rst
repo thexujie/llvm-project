@@ -102,6 +102,11 @@ C++23 Feature Support
 - Implemented `P2718R0: Lifetime extension in range-based for loops <https://wg21.link/P2718R0>`_. Also
   materialize temporary object which is a prvalue in discarded-value expression.
 
+- Implemented `P1467R9: Extended floating-point types and standard names <https://wg21.link/P1467R9>`_. Enables
+  extended floating-point types beyond the three standard ones, establishing rules for their interactions and
+  conversions with each other and other types, while ensuring no alteration in the behavior of existing
+  standard types. The current implementation enables support for `std::float16_t` and `std::bfloat16_t` types.
+
 C++2c Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
 
