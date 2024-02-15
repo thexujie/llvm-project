@@ -1661,9 +1661,7 @@ void CGOpenMPRuntimeGPU::emitReduction(
 
   bool ParallelReduction = isOpenMPParallelDirective(Options.ReductionKind);
   bool DistributeReduction = isOpenMPDistributeDirective(Options.ReductionKind);
-#ifndef NDEBUG
   bool TeamsReduction = isOpenMPTeamsDirective(Options.ReductionKind);
-#endif
 
   ASTContext &C = CGM.getContext();
 
