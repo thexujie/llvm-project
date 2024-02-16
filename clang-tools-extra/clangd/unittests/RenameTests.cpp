@@ -2040,9 +2040,9 @@ TEST(CrossFileRenameTests, adjustRenameRanges) {
   for (const auto &T : Tests) {
     SCOPED_TRACE(T.DraftCode);
     Annotations Draft(T.DraftCode);
-    auto ActualRanges = adjustRenameRanges(Draft.code(), "x",
-                                           Annotations(T.IndexedCode).ranges(),
-                                           LangOpts, std::nullopt);
+    auto ActualRanges = adjustRenameRanges(
+        Draft.code(), tooling::SymbolName("x", /*IsObjectiveCSelector=*/false),
+        Annotations(T.IndexedCode).ranges(), LangOpts);
     if (!ActualRanges)
        EXPECT_THAT(Draft.ranges(), testing::IsEmpty());
     else
