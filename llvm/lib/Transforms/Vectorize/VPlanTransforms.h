@@ -98,6 +98,9 @@ struct VPlanTransforms {
   ///       VPlan directly.
   static void dropPoisonGeneratingRecipes(
       VPlan &Plan, function_ref<bool(BasicBlock *)> BlockNeedsPredication);
+
+  static void prepareToExecute(VPlan &Plan, bool HasNUW,
+                               bool DataAndControlFlowWithoutRuntimeCheck);
 };
 
 } // namespace llvm

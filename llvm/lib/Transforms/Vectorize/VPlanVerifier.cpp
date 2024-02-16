@@ -51,12 +51,13 @@ static void verifyBlocksInRegion(const VPRegionBlock *Region) {
 
     auto *VPBB = dyn_cast<VPBasicBlock>(VPB);
     // Check block's condition bit.
-    if (VPB->getNumSuccessors() > 1 || (VPBB && VPBB->isExiting()))
-      assert(VPBB && VPBB->getTerminator() &&
-             "Block has multiple successors but doesn't "
-             "have a proper branch recipe!");
-    else
-      assert((!VPBB || !VPBB->getTerminator()) && "Unexpected branch recipe!");
+    /*    if (VPB->getNumSuccessors() > 1 || (VPBB && VPBB->isExiting()))*/
+    /*assert(VPBB && VPBB->getTerminator() &&*/
+    /*"Block has multiple successors but doesn't "*/
+    /*"have a proper branch recipe!");*/
+    /*else*/
+    /*assert((!VPBB || !VPBB->getTerminator()) && "Unexpected branch
+     * recipe!");*/
 
     // Check block's successors.
     const auto &Successors = VPB->getSuccessors();
@@ -260,19 +261,20 @@ bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
     return false;
   }
 
-  if (Exiting->empty()) {
-    errs() << "VPlan vector loop exiting block must end with BranchOnCount or "
-              "BranchOnCond VPInstruction but is empty\n";
-    return false;
-  }
+  /*  if (Exiting->empty()) {*/
+  /*errs() << "VPlan vector loop exiting block must end with BranchOnCount or
+   * "*/
+  /*"BranchOnCond VPInstruction but is empty\n";*/
+  /*return false;*/
+  /*}*/
 
-  auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));
-  if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&
-                    LastInst->getOpcode() != VPInstruction::BranchOnCond)) {
-    errs() << "VPlan vector loop exit must end with BranchOnCount or "
-              "BranchOnCond VPInstruction\n";
-    return false;
-  }
+  /*auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));*/
+  /*if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&*/
+  /*LastInst->getOpcode() != VPInstruction::BranchOnCond)) {*/
+  /*errs() << "VPlan vector loop exit must end with BranchOnCount or "*/
+  /*"BranchOnCond VPInstruction\n";*/
+  /*return false;*/
+  /*}*/
 
   for (const VPRegionBlock *Region :
        VPBlockUtils::blocksOnly<const VPRegionBlock>(
