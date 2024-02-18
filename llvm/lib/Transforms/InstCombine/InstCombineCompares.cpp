@@ -4068,11 +4068,115 @@ Instruction *InstCombinerImpl::foldSelectICmp(ICmpInst::Predicate Pred,
   return nullptr;
 }
 
+// Returns of V is a Mask ((X + 1) & X == 0) or ~Mask (-Pow2OrZero)
+static bool isMaskOrZero(const Value *V, bool Not, const SimplifyQuery &Q,
+                         unsigned Depth = 0) {
+  if (Not ? match(V, m_NegatedPower2OrZero()) : match(V, m_LowBitMaskOrZero()))
+    return true;
+  if (V->getType()->getScalarSizeInBits() == 1)
+    return true;
+  if (Depth++ >= MaxAnalysisRecursionDepth)
+    return false;
+  Value *X;
+  if (match(V, m_Not(m_Value(X))))
+    return isMaskOrZero(X, !Not, Q, Depth);
+  const Operator *I = dyn_cast<Operator>(V);
+  if (I == nullptr)
+    return false;
+  switch (I->getOpcode()) {
+  case Instruction::ZExt:
+    // ZExt(Mask) is a Mask.
+    return !Not && isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+  case Instruction::SExt:
+    // SExt(Mask) is a Mask.
+    // SExt(~Mask) is a ~Mask.
+    return isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+  case Instruction::And:
+  case Instruction::Or:
+    // Mask0 | Mask1 is a Mask.
+    // Mask0 & Mask1 is a Mask.
+    // ~Mask0 | ~Mask1 is a ~Mask.
+    // ~Mask0 & ~Mask1 is a ~Mask.
+    return isMaskOrZero(I->getOperand(1), Not, Q, Depth) &&
+           isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+  case Instruction::Xor:
+    // (X ^ (X - 1)) is a Mask
+    return match(V, m_c_Xor(m_Value(X), m_Add(m_Deferred(X), m_AllOnes())));
+  case Instruction::Select:
+    // c ? Mask0 : Mask1 is a Mask.
+    return isMaskOrZero(I->getOperand(1), Not, Q, Depth) &&
+           isMaskOrZero(I->getOperand(2), Not, Q, Depth);
+  case Instruction::Shl:
+    if (Not) {
+      // (-1 >> X) << X is ~Mask
+      if (match(I->getOperand(0),
+                m_Shr(m_AllOnes(), m_Specific(I->getOperand(1)))))
+        return true;
+
+      // (~Mask) << X is a ~Mask.
+      return isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+    }
+    break;
+  case Instruction::LShr:
+    if (!Not) {
+      // (-1 << X) >> X is a Mask
+      if (match(I->getOperand(0),
+                m_Shl(m_AllOnes(), m_Specific(I->getOperand(1)))))
+        return true;
+      // Mask >> X is a Mask.
+      return isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+    }
+    return false;
+  case Instruction::AShr:
+    // Mask s>> X is a Mask.
+    // ~Mask s>> X is a ~Mask.
+    return isMaskOrZero(I->getOperand(0), Not, Q, Depth);
+  case Instruction::Add:
+    // Pow2 - 1 is a Mask.
+    if (!Not && match(I->getOperand(1), m_AllOnes()))
+      return isKnownToBeAPowerOfTwo(I->getOperand(0), Q.DL, /*OrZero*/ true,
+                                    Depth, Q.AC, Q.CxtI, Q.DT);
+    break;
+  case Instruction::Sub:
+    // -Pow2 is a ~Mask.
+    if (Not && match(I->getOperand(0), m_Zero()))
+      return isKnownToBeAPowerOfTwo(I->getOperand(1), Q.DL, /*OrZero*/ true,
+                                    Depth, Q.AC, Q.CxtI, Q.DT);
+    break;
+  case Instruction::Invoke:
+  case Instruction::Call: {
+    if (auto *II = dyn_cast<IntrinsicInst>(I)) {
+      switch (II->getIntrinsicID()) {
+        // min/max(Mask0, Mask1) is a Mask.
+        // min/max(~Mask0, ~Mask1) is a ~Mask.
+      case Intrinsic::umax:
+      case Intrinsic::smax:
+      case Intrinsic::umin:
+      case Intrinsic::smin:
+        return isMaskOrZero(II->getArgOperand(1), Not, Q, Depth) &&
+               isMaskOrZero(II->getArgOperand(0), Not, Q, Depth);
+
+        // In the context of masks, bitreverse(Mask) == ~Mask
+      case Intrinsic::bitreverse:
+        return isMaskOrZero(II->getArgOperand(0), !Not, Q, Depth);
+      default:
+        break;
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+  return false;
+}
+
 /// Some comparisons can be simplified.
 /// In this case, we are looking for comparisons that look like
 /// a check for a lossy truncation.
 /// Folds:
 ///   icmp SrcPred (x & Mask), x    to    icmp DstPred x, Mask
+///   icmp eq/ne (x & ~Mask), 0     to    icmp DstPred x, Mask
 /// Where Mask is some pattern that produces all-ones in low bits:
 ///    (-1 >> y)
 ///    ((-1 << y) >> y)     <- non-canonical, has extra uses
@@ -4081,21 +4185,45 @@ Instruction *InstCombinerImpl::foldSelectICmp(ICmpInst::Predicate Pred,
 /// The Mask can be a constant, too.
 /// For some predicates, the operands are commutative.
 /// For others, x can only be on a specific side.
-static Value *foldICmpWithLowBitMaskedVal(ICmpInst &I,
-                                          InstCombiner::BuilderTy &Builder) {
-  ICmpInst::Predicate SrcPred;
-  Value *X, *M, *Y;
-  auto m_VariableMask = m_CombineOr(
-      m_CombineOr(m_Not(m_Shl(m_AllOnes(), m_Value())),
-                  m_Add(m_Shl(m_One(), m_Value()), m_AllOnes())),
-      m_CombineOr(m_LShr(m_AllOnes(), m_Value()),
-                  m_LShr(m_Shl(m_AllOnes(), m_Value(Y)), m_Deferred(Y))));
-  auto m_Mask = m_CombineOr(m_VariableMask, m_LowBitMask());
-  if (!match(&I, m_c_ICmp(SrcPred,
-                          m_c_And(m_CombineAnd(m_Mask, m_Value(M)), m_Value(X)),
-                          m_Deferred(X))))
-    return nullptr;
+static Value *foldICmpWithLowBitMaskedVal(ICmpInst &I, const SimplifyQuery &Q,
+                                          InstCombiner &IC) {
 
+  Value *X, *M;
+  ICmpInst::Predicate Pred = I.getPredicate();
+  ICmpInst::Predicate SrcPred;
+  bool NeedsNot = false;
+
+  auto CheckMask = [&](Value *V, bool Not) {
+    if (!ICmpInst::isSigned(Pred))
+      return isMaskOrZero(V, Not, Q);
+    return Not ? match(V, m_NegatedPower2OrZero())
+               : match(V, m_LowBitMaskOrZero());
+  };
+
+  auto TryMatch = [&](unsigned OpNo) {
+    SrcPred = Pred;
+    if (match(I.getOperand(OpNo),
+              m_c_And(m_Specific(I.getOperand(1 - OpNo)), m_Value(M)))) {
+      X = I.getOperand(1 - OpNo);
+      if (OpNo)
+        SrcPred = ICmpInst::getSwappedPredicate(Pred);
+      return CheckMask(M, /*Not*/ false);
+    }
+    if (OpNo == 1 && match(I.getOperand(1), m_Zero()) &&
+        ICmpInst::isEquality(Pred) &&
+        match(I.getOperand(0), m_OneUse(m_And(m_Value(X), m_Value(M))))) {
+      NeedsNot = true;
+      if (IC.isFreeToInvert(X, X->hasOneUse()) && CheckMask(X, /*Not*/ true)) {
+        std::swap(X, M);
+        return true;
+      }
+      return IC.isFreeToInvert(M, M->hasOneUse()) && CheckMask(M, /*Not*/ true);
+    }
+    return false;
+  };
+
+  if (!TryMatch(0) && !TryMatch(1))
+    return nullptr;
   ICmpInst::Predicate DstPred;
   switch (SrcPred) {
   case ICmpInst::Predicate::ICMP_EQ:
@@ -4163,7 +4291,9 @@ static Value *foldICmpWithLowBitMaskedVal(ICmpInst &I,
     M = Constant::replaceUndefsWith(VecC, SafeReplacementConstant);
   }
 
-  return Builder.CreateICmp(DstPred, X, M);
+  if (NeedsNot)
+    M = IC.Builder.CreateNot(M);
+  return IC.Builder.CreateICmp(DstPred, X, M);
 }
 
 /// Some comparisons can be simplified.
@@ -4525,7 +4655,7 @@ static Instruction *foldICmpXNegX(ICmpInst &I,
   return nullptr;
 }
 
-static Instruction *foldICmpAndXX(ICmpInst &I, const SimplifyQuery &Q,
+static Instruction *foldICmpAndXX(ICmpInst &I, const SimplifyQuery &,
                                   InstCombinerImpl &IC) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1), *A;
   // Normalize and operand as operand 0.
@@ -4545,6 +4675,65 @@ static Instruction *foldICmpAndXX(ICmpInst &I, const SimplifyQuery &Q,
   // (icmp (X & Y) u>= X --> (X & Y) == X
   if (Pred == ICmpInst::ICMP_UGE)
     return new ICmpInst(ICmpInst::ICMP_EQ, Op0, Op1);
+
+  if (ICmpInst::isEquality(Pred) && Op0->hasOneUse()) {
+    // icmp (X & Y) eq/ne Y --> (X | ~Y) eq/ne -1 if Y is freely invertible and
+    // Y is non-constant. If Y is constant this form is preferable (and
+    // canonicalize too it elsewhere).
+    if (!match(Op1, m_ImmConstant()) &&
+        IC.isFreeToInvert(Op1, Op1->hasOneUse() || Op1->hasNUses(2)))
+      return new ICmpInst(Pred,
+                          IC.Builder.CreateOr(A, IC.Builder.CreateNot(Op1)),
+                          Constant::getAllOnesValue(Op1->getType()));
+    // icmp (X & Y) eq/ne Y --> (~X & Y) eq/ne 0 if X  is freely invertible.
+    if (IC.isFreeToInvert(A, A->hasOneUse()))
+      return new ICmpInst(Pred,
+                          IC.Builder.CreateAnd(Op1, IC.Builder.CreateNot(A)),
+                          Constant::getNullValue(Op1->getType()));
+  }
+
+  if (ICmpInst::isEquality(Pred) || ICmpInst::getSignedPredicate(Pred) != Pred)
+    return nullptr;
+
+  auto IsTrue = [](std::optional<bool> OptBool) {
+    return OptBool.has_value() && OptBool.value();
+  };
+
+  auto IsFalse = [](std::optional<bool> OptBool) {
+    return OptBool.has_value() && !OptBool.value();
+  };
+
+  auto KnownSignY = IC.getKnownSign(A, &I);
+
+  // (X & NegY) spred X --> (icmp (X & NegY) upred X
+  if (IsTrue(KnownSignY))
+    return new ICmpInst(ICmpInst::getUnsignedPredicate(Pred), Op0, Op1);
+
+  if (Pred != ICmpInst::ICMP_SLE && Pred != ICmpInst::ICMP_SGT)
+    return nullptr;
+
+  if (IsFalse(KnownSignY)) {
+    // (X & PosY) s<= X --> X s>= 0
+    if (Pred == ICmpInst::ICMP_SLE)
+      return new ICmpInst(ICmpInst::ICMP_SGE, Op1,
+                          Constant::getNullValue(Op1->getType()));
+    // (X & PosY) s> X --> X s< 0
+    if (Pred == ICmpInst::ICMP_SGT)
+      return new ICmpInst(ICmpInst::ICMP_SLT, Op1,
+                          Constant::getNullValue(Op1->getType()));
+  }
+
+  if (IsTrue(IC.getKnownSign(Op1, &I))) {
+    // (NegX & Y) s> NegX --> Y s>= 0
+    if (Pred == ICmpInst::ICMP_SGT)
+      return new ICmpInst(ICmpInst::ICMP_SGE, A,
+                          Constant::getNullValue(A->getType()));
+
+    // (NegX & Y) s<= NegX --> Y s< 0
+    if (Pred == ICmpInst::ICMP_SLE)
+      return new ICmpInst(ICmpInst::ICMP_SLT, A,
+                          Constant::getNullValue(A->getType()));
+  }
 
   return nullptr;
 }
@@ -4573,7 +4762,7 @@ static Instruction *foldICmpOrXX(ICmpInst &I, const SimplifyQuery &Q,
   if (ICmpInst::isEquality(Pred) && Op0->hasOneUse()) {
     // icmp (X | Y) eq/ne Y --> (X & ~Y) eq/ne 0 if Y is freely invertible
     if (Value *NotOp1 =
-            IC.getFreelyInverted(Op1, Op1->hasOneUse(), &IC.Builder))
+            IC.getFreelyInverted(Op1, !Op1->hasNUsesOrMore(3), &IC.Builder))
       return new ICmpInst(Pred, IC.Builder.CreateAnd(A, NotOp1),
                           Constant::getNullValue(Op1->getType()));
     // icmp (X | Y) eq/ne Y --> (~X | Y) eq/ne -1 if X  is freely invertible.
@@ -5080,7 +5269,7 @@ Instruction *InstCombinerImpl::foldICmpBinOp(ICmpInst &I,
   if (Value *V = foldMultiplicationOverflowCheck(I))
     return replaceInstUsesWith(I, V);
 
-  if (Value *V = foldICmpWithLowBitMaskedVal(I, Builder))
+  if (Value *V = foldICmpWithLowBitMaskedVal(I, Q, *this))
     return replaceInstUsesWith(I, V);
 
   if (Instruction *R = foldICmpAndXX(I, Q, *this))
@@ -5323,21 +5512,6 @@ Instruction *InstCombinerImpl::foldICmpEquality(ICmpInst &I) {
       if (B == D)
         return new ICmpInst(Pred, A, C);
     }
-  }
-
-  // canoncalize:
-  // (icmp eq/ne (and X, C), X)
-  //    -> (icmp eq/ne (and X, ~C), 0)
-  {
-    Constant *CMask;
-    A = nullptr;
-    if (match(Op0, m_OneUse(m_And(m_Specific(Op1), m_ImmConstant(CMask)))))
-      A = Op1;
-    else if (match(Op1, m_OneUse(m_And(m_Specific(Op0), m_ImmConstant(CMask)))))
-      A = Op0;
-    if (A)
-      return new ICmpInst(Pred, Builder.CreateAnd(A, Builder.CreateNot(CMask)),
-                          Constant::getNullValue(A->getType()));
   }
 
   if (match(Op1, m_Xor(m_Value(A), m_Value(B))) && (A == Op0 || B == Op0)) {
