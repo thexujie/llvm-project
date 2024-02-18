@@ -82,13 +82,13 @@ inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 _RandomAccessIterator
                 "Comparator has to be callable");
 
   auto  __result = std::__partial_sort_copy<_ClassicAlgPolicy>(
-        __first,
-        __last,
-        __result_first,
-        __result_last,
-        static_cast<__comp_ref_type<_Compare> >(__comp),
-        __identity(),
-        __identity());
+      __first,
+      __last,
+      __result_first,
+      __result_last,
+      static_cast<__comp_ref_type<_Compare> >(__comp),
+      __identity(),
+      __identity());
 
   return __result.second;
 }
