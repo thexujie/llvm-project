@@ -52,10 +52,10 @@ _LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14
 
 min_element(_ForwardIterator __first, _ForwardIterator __last, _Compare __comp)
 {
-  static_assert(__has_forward_iterator_category<_ForwardIterator>::value,
-      "std::min_element requires a ForwardIterator");
-  static_assert(__is_callable<_Compare, decltype(*__first), decltype(*__first)>::value,
-              "The comparator has to be callable");
+  static_assert(
+      __has_forward_iterator_category<_ForwardIterator>::value, "std::min_element requires a ForwardIterator");
+  static_assert(
+      __is_callable<_Compare, decltype(*__first), decltype(*__first)>::value, "The comparator has to be callable");
   static_assert(__is_callable<_Compare const&, decltype(*__first), decltype(*__first)>::value,
                 "The comparator has to be const-callable");
 

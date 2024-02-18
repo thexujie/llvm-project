@@ -293,7 +293,6 @@ _LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20
   static_assert(__is_callable<_BinaryPredicate const&, decltype(*__first1), decltype(*__first2)>::value,
                 "The predicate has to be const-callable");
 
-
   return std::__is_permutation<_ClassicAlgPolicy>(
       std::move(__first1),
       std::move(__last1),
