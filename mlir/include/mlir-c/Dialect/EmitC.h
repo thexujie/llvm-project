@@ -22,4 +22,6 @@ MLIR_DECLARE_CAPI_DIALECT_REGISTRATION(EmitC, emitc);
 }
 #endif
 
+#include "mlir/Dialect/EmitC/Transforms/Passes.capi.h.inc"
+
 #endif // MLIR_C_DIALECT_EMITC_H

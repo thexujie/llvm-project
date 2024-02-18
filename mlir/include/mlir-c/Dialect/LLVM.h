@@ -102,4 +102,6 @@ mlirLLVMStructTypeSetBody(MlirType structType, intptr_t nFieldTypes,
 }
 #endif
 
+#include "mlir/Dialect/LLVMIR/Transforms/Passes.capi.h.inc"
+
 #endif // MLIR_C_DIALECT_LLVM_H
