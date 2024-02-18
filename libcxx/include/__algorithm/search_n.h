@@ -136,11 +136,8 @@ _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX14 pair<_Iter1, _Iter1> __searc
 
 template <class _ForwardIterator, class _Size, class _Tp, class _BinaryPredicate>
 
-_LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20
-_ForwardIterator search_n(_ForwardIterator __first, _ForwardIterator __last,
-                          _Size __count,
-                          const _Tp& __value,
-                          _BinaryPredicate __pred) {
+_LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 _ForwardIterator search_n(
+    _ForwardIterator __first, _ForwardIterator __last, _Size __count, const _Tp& __value, _BinaryPredicate __pred) {
   static_assert(
       __is_callable<_BinaryPredicate, decltype(*__first), const _Tp&>::value, "BinaryPredicate has to be callable");
   static_assert(__is_callable<_BinaryPredicate const&, decltype(*__first), const _Tp&>::value,

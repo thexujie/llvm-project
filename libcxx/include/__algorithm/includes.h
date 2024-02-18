@@ -48,12 +48,12 @@ _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 bool __includes(
 
 template <class _InputIterator1, class _InputIterator2, class _Compare>
 
-_LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 bool includes(
-    _InputIterator1 __first1,
-    _InputIterator1 __last1,
-    _InputIterator2 __first2,
-    _InputIterator2 __last2,
-    _Compare __comp) {
+_LIBCPP_NODISCARD_EXT inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 bool
+includes(_InputIterator1 __first1,
+         _InputIterator1 __last1,
+         _InputIterator2 __first2,
+         _InputIterator2 __last2,
+         _Compare __comp) {
   static_assert(
       __is_callable<_Compare, decltype(*__first1), decltype(*__first2)>::value, "Comparator has to be callable");
   static_assert(__is_callable<_Compare const&, decltype(*__first1), decltype(*__first2)>::value,
