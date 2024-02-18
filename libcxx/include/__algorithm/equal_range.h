@@ -66,7 +66,6 @@ equal_range(_ForwardIterator __first, _ForwardIterator __last, const _Tp& __valu
 
   static_assert(
       __is_callable<_Compare const&, decltype(*__first), const _Tp&>::value, "The comparator has to be const-callable");
-
   static_assert(is_copy_constructible<_ForwardIterator>::value, "Iterator has to be copy constructible");
 
   return std::__equal_range<_ClassicAlgPolicy>(

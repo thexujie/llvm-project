@@ -78,8 +78,6 @@ inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 _RandomAccessIterator
     _Compare __comp) {
   static_assert(
       __is_callable<_Compare, decltype(*__first), decltype(*__result_first)>::value, "Comparator has to be callable");
-
-
   static_assert(__is_callable<_Compare const&, decltype(*__first), decltype(*__result_first)>::value,
                 "Comparator has to be callable");
 
