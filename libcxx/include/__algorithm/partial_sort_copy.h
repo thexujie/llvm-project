@@ -81,7 +81,7 @@ inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX20 _RandomAccessIterator
   static_assert(__is_callable<_Compare const&, decltype(*__first), decltype(*__result_first)>::value,
                 "Comparator has to be callable");
 
-  auto  __result = std::__partial_sort_copy<_ClassicAlgPolicy>(
+  auto __result = std::__partial_sort_copy<_ClassicAlgPolicy>(
       __first,
       __last,
       __result_first,
