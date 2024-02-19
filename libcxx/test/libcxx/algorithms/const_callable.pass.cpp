@@ -9,8 +9,12 @@
 #include <algorithm>
 
 struct RvalueRefUncallable {
-  bool operator()(int, int) && = delete;
-  bool operator()(int, int) const& { return true; }
+  template <class T>
+  bool operator()(T, T) && = delete;
+  template <class T>
+  bool operator()(T, T) const& {
+    return true;
+  }
 };
 
-int main(int, char**) { assert(std::minmax({42, 0, -42}, RvalueRefUncallable{}).first == true); }
+int main(int, char**) { assert(std::minmax({42, 0, -42}, RvalueRefUncallable()).first == true); }
