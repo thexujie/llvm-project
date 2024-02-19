@@ -27,6 +27,5 @@ struct NonConstUncallable {
 };
 
 void test() {
-  std::minmax({42, 0, -42}, ConstUncallable());
-  //expected-error-re@*:* {{static_assert(__is_callable<_Compare const&, decltype(*__first), const _Tp&>::value, "The comparator has to be const-callable")}}
+  std::minmax({42, 0, -42}, ConstUncallable()); //expected-error@*:* {{The comparator has to be const-callable}}
 }

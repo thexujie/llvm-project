@@ -124,7 +124,11 @@ test()
 
 struct less_by_first {
   template <typename Pair>
-  bool operator()(const Pair& lhs, const Pair& rhs) {
+  bool operator()(const Pair& lhs, const Pair& rhs) & {
+    return std::less<typename Pair::first_type>()(lhs.first, rhs.first);
+  }
+  template <typename Pair>
+  bool operator()(const Pair& lhs, const Pair& rhs) const& {
     return std::less<typename Pair::first_type>()(lhs.first, rhs.first);
   }
 };
