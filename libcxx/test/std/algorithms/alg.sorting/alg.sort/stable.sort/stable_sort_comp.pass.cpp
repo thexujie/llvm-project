@@ -36,10 +36,8 @@ std::mt19937 randomness;
 
 struct first_only
 {
-    bool operator()(const std::pair<int, int>& x, const std::pair<int, int>& y)
-    {
-        return x.first < y.first;
-    }
+  bool operator()(const std::pair<int, int>& x, const std::pair<int, int>& y) & { return x.first < y.first; }
+  bool operator()(const std::pair<int, int>& x, const std::pair<int, int>& y) const& { return x.first < y.first; }
 };
 
 void test()

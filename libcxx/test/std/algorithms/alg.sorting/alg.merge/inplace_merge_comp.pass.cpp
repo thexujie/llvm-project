@@ -26,9 +26,14 @@
 
 struct indirect_less
 {
-    template <class P>
-    bool operator()(const P& x, const P& y)
-        {return *x < *y;}
+  template <class P>
+  bool operator()(const P& x, const P& y) & {
+    return *x < *y;
+  }
+  template <class P>
+  bool operator()(const P& x, const P& y) const& {
+    return *x < *y;
+  }
 };
 
 struct S {
