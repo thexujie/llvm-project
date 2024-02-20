@@ -2475,9 +2475,13 @@ QualType Type::getSveEltType(const ASTContext &Ctx) const {
 bool Type::isRVVVLSBuiltinType() const {
   if (const BuiltinType *BT = getAs<BuiltinType>()) {
     switch (BT->getKind()) {
-#define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned, IsFP) \
-    case BuiltinType::Id: \
-      return NF == 1;
+#define RVV_VECTOR_TYPE(Name, Id, SingletonId, NumEls, ElBits, NF, IsSigned,   \
+                        IsFP, IsBF)                                            \
+  case BuiltinType::Id:                                                        \
+    return NF == 1;
+#define RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)                      \
+  case BuiltinType::Id:                                                        \
+    return true;
 #include "clang/Basic/RISCVVTypes.def"
     default:
       return false;
@@ -2490,7 +2494,17 @@ QualType Type::getRVVEltType(const ASTContext &Ctx) const {
   assert(isRVVVLSBuiltinType() && "unsupported type!");
 
   const BuiltinType *BTy = castAs<BuiltinType>();
-  return Ctx.getBuiltinVectorTypeInfo(BTy).ElementType;
+
+  switch (BTy->getKind()) {
+#define RVV_PREDICATE_TYPE(Name, Id, SingletonId, NumEls)                      \
+  case BuiltinType::Id:                                                        \
+    return Ctx.UnsignedCharTy;
+  default:
+    return Ctx.getBuiltinVectorTypeInfo(BTy).ElementType;
+#include "clang/Basic/RISCVVTypes.def"
+  }
+
+  llvm_unreachable("Unhandled type");
 }
 
 bool QualType::isPODType(const ASTContext &Context) const {
@@ -2603,19 +2617,22 @@ bool QualType::isTrivialType(const ASTContext &Context) const {
   return false;
 }
 
-bool QualType::isTriviallyCopyableType(const ASTContext &Context) const {
-  if ((*this)->isArrayType())
-    return Context.getBaseElementType(*this).isTriviallyCopyableType(Context);
+static bool isTriviallyCopyableTypeImpl(const QualType &type,
+                                        const ASTContext &Context,
+                                        bool IsCopyConstructible) {
+  if (type->isArrayType())
+    return isTriviallyCopyableTypeImpl(Context.getBaseElementType(type),
+                                       Context, IsCopyConstructible);
 
-  if (hasNonTrivialObjCLifetime())
+  if (type.hasNonTrivialObjCLifetime())
     return false;
 
   // C++11 [basic.types]p9 - See Core 2094
   //   Scalar types, trivially copyable class types, arrays of such types, and
   //   cv-qualified versions of these types are collectively
-  //   called trivially copyable types.
+  //   called trivially copy constructible types.
 
-  QualType CanonicalType = getCanonicalType();
+  QualType CanonicalType = type.getCanonicalType();
   if (CanonicalType->isDependentType())
     return false;
 
@@ -2633,20 +2650,35 @@ bool QualType::isTriviallyCopyableType(const ASTContext &Context) const {
 
   if (const auto *RT = CanonicalType->getAs<RecordType>()) {
     if (const auto *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
-      if (!ClassDecl->isTriviallyCopyable()) return false;
+      if (IsCopyConstructible) {
+        return ClassDecl->isTriviallyCopyConstructible();
+      } else {
+        return ClassDecl->isTriviallyCopyable();
+      }
     }
-
     return true;
   }
-
   // No other types can match.
   return false;
+}
+
+bool QualType::isTriviallyCopyableType(const ASTContext &Context) const {
+  return isTriviallyCopyableTypeImpl(*this, Context,
+                                     /*IsCopyConstructible=*/false);
+}
+
+bool QualType::isTriviallyCopyConstructibleType(
+    const ASTContext &Context) const {
+  return isTriviallyCopyableTypeImpl(*this, Context,
+                                     /*IsCopyConstructible=*/true);
 }
 
 bool QualType::isTriviallyRelocatableType(const ASTContext &Context) const {
   QualType BaseElementType = Context.getBaseElementType(*this);
 
   if (BaseElementType->isIncompleteType()) {
+    return false;
+  } else if (!BaseElementType->isObjectType()) {
     return false;
   } else if (const auto *RD = BaseElementType->getAsRecordDecl()) {
     return RD->canPassInRegisters();
@@ -3035,11 +3067,16 @@ TypeWithKeyword::getKeywordForTypeSpec(unsigned TypeSpec) {
 TagTypeKind
 TypeWithKeyword::getTagTypeKindForTypeSpec(unsigned TypeSpec) {
   switch(TypeSpec) {
-  case TST_class: return TTK_Class;
-  case TST_struct: return TTK_Struct;
-  case TST_interface: return TTK_Interface;
-  case TST_union: return TTK_Union;
-  case TST_enum: return TTK_Enum;
+  case TST_class:
+    return TagTypeKind::Class;
+  case TST_struct:
+    return TagTypeKind::Struct;
+  case TST_interface:
+    return TagTypeKind::Interface;
+  case TST_union:
+    return TagTypeKind::Union;
+  case TST_enum:
+    return TagTypeKind::Enum;
   }
 
   llvm_unreachable("Type specifier is not a tag type kind.");
@@ -3048,15 +3085,15 @@ TypeWithKeyword::getTagTypeKindForTypeSpec(unsigned TypeSpec) {
 ElaboratedTypeKeyword
 TypeWithKeyword::getKeywordForTagTypeKind(TagTypeKind Kind) {
   switch (Kind) {
-  case TTK_Class:
+  case TagTypeKind::Class:
     return ElaboratedTypeKeyword::Class;
-  case TTK_Struct:
+  case TagTypeKind::Struct:
     return ElaboratedTypeKeyword::Struct;
-  case TTK_Interface:
+  case TagTypeKind::Interface:
     return ElaboratedTypeKeyword::Interface;
-  case TTK_Union:
+  case TagTypeKind::Union:
     return ElaboratedTypeKeyword::Union;
-  case TTK_Enum:
+  case TagTypeKind::Enum:
     return ElaboratedTypeKeyword::Enum;
   }
   llvm_unreachable("Unknown tag type kind.");
@@ -3066,15 +3103,15 @@ TagTypeKind
 TypeWithKeyword::getTagTypeKindForKeyword(ElaboratedTypeKeyword Keyword) {
   switch (Keyword) {
   case ElaboratedTypeKeyword::Class:
-    return TTK_Class;
+    return TagTypeKind::Class;
   case ElaboratedTypeKeyword::Struct:
-    return TTK_Struct;
+    return TagTypeKind::Struct;
   case ElaboratedTypeKeyword::Interface:
-    return TTK_Interface;
+    return TagTypeKind::Interface;
   case ElaboratedTypeKeyword::Union:
-    return TTK_Union;
+    return TagTypeKind::Union;
   case ElaboratedTypeKeyword::Enum:
-    return TTK_Enum;
+    return TagTypeKind::Enum;
   case ElaboratedTypeKeyword::None: // Fall through.
   case ElaboratedTypeKeyword::Typename:
     llvm_unreachable("Elaborated type keyword is not a tag type kind.");
@@ -3401,9 +3438,17 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_PreserveMost: return "preserve_most";
   case CC_PreserveAll: return "preserve_all";
   case CC_M68kRTD: return "m68k_rtd";
+  case CC_PreserveNone: return "preserve_none";
   }
 
   llvm_unreachable("Invalid calling convention.");
+}
+
+void FunctionProtoType::ExceptionSpecInfo::instantiate() {
+  assert(Type == EST_Uninstantiated);
+  NoexceptExpr =
+      cast<FunctionProtoType>(SourceTemplate->getType())->getNoexceptExpr();
+  Type = EST_DependentNoexcept;
 }
 
 FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
@@ -3428,6 +3473,14 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
     FunctionTypeBits.HasExtraBitfields = false;
   }
 
+  if (epi.requiresFunctionProtoTypeArmAttributes()) {
+    auto &ArmTypeAttrs = *getTrailingObjects<FunctionTypeArmAttributes>();
+    ArmTypeAttrs = FunctionTypeArmAttributes();
+
+    // Also set the bit in FunctionTypeExtraBitfields
+    auto &ExtraBits = *getTrailingObjects<FunctionTypeExtraBitfields>();
+    ExtraBits.HasArmTypeAttributes = true;
+  }
 
   // Fill in the trailing argument array.
   auto *argSlot = getTrailingObjects<QualType>();
@@ -3439,10 +3492,10 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
 
   // Propagate the SME ACLE attributes.
   if (epi.AArch64SMEAttributes != SME_NormalFunction) {
-    auto &ExtraBits = *getTrailingObjects<FunctionTypeExtraBitfields>();
+    auto &ArmTypeAttrs = *getTrailingObjects<FunctionTypeArmAttributes>();
     assert(epi.AArch64SMEAttributes <= SME_AttributeMask &&
            "Not enough bits to encode SME attributes");
-    ExtraBits.AArch64SMEAttributes = epi.AArch64SMEAttributes;
+    ArmTypeAttrs.AArch64SMEAttributes = epi.AArch64SMEAttributes;
   }
 
   // Fill in the exception type array if present.
@@ -3761,6 +3814,63 @@ void DependentDecltypeType::Profile(llvm::FoldingSetNodeID &ID,
   E->Profile(ID, Context, true);
 }
 
+PackIndexingType::PackIndexingType(const ASTContext &Context,
+                                   QualType Canonical, QualType Pattern,
+                                   Expr *IndexExpr,
+                                   ArrayRef<QualType> Expansions)
+    : Type(PackIndexing, Canonical,
+           computeDependence(Pattern, IndexExpr, Expansions)),
+      Context(Context), Pattern(Pattern), IndexExpr(IndexExpr),
+      Size(Expansions.size()) {
+
+  std::uninitialized_copy(Expansions.begin(), Expansions.end(),
+                          getTrailingObjects<QualType>());
+}
+
+std::optional<unsigned> PackIndexingType::getSelectedIndex() const {
+  if (isInstantiationDependentType())
+    return std::nullopt;
+  // Should only be not a constant for error recovery.
+  ConstantExpr *CE = dyn_cast<ConstantExpr>(getIndexExpr());
+  if (!CE)
+    return std::nullopt;
+  auto Index = CE->getResultAsAPSInt();
+  assert(Index.isNonNegative() && "Invalid index");
+  return static_cast<unsigned>(Index.getExtValue());
+}
+
+TypeDependence
+PackIndexingType::computeDependence(QualType Pattern, Expr *IndexExpr,
+                                    ArrayRef<QualType> Expansions) {
+  TypeDependence IndexD = toTypeDependence(IndexExpr->getDependence());
+
+  TypeDependence TD = IndexD | (IndexExpr->isInstantiationDependent()
+                                    ? TypeDependence::DependentInstantiation
+                                    : TypeDependence::None);
+  if (Expansions.empty())
+    TD |= Pattern->getDependence() & TypeDependence::DependentInstantiation;
+  else
+    for (const QualType &T : Expansions)
+      TD |= T->getDependence();
+
+  if (!(IndexD & TypeDependence::UnexpandedPack))
+    TD &= ~TypeDependence::UnexpandedPack;
+
+  // If the pattern does not contain an unexpended pack,
+  // the type is still dependent, and invalid
+  if (!Pattern->containsUnexpandedParameterPack())
+    TD |= TypeDependence::Error | TypeDependence::DependentInstantiation;
+
+  return TD;
+}
+
+void PackIndexingType::Profile(llvm::FoldingSetNodeID &ID,
+                               const ASTContext &Context, QualType Pattern,
+                               Expr *E) {
+  Pattern.Profile(ID);
+  E->Profile(ID, Context, true);
+}
+
 UnaryTransformType::UnaryTransformType(QualType BaseType,
                                        QualType UnderlyingType, UTTKind UKind,
                                        QualType CanonicalType)
@@ -3881,6 +3991,7 @@ bool AttributedType::isCallingConv() const {
   case attr::PreserveMost:
   case attr::PreserveAll:
   case attr::M68kRTD:
+  case attr::PreserveNone:
     return true;
   }
   llvm_unreachable("invalid attr kind");
@@ -4175,7 +4286,7 @@ public:
     // Compute the cached properties and then set the cache.
     CachedProperties Result = computeCachedProperties(T);
     T->TypeBits.CacheValid = true;
-    T->TypeBits.CachedLinkage = Result.getLinkage();
+    T->TypeBits.CachedLinkage = llvm::to_underlying(Result.getLinkage());
     T->TypeBits.CachedLocalOrUnnamed = Result.hasLocalOrUnnamedType();
   }
 };
@@ -4207,20 +4318,20 @@ static CachedProperties computeCachedProperties(const Type *T) {
     // Treat instantiation-dependent types as external.
     if (!T->isInstantiationDependentType()) T->dump();
     assert(T->isInstantiationDependentType());
-    return CachedProperties(ExternalLinkage, false);
+    return CachedProperties(Linkage::External, false);
 
   case Type::Auto:
   case Type::DeducedTemplateSpecialization:
     // Give non-deduced 'auto' types external linkage. We should only see them
     // here in error recovery.
-    return CachedProperties(ExternalLinkage, false);
+    return CachedProperties(Linkage::External, false);
 
   case Type::BitInt:
   case Type::Builtin:
     // C++ [basic.link]p8:
     //   A type is said to have linkage if and only if:
     //     - it is a fundamental type (3.9.1); or
-    return CachedProperties(ExternalLinkage, false);
+    return CachedProperties(Linkage::External, false);
 
   case Type::Record:
   case Type::Enum: {
@@ -4436,6 +4547,7 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
   case Type::TypeOfExpr:
   case Type::TypeOf:
   case Type::Decltype:
+  case Type::PackIndexing:
   case Type::UnaryTransform:
   case Type::TemplateTypeParm:
   case Type::SubstTemplateTypeParmPack:

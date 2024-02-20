@@ -54,14 +54,14 @@ using namespace llvm;
 namespace {
 class BytecodeVersionParser : public cl::parser<std::optional<int64_t>> {
 public:
-  BytecodeVersionParser(cl::Option &O)
-      : cl::parser<std::optional<int64_t>>(O) {}
+  BytecodeVersionParser(cl::Option &o)
+      : cl::parser<std::optional<int64_t>>(o) {}
 
-  bool parse(cl::Option &O, StringRef /*argName*/, StringRef arg,
+  bool parse(cl::Option &o, StringRef /*argName*/, StringRef arg,
              std::optional<int64_t> &v) {
     long long w;
     if (getAsSignedInteger(arg, 10, w))
-      return O.error("Invalid argument '" + arg +
+      return o.error("Invalid argument '" + arg +
                      "', only integer is supported.");
     v = w;
     return false;
@@ -89,6 +89,11 @@ struct MlirOptMainConfigCLOptions : public MlirOptMainConfig {
     static cl::opt<bool, /*ExternalStorage=*/true> emitBytecode(
         "emit-bytecode", cl::desc("Emit bytecode when generating output"),
         cl::location(emitBytecodeFlag), cl::init(false));
+
+    static cl::opt<bool, /*ExternalStorage=*/true> elideResourcesFromBytecode(
+        "elide-resource-data-from-bytecode",
+        cl::desc("Elide resources when generating bytecode"),
+        cl::location(elideResourceDataFromBytecodeFlag), cl::init(false));
 
     static cl::opt<std::optional<int64_t>, /*ExternalStorage=*/true,
                    BytecodeVersionParser>
@@ -146,6 +151,16 @@ struct MlirOptMainConfigCLOptions : public MlirOptMainConfig {
 
     static cl::list<std::string> passPlugins(
         "load-pass-plugin", cl::desc("Load passes from plugin library"));
+
+    static cl::opt<std::string, /*ExternalStorage=*/true>
+        generateReproducerFile(
+            "mlir-generate-reproducer",
+            llvm::cl::desc(
+                "Generate an mlir reproducer at the provided filename"
+                " (no crash required)"),
+            cl::location(generateReproducerFileFlag), cl::init(""),
+            cl::value_desc("filename"));
+
     /// Set the callback to load a pass plugin.
     passPlugins.setCallback([&](const std::string &pluginPath) {
       auto plugin = PassPlugin::load(pluginPath);
@@ -379,12 +394,22 @@ performActions(raw_ostream &os,
   if (failed(pm.run(*op)))
     return failure();
 
+  // Generate reproducers if requested
+  if (!config.getReproducerFilename().empty()) {
+    StringRef anchorName = pm.getAnyOpAnchorName();
+    const auto &passes = pm.getPasses();
+    makeReproducer(anchorName, passes, op.get(),
+                   config.getReproducerFilename());
+  }
+
   // Print the output.
   TimingScope outputTiming = timing.nest("Output");
   if (config.shouldEmitBytecode()) {
     BytecodeWriterConfig writerConfig(fallbackResourceMap);
     if (auto v = config.bytecodeVersionToEmit())
       writerConfig.setDesiredBytecodeVersion(*v);
+    if (config.shouldElideResourceDataFromBytecode())
+      writerConfig.setElideResourceDataFlag();
     return writeBytecodeToFile(op.get(), os, writerConfig);
   }
 

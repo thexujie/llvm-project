@@ -296,7 +296,7 @@ static void DiagnoseObjCImplementedDeprecations(Sema &S, const NamedDecl *ND,
         RealizedPlatform = S.Context.getTargetInfo().getPlatformName();
       // Warn about implementing unavailable methods, unless the unavailable
       // is for an app extension.
-      if (RealizedPlatform.endswith("_app_extension"))
+      if (RealizedPlatform.ends_with("_app_extension"))
         return;
       S.Diag(ImplLoc, diag::warn_unavailable_def);
       S.Diag(ND->getLocation(), diag::note_method_declared_at)
@@ -1623,7 +1623,7 @@ void Sema::actOnObjCTypeArgsOrProtocolQualifiers(
     }
 
     // Convert this to a type.
-    return ActOnTypeName(S, D);
+    return ActOnTypeName(D);
   };
 
   // Local function that updates the declaration specifiers with
@@ -3884,7 +3884,7 @@ static void DiagnoseVariableSizedIvars(Sema &S, ObjCContainerDecl *OCD) {
     if (IvarTy->isIncompleteArrayType()) {
       S.Diag(ivar->getLocation(), diag::err_flexible_array_not_at_end)
           << ivar->getDeclName() << IvarTy
-          << TTK_Class; // Use "class" for Obj-C.
+          << llvm::to_underlying(TagTypeKind::Class); // Use "class" for Obj-C.
       IsInvalidIvar = true;
     } else if (const RecordType *RecordTy = IvarTy->getAs<RecordType>()) {
       if (RecordTy->getDecl()->hasFlexibleArrayMember()) {
@@ -5211,7 +5211,7 @@ Decl *Sema::ActOnObjCExceptionDecl(Scope *S, Declarator &D) {
   if (getLangOpts().CPlusPlus)
     CheckExtraCXXDefaultArguments(D);
 
-  TypeSourceInfo *TInfo = GetTypeForDeclarator(D, S);
+  TypeSourceInfo *TInfo = GetTypeForDeclarator(D);
   QualType ExceptionType = TInfo->getType();
 
   VarDecl *New = BuildObjCExceptionDecl(TInfo, ExceptionType,

@@ -138,7 +138,15 @@ void fuchsia::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (D.isUsingLTO()) {
     assert(!Inputs.empty() && "Must have at least one input.");
-    addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs[0],
+    // Find the first filename InputInfo object.
+    auto Input = llvm::find_if(
+        Inputs, [](const InputInfo &II) -> bool { return II.isFilename(); });
+    if (Input == Inputs.end())
+      // For a very rare case, all of the inputs to the linker are
+      // InputArg. If that happens, just use the first InputInfo.
+      Input = Inputs.begin();
+
+    addLTOOptions(ToolChain, Args, CmdArgs, Output, *Input,
                   D.getLTOMode() == LTOK_Thin);
   }
 
@@ -250,7 +258,7 @@ Fuchsia::Fuchsia(const Driver &D, const llvm::Triple &Triple,
   if (!D.SysRoot.empty()) {
     SmallString<128> P(D.SysRoot);
     llvm::sys::path::append(P, "lib");
-    getFilePaths().push_back(std::string(P.str()));
+    getFilePaths().push_back(std::string(P));
   }
 
   auto FilePaths = [&](const Multilib &M) -> std::vector<std::string> {
@@ -258,7 +266,7 @@ Fuchsia::Fuchsia(const Driver &D, const llvm::Triple &Triple,
     if (std::optional<std::string> Path = getStdlibPath()) {
       SmallString<128> P(*Path);
       llvm::sys::path::append(P, M.gccSuffix());
-      FP.push_back(std::string(P.str()));
+      FP.push_back(std::string(P));
     }
     return FP;
   };

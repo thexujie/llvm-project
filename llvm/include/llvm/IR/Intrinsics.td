@@ -533,6 +533,7 @@ def llvm_v128i16_ty    : LLVMType<v128i16>;  //128 x i16
 
 def llvm_v1i32_ty      : LLVMType<v1i32>;    //  1 x i32
 def llvm_v2i32_ty      : LLVMType<v2i32>;    //  2 x i32
+def llvm_v3i32_ty      : LLVMType<v3i32>;    //  3 x i32
 def llvm_v4i32_ty      : LLVMType<v4i32>;    //  4 x i32
 def llvm_v8i32_ty      : LLVMType<v8i32>;    //  8 x i32
 def llvm_v16i32_ty     : LLVMType<v16i32>;   // 16 x i32
@@ -720,11 +721,13 @@ def int_gcwrite : Intrinsic<[],
 // eliminate retain and releases where possible.
 
 def int_objc_autorelease                    : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_autoreleasePoolPop             : Intrinsic<[], [llvm_ptr_ty]>;
 def int_objc_autoreleasePoolPush            : Intrinsic<[llvm_ptr_ty], []>;
 def int_objc_autoreleaseReturnValue         : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_copyWeak                       : Intrinsic<[],
                                                         [llvm_ptr_ty,
                                                          llvm_ptr_ty]>;
@@ -741,11 +744,14 @@ def int_objc_moveWeak                       : Intrinsic<[],
                                                          llvm_ptr_ty]>;
 def int_objc_release                        : Intrinsic<[], [llvm_ptr_ty]>;
 def int_objc_retain                         : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_retainAutorelease              : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_retainAutoreleaseReturnValue   : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_retainAutoreleasedReturnValue  : Intrinsic<[llvm_ptr_ty],
                                                         [llvm_ptr_ty]>;
 def int_objc_retainBlock                    : Intrinsic<[llvm_ptr_ty],
@@ -770,7 +776,8 @@ def int_objc_unretainedObject               : Intrinsic<[llvm_ptr_ty],
 def int_objc_unretainedPointer              : Intrinsic<[llvm_ptr_ty],
                                                         [llvm_ptr_ty]>;
 def int_objc_retain_autorelease             : Intrinsic<[llvm_ptr_ty],
-                                                        [llvm_ptr_ty]>;
+                                                        [llvm_ptr_ty],
+                                                        [Returned<ArgIndex<0>>]>;
 def int_objc_sync_enter                     : Intrinsic<[llvm_i32_ty],
                                                         [llvm_ptr_ty]>;
 def int_objc_sync_exit                      : Intrinsic<[llvm_i32_ty],
@@ -863,6 +870,8 @@ def int_prefetch
 def int_pcmarker      : DefaultAttrsIntrinsic<[], [llvm_i32_ty]>;
 
 def int_readcyclecounter : DefaultAttrsIntrinsic<[llvm_i64_ty]>;
+
+def int_readsteadycounter : DefaultAttrsIntrinsic<[llvm_i64_ty]>;
 
 // The assume intrinsic is marked InaccessibleMemOnly so that proper control
 // dependencies will be maintained.
@@ -1985,6 +1994,16 @@ let IntrProperties = [IntrNoMem, IntrNoSync, IntrWillReturn] in {
                                LLVMMatchType<0>,
                                LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                                llvm_i32_ty]>;
+  def int_vp_minimum : DefaultAttrsIntrinsic<[ llvm_anyvector_ty ],
+                             [ LLVMMatchType<0>,
+                               LLVMMatchType<0>,
+                               LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                               llvm_i32_ty]>;
+  def int_vp_maximum : DefaultAttrsIntrinsic<[ llvm_anyvector_ty ],
+                             [ LLVMMatchType<0>,
+                               LLVMMatchType<0>,
+                               LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                               llvm_i32_ty]>;
   def int_vp_copysign : DefaultAttrsIntrinsic<[ llvm_anyvector_ty ],
                              [ LLVMMatchType<0>,
                                LLVMMatchType<0>,
@@ -2195,6 +2214,13 @@ def int_experimental_vp_splice:
              LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
              llvm_i32_ty, llvm_i32_ty],
             [IntrNoMem, ImmArg<ArgIndex<2>>]>;
+
+def int_experimental_vp_reverse:
+  DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                        [LLVMMatchType<0>,
+                         LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                         llvm_i32_ty],
+                        [IntrNoMem]>;
 
 def int_vp_is_fpclass:
       DefaultAttrsIntrinsic<[ LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>],
@@ -2456,6 +2482,10 @@ def int_preserve_struct_access_index : DefaultAttrsIntrinsic<[llvm_anyptr_ty],
                                                  [IntrNoMem,
                                                   ImmArg<ArgIndex<1>>,
                                                   ImmArg<ArgIndex<2>>]>;
+def int_preserve_static_offset : DefaultAttrsIntrinsic<[llvm_ptr_ty],
+                                                       [llvm_ptr_ty],
+                                                       [IntrNoMem, IntrSpeculatable,
+                                                        ReadNone <ArgIndex<0>>]>;
 
 //===------------ Intrinsics to perform common vector shuffles ------------===//
 
