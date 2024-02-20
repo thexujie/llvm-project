@@ -1475,7 +1475,7 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
   if (UNLIKELY(!TCR_4(__kmp_init_middle)))
     __kmp_middle_initialize();
 
-  // task throttling: to many tasks co-existing, emptying queue now
+  // task throttling: too many tasks co-existing, emptying queue now
   if (__kmp_enable_task_throttling)
     while (TCR_4(__kmp_n_tasks_in_flight.load()) >= __kmp_task_maximum)
       __kmpc_omp_taskyield(NULL, gtid, 0);

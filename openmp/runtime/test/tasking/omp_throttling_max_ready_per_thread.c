@@ -1,8 +1,10 @@
+// clang-format off
 // RUN: %libomp-compile && env OMP_NUM_THREADS=2 KMP_ENABLE_TASK_THROTTLING=1 KMP_TASK_MAXIMUM_READY_PER_THREAD=0      %libomp-run
 // RUN: %libomp-compile && env OMP_NUM_THREADS=2 KMP_ENABLE_TASK_THROTTLING=1 KMP_TASK_MAXIMUM_READY_PER_THREAD=1      %libomp-run
 // RUN: %libomp-compile && env OMP_NUM_THREADS=2 KMP_ENABLE_TASK_THROTTLING=1 KMP_TASK_MAXIMUM_READY_PER_THREAD=256    %libomp-run
 // RUN: %libomp-compile && env OMP_NUM_THREADS=2 KMP_ENABLE_TASK_THROTTLING=1 KMP_TASK_MAXIMUM_READY_PER_THREAD=65536  %libomp-run
 // RUN: %libomp-compile && env OMP_NUM_THREADS=2 KMP_ENABLE_TASK_THROTTLING=1 KMP_TASK_MAXIMUM_READY_PER_THREAD=100000 %libomp-run
+// clang-format on
 
 /**
  *  This test ensures that task throttling on the maximum number of ready tasks
@@ -46,7 +48,7 @@ int main(void) {
       while (!done)
         ;
 
-#pragma omp master
+#pragma omp single
     {
       int ntasks = 0;
       while (!done) {

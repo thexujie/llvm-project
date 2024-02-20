@@ -354,7 +354,7 @@ KMP_BUILD_ASSERT(sizeof(kmp_tasking_flags_t) == 4);
 
 int __kmp_task_stealing_constraint = 1; /* Constrain task stealing by default */
 
-std::atomic<kmp_int32> __kmp_n_tasks_in_flight = 0; /* nÂ° of tasks in flight */
+std::atomic<kmp_int32> __kmp_n_tasks_in_flight = 0; /* n° of tasks in flight */
 
 kmp_int32 __kmp_enable_task_throttling = 1; /* Serialize tasks once a threshold
                                             is reached, such as the number of
