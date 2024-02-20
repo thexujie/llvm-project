@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <algorithm>
+#include <cassert>
 
 struct RvalueRefUncallable {
   template <class T>
