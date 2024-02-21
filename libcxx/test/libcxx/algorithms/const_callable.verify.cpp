@@ -6,34 +6,34 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: c++03
+
+// <algorithm>
+
 #include <algorithm>
 
 struct ConstUncallable {
   template <class T>
-  bool operator()(T x, T y) & {
+  bool operator()(const T& x, const T& y) & {
     return x < y;
   }
   template <class T>
-  bool operator()(T, T) const& = delete;
+  bool operator()(const T& x, const T& y) const& = delete;
 };
 
 struct NonConstUncallable {
   template <class T>
-  bool operator()(T x, T y) const& {
+  bool operator()(const T& x, const T& y) const& {
     return x < y;
   }
   template <class T>
-  bool operator()(T, T) & = delete;
+  bool operator()(const T& x, const T& y) & = delete;
 };
 
 void test() {
   {
-    int x     = 0;
-    int y     = 1;
-    auto pair = std::minmax(
-        x,
-        y,
-        ConstUncallable()); //expected-error@*:* {{static assertion failed due to requirement '__is_callable<ConstUncallable, int, int>::value': The comparator has to be callable}}
+    auto pair =
+        std::minmax({0, 1}, ConstUncallable{}); // expected-error@*:* {{The comparator has to be const-callable}}
     (void)pair;
   }
 }

@@ -55,7 +55,7 @@ includes(_InputIterator1 __first1,
          _InputIterator2 __last2,
          _Compare __comp) {
   static_assert(
-      __is_callable<_Compare, decltype(*__first1), decltype(*__first2)>::value, "Comparator has to be callable");
+      __is_callable<_Compare&, decltype(*__first1), decltype(*__first2)>::value, "Comparator has to be callable");
   static_assert(__is_callable<_Compare const&, decltype(*__first1), decltype(*__first2)>::value,
                 "Comparator has to be const-callable");
 

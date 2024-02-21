@@ -84,7 +84,7 @@ minmax_element(_ForwardIterator __first, _ForwardIterator __last, _Compare __com
   static_assert(
       __has_forward_iterator_category<_ForwardIterator>::value, "std::minmax_element requires a ForwardIterator");
   static_assert(
-      __is_callable<_Compare, decltype(*__first), decltype(*__first)>::value, "The comparator has to be callable");
+      __is_callable<_Compare&, decltype(*__first), decltype(*__first)>::value, "The comparator has to be callable");
   static_assert(__is_callable<_Compare const&, decltype(*__first), decltype(*__first)>::value,
                 "The comparator has to be const-callable");
 

@@ -163,7 +163,7 @@ search(_ForwardIterator1 __first1,
        _ForwardIterator2 __first2,
        _ForwardIterator2 __last2,
        _BinaryPredicate __pred) {
-  static_assert(__is_callable<_BinaryPredicate, decltype(*__first1), decltype(*__first2)>::value,
+  static_assert(__is_callable<_BinaryPredicate&, decltype(*__first1), decltype(*__first2)>::value,
                 "BinaryPredicate has to be callable");
   static_assert(__is_callable<_BinaryPredicate const&, decltype(*__first1), decltype(*__first2)>::value,
                 "BinaryPredicate has to be const-callable");

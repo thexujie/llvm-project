@@ -21,7 +21,8 @@ struct Less {
     TEST_CONSTEXPR explicit Less(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 Less(const Less& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 Less& operator=(const Less&) = default;
-    TEST_CONSTEXPR bool operator()(T, T) const { return false; }
+    TEST_CONSTEXPR bool operator()(T, T) & { return false; }
+    TEST_CONSTEXPR bool operator()(T, T) const& { return false; }
 };
 
 template <class T>
@@ -30,7 +31,8 @@ struct Equal {
     TEST_CONSTEXPR explicit Equal(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 Equal(const Equal& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 Equal& operator=(const Equal&) = default;
-    TEST_CONSTEXPR bool operator()(T, T) const { return true; }
+    TEST_CONSTEXPR bool operator()(T, T) & { return true; }
+    TEST_CONSTEXPR bool operator()(T, T) const& { return true; }
 };
 
 template <class T>
@@ -39,7 +41,8 @@ struct UnaryVoid {
     TEST_CONSTEXPR explicit UnaryVoid(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 UnaryVoid(const UnaryVoid& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 UnaryVoid& operator=(const UnaryVoid&) = default;
-    TEST_CONSTEXPR_CXX14 void operator()(T) const {}
+    TEST_CONSTEXPR_CXX14 void operator()(T) & {}
+    TEST_CONSTEXPR_CXX14 void operator()(T) const& {}
 };
 
 template <class T>
@@ -48,7 +51,8 @@ struct UnaryTrue {
     TEST_CONSTEXPR explicit UnaryTrue(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 UnaryTrue(const UnaryTrue& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 UnaryTrue& operator=(const UnaryTrue&) = default;
-    TEST_CONSTEXPR bool operator()(T) const { return true; }
+    TEST_CONSTEXPR bool operator()(T) & { return true; }
+    TEST_CONSTEXPR bool operator()(T) const& { return true; }
 };
 
 template <class T>
@@ -57,7 +61,8 @@ struct NullaryValue {
     TEST_CONSTEXPR explicit NullaryValue(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 NullaryValue(const NullaryValue& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 NullaryValue& operator=(const NullaryValue&) = default;
-    TEST_CONSTEXPR T operator()() const { return 0; }
+    TEST_CONSTEXPR T operator()() & { return 0; }
+    TEST_CONSTEXPR T operator()() const& { return 0; }
 };
 
 template <class T>
@@ -66,7 +71,8 @@ struct UnaryTransform {
     TEST_CONSTEXPR explicit UnaryTransform(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 UnaryTransform(const UnaryTransform& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 UnaryTransform& operator=(const UnaryTransform&) = default;
-    TEST_CONSTEXPR T operator()(T) const { return 0; }
+    TEST_CONSTEXPR T operator()(T) & { return 0; }
+    TEST_CONSTEXPR T operator()(T) const& { return 0; }
 };
 
 template <class T>
@@ -75,7 +81,8 @@ struct BinaryTransform {
     TEST_CONSTEXPR explicit BinaryTransform(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 BinaryTransform(const BinaryTransform& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 BinaryTransform& operator=(const BinaryTransform&) = default;
-    TEST_CONSTEXPR T operator()(T, T) const { return 0; }
+    TEST_CONSTEXPR T operator()(T, T) & { return 0; }
+    TEST_CONSTEXPR T operator()(T, T) const& { return 0; }
 };
 
 #if TEST_STD_VER > 17
@@ -85,7 +92,8 @@ struct ThreeWay {
     constexpr explicit ThreeWay(int *copies) : copies_(copies) {}
     constexpr ThreeWay(const ThreeWay& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     constexpr ThreeWay& operator=(const ThreeWay&) = default;
-    constexpr std::strong_ordering operator()(T, T) const { return std::strong_ordering::equal; }
+    constexpr std::strong_ordering operator()(T, T) & { return std::strong_ordering::equal; }
+    constexpr std::strong_ordering operator()(T, T) const& { return std::strong_ordering::equal; }
 };
 #endif
 
