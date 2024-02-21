@@ -28,8 +28,9 @@ struct NonConstUncallable {
 
 void test() {
   {
-    auto pair =
-        std::minmax({42, 0, -42}, ConstUncallable()); //expected-error@*:* {{The comparator has to be const-callable}}
+    auto pair = std::minmax(
+        {42, 0, -42},
+        ConstUncallable()); //expected-error@*:* {{static assertion failed due to requirement '__is_callable<ConstUncallable, int, int>::value': The comparator has to be callable}}
     (void)pair;
   }
 }
