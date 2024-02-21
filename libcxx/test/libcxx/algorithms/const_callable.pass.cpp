@@ -13,9 +13,14 @@ struct RvalueRefUncallable {
   template <class T>
   bool operator()(T, T) && = delete;
   template <class T>
-  bool operator()(T, T) const& {
-    return true;
+  bool operator()(T x, T y) const& {
+    return x < y;
   }
 };
 
-int main(int, char**) { assert(std::minmax({42, 0, -42}, RvalueRefUncallable()).first == -42); }
+int main(int, char**) {
+  int x  = 0;
+  int y  = 1;
+  auto p = std::minmax(x, y, RvalueRefUncallable());
+  assert(p.first == x);
+}

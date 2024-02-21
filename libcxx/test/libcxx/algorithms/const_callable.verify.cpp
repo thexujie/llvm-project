@@ -10,17 +10,17 @@
 
 struct ConstUncallable {
   template <class T>
-  bool operator()(T, T) const& = delete;
-  template <class T>
-  bool operator()(T, T) & {
-    return true;
+  bool operator()(T x, T y) & {
+    return x < y;
   }
+  template <class T>
+  bool operator()(T, T) const& = delete;
 };
 
 struct NonConstUncallable {
   template <class T>
-  bool operator()(T, T) const& {
-    return true;
+  bool operator()(T x, T y) const& {
+    return x < y;
   }
   template <class T>
   bool operator()(T, T) & = delete;
@@ -28,8 +28,11 @@ struct NonConstUncallable {
 
 void test() {
   {
+    int x     = 0;
+    int y     = 1;
     auto pair = std::minmax(
-        {42, 0, -42},
+        x,
+        y,
         ConstUncallable()); //expected-error@*:* {{static assertion failed due to requirement '__is_callable<ConstUncallable, int, int>::value': The comparator has to be callable}}
     (void)pair;
   }
