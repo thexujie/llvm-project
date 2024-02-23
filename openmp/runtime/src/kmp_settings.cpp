@@ -5364,12 +5364,20 @@ static void __kmp_stg_print_task_throttling(kmp_str_buf_t *buffer,
 // KMP_TASK_MAXIMUM
 static void __kmp_stg_parse_task_maximum(char const *name, char const *value,
                                          void *data) {
+#if KMP_USE_GLOBAL_TASK_THROTTLING
   __kmp_stg_parse_int(name, value, 1, INT_MAX, &__kmp_task_maximum);
+#else /* KMP_USE_GLOBAL_TASK_THROTTLING */
+  // TODO : warn user, runtime not compiled with this variable support
+#endif /* KMP_USE_GLOBAL_TASK_THROTTLING */
 } // __kmp_stg_parse_task_maximum
 
 static void __kmp_stg_print_task_maximum(kmp_str_buf_t *buffer,
                                          char const *name, void *data) {
+#if KMP_USE_GLOBAL_TASK_THROTTLING
   __kmp_stg_print_int(buffer, name, __kmp_task_maximum);
+#else /* KMP_USE_GLOBAL_TASK_THROTTLING */
+  __kmp_stg_print_int(buffer, name, -1);
+#endif /* KMP_USE_GLOBAL_TASK_THROTTLING */
 } // __kmp_stg_print_task_maximum
 
 // -----------------------------------------------------------------------------

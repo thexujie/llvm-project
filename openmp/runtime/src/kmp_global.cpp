@@ -354,18 +354,21 @@ KMP_BUILD_ASSERT(sizeof(kmp_tasking_flags_t) == 4);
 
 int __kmp_task_stealing_constraint = 1; /* Constrain task stealing by default */
 
-std::atomic<kmp_int32> __kmp_n_tasks_in_flight = 0; /* n° of tasks in flight */
+/* Serialize tasks once a threshold is reached, such as the number of ready
+ * tasks or the total number of tasks in flight */
+kmp_int32 __kmp_enable_task_throttling = 1;
 
-kmp_int32 __kmp_enable_task_throttling = 1; /* Serialize tasks once a threshold
-                                            is reached, such as the number of
-                                            ready tasks or the total number of
-                                            tasks */
+/* number of ready tasks in a thread queue before it starts serializing */
+kmp_int32 __kmp_task_maximum_ready_per_thread = INITIAL_TASK_DEQUE_SIZE;
 
-kmp_int32 __kmp_task_maximum = 65536; /* number of tasks threshold before
-                                         serializing */
+#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
+/* n of tasks in flight */
+std::atomic<kmp_int32> __kmp_n_tasks_in_flight = 0;
 
-kmp_int32 __kmp_task_maximum_ready_per_thread = 256; /* number of ready tasks
-                                                        before serializing */
+/* maximum number of tasks in flight before serializing */
+kmp_int32 __kmp_task_maximum = 65536;
+#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
+
 #ifdef DEBUG_SUSPEND
 int __kmp_suspend_count = 0;
 #endif

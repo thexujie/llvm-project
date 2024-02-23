@@ -117,6 +117,12 @@ class kmp_stats_list;
 #include <xmmintrin.h>
 #endif
 
+// Enable a global task counter to enable throttling if more than
+// 'KMP_TASK_MAXIMUM' (env var.) are in flight
+#ifndef KMP_COMPILE_GLOBAL_TASK_THROTTLING
+# define KMP_COMPILE_GLOBAL_TASK_THROTTLING 0
+#endif
+
 // The below has to be defined before including "kmp_barrier.h".
 #define KMP_INTERNAL_MALLOC(sz) malloc(sz)
 #define KMP_INTERNAL_FREE(p) free(p)
@@ -2422,9 +2428,12 @@ typedef enum kmp_tasking_mode {
 extern kmp_tasking_mode_t
     __kmp_tasking_mode; /* determines how/when to execute tasks */
 extern int __kmp_task_stealing_constraint;
+
+#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
 extern std::atomic<kmp_int32> __kmp_n_tasks_in_flight;
-extern int __kmp_enable_task_throttling;
 extern kmp_int32 __kmp_task_maximum;
+#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
+extern int __kmp_enable_task_throttling;
 extern kmp_int32 __kmp_task_maximum_ready_per_thread;
 
 extern kmp_int32 __kmp_default_device; // Set via OMP_DEFAULT_DEVICE if

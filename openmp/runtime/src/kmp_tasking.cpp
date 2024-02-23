@@ -438,9 +438,10 @@ static kmp_int32 __kmp_push_priority_task(kmp_int32 gtid, kmp_info_t *thread,
 
   __kmp_acquire_bootstrap_lock(&thread_data->td.td_deque_lock);
   // Check if deque is full
-  if (__kmp_enable_task_throttling && TCR_4(thread_data->td.td_deque_ntasks) >=
-                                          __kmp_task_maximum_ready_per_thread) {
-    if (__kmp_task_is_allowed(gtid, __kmp_task_stealing_constraint, taskdata,
+  if (TCR_4(thread_data->td.td_deque_ntasks) >=
+      TASK_DEQUE_SIZE(thread_data->td)) {
+    if (__kmp_enable_task_throttling &&
+        __kmp_task_is_allowed(gtid, __kmp_task_stealing_constraint, taskdata,
                               thread->th.th_current_task)) {
       __kmp_release_bootstrap_lock(&thread_data->td.td_deque_lock);
       KA_TRACE(20, ("__kmp_push_priority_task: T#%d deque is full; returning "
@@ -541,15 +542,15 @@ static kmp_int32 __kmp_push_task(kmp_int32 gtid, kmp_task_t *task) {
   }
 
   int locked = 0;
-  // Check if deque is full
+  // Check if deque is full and needs to be expanded
   int requires_resize = TCR_4(thread_data->td.td_deque_ntasks) >=
                         TASK_DEQUE_SIZE(thread_data->td);
+  // Check if dequeue has too many tasks and needs throttling
   int requires_throttling =
       __kmp_enable_task_throttling && TCR_4(thread_data->td.td_deque_ntasks) >=
                                           __kmp_task_maximum_ready_per_thread;
-  int thread_can_execute;
   if (requires_resize || requires_throttling) {
-    thread_can_execute =
+    int thread_can_execute =
         __kmp_task_is_allowed(gtid, __kmp_task_stealing_constraint, taskdata,
                               thread->th.th_current_task);
     if (requires_throttling && thread_can_execute) {
@@ -577,7 +578,7 @@ static kmp_int32 __kmp_push_task(kmp_int32 gtid, kmp_task_t *task) {
                           TCR_4(thread_data->td.td_deque_ntasks) >=
                               __kmp_task_maximum_ready_per_thread;
     if (requires_resize || requires_throttling) {
-      thread_can_execute =
+      int thread_can_execute =
           __kmp_task_is_allowed(gtid, __kmp_task_stealing_constraint, taskdata,
                                 thread->th.th_current_task);
       if (requires_throttling && thread_can_execute) {
@@ -592,6 +593,7 @@ static kmp_int32 __kmp_push_task(kmp_int32 gtid, kmp_task_t *task) {
       }
     }
   }
+
   // Must have room since no thread can add tasks but calling thread
   KMP_DEBUG_ASSERT(TCR_4(thread_data->td.td_deque_ntasks) <
                    TASK_DEQUE_SIZE(thread_data->td));
@@ -924,7 +926,10 @@ static void __kmp_free_task(kmp_int32 gtid, kmp_taskdata_t *taskdata,
 #else /* ! USE_FAST_MEMORY */
   __kmp_thread_free(thread, taskdata);
 #endif
-  --__kmp_n_tasks_in_flight;
+#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
+  if (__kmp_enable_task_throttling)
+      --__kmp_n_tasks_in_flight;
+#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
 #if OMPX_TASKGRAPH
   } else {
     taskdata->td_flags.complete = 0;
@@ -1475,10 +1480,15 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
   if (UNLIKELY(!TCR_4(__kmp_init_middle)))
     __kmp_middle_initialize();
 
+#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
   // task throttling: too many tasks co-existing, emptying queue now
   if (__kmp_enable_task_throttling)
+  {
     while (TCR_4(__kmp_n_tasks_in_flight.load()) >= __kmp_task_maximum)
       __kmpc_omp_taskyield(NULL, gtid, 0);
+    ++__kmp_n_tasks_in_flight;
+  }
+#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
 
   if (flags->hidden_helper) {
     if (__kmp_enable_hidden_helper) {
@@ -1574,7 +1584,6 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
   taskdata = (kmp_taskdata_t *)__kmp_thread_malloc(thread, shareds_offset +
                                                                sizeof_shareds);
 #endif /* USE_FAST_MEMORY */
-  ++__kmp_n_tasks_in_flight;
 
   task = KMP_TASKDATA_TO_TASK(taskdata);
 
