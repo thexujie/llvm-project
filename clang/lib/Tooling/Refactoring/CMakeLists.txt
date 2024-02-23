@@ -9,6 +9,7 @@ add_clang_library(clangToolingRefactoring
   Lookup.cpp
   RefactoringActions.cpp
   Rename/RenamingAction.cpp
+  Rename/SymbolName.cpp
   Rename/SymbolOccurrences.cpp
   Rename/USRFinder.cpp
   Rename/USRFindingAction.cpp
@@ -23,6 +24,7 @@ add_clang_library(clangToolingRefactoring
   clangLex
   clangRewrite
   clangToolingCore
+  clangToolingSyntax
 
   DEPENDS
   omp_gen

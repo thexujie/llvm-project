@@ -13,6 +13,7 @@
 #include "SourceCode.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Tooling/Refactoring/Rename/SymbolName.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include <optional>
@@ -108,9 +109,8 @@ llvm::Expected<Edit> buildRenameEdit(llvm::StringRef AbsFilePath,
 /// occurrence has the same length).
 /// REQUIRED: Indexed is sorted.
 std::optional<std::vector<SymbolRange>>
-adjustRenameRanges(llvm::StringRef DraftCode, llvm::StringRef Identifier,
-                   std::vector<Range> Indexed, const LangOptions &LangOpts,
-                   std::optional<Selector> Selector);
+adjustRenameRanges(llvm::StringRef DraftCode, const tooling::SymbolName &Name,
+                   std::vector<Range> Indexed, const LangOptions &LangOpts);
 
 /// Calculates the lexed occurrences that the given indexed occurrences map to.
 /// Returns std::nullopt if we don't find a mapping.
