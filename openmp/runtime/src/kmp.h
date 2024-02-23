@@ -120,7 +120,7 @@ class kmp_stats_list;
 // Enable a global task counter to enable throttling if more than
 // 'KMP_TASK_MAXIMUM' (env var.) are in flight
 #ifndef KMP_COMPILE_GLOBAL_TASK_THROTTLING
-# define KMP_COMPILE_GLOBAL_TASK_THROTTLING 0
+#define KMP_COMPILE_GLOBAL_TASK_THROTTLING 0
 #endif
 
 // The below has to be defined before including "kmp_barrier.h".

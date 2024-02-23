@@ -928,7 +928,7 @@ static void __kmp_free_task(kmp_int32 gtid, kmp_taskdata_t *taskdata,
 #endif
 #if KMP_COMPILE_GLOBAL_TASK_THROTTLING
   if (__kmp_enable_task_throttling)
-      --__kmp_n_tasks_in_flight;
+    --__kmp_n_tasks_in_flight;
 #endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
 #if OMPX_TASKGRAPH
   } else {
@@ -1482,8 +1482,7 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
 
 #if KMP_COMPILE_GLOBAL_TASK_THROTTLING
   // task throttling: too many tasks co-existing, emptying queue now
-  if (__kmp_enable_task_throttling)
-  {
+  if (__kmp_enable_task_throttling) {
     while (TCR_4(__kmp_n_tasks_in_flight.load()) >= __kmp_task_maximum)
       __kmpc_omp_taskyield(NULL, gtid, 0);
     ++__kmp_n_tasks_in_flight;
