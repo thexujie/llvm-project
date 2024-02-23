@@ -547,6 +547,20 @@ define double @select_fcmp_nnan_nsz_ult_zero_unary_fneg(double %x) {
   ret double %fabs
 }
 
+
+define float @absfloat32f_olt_fast_no_signed_zeroes(float %x) "no-signed-zeros-fp-math" {
+; CHECK-LABEL: @absfloat32f_olt_fast_no_signed_zeroes(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[RETVAL_0:%.*]] = call nnan ninf float @llvm.fabs.f32(float [[X:%.*]])
+; CHECK-NEXT:    ret float [[RETVAL_0]]
+;
+entry:
+  %cmp = fcmp fast olt float %x, 0.000000e+00
+  %fneg = fneg fast float %x
+  %retval.0 = select i1 %cmp, float %fneg, float %x
+  ret float %retval.0
+}
+
 ; X < -0.0 ? -X : X --> fabs(X)
 
 define float @select_fcmp_nnan_nsz_olt_negzero(float %x) {
@@ -837,6 +851,19 @@ define <2 x float> @select_fcmp_nnan_nsz_ugt_zero_unary_fneg(<2 x float> %x) {
   %negx = fneg nnan nsz arcp <2 x float> %x
   %fabs = select <2 x i1> %gtzero, <2 x float> %x, <2 x float> %negx
   ret <2 x float> %fabs
+}
+
+define float @absfloat32f_ogt_fast_no_signed_zeroes(float %x) "no-signed-zeros-fp-math" {
+; CHECK-LABEL: @absfloat32f_ogt_fast_no_signed_zeroes(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[RETVAL_0:%.*]] = call nnan ninf float @llvm.fabs.f32(float [[X:%.*]])
+; CHECK-NEXT:    ret float [[RETVAL_0]]
+;
+entry:
+  %cmp = fcmp fast ogt float %x, 0.000000e+00
+  %fneg = fneg fast float %x
+  %retval.0 = select i1 %cmp, float %x, float %fneg
+  ret float %retval.0
 }
 
 ; X > -0.0 ? X : (0.0 - X) --> fabs(X)
