@@ -618,7 +618,24 @@ bool CheckDeclRef(InterpState &S, CodePtr OpPC, const DeclRefExpr *DR) {
       return false;
     }
   }
+  return false;
+}
 
+bool CheckBitcast(InterpState &S, CodePtr OpPC, bool HasIndeterminateBits,
+                  bool TargetIsUCharOrByte) {
+
+  // This is always fine.
+  if (!HasIndeterminateBits)
+    return true;
+
+  // Indeterminate bits can only be bitcast to unsigned char or std::byte.
+  if (TargetIsUCharOrByte)
+    return true;
+
+  const Expr *E = S.Current->getExpr(OpPC);
+  QualType ExprType = E->getType();
+  S.FFDiag(E, diag::note_constexpr_bit_cast_indet_dest)
+      << ExprType << S.getLangOpts().CharIsSigned << E->getSourceRange();
   return false;
 }
 

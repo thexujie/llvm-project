@@ -9,10 +9,9 @@
 #ifndef LLVM_CLANG_AST_INTERP_BOOLEAN_H
 #define LLVM_CLANG_AST_INTERP_BOOLEAN_H
 
-#include <cstddef>
-#include <cstdint>
 #include "Integral.h"
 #include "clang/AST/APValue.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/ComparisonCategories.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/MathExtras.h"
@@ -66,6 +65,12 @@ class Boolean final {
   Boolean toUnsigned() const { return *this; }
 
   constexpr static unsigned bitWidth() { return 1; }
+  constexpr static unsigned objectReprBits() { return 8; }
+  constexpr static unsigned valueReprBytes(const ASTContext &Ctx) { return 1; }
+  constexpr static unsigned valueReprBits(const ASTContext &Ctx) {
+    return 8;
+  } // FIXME: Is this correct?
+
   bool isZero() const { return !V; }
   bool isMin() const { return isZero(); }
 
@@ -106,6 +111,14 @@ class Boolean final {
   from(Integral<SrcBits, SrcSign> Value) {
     return Boolean(!Value.isZero());
   }
+
+  static Boolean bitcastFromMemory(const std::byte *Buff, unsigned BitWidth) {
+    assert(BitWidth == 8);
+    bool Val = static_cast<bool>(*Buff);
+    return Boolean(Val);
+  }
+
+  void bitcastToMemory(std::byte *Buff) { std::memcpy(Buff, &V, sizeof(V)); }
 
   static Boolean zero() { return from(false); }
 

@@ -272,6 +272,7 @@ private:
   bool emitDestruction(const Descriptor *Desc);
   unsigned collectBaseOffset(const RecordType *BaseType,
                              const RecordType *DerivedType);
+  bool emitBuiltinBitCast(const CastExpr *E);
 
 protected:
   /// Variable to storage mapping.

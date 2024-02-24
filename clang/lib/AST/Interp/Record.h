@@ -30,6 +30,9 @@ public:
     unsigned Offset;
     const Descriptor *Desc;
     bool isBitField() const { return Decl->isBitField(); }
+    unsigned getBitWidth(const ASTContext &C) const {
+      return Decl->getBitWidthValue(C);
+    }
   };
 
   /// Describes a base class.
