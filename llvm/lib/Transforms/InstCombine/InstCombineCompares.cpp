@@ -20,6 +20,7 @@
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/DataLayout.h"
@@ -6153,6 +6154,91 @@ bool InstCombinerImpl::replacedSelectWithOperand(SelectInst *SI,
   return false;
 }
 
+// Try to "strengthen" the RHS of compare based on known bits.
+// For example, replace `icmp ugt %x, 14` with `icmp ugt %x, 15` when
+// it is known that the two least significant bits of `%x` is zero.
+static Instruction *strengthenICmpUsingKnownBits(ICmpInst &I,
+                                                 KnownBits Op0Known,
+                                                 KnownBits Op1Known,
+                                                 unsigned BitWidth) {
+  if (!BitWidth)
+    return nullptr;
+  if (!(Op1Known.isConstant() && Op0Known.Zero.isMask()))
+    return nullptr;
+
+  Value *Op0 = I.getOperand(0);
+  ICmpInst::Predicate Pred = I.getPredicate();
+  Type *Ty = Op0->getType();
+  APInt RHSConst = Op1Known.getConstant();
+
+  ConstantRange Op0PredRange =
+      ConstantRange::makeExactICmpRegion(Pred, RHSConst);
+  int KnownZeroMaskLength = BitWidth - Op0Known.Zero.countLeadingZeros();
+  if (KnownZeroMaskLength == 0)
+    return nullptr;
+
+  APInt PowOf2(BitWidth, 1 << KnownZeroMaskLength);
+  APInt Op0MinAccordingToPred(BitWidth, 0);
+  APInt Op0MaxAccordingToPred(BitWidth, 0);
+  APInt Op0MinRefinedByKnownBits(BitWidth, 0);
+  APInt Op0MaxRefinedByKnownBits(BitWidth, 0);
+  APInt NewLower(BitWidth, 0);
+  APInt NewUpper(BitWidth, 0);
+  bool ImprovedLower = false;
+  bool ImprovedUpper = false;
+  if (I.isSigned()) {
+    Op0MinAccordingToPred = Op0PredRange.getSignedMin();
+    Op0MaxAccordingToPred = Op0PredRange.getSignedMax();
+    // Compute the smallest number satisfying the known-bits constrained
+    // which is at greater or equal Op0MinAccordingToPred.
+    Op0MinRefinedByKnownBits =
+        PowOf2 * APIntOps::RoundingSDiv(Op0MinAccordingToPred, PowOf2,
+                                        APInt::Rounding::UP);
+    // Compute the largest number satisfying the known-bits constrained
+    // which is at less or equal Op0MaxAccordingToPred.
+    Op0MaxRefinedByKnownBits =
+        PowOf2 * APIntOps::RoundingSDiv(Op0MaxAccordingToPred, PowOf2,
+                                        APInt::Rounding::DOWN);
+    NewLower = APIntOps::smax(Op0MinRefinedByKnownBits, Op0MinAccordingToPred);
+    NewUpper = APIntOps::smin(Op0MaxRefinedByKnownBits, Op0MaxAccordingToPred);
+    ImprovedLower = NewLower.sgt(Op0MinAccordingToPred);
+    ImprovedUpper = NewUpper.slt(Op0MaxAccordingToPred);
+  } else {
+    Op0MinAccordingToPred = Op0PredRange.getUnsignedMin();
+    Op0MaxAccordingToPred = Op0PredRange.getUnsignedMax();
+    Op0MinRefinedByKnownBits =
+        PowOf2 * APIntOps::RoundingUDiv(Op0MinAccordingToPred, PowOf2,
+                                        APInt::Rounding::UP);
+    Op0MaxRefinedByKnownBits =
+        PowOf2 * APIntOps::RoundingUDiv(Op0MaxAccordingToPred, PowOf2,
+                                        APInt::Rounding::DOWN);
+    NewLower = APIntOps::umax(Op0MinRefinedByKnownBits, Op0MinAccordingToPred);
+    NewUpper = APIntOps::umin(Op0MaxRefinedByKnownBits, Op0MaxAccordingToPred);
+    ImprovedLower = NewLower.ugt(Op0MinAccordingToPred);
+    ImprovedUpper = NewUpper.ult(Op0MaxAccordingToPred);
+  }
+
+  // Non-strict inequalities should have been canonicalized to strict ones
+  // by now.
+  switch (Pred) {
+  default:
+    break;
+  case ICmpInst::ICMP_ULT:
+  case ICmpInst::ICMP_SLT: {
+    if (ImprovedUpper)
+      return new ICmpInst(Pred, Op0, ConstantInt::get(Ty, NewUpper + 1));
+    break;
+  }
+  case ICmpInst::ICMP_UGT:
+  case ICmpInst::ICMP_SGT: {
+    if (ImprovedLower)
+      return new ICmpInst(Pred, Op0, ConstantInt::get(Ty, NewLower - 1));
+    break;
+  }
+  }
+  return nullptr;
+}
+
 /// Try to fold the comparison based on range information we can get by checking
 /// whether bits are known to be zero or one in the inputs.
 Instruction *InstCombinerImpl::foldICmpUsingKnownBits(ICmpInst &I) {
@@ -6409,6 +6495,23 @@ Instruction *InstCombinerImpl::foldICmpUsingKnownBits(ICmpInst &I) {
       ((Op0Known.Zero.isNegative() && Op1Known.Zero.isNegative()) ||
        (Op0Known.One.isNegative() && Op1Known.One.isNegative())))
     return new ICmpInst(I.getUnsignedPredicate(), Op0, Op1);
+
+  // if the result of compare is used only in conditional branches, try to
+  // "strengthen" the compare. This may allow us to deduce stronger results
+  // about the value involved in comparison in the blocks dominated by these branches.
+  bool AllUsesAreInBranches = true;
+  for (const Use &U : I.uses()) {
+    const Instruction *UI = cast<Instruction>(U.getUser());
+    if (!dyn_cast<BranchInst>(UI)) {
+      AllUsesAreInBranches = false;
+      break;
+    }
+  }
+  if (AllUsesAreInBranches) {
+    if (Instruction *Res =
+            strengthenICmpUsingKnownBits(I, Op0Known, Op1Known, BitWidth))
+      return Res;
+  }
 
   return nullptr;
 }

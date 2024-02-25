@@ -658,8 +658,8 @@ define i8 @test39(i32 %a0) {
 ; CHECK-NEXT:    [[I51:%.*]] = xor i8 [[I50]], [[I5]]
 ; CHECK-NEXT:    [[TMP0:%.*]] = lshr exact i8 [[I5]], 3
 ; CHECK-NEXT:    [[I54:%.*]] = and i8 [[TMP0]], 16
-; CHECK-NEXT:    [[I551:%.*]] = or disjoint i8 [[I54]], [[I51]]
-; CHECK-NEXT:    ret i8 [[I551]]
+; CHECK-NEXT:    [[I55:%.*]] = or disjoint i8 [[I54]], [[I51]]
+; CHECK-NEXT:    ret i8 [[I55]]
 ;
 entry:
   %i4 = trunc i32 %a0 to i8
