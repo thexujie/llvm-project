@@ -133,7 +133,8 @@ static bool hasDuplicates(const SmallVectorImpl<VPBlockBase *> &VPBlockVec) {
   return false;
 }
 
-static bool verifyBlock(const VPBlockBase *VPB, const VPDominatorTree &VPDT) {
+static bool verifyBlock(const VPBlockBase *VPB, const VPDominatorTree &VPDT,
+                        bool IsAbstract) {
   auto *VPBB = dyn_cast<VPBasicBlock>(VPB);
   if (VPBB && !verifyVPBasicBlock(VPBB, VPDT))
     return false;
@@ -142,7 +143,7 @@ static bool verifyBlock(const VPBlockBase *VPB, const VPDominatorTree &VPDT) {
   if (VPB->getNumSuccessors() > 1 ||
       (VPBB && VPBB->getParent() && VPBB->isExiting() &&
        !VPBB->getParent()->isReplicator())) {
-    if (!VPBB || !VPBB->getTerminator()) {
+    if (!IsAbstract && (!VPBB || !VPBB->getTerminator())) {
       errs() << "Block has multiple successors but doesn't "
                 "have a proper branch recipe!\n";
       return false;
@@ -203,7 +204,7 @@ static bool verifyBlock(const VPBlockBase *VPB, const VPDominatorTree &VPDT) {
 /// \p Region. Checks in this function are generic for VPBlockBases. They are
 /// not specific for VPBasicBlocks or VPRegionBlocks.
 static bool verifyBlocksInRegion(const VPRegionBlock *Region,
-                                 const VPDominatorTree &VPDT) {
+                                 const VPDominatorTree &VPDT, bool IsAbstract) {
   for (const VPBlockBase *VPB : vp_depth_first_shallow(Region->getEntry())) {
     // Check block's parent.
     if (VPB->getParent() != Region) {
@@ -211,7 +212,7 @@ static bool verifyBlocksInRegion(const VPRegionBlock *Region,
       return false;
     }
 
-    if (!verifyBlock(VPB, VPDT))
+    if (!verifyBlock(VPB, VPDT, IsAbstract))
       return false;
   }
   return true;
@@ -220,7 +221,7 @@ static bool verifyBlocksInRegion(const VPRegionBlock *Region,
 /// Verify the CFG invariants of VPRegionBlock \p Region and its nested
 /// VPBlockBases. Do not recurse inside nested VPRegionBlocks.
 static bool verifyRegion(const VPRegionBlock *Region,
-                         const VPDominatorTree &VPDT) {
+                         const VPDominatorTree &VPDT, bool IsAbstract) {
   const VPBlockBase *Entry = Region->getEntry();
   const VPBlockBase *Exiting = Region->getExiting();
 
@@ -234,33 +235,35 @@ static bool verifyRegion(const VPRegionBlock *Region,
     return false;
   }
 
-  return verifyBlocksInRegion(Region, VPDT);
+  return verifyBlocksInRegion(Region, VPDT, IsAbstract);
 }
 
 /// Verify the CFG invariants of VPRegionBlock \p Region and its nested
 /// VPBlockBases. Recurse inside nested VPRegionBlocks.
 static bool verifyRegionRec(const VPRegionBlock *Region,
-                            const VPDominatorTree &VPDT) {
+                            const VPDominatorTree &VPDT, bool IsAbstract) {
   // Recurse inside nested regions and check all blocks inside the region.
-  return verifyRegion(Region, VPDT) &&
+  return verifyRegion(Region, VPDT, IsAbstract) &&
          all_of(vp_depth_first_shallow(Region->getEntry()),
-                [&VPDT](const VPBlockBase *VPB) {
+                [&VPDT, IsAbstract](const VPBlockBase *VPB) {
                   const auto *SubRegion = dyn_cast<VPRegionBlock>(VPB);
-                  return !SubRegion || verifyRegionRec(SubRegion, VPDT);
+                  return !SubRegion ||
+                         verifyRegionRec(SubRegion, VPDT, IsAbstract);
                 });
 }
 
-bool llvm::verifyVPlanIsValid(const VPlan &Plan) {
+bool llvm::verifyVPlanIsValid(const VPlan &Plan, bool IsAbstract) {
   VPDominatorTree VPDT;
   VPDT.recalculate(const_cast<VPlan &>(Plan));
 
-  if (any_of(
-          vp_depth_first_shallow(Plan.getEntry()),
-          [&VPDT](const VPBlockBase *VPB) { return !verifyBlock(VPB, VPDT); }))
+  if (any_of(vp_depth_first_shallow(Plan.getEntry()),
+             [&VPDT, IsAbstract](const VPBlockBase *VPB) {
+               return !verifyBlock(VPB, VPDT, IsAbstract);
+             }))
     return false;
 
   const VPRegionBlock *TopRegion = Plan.getVectorLoopRegion();
-  if (!verifyRegionRec(TopRegion, VPDT))
+  if (!verifyRegionRec(TopRegion, VPDT, IsAbstract))
     return false;
 
   if (TopRegion->getParent()) {
@@ -286,20 +289,21 @@ bool llvm::verifyVPlanIsValid(const VPlan &Plan) {
     return false;
   }
 
-  /*  if (Exiting->empty()) {*/
-  /*errs() << "VPlan vector loop exiting block must end with BranchOnCount or
-   * "*/
-  /*"BranchOnCond VPInstruction but is empty\n";*/
-  /*return false;*/
-  /*}*/
+  if (!IsAbstract) {
+    if (Exiting->empty()) {
+      errs() << "VPlan vector loop exiting block must end with BranchOnCount or"
+                "BranchOnCond VPInstruction but is empty\n";
+      return false;
+    }
 
-  /*auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));*/
-  /*if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&*/
-  /*LastInst->getOpcode() != VPInstruction::BranchOnCond)) {*/
-  /*errs() << "VPlan vector loop exit must end with BranchOnCount or "*/
-  /*"BranchOnCond VPInstruction\n";*/
-  /*return false;*/
-  /*}*/
+    auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));
+    if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&
+                      LastInst->getOpcode() != VPInstruction::BranchOnCond)) {
+      errs() << "VPlan vector loop exit must end with BranchOnCount or "
+                "BranchOnCond VPInstruction\n";
+      return false;
+    }
+  }
 
   for (const auto &KV : Plan.getLiveOuts())
     if (KV.second->getNumOperands() != 1) {
