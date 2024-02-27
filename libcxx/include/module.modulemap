@@ -233,6 +233,10 @@ module std_span [system] {
   export std_version
   export std_private_span_span_fwd
 }
+module std_spanstream [system] {
+  header "spanstream"
+  export *
+}
 module std_sstream [system] {
   header "sstream"
   export *
