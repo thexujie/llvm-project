@@ -40,19 +40,18 @@ Implemented Papers
 
 - P2637R3 - Member ``visit``
 - P2652R2 - Disallow User Specialization of ``allocator_traits``
+- P2819R2 - Add ``tuple`` protocol to ``complex``
 - P2711R1 - Making multi-param constructors of ``views`` ``explicit``
 - P2770R0 - Stashing stashing ``iterators`` for proper flattening
 
 
 Improvements and New Features
 -----------------------------
-TODO
 
+- The performance of growing ``std::vector`` has been improved for trivially relocatable types.
 
 Deprecations and Removals
 -------------------------
-
-- TODO: The ``LIBCXX_EXECUTOR`` CMake variables have been removed.
 
 - TODO: The ``LIBCXX_ENABLE_ASSERTIONS`` CMake variable that was used to enable the safe mode has been deprecated and setting
   it triggers an error; use the ``LIBCXX_HARDENING_MODE`` CMake variable with the value ``extensive`` instead. Similarly,
@@ -99,4 +98,5 @@ TODO
 Build System Changes
 --------------------
 
-TODO
+- The ``LIBCXX_EXECUTOR`` and ``LIBCXXABI_EXECUTOR`` CMake variables have been removed. Please
+  set ``LIBCXX_TEST_PARAMS`` to ``executor=<...>`` instead.
