@@ -444,9 +444,11 @@ static void continuousLoopNestHelper(
                                currentLoop.getRegionIterArgs());
   }
 
+  // Yiled results for all loops in the loop nest except for
+  // outermost loop as that is handled with `replacements` later.
   // Always yield the result of the tail-end loop as this
   // will have all the processed tiles.
-  if (!isa<func::ReturnOp>(currentLoop->getBlock()->back())) {
+  if (loopLevelIdx != 0) {
     builder.setInsertionPointToEnd(currentLoop->getBlock());
     builder.create<scf::YieldOp>(currentLoop.getLoc(),
                                  currentLoop.getResults());
@@ -468,10 +470,8 @@ static void continuousLoopNestHelper(
 /// - In ``sizesMap` return the multi-dimensional size of
 ///   the tile processed within the inner most loop.
 /// - `CTileVector` specifies which loop nest should be continuously tiled.
-/// Note that this methods adds `scf.yield` operation for all but the innermost
-/// loop. These yield the value returned by the immediately inner tail-end loop.
-/// The caller is expected to add the scf.yield operation for all innermost
-/// loops.
+/// Note that this methods adds `scf.yield` operation for all tailing loops
+/// inside the loop nest.
 static SmallVector<LoopLikeOpInterface> generateContinuousTileLoopNest(
     OpBuilder &builder, Location loc, ArrayRef<Range> loopRanges,
     ArrayRef<OpFoldResult> tileSizes, SmallVector<bool> CTileVector,
