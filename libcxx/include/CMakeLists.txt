@@ -439,6 +439,7 @@ set(files
   __fwd/ostream.h
   __fwd/pair.h
   __fwd/span.h
+  __fwd/spanstream.h
   __fwd/sstream.h
   __fwd/streambuf.h
   __fwd/string.h
