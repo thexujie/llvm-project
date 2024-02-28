@@ -2,7 +2,7 @@
 ; RUN: llc -mtriple=aarch64-linux-gnu -global-isel=1 < %s | FileCheck --check-prefix=GISEL %s
 ; RUN: llc -mtriple=aarch64-linux-gnu -global-isel=0 < %s | FileCheck --check-prefix=SDAG %s
 
-define i1 @ule_11111111(i32 noundef %0) {
+define i1 @ule_11111111(i32 noundef %in) {
 ; GISEL-LABEL: ule_11111111:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #286331153 // =0x11111111
@@ -17,11 +17,11 @@ define i1 @ule_11111111(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 286331154
-  ret i1 %2
+  %out = icmp ult i32 %in, 286331154
+  ret i1 %out
 }
 
-define i1 @ule_22222222(i32 noundef %0) {
+define i1 @ule_22222222(i32 noundef %in) {
 ; GISEL-LABEL: ule_22222222:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #572662306 // =0x22222222
@@ -36,11 +36,11 @@ define i1 @ule_22222222(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 572662307
-  ret i1 %2
+  %out = icmp ult i32 %in, 572662307
+  ret i1 %out
 }
 
-define i1 @ule_33333333(i32 noundef %0) {
+define i1 @ule_33333333(i32 noundef %in) {
 ; GISEL-LABEL: ule_33333333:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #858993459 // =0x33333333
@@ -55,11 +55,11 @@ define i1 @ule_33333333(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 858993460
-  ret i1 %2
+  %out = icmp ult i32 %in, 858993460
+  ret i1 %out
 }
 
-define i1 @ule_44444444(i32 noundef %0) {
+define i1 @ule_44444444(i32 noundef %in) {
 ; GISEL-LABEL: ule_44444444:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1145324612 // =0x44444444
@@ -74,11 +74,11 @@ define i1 @ule_44444444(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 1145324613
-  ret i1 %2
+  %out = icmp ult i32 %in, 1145324613
+  ret i1 %out
 }
 
-define i1 @ule_55555555(i32 noundef %0) {
+define i1 @ule_55555555(i32 noundef %in) {
 ; GISEL-LABEL: ule_55555555:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1431655765 // =0x55555555
@@ -93,11 +93,11 @@ define i1 @ule_55555555(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 1431655766
-  ret i1 %2
+  %out = icmp ult i32 %in, 1431655766
+  ret i1 %out
 }
 
-define i1 @ule_66666666(i32 noundef %0) {
+define i1 @ule_66666666(i32 noundef %in) {
 ; GISEL-LABEL: ule_66666666:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1717986918 // =0x66666666
@@ -112,11 +112,11 @@ define i1 @ule_66666666(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 1717986919
-  ret i1 %2
+  %out = icmp ult i32 %in, 1717986919
+  ret i1 %out
 }
 
-define i1 @ule_77777777(i32 noundef %0) {
+define i1 @ule_77777777(i32 noundef %in) {
 ; GISEL-LABEL: ule_77777777:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #2004318071 // =0x77777777
@@ -131,11 +131,11 @@ define i1 @ule_77777777(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, 2004318072
-  ret i1 %2
+  %out = icmp ult i32 %in, 2004318072
+  ret i1 %out
 }
 
-define i1 @ule_88888888(i32 noundef %0) {
+define i1 @ule_88888888(i32 noundef %in) {
 ; GISEL-LABEL: ule_88888888:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-2004318072 // =0x88888888
@@ -150,11 +150,11 @@ define i1 @ule_88888888(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, -2004318071
-  ret i1 %2
+  %out = icmp ult i32 %in, -2004318071
+  ret i1 %out
 }
 
-define i1 @ule_99999999(i32 noundef %0) {
+define i1 @ule_99999999(i32 noundef %in) {
 ; GISEL-LABEL: ule_99999999:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-1717986919 // =0x99999999
@@ -169,11 +169,11 @@ define i1 @ule_99999999(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, -1717986918
-  ret i1 %2
+  %out = icmp ult i32 %in, -1717986918
+  ret i1 %out
 }
 
-define i1 @uge_11111111(i32 noundef %0) {
+define i1 @uge_11111111(i32 noundef %in) {
 ; GISEL-LABEL: uge_11111111:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #286331153 // =0x11111111
@@ -188,11 +188,11 @@ define i1 @uge_11111111(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 286331152
-  ret i1 %2
+  %out = icmp ugt i32 %in, 286331152
+  ret i1 %out
 }
 
-define i1 @uge_22222222(i32 noundef %0) {
+define i1 @uge_22222222(i32 noundef %in) {
 ; GISEL-LABEL: uge_22222222:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #572662306 // =0x22222222
@@ -207,11 +207,11 @@ define i1 @uge_22222222(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 572662305
-  ret i1 %2
+  %out = icmp ugt i32 %in, 572662305
+  ret i1 %out
 }
 
-define i1 @uge_33333333(i32 noundef %0) {
+define i1 @uge_33333333(i32 noundef %in) {
 ; GISEL-LABEL: uge_33333333:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #858993459 // =0x33333333
@@ -226,11 +226,11 @@ define i1 @uge_33333333(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 858993458
-  ret i1 %2
+  %out = icmp ugt i32 %in, 858993458
+  ret i1 %out
 }
 
-define i1 @uge_44444444(i32 noundef %0) {
+define i1 @uge_44444444(i32 noundef %in) {
 ; GISEL-LABEL: uge_44444444:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1145324612 // =0x44444444
@@ -245,11 +245,11 @@ define i1 @uge_44444444(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 1145324611
-  ret i1 %2
+  %out = icmp ugt i32 %in, 1145324611
+  ret i1 %out
 }
 
-define i1 @uge_55555555(i32 noundef %0) {
+define i1 @uge_55555555(i32 noundef %in) {
 ; GISEL-LABEL: uge_55555555:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1431655765 // =0x55555555
@@ -264,11 +264,11 @@ define i1 @uge_55555555(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 1431655764
-  ret i1 %2
+  %out = icmp ugt i32 %in, 1431655764
+  ret i1 %out
 }
 
-define i1 @uge_66666666(i32 noundef %0) {
+define i1 @uge_66666666(i32 noundef %in) {
 ; GISEL-LABEL: uge_66666666:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1717986918 // =0x66666666
@@ -283,11 +283,11 @@ define i1 @uge_66666666(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 1717986917
-  ret i1 %2
+  %out = icmp ugt i32 %in, 1717986917
+  ret i1 %out
 }
 
-define i1 @uge_77777777(i32 noundef %0) {
+define i1 @uge_77777777(i32 noundef %in) {
 ; GISEL-LABEL: uge_77777777:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #2004318071 // =0x77777777
@@ -302,11 +302,11 @@ define i1 @uge_77777777(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, 2004318070
-  ret i1 %2
+  %out = icmp ugt i32 %in, 2004318070
+  ret i1 %out
 }
 
-define i1 @uge_88888888(i32 noundef %0) {
+define i1 @uge_88888888(i32 noundef %in) {
 ; GISEL-LABEL: uge_88888888:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-2004318072 // =0x88888888
@@ -321,11 +321,11 @@ define i1 @uge_88888888(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, -2004318073
-  ret i1 %2
+  %out = icmp ugt i32 %in, -2004318073
+  ret i1 %out
 }
 
-define i1 @uge_99999999(i32 noundef %0) {
+define i1 @uge_99999999(i32 noundef %in) {
 ; GISEL-LABEL: uge_99999999:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-1717986919 // =0x99999999
@@ -340,11 +340,11 @@ define i1 @uge_99999999(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, -1717986920
-  ret i1 %2
+  %out = icmp ugt i32 %in, -1717986920
+  ret i1 %out
 }
 
-define i1 @sle_11111111(i32 noundef %0) {
+define i1 @sle_11111111(i32 noundef %in) {
 ; GISEL-LABEL: sle_11111111:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #286331153 // =0x11111111
@@ -359,11 +359,11 @@ define i1 @sle_11111111(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 286331154
-  ret i1 %2
+  %out = icmp slt i32 %in, 286331154
+  ret i1 %out
 }
 
-define i1 @sle_22222222(i32 noundef %0) {
+define i1 @sle_22222222(i32 noundef %in) {
 ; GISEL-LABEL: sle_22222222:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #572662306 // =0x22222222
@@ -378,11 +378,11 @@ define i1 @sle_22222222(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 572662307
-  ret i1 %2
+  %out = icmp slt i32 %in, 572662307
+  ret i1 %out
 }
 
-define i1 @sle_33333333(i32 noundef %0) {
+define i1 @sle_33333333(i32 noundef %in) {
 ; GISEL-LABEL: sle_33333333:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #858993459 // =0x33333333
@@ -397,11 +397,11 @@ define i1 @sle_33333333(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 858993460
-  ret i1 %2
+  %out = icmp slt i32 %in, 858993460
+  ret i1 %out
 }
 
-define i1 @sle_44444444(i32 noundef %0) {
+define i1 @sle_44444444(i32 noundef %in) {
 ; GISEL-LABEL: sle_44444444:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1145324612 // =0x44444444
@@ -416,11 +416,11 @@ define i1 @sle_44444444(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 1145324613
-  ret i1 %2
+  %out = icmp slt i32 %in, 1145324613
+  ret i1 %out
 }
 
-define i1 @sle_55555555(i32 noundef %0) {
+define i1 @sle_55555555(i32 noundef %in) {
 ; GISEL-LABEL: sle_55555555:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1431655765 // =0x55555555
@@ -435,11 +435,11 @@ define i1 @sle_55555555(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 1431655766
-  ret i1 %2
+  %out = icmp slt i32 %in, 1431655766
+  ret i1 %out
 }
 
-define i1 @sle_66666666(i32 noundef %0) {
+define i1 @sle_66666666(i32 noundef %in) {
 ; GISEL-LABEL: sle_66666666:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1717986918 // =0x66666666
@@ -454,11 +454,11 @@ define i1 @sle_66666666(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 1717986919
-  ret i1 %2
+  %out = icmp slt i32 %in, 1717986919
+  ret i1 %out
 }
 
-define i1 @sle_77777777(i32 noundef %0) {
+define i1 @sle_77777777(i32 noundef %in) {
 ; GISEL-LABEL: sle_77777777:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #2004318071 // =0x77777777
@@ -473,11 +473,11 @@ define i1 @sle_77777777(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lt
 ; SDAG-NEXT:    ret
-  %2 = icmp slt i32 %0, 2004318072
-  ret i1 %2
+  %out = icmp slt i32 %in, 2004318072
+  ret i1 %out
 }
 
-define i1 @sle_88888888(i32 noundef %0) {
+define i1 @sle_88888888(i32 noundef %in) {
 ; GISEL-LABEL: sle_88888888:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-2004318072 // =0x88888888
@@ -492,11 +492,11 @@ define i1 @sle_88888888(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, -2004318071
-  ret i1 %2
+  %out = icmp ult i32 %in, -2004318071
+  ret i1 %out
 }
 
-define i1 @sle_99999999(i32 noundef %0) {
+define i1 @sle_99999999(i32 noundef %in) {
 ; GISEL-LABEL: sle_99999999:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-1717986919 // =0x99999999
@@ -511,11 +511,11 @@ define i1 @sle_99999999(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, lo
 ; SDAG-NEXT:    ret
-  %2 = icmp ult i32 %0, -1717986918
-  ret i1 %2
+  %out = icmp ult i32 %in, -1717986918
+  ret i1 %out
 }
 
-define i1 @sge_11111111(i32 noundef %0) {
+define i1 @sge_11111111(i32 noundef %in) {
 ; GISEL-LABEL: sge_11111111:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #286331153 // =0x11111111
@@ -530,11 +530,11 @@ define i1 @sge_11111111(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 286331152
-  ret i1 %2
+  %out = icmp sgt i32 %in, 286331152
+  ret i1 %out
 }
 
-define i1 @sge_22222222(i32 noundef %0) {
+define i1 @sge_22222222(i32 noundef %in) {
 ; GISEL-LABEL: sge_22222222:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #572662306 // =0x22222222
@@ -549,11 +549,11 @@ define i1 @sge_22222222(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 572662305
-  ret i1 %2
+  %out = icmp sgt i32 %in, 572662305
+  ret i1 %out
 }
 
-define i1 @sge_33333333(i32 noundef %0) {
+define i1 @sge_33333333(i32 noundef %in) {
 ; GISEL-LABEL: sge_33333333:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #858993459 // =0x33333333
@@ -568,11 +568,11 @@ define i1 @sge_33333333(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 858993458
-  ret i1 %2
+  %out = icmp sgt i32 %in, 858993458
+  ret i1 %out
 }
 
-define i1 @sge_44444444(i32 noundef %0) {
+define i1 @sge_44444444(i32 noundef %in) {
 ; GISEL-LABEL: sge_44444444:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1145324612 // =0x44444444
@@ -587,11 +587,11 @@ define i1 @sge_44444444(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 1145324611
-  ret i1 %2
+  %out = icmp sgt i32 %in, 1145324611
+  ret i1 %out
 }
 
-define i1 @sge_55555555(i32 noundef %0) {
+define i1 @sge_55555555(i32 noundef %in) {
 ; GISEL-LABEL: sge_55555555:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1431655765 // =0x55555555
@@ -606,11 +606,11 @@ define i1 @sge_55555555(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 1431655764
-  ret i1 %2
+  %out = icmp sgt i32 %in, 1431655764
+  ret i1 %out
 }
 
-define i1 @sge_66666666(i32 noundef %0) {
+define i1 @sge_66666666(i32 noundef %in) {
 ; GISEL-LABEL: sge_66666666:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #1717986918 // =0x66666666
@@ -625,11 +625,11 @@ define i1 @sge_66666666(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 1717986917
-  ret i1 %2
+  %out = icmp sgt i32 %in, 1717986917
+  ret i1 %out
 }
 
-define i1 @sge_77777777(i32 noundef %0) {
+define i1 @sge_77777777(i32 noundef %in) {
 ; GISEL-LABEL: sge_77777777:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #2004318071 // =0x77777777
@@ -644,11 +644,11 @@ define i1 @sge_77777777(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, gt
 ; SDAG-NEXT:    ret
-  %2 = icmp sgt i32 %0, 2004318070
-  ret i1 %2
+  %out = icmp sgt i32 %in, 2004318070
+  ret i1 %out
 }
 
-define i1 @sge_88888888(i32 noundef %0) {
+define i1 @sge_88888888(i32 noundef %in) {
 ; GISEL-LABEL: sge_88888888:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-2004318072 // =0x88888888
@@ -663,11 +663,11 @@ define i1 @sge_88888888(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, -2004318073
-  ret i1 %2
+  %out = icmp ugt i32 %in, -2004318073
+  ret i1 %out
 }
 
-define i1 @sge_99999999(i32 noundef %0) {
+define i1 @sge_99999999(i32 noundef %in) {
 ; GISEL-LABEL: sge_99999999:
 ; GISEL:       // %bb.0:
 ; GISEL-NEXT:    mov w8, #-1717986919 // =0x99999999
@@ -682,6 +682,6 @@ define i1 @sge_99999999(i32 noundef %0) {
 ; SDAG-NEXT:    cmp w0, w8
 ; SDAG-NEXT:    cset w0, hi
 ; SDAG-NEXT:    ret
-  %2 = icmp ugt i32 %0, -1717986920
-  ret i1 %2
+  %out = icmp ugt i32 %in, -1717986920
+  ret i1 %out
 }
