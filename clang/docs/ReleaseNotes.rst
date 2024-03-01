@@ -298,6 +298,9 @@ Bug Fixes to C++ Support
   Fixes (`#82941 <https://github.com/llvm/llvm-project/issues/82941>`_),
   (`#42411 <https://github.com/llvm/llvm-project/issues/42411>`_), and
   (`#18121 <https://github.com/llvm/llvm-project/issues/18121>`_).
+- Fix for clang incorrectly rejecting the default construction of a union with
+  nontrivial member when another member has an initializer.
+  (`#81774 <https://github.com/llvm/llvm-project/issues/81774>`_)
 
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
