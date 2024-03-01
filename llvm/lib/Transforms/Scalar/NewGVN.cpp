@@ -320,13 +320,15 @@ public:
     return NextLeader;
   }
   void resetNextLeader() { NextLeader = {nullptr, ~0}; }
-  void addPossibleLeader(std::pair<Value *, unsigned int> LeaderPair) {
+  bool addPossibleLeader(std::pair<Value *, unsigned int> LeaderPair) {
     if (LeaderPair.second < RepLeader.second) {
       NextLeader = RepLeader;
       RepLeader = LeaderPair;
+      return true;
     } else if (LeaderPair.second < NextLeader.second) {
       NextLeader = LeaderPair;
     }
+    return false;
   }
 
   Value *getStoredValue() const { return RepStoredValue; }
@@ -381,9 +383,9 @@ public:
     if (this == Other)
       return true;
 
-    if (std::tie(StoreCount, RepLeader.first, RepStoredValue,
+    if (std::tie(StoreCount, RepLeader, RepStoredValue,
                  RepMemoryAccess) !=
-        std::tie(Other->StoreCount, Other->RepLeader.first,
+        std::tie(Other->StoreCount, Other->RepLeader,
                  Other->RepStoredValue, Other->RepMemoryAccess))
       return false;
     if (DefiningExpr != Other->DefiningExpr)
@@ -400,11 +402,13 @@ public:
 private:
   unsigned ID;
 
-  // Representative leader.
+  // Representative leader and its corresponding RPO number.
+  // The leader must have the lowest RPO number.
   std::pair<Value *, unsigned int> RepLeader = {nullptr, ~0U};
 
-  // The most dominating leader after our current leader, because the member set
-  // is not sorted and is expensive to keep sorted all the time.
+  // The most dominating leader after our current leader (given by the RPO
+  // number), because the member set is not sorted and is expensive to keep
+  // sorted all the time.
   std::pair<Value *, unsigned int> NextLeader = {nullptr, ~0U};
 
   // If this is represented by a store, the value of the store.
@@ -739,7 +743,13 @@ private:
 
   // Congruence class handling.
   CongruenceClass *createCongruenceClass(Value *Leader, const Expression *E) {
+    // Set RPO to 0 for values that are always available (constants and function
+    // args). These should always be made leader.
     unsigned LeaderDFS = 0;
+
+    // If Leader is not specified, either we have a memory class or the leader
+    // will be set later. Otherwise, if Leader is an Instruction, set LeaderDFS
+    // to its RPO number.
     if (!Leader)
       LeaderDFS = ~0;
     else if (auto *I = dyn_cast<Instruction>(Leader))
@@ -2258,8 +2268,12 @@ void NewGVN::moveValueToNewCongruenceClass(Instruction *I, const Expression *E,
   OldClass->erase(I);
   NewClass->insert(I);
 
-  if (NewClass->getLeader() != I)
-    NewClass->addPossibleLeader({I, InstrToDFSNum(I)});
+  // Ensure that the leader has the lowest RPO. If the leader changed notify all
+  // members of the class.
+  if (NewClass->getLeader() != I &&
+      NewClass->addPossibleLeader({I, InstrToDFSNum(I)})) {
+    markValueLeaderChangeTouched(NewClass);
+  }
 
   // Handle our special casing of stores.
   if (auto *SI = dyn_cast<StoreInst>(I)) {
