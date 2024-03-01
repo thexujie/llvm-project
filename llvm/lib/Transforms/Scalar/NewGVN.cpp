@@ -383,10 +383,9 @@ public:
     if (this == Other)
       return true;
 
-    if (std::tie(StoreCount, RepLeader, RepStoredValue,
-                 RepMemoryAccess) !=
-        std::tie(Other->StoreCount, Other->RepLeader,
-                 Other->RepStoredValue, Other->RepMemoryAccess))
+    if (std::tie(StoreCount, RepLeader, RepStoredValue, RepMemoryAccess) !=
+        std::tie(Other->StoreCount, Other->RepLeader, Other->RepStoredValue,
+                 Other->RepMemoryAccess))
       return false;
     if (DefiningExpr != Other->DefiningExpr)
       if (!DefiningExpr || !Other->DefiningExpr ||
