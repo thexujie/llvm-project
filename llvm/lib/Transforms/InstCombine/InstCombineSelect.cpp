@@ -2742,11 +2742,11 @@ static Instruction *foldSelectWithFCmpToFabs(SelectInst &SI,
     // Note: We require "nnan" for this fold because fcmp ignores the signbit
     //       of NAN, but IEEE-754 specifies the signbit of NAN values with
     //       fneg/fabs operations.
-    if (!SI.hasNoNaNs())
-      return nullptr;
+    bool SIHasNoSignedZeros =
+        SI.hasNoSignedZeros() ||
+        (SI.getFunction()->hasFnAttribute("no-signed-zeros-fp-math"));
 
-    bool functionHasNoSignedZeroes = SI.getParent()->getParent()->hasFnAttribute("no-signed-zeros-fp-math");
-    if(!functionHasNoSignedZeroes && !SI.hasNoSignedZeros())
+    if (!SI.hasNoNaNs() || !SIHasNoSignedZeros)
       return nullptr;
 
     if (Swap)
