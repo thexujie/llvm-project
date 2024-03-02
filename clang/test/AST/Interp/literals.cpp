@@ -1204,6 +1204,18 @@ constexpr int externvar1() { // both-error {{never produces a constant expressio
    return arr[0]; // ref-note {{read of non-constexpr variable 'arr'}} \
                   // expected-note {{array-to-pointer decay of array member without known bound is not supported}}
 }
+
+namespace StmtExprs {
+  constexpr int foo() {
+     ({
+       int i;
+       for (i = 0; i < 76; i++) {}
+       i; // both-warning {{expression result unused}}
+    });
+    return 76;
+  }
+  static_assert(foo() == 76, "");
+}
 #endif
 
 namespace Extern {
