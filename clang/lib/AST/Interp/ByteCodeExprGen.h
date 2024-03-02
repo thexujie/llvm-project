@@ -35,6 +35,9 @@ template <class Emitter> class DeclScope;
 template <class Emitter> class OptionScope;
 template <class Emitter> class ArrayIndexScope;
 template <class Emitter> class SourceLocScope;
+template <class Emitter> class LoopScope;
+template <class Emitter> class LabelScope;
+template <class Emitter> class SwitchScope;
 
 /// Compilation context for expressions.
 template <class Emitter>
@@ -44,6 +47,8 @@ protected:
   // Aliases for types defined in the emitter.
   using LabelTy = typename Emitter::LabelTy;
   using AddrTy = typename Emitter::AddrTy;
+  using OptLabelTy = std::optional<LabelTy>;
+  using CaseMap = llvm::DenseMap<const SwitchCase *, LabelTy>;
 
   /// Current compilation context.
   Context &Ctx;
@@ -56,7 +61,7 @@ public:
   ByteCodeExprGen(Context &Ctx, Program &P, Tys &&... Args)
       : Emitter(Ctx, P, Args...), Ctx(Ctx), P(P) {}
 
-  // Expression visitors - result returned on interp stack.
+  // Expressions.
   bool VisitCastExpr(const CastExpr *E);
   bool VisitIntegerLiteral(const IntegerLiteral *E);
   bool VisitFloatingLiteral(const FloatingLiteral *E);
@@ -122,9 +127,29 @@ public:
   bool VisitPseudoObjectExpr(const PseudoObjectExpr *E);
   bool VisitPackIndexingExpr(const PackIndexingExpr *E);
 
+  // Statements.
+  bool visitCompoundStmt(const CompoundStmt *S);
+  bool visitLoopBody(const Stmt *S);
+  bool visitDeclStmt(const DeclStmt *DS);
+  bool visitReturnStmt(const ReturnStmt *RS);
+  bool visitIfStmt(const IfStmt *IS);
+  bool visitWhileStmt(const WhileStmt *S);
+  bool visitDoStmt(const DoStmt *S);
+  bool visitForStmt(const ForStmt *S);
+  bool visitCXXForRangeStmt(const CXXForRangeStmt *S);
+  bool visitBreakStmt(const BreakStmt *S);
+  bool visitContinueStmt(const ContinueStmt *S);
+  bool visitSwitchStmt(const SwitchStmt *S);
+  bool visitCaseStmt(const CaseStmt *S);
+  bool visitDefaultStmt(const DefaultStmt *S);
+  bool visitAttributedStmt(const AttributedStmt *S);
+  bool visitCXXTryStmt(const CXXTryStmt *S);
+
 protected:
+  bool visitStmt(const Stmt *S);
   bool visitExpr(const Expr *E) override;
   bool visitDecl(const VarDecl *VD) override;
+  bool visitFunc(const FunctionDecl *F) override;
 
 protected:
   /// Emits scope cleanup instructions.
@@ -137,8 +162,8 @@ protected:
   Record *getRecord(QualType Ty);
   Record *getRecord(const RecordDecl *RD);
 
-  // Returns a function for the given FunctionDecl.
-  // If the function does not exist yet, it is compiled.
+  /// Returns a function for the given FunctionDecl.
+  /// If the function does not exist yet, it is compiled.
   const Function *getFunction(const FunctionDecl *FD);
 
   std::optional<PrimType> classify(const Expr *E) const {
@@ -235,6 +260,9 @@ private:
   friend class OptionScope<Emitter>;
   friend class ArrayIndexScope<Emitter>;
   friend class SourceLocScope<Emitter>;
+  friend class LoopScope<Emitter>;
+  friend class LabelScope<Emitter>;
+  friend class SwitchScope<Emitter>;
 
   /// Emits a zero initializer.
   bool visitZeroInitializer(PrimType T, QualType QT, const Expr *E);
@@ -276,6 +304,7 @@ private:
 
   bool emitRecordDestruction(const Record *R);
   bool emitDestruction(const Descriptor *Desc);
+  bool emitLambdaStaticInvokerBody(const CXXMethodDecl *MD);
   unsigned collectBaseOffset(const RecordType *BaseType,
                              const RecordType *DerivedType);
 
@@ -304,6 +333,19 @@ protected:
 
   /// Flag indicating if we're initializing a global variable.
   bool GlobalDecl = false;
+
+  /// Type of the expression returned by the function.
+  std::optional<PrimType> ReturnType;
+
+  /// Switch case mapping.
+  CaseMap CaseLabels;
+
+  /// Point to break to.
+  OptLabelTy BreakLabel;
+  /// Point to continue to.
+  OptLabelTy ContinueLabel;
+  /// Default case label.
+  OptLabelTy DefaultLabel;
 };
 
 extern template class ByteCodeExprGen<ByteCodeEmitter>;
