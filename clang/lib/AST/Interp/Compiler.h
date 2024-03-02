@@ -1,4 +1,4 @@
-//===--- ByteCodeExprGen.h - Code generator for expressions -----*- C++ -*-===//
+//===--- Compiler.h - Code generator for expressions -----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -41,8 +41,8 @@ template <class Emitter> class SwitchScope;
 
 /// Compilation context for expressions.
 template <class Emitter>
-class ByteCodeExprGen : public ConstStmtVisitor<ByteCodeExprGen<Emitter>, bool>,
-                        public Emitter {
+class Compiler : public ConstStmtVisitor<Compiler<Emitter>, bool>,
+                 public Emitter {
 protected:
   // Aliases for types defined in the emitter.
   using LabelTy = typename Emitter::LabelTy;
@@ -58,7 +58,7 @@ protected:
 public:
   /// Initializes the compiler and the backend emitter.
   template <typename... Tys>
-  ByteCodeExprGen(Context &Ctx, Program &P, Tys &&... Args)
+  Compiler(Context &Ctx, Program &P, Tys &&...Args)
       : Emitter(Ctx, P, Args...), Ctx(Ctx), P(P) {}
 
   // Expressions.
@@ -348,14 +348,13 @@ protected:
   OptLabelTy DefaultLabel;
 };
 
-extern template class ByteCodeExprGen<ByteCodeEmitter>;
-extern template class ByteCodeExprGen<EvalEmitter>;
+extern template class Compiler<ByteCodeEmitter>;
+extern template class Compiler<EvalEmitter>;
 
 /// Scope chain managing the variable lifetimes.
 template <class Emitter> class VariableScope {
 public:
-  VariableScope(ByteCodeExprGen<Emitter> *Ctx)
-      : Ctx(Ctx), Parent(Ctx->VarScope) {
+  VariableScope(Compiler<Emitter> *Ctx) : Ctx(Ctx), Parent(Ctx->VarScope) {
     Ctx->VarScope = this;
   }
 
@@ -383,8 +382,8 @@ public:
   VariableScope *getParent() const { return Parent; }
 
 protected:
-  /// ByteCodeExprGen instance.
-  ByteCodeExprGen<Emitter> *Ctx;
+  /// Compiler instance.
+  Compiler<Emitter> *Ctx;
   /// Link to the parent scope.
   VariableScope *Parent;
 };
@@ -392,7 +391,7 @@ protected:
 /// Generic scope for local variables.
 template <class Emitter> class LocalScope : public VariableScope<Emitter> {
 public:
-  LocalScope(ByteCodeExprGen<Emitter> *Ctx) : VariableScope<Emitter>(Ctx) {}
+  LocalScope(Compiler<Emitter> *Ctx) : VariableScope<Emitter>(Ctx) {}
 
   /// Emit a Destroy op for this scope.
   ~LocalScope() override {
@@ -486,8 +485,7 @@ private:
 /// variables are automatically emitted when the AutoScope is destroyed.
 template <class Emitter> class AutoScope : public LocalScope<Emitter> {
 public:
-  AutoScope(ByteCodeExprGen<Emitter> *Ctx)
-      : LocalScope<Emitter>(Ctx), DS(*this) {}
+  AutoScope(Compiler<Emitter> *Ctx) : LocalScope<Emitter>(Ctx), DS(*this) {}
 
 private:
   DestructorScope<Emitter> DS;
@@ -496,7 +494,7 @@ private:
 /// Scope for storage declared in a compound statement.
 template <class Emitter> class BlockScope final : public AutoScope<Emitter> {
 public:
-  BlockScope(ByteCodeExprGen<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
+  BlockScope(Compiler<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
 
   void addExtended(const Scope::Local &Local) override {
     // If we to this point, just add the variable as a normal local
@@ -510,7 +508,7 @@ public:
 /// temporaries which are hoisted to the parent scope on exit.
 template <class Emitter> class ExprScope final : public AutoScope<Emitter> {
 public:
-  ExprScope(ByteCodeExprGen<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
+  ExprScope(Compiler<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
 
   void addExtended(const Scope::Local &Local) override {
     if (this->Parent)
@@ -520,7 +518,7 @@ public:
 
 template <class Emitter> class ArrayIndexScope final {
 public:
-  ArrayIndexScope(ByteCodeExprGen<Emitter> *Ctx, uint64_t Index) : Ctx(Ctx) {
+  ArrayIndexScope(Compiler<Emitter> *Ctx, uint64_t Index) : Ctx(Ctx) {
     OldArrayIndex = Ctx->ArrayIndex;
     Ctx->ArrayIndex = Index;
   }
@@ -528,14 +526,13 @@ public:
   ~ArrayIndexScope() { Ctx->ArrayIndex = OldArrayIndex; }
 
 private:
-  ByteCodeExprGen<Emitter> *Ctx;
+  Compiler<Emitter> *Ctx;
   std::optional<uint64_t> OldArrayIndex;
 };
 
 template <class Emitter> class SourceLocScope final {
 public:
-  SourceLocScope(ByteCodeExprGen<Emitter> *Ctx, const Expr *DefaultExpr)
-      : Ctx(Ctx) {
+  SourceLocScope(Compiler<Emitter> *Ctx, const Expr *DefaultExpr) : Ctx(Ctx) {
     assert(DefaultExpr);
     // We only switch if the current SourceLocDefaultExpr is null.
     if (!Ctx->SourceLocDefaultExpr) {
@@ -550,7 +547,7 @@ public:
   }
 
 private:
-  ByteCodeExprGen<Emitter> *Ctx;
+  Compiler<Emitter> *Ctx;
   bool Enabled = false;
 };
 
