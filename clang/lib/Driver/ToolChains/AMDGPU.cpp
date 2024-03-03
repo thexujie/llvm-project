@@ -952,7 +952,7 @@ bool RocmInstallationDetector::checkCommonBitcodeLibs(
     D.Diag(diag::err_drv_no_rocm_device_lib) << 0;
     return false;
   }
-  if (LibDeviceFile.empty()) {
+  if (!GPUArch.empty() && LibDeviceFile.empty()) {
     D.Diag(diag::err_drv_no_rocm_device_lib) << 1 << GPUArch;
     return false;
   }
@@ -980,7 +980,8 @@ RocmInstallationDetector::getCommonBitcodeLibs(
   AddBCLib(getFiniteOnlyPath(FiniteOnly || FastRelaxedMath));
   AddBCLib(getCorrectlyRoundedSqrtPath(CorrectSqrt));
   AddBCLib(getWavefrontSize64Path(Wave64));
-  AddBCLib(LibDeviceFile);
+  if (!LibDeviceFile.empty())
+    AddBCLib(LibDeviceFile);
   auto ABIVerPath = getABIVersionPath(ABIVer);
   if (!ABIVerPath.empty())
     AddBCLib(ABIVerPath);
