@@ -12,7 +12,7 @@ Section,Description,Dependencies,Assignee,Complete
 | `[range.zip.iterator] <https://wg21.link/range.zip.iterator>`_, "`zip_view::iterator <https://reviews.llvm.org/D122806>`_", None, Hui Xie, |Complete|
 | `[range.zip.sentinel] <https://wg21.link/range.zip.sentinel>`_, "`zip_view::sentinel <https://reviews.llvm.org/D122806>`_", None, Hui Xie, |Complete|
 | `[range.zip.transform.view] <https://wg21.link/range.zip.transform.view>`_, "zip_transform_view", "| `zip_transform_view::iterator`
-| `zip_transform_view::sentinel`", Hui Xie, |Not Started|
+| `zip_transform_view::sentinel`", Hui Xie, |Complete|
 | `[range.zip.transform.iterator] <https://wg21.link/range.zip.transform.iterator>`_, "zip_transform_view::iterator", None, Hui Xie, |Not Started|
 | `[range.zip.transform.sentinel] <https://wg21.link/range.zip.transform.sentinel>`_, "zip_transform_view::sentinel", None, Hui Xie, |Not Started|
 | `[range.adjacent.view] <https://wg21.link/range.adjacent.view>`_, "adjacent_view", "| `adjacent_view::iterator`
