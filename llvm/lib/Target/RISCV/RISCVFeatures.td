@@ -185,7 +185,7 @@ def HasStdExtZabha : Predicate<"Subtarget->hasStdExtZabha()">,
                          "'Zabha' (Byte and Halfword Atomic Memory Operations)">;
 
 def FeatureStdExtZacas
-    : SubtargetFeature<"experimental-zacas", "HasStdExtZacas", "true",
+    : SubtargetFeature<"zacas", "HasStdExtZacas", "true",
                        "'Zacas' (Atomic Compare-And-Swap Instructions)">;
 def HasStdExtZacas : Predicate<"Subtarget->hasStdExtZacas()">,
                      AssemblerPredicate<(all_of FeatureStdExtZacas),
@@ -807,6 +807,9 @@ def FeatureStdExtSsccptr
     : SubtargetFeature<"ssccptr", "HasStdExtSsccptr", "true",
                        "'Ssccptr' (Main memory supports page table reads)", []>;
 
+def FeatureStdExtSscofpmf
+    : SubtargetFeature<"sscofpmf", "HasStdExtSscofpmf", "true",
+                       "'Sscofpmf' (Count Overflow and Mode-Based Filtering)", []>;
 def FeatureStdExtShcounterenw
     : SubtargetFeature<"shcounterenw", "HasStdExtShcounterenw", "true",
                        "'Shcounterenw' (Support writeable hcounteren enable "

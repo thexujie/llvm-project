@@ -14,6 +14,7 @@
 #include "bolt/Rewrite/MetadataRewriter.h"
 #include "bolt/Rewrite/MetadataRewriters.h"
 #include "bolt/Utils/CommandLineOpts.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/BinaryStreamWriter.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -27,13 +28,23 @@ using namespace bolt;
 namespace opts {
 
 static cl::opt<bool>
-    PrintORC("print-orc",
-             cl::desc("print ORC unwind information for instructions"),
-             cl::init(true), cl::Hidden, cl::cat(BoltCategory));
+    DumpExceptions("dump-linux-exceptions",
+                   cl::desc("dump Linux kernel exception table"),
+                   cl::init(false), cl::Hidden, cl::cat(BoltCategory));
 
 static cl::opt<bool>
     DumpORC("dump-orc", cl::desc("dump raw ORC unwind information (sorted)"),
             cl::init(false), cl::Hidden, cl::cat(BoltCategory));
+
+static cl::opt<bool> DumpStaticCalls("dump-static-calls",
+                                     cl::desc("dump Linux kernel static calls"),
+                                     cl::init(false), cl::Hidden,
+                                     cl::cat(BoltCategory));
+
+static cl::opt<bool>
+    PrintORC("print-orc",
+             cl::desc("print ORC unwind information for instructions"),
+             cl::init(true), cl::Hidden, cl::cat(BoltCategory));
 
 } // namespace opts
 
@@ -116,6 +127,26 @@ class LinuxKernelRewriter final : public MetadataRewriter {
   /// Number of entries in the input file ORC sections.
   uint64_t NumORCEntries = 0;
 
+  /// Section containing static call table.
+  ErrorOr<BinarySection &> StaticCallSection = std::errc::bad_address;
+  uint64_t StaticCallTableAddress = 0;
+  static constexpr size_t STATIC_CALL_ENTRY_SIZE = 8;
+
+  struct StaticCallInfo {
+    uint32_t ID;              /// Identifier of the entry in the table.
+    BinaryFunction *Function; /// Function containing associated call.
+    MCSymbol *Label;          /// Label attached to the call.
+  };
+  using StaticCallListType = std::vector<StaticCallInfo>;
+  StaticCallListType StaticCallEntries;
+
+  /// Section containing the Linux exception table.
+  ErrorOr<BinarySection &> ExceptionsSection = std::errc::bad_address;
+  static constexpr size_t EXCEPTION_TABLE_ENTRY_SIZE = 12;
+
+  /// Functions with exception handling code.
+  DenseSet<BinaryFunction *> FunctionsWithExceptions;
+
   /// Insert an LKMarker for a given code pointer \p PC from a non-code section
   /// \p SectionName.
   void insertLKMarker(uint64_t PC, uint64_t SectionOffset,
@@ -124,9 +155,6 @@ class LinuxKernelRewriter final : public MetadataRewriter {
 
   /// Process linux kernel special sections and their relocations.
   void processLKSections();
-
-  /// Process special linux kernel section, __ex_table.
-  void processLKExTable();
 
   /// Process special linux kernel section, .pci_fixup.
   void processLKPCIFixup();
@@ -152,6 +180,13 @@ class LinuxKernelRewriter final : public MetadataRewriter {
   /// Update ORC data in the binary.
   Error rewriteORCTables();
 
+  /// Static call table handling.
+  Error readStaticCalls();
+  Error rewriteStaticCalls();
+
+  Error readExceptionTable();
+  Error rewriteExceptionTable();
+
   /// Mark instructions referenced by kernel metadata.
   Error markInstructions();
 
@@ -167,6 +202,12 @@ public:
     if (Error E = readORCTables())
       return E;
 
+    if (Error E = readStaticCalls())
+      return E;
+
+    if (Error E = readExceptionTable())
+      return E;
+
     return Error::success();
   }
 
@@ -178,7 +219,15 @@ public:
   }
 
   Error preEmitFinalizer() override {
+    // Since rewriteExceptionTable() can mark functions as non-simple, run it
+    // before other rewriters that depend on simple/emit status.
+    if (Error E = rewriteExceptionTable())
+      return E;
+
     if (Error E = rewriteORCTables())
+      return E;
+
+    if (Error E = rewriteStaticCalls())
       return E;
 
     return Error::success();
@@ -221,75 +270,11 @@ void LinuxKernelRewriter::insertLKMarker(uint64_t PC, uint64_t SectionOffset,
 }
 
 void LinuxKernelRewriter::processLKSections() {
-  processLKExTable();
   processLKPCIFixup();
   processLKKSymtab();
   processLKKSymtab(true);
   processLKBugTable();
   processLKSMPLocks();
-}
-
-/// Process __ex_table section of Linux Kernel.
-/// This section contains information regarding kernel level exception
-/// handling (https://www.kernel.org/doc/html/latest/x86/exception-tables.html).
-/// More documentation is in arch/x86/include/asm/extable.h.
-///
-/// The section is the list of the following structures:
-///
-///   struct exception_table_entry {
-///     int insn;
-///     int fixup;
-///     int handler;
-///   };
-///
-void LinuxKernelRewriter::processLKExTable() {
-  ErrorOr<BinarySection &> SectionOrError =
-      BC.getUniqueSectionByName("__ex_table");
-  if (!SectionOrError)
-    return;
-
-  const uint64_t SectionSize = SectionOrError->getSize();
-  const uint64_t SectionAddress = SectionOrError->getAddress();
-  assert((SectionSize % 12) == 0 &&
-         "The size of the __ex_table section should be a multiple of 12");
-  for (uint64_t I = 0; I < SectionSize; I += 4) {
-    const uint64_t EntryAddress = SectionAddress + I;
-    ErrorOr<uint64_t> Offset = BC.getSignedValueAtAddress(EntryAddress, 4);
-    assert(Offset && "failed reading PC-relative offset for __ex_table");
-    int32_t SignedOffset = *Offset;
-    const uint64_t RefAddress = EntryAddress + SignedOffset;
-
-    BinaryFunction *ContainingBF =
-        BC.getBinaryFunctionContainingAddress(RefAddress);
-    if (!ContainingBF)
-      continue;
-
-    MCSymbol *ReferencedSymbol = ContainingBF->getSymbol();
-    const uint64_t FunctionOffset = RefAddress - ContainingBF->getAddress();
-    switch (I % 12) {
-    default:
-      llvm_unreachable("bad alignment of __ex_table");
-      break;
-    case 0:
-      // insn
-      insertLKMarker(RefAddress, I, SignedOffset, true, "__ex_table");
-      break;
-    case 4:
-      // fixup
-      if (FunctionOffset)
-        ReferencedSymbol = ContainingBF->addEntryPointAtOffset(FunctionOffset);
-      BC.addRelocation(EntryAddress, ReferencedSymbol, Relocation::getPC32(), 0,
-                       *Offset);
-      break;
-    case 8:
-      // handler
-      assert(!FunctionOffset &&
-             "__ex_table handler entry should point to function start");
-      BC.addRelocation(EntryAddress, ReferencedSymbol, Relocation::getPC32(), 0,
-                       *Offset);
-      break;
-    }
-  }
 }
 
 /// Process .pci_fixup section of Linux Kernel.
@@ -456,11 +441,11 @@ void LinuxKernelRewriter::updateLKMarkers() {
         LKPatcher->addLE64Patch(LKMarkerInfo.SectionOffset, NewAddress);
     }
   }
-  outs() << "BOLT-INFO: patching linux kernel sections. Total patches per "
-            "section are as follows:\n";
+  BC.outs() << "BOLT-INFO: patching linux kernel sections. Total patches per "
+               "section are as follows:\n";
   for (const std::pair<const std::string, uint64_t> &KV : PatchCounts)
-    outs() << "  Section: " << KV.first << ", patch-counts: " << KV.second
-           << '\n';
+    BC.outs() << "  Section: " << KV.first << ", patch-counts: " << KV.second
+              << '\n';
 }
 
 Error LinuxKernelRewriter::readORCTables() {
@@ -502,8 +487,8 @@ Error LinuxKernelRewriter::readORCTables() {
                                "out of bounds while reading ORC IP table");
 
     if (IP < PrevIP && opts::Verbosity)
-      errs() << "BOLT-WARNING: out of order IP 0x" << Twine::utohexstr(IP)
-             << " detected while reading ORC\n";
+      BC.errs() << "BOLT-WARNING: out of order IP 0x" << Twine::utohexstr(IP)
+                << " detected while reading ORC\n";
 
     PrevIP = IP;
 
@@ -536,8 +521,8 @@ Error LinuxKernelRewriter::readORCTables() {
 
     if (!BF) {
       if (opts::Verbosity)
-        errs() << "BOLT-WARNING: no binary function found matching ORC 0x"
-               << Twine::utohexstr(IP) << ": " << Entry.ORC << '\n';
+        BC.errs() << "BOLT-WARNING: no binary function found matching ORC 0x"
+                  << Twine::utohexstr(IP) << ": " << Entry.ORC << '\n';
       continue;
     }
 
@@ -563,15 +548,15 @@ Error LinuxKernelRewriter::readORCTables() {
     BC.MIB->addAnnotation(*Inst, "ORC", Entry.ORC);
   }
 
-  outs() << "BOLT-INFO: parsed " << NumORCEntries << " ORC entries\n";
+  BC.outs() << "BOLT-INFO: parsed " << NumORCEntries << " ORC entries\n";
 
   if (opts::DumpORC) {
-    outs() << "BOLT-INFO: ORC unwind information:\n";
+    BC.outs() << "BOLT-INFO: ORC unwind information:\n";
     for (const ORCListEntry &E : ORCEntries) {
-      outs() << "0x" << Twine::utohexstr(E.IP) << ": " << E.ORC;
+      BC.outs() << "0x" << Twine::utohexstr(E.IP) << ": " << E.ORC;
       if (E.BF)
-        outs() << ": " << *E.BF;
-      outs() << '\n';
+        BC.outs() << ": " << *E.BF;
+      BC.outs() << '\n';
     }
   }
 
@@ -604,12 +589,12 @@ Error LinuxKernelRewriter::readORCTables() {
   llvm::sort(ORCEntries);
 
   if (opts::DumpORC) {
-    outs() << "BOLT-INFO: amended ORC unwind information:\n";
+    BC.outs() << "BOLT-INFO: amended ORC unwind information:\n";
     for (const ORCListEntry &E : ORCEntries) {
-      outs() << "0x" << Twine::utohexstr(E.IP) << ": " << E.ORC;
+      BC.outs() << "0x" << Twine::utohexstr(E.IP) << ": " << E.ORC;
       if (E.BF)
-        outs() << ": " << *E.BF;
-      outs() << '\n';
+        BC.outs() << ": " << *E.BF;
+      BC.outs() << '\n';
     }
   }
 
@@ -656,8 +641,8 @@ Error LinuxKernelRewriter::processORCPostCFG() {
                  "ORC info at function entry expected.");
 
           if (It->ORC == NullORC && BF.hasORC()) {
-            errs() << "BOLT-WARNING: ORC unwind info excludes prologue for "
-                   << BF << '\n';
+            BC.errs() << "BOLT-WARNING: ORC unwind info excludes prologue for "
+                      << BF << '\n';
           }
 
           It->BF = &BF;
@@ -742,11 +727,8 @@ Error LinuxKernelRewriter::rewriteORCTables() {
           continue;
 
         // Issue label for the instruction.
-        MCSymbol *Label = BC.MIB->getLabel(Inst);
-        if (!Label) {
-          Label = BC.Ctx->createTempSymbol("__ORC_");
-          BC.MIB->setLabel(Inst, Label);
-        }
+        MCSymbol *Label =
+            BC.MIB->getOrCreateInstLabel(Inst, "__ORC_", BC.Ctx.get());
 
         if (Error E = emitORCEntry(0, *ErrorOrState, Label))
           return E;
@@ -789,6 +771,244 @@ Error LinuxKernelRewriter::rewriteORCTables() {
     if (Error E = emitORCEntry(LastIP, NullORC, nullptr, /*Force*/ true))
       return E;
   }
+
+  return Error::success();
+}
+
+/// The static call site table is created by objtool and contains entries in the
+/// following format:
+///
+///    struct static_call_site {
+///      s32 addr;
+///      s32 key;
+///    };
+///
+Error LinuxKernelRewriter::readStaticCalls() {
+  const BinaryData *StaticCallTable =
+      BC.getBinaryDataByName("__start_static_call_sites");
+  if (!StaticCallTable)
+    return Error::success();
+
+  StaticCallTableAddress = StaticCallTable->getAddress();
+
+  const BinaryData *Stop = BC.getBinaryDataByName("__stop_static_call_sites");
+  if (!Stop)
+    return createStringError(errc::executable_format_error,
+                             "missing __stop_static_call_sites symbol");
+
+  ErrorOr<BinarySection &> ErrorOrSection =
+      BC.getSectionForAddress(StaticCallTableAddress);
+  if (!ErrorOrSection)
+    return createStringError(errc::executable_format_error,
+                             "no section matching __start_static_call_sites");
+
+  StaticCallSection = *ErrorOrSection;
+  if (!StaticCallSection->containsAddress(Stop->getAddress() - 1))
+    return createStringError(errc::executable_format_error,
+                             "__stop_static_call_sites not in the same section "
+                             "as __start_static_call_sites");
+
+  if ((Stop->getAddress() - StaticCallTableAddress) % STATIC_CALL_ENTRY_SIZE)
+    return createStringError(errc::executable_format_error,
+                             "static call table size error");
+
+  const uint64_t SectionAddress = StaticCallSection->getAddress();
+  DataExtractor DE(StaticCallSection->getContents(),
+                   BC.AsmInfo->isLittleEndian(),
+                   BC.AsmInfo->getCodePointerSize());
+  DataExtractor::Cursor Cursor(StaticCallTableAddress - SectionAddress);
+  uint32_t EntryID = 0;
+  while (Cursor && Cursor.tell() < Stop->getAddress() - SectionAddress) {
+    const uint64_t CallAddress =
+        SectionAddress + Cursor.tell() + (int32_t)DE.getU32(Cursor);
+    const uint64_t KeyAddress =
+        SectionAddress + Cursor.tell() + (int32_t)DE.getU32(Cursor);
+
+    // Consume the status of the cursor.
+    if (!Cursor)
+      return createStringError(errc::executable_format_error,
+                               "out of bounds while reading static calls");
+
+    ++EntryID;
+
+    if (opts::DumpStaticCalls) {
+      BC.outs() << "Static Call Site: " << EntryID << '\n';
+      BC.outs() << "\tCallAddress:   0x" << Twine::utohexstr(CallAddress)
+                << "\n\tKeyAddress:    0x" << Twine::utohexstr(KeyAddress)
+                << '\n';
+    }
+
+    BinaryFunction *BF = BC.getBinaryFunctionContainingAddress(CallAddress);
+    if (!BF)
+      continue;
+
+    if (!BC.shouldEmit(*BF))
+      continue;
+
+    if (!BF->hasInstructions())
+      continue;
+
+    MCInst *Inst = BF->getInstructionAtOffset(CallAddress - BF->getAddress());
+    if (!Inst)
+      return createStringError(errc::executable_format_error,
+                               "no instruction at call site address 0x%" PRIx64,
+                               CallAddress);
+
+    // Check for duplicate entries.
+    if (BC.MIB->hasAnnotation(*Inst, "StaticCall"))
+      return createStringError(errc::executable_format_error,
+                               "duplicate static call site at 0x%" PRIx64,
+                               CallAddress);
+
+    BC.MIB->addAnnotation(*Inst, "StaticCall", EntryID);
+
+    MCSymbol *Label =
+        BC.MIB->getOrCreateInstLabel(*Inst, "__SC_", BC.Ctx.get());
+
+    StaticCallEntries.push_back({EntryID, BF, Label});
+  }
+
+  BC.outs() << "BOLT-INFO: parsed " << StaticCallEntries.size()
+            << " static call entries\n";
+
+  return Error::success();
+}
+
+/// The static call table is sorted during boot time in
+/// static_call_sort_entries(). This makes it possible to update existing
+/// entries in-place ignoring their relative order.
+Error LinuxKernelRewriter::rewriteStaticCalls() {
+  if (!StaticCallTableAddress || !StaticCallSection)
+    return Error::success();
+
+  for (auto &Entry : StaticCallEntries) {
+    if (!Entry.Function)
+      continue;
+
+    BinaryFunction &BF = *Entry.Function;
+    if (!BC.shouldEmit(BF))
+      continue;
+
+    // Create a relocation against the label.
+    const uint64_t EntryOffset = StaticCallTableAddress -
+                                 StaticCallSection->getAddress() +
+                                 (Entry.ID - 1) * STATIC_CALL_ENTRY_SIZE;
+    StaticCallSection->addRelocation(EntryOffset, Entry.Label,
+                                     ELF::R_X86_64_PC32, /*Addend*/ 0);
+  }
+
+  return Error::success();
+}
+
+/// Instructions that access user-space memory can cause page faults. These
+/// faults will be handled by the kernel and execution will resume at the fixup
+/// code location if the address was invalid. The kernel uses the exception
+/// table to match the faulting instruction to its fixup. The table consists of
+/// the following entries:
+///
+///   struct exception_table_entry {
+///     int insn;
+///     int fixup;
+///     int data;
+///   };
+///
+/// More info at:
+/// https://www.kernel.org/doc/Documentation/x86/exception-tables.txt
+Error LinuxKernelRewriter::readExceptionTable() {
+  ExceptionsSection = BC.getUniqueSectionByName("__ex_table");
+  if (!ExceptionsSection)
+    return Error::success();
+
+  if (ExceptionsSection->getSize() % EXCEPTION_TABLE_ENTRY_SIZE)
+    return createStringError(errc::executable_format_error,
+                             "exception table size error");
+
+  const uint64_t SectionAddress = ExceptionsSection->getAddress();
+  DataExtractor DE(ExceptionsSection->getContents(),
+                   BC.AsmInfo->isLittleEndian(),
+                   BC.AsmInfo->getCodePointerSize());
+  DataExtractor::Cursor Cursor(0);
+  uint32_t EntryID = 0;
+  while (Cursor && Cursor.tell() < ExceptionsSection->getSize()) {
+    const uint64_t InstAddress =
+        SectionAddress + Cursor.tell() + (int32_t)DE.getU32(Cursor);
+    const uint64_t FixupAddress =
+        SectionAddress + Cursor.tell() + (int32_t)DE.getU32(Cursor);
+    const uint64_t Data = DE.getU32(Cursor);
+
+    // Consume the status of the cursor.
+    if (!Cursor)
+      return createStringError(errc::executable_format_error,
+                               "out of bounds while reading exception table");
+
+    ++EntryID;
+
+    if (opts::DumpExceptions) {
+      BC.outs() << "Exception Entry: " << EntryID << '\n';
+      BC.outs() << "\tInsn:  0x" << Twine::utohexstr(InstAddress) << '\n'
+                << "\tFixup: 0x" << Twine::utohexstr(FixupAddress) << '\n'
+                << "\tData:  0x" << Twine::utohexstr(Data) << '\n';
+    }
+
+    MCInst *Inst = nullptr;
+    MCSymbol *FixupLabel = nullptr;
+
+    BinaryFunction *InstBF = BC.getBinaryFunctionContainingAddress(InstAddress);
+    if (InstBF && BC.shouldEmit(*InstBF)) {
+      Inst = InstBF->getInstructionAtOffset(InstAddress - InstBF->getAddress());
+      if (!Inst)
+        return createStringError(errc::executable_format_error,
+                                 "no instruction at address 0x%" PRIx64
+                                 " in exception table",
+                                 InstAddress);
+      BC.MIB->addAnnotation(*Inst, "ExceptionEntry", EntryID);
+      FunctionsWithExceptions.insert(InstBF);
+    }
+
+    if (!InstBF && opts::Verbosity) {
+      BC.outs() << "BOLT-INFO: no function matches instruction at 0x"
+                << Twine::utohexstr(InstAddress)
+                << " referenced by Linux exception table\n";
+    }
+
+    BinaryFunction *FixupBF =
+        BC.getBinaryFunctionContainingAddress(FixupAddress);
+    if (FixupBF && BC.shouldEmit(*FixupBF)) {
+      const uint64_t Offset = FixupAddress - FixupBF->getAddress();
+      if (!FixupBF->getInstructionAtOffset(Offset))
+        return createStringError(errc::executable_format_error,
+                                 "no instruction at fixup address 0x%" PRIx64
+                                 " in exception table",
+                                 FixupAddress);
+      FixupLabel = Offset ? FixupBF->addEntryPointAtOffset(Offset)
+                          : FixupBF->getSymbol();
+      if (Inst)
+        BC.MIB->addAnnotation(*Inst, "Fixup", FixupLabel->getName());
+      FunctionsWithExceptions.insert(FixupBF);
+    }
+
+    if (!FixupBF && opts::Verbosity) {
+      BC.outs() << "BOLT-INFO: no function matches fixup code at 0x"
+                << Twine::utohexstr(FixupAddress)
+                << " referenced by Linux exception table\n";
+    }
+  }
+
+  BC.outs() << "BOLT-INFO: parsed "
+            << ExceptionsSection->getSize() / EXCEPTION_TABLE_ENTRY_SIZE
+            << " exception table entries\n";
+
+  return Error::success();
+}
+
+/// Depending on the value of CONFIG_BUILDTIME_TABLE_SORT, the kernel expects
+/// the exception table to be sorted. Hence we have to sort it after code
+/// reordering.
+Error LinuxKernelRewriter::rewriteExceptionTable() {
+  // Disable output of functions with exceptions before rewrite support is
+  // added.
+  for (BinaryFunction *BF : FunctionsWithExceptions)
+    BF->setSimple(false);
 
   return Error::success();
 }
