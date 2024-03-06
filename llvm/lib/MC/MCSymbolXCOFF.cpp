@@ -24,7 +24,11 @@ void MCSymbolXCOFF::setRepresentedCsect(MCSectionXCOFF *C) {
   assert((!RepresentedCsect || RepresentedCsect == C) &&
          "Trying to set a csect that doesn't match the one that this symbol is "
          "already mapped to.");
-  assert(getSymbolTableName().equals(C->getSymbolTableName()) &&
+  // Csect representation related symbols access by using TLS local-dynamic
+  // model have prefix "_$TLSLD." before their names.
+  assert((getSymbolTableName().equals(C->getSymbolTableName()) ||
+          getSymbolTableName().equals(std::string("_$TLSLD.") +
+                                      C->getSymbolTableName().str())) &&
          "SymbolTableNames need to be the same for this symbol and its csect "
          "representation.");
   RepresentedCsect = C;
