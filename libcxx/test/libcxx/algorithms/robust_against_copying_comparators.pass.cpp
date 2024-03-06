@@ -21,7 +21,6 @@ struct Less {
     TEST_CONSTEXPR explicit Less(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 Less(const Less& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
     TEST_CONSTEXPR_CXX14 Less& operator=(const Less&) = default;
-    TEST_CONSTEXPR bool operator()(T, T) { return false; }
     TEST_CONSTEXPR bool operator()(T, T) const { return false; }
 };
 
@@ -30,6 +29,7 @@ struct Equal {
     int *copies_;
     TEST_CONSTEXPR explicit Equal(int *copies) : copies_(copies) {}
     TEST_CONSTEXPR_CXX14 Equal(const Equal& rhs) : copies_(rhs.copies_) { *copies_ += 1; }
+    TEST_CONSTEXPR_CXX14 Equal& operator=(const Equal&) = default;
     TEST_CONSTEXPR bool operator()(T, T) const { return true; }
 };
 
