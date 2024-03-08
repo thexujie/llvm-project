@@ -3126,6 +3126,7 @@ public:
   /// evaluated at compile time. Returns a new expression on success, or the old
   /// expression if there is nothing to be reduced.
   SmallVector<uint64_t> foldConstantMath(ArrayRef<uint64_t> WorkingOps);
+  static constexpr unsigned MaxRuleOpSize = 6;
 };
 
 inline bool operator==(const DIExpression::FragmentInfo &A,
