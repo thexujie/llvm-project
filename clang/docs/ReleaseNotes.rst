@@ -228,27 +228,23 @@ Improvements to Clang's time-trace
 
 Bug Fixes in This Version
 -------------------------
-- Fixed missing warnings when comparing mismatched enumeration constants
-  in C (`#29217 <https://github.com/llvm/llvm-project/issues/29217>`).
-
 - Clang now accepts elaborated-type-specifiers that explicitly specialize
   a member class template for an implicit instantiation of a class template.
 
-- Fixed missing warnings when doing bool-like conversions in C23 (#GH79435).
+- Fixed missing warnings when doing bool-like conversions in C23 (`#79435 <https://github.com/llvm/llvm-project/issues/79435>`_).
 - Clang's ``-Wshadow`` no longer warns when an init-capture is named the same as
   a class field unless the lambda can capture this.
-  Fixes (#GH71976)
+  Fixes (`#71976 <https://github.com/llvm/llvm-project/issues/71976>`_)
 
 - Clang now accepts qualified partial/explicit specializations of variable templates that
   are not nominable in the lookup context of the specialization.
 
 - Clang now doesn't produce false-positive warning `-Wconstant-logical-operand`
   for logical operators in C23.
-  Fixes (#GH64356).
+  Fixes (`#64356 <https://github.com/llvm/llvm-project/issues/64356>`_).
 
-- Clang no longer produces a false-positive `-Wunused-variable` warning
-  for variables created through copy initialization having side-effects in C++17 and later.
-  Fixes (#GH64356) (#GH79518).
+- Fix value of predefined macro ``__FUNCTION__`` to match MSVC's value. Fixes
+  (`#66114 <https://github.com/llvm/llvm-project/issues/66114>`_).
 
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
