@@ -1870,6 +1870,7 @@ DIExpression *DIExpression::append(const DIExpression *Expr,
 
   // Copy Expr's current op list.
   SmallVector<uint64_t, 16> NewOps;
+  uint64_t OpCount = 0;
   for (auto Op : Expr->expr_ops()) {
     // Append new opcodes before DW_OP_{stack_value, LLVM_fragment}.
     if (Op.getOp() == dwarf::DW_OP_stack_value ||
@@ -1880,9 +1881,46 @@ DIExpression *DIExpression::append(const DIExpression *Expr,
       Ops = std::nullopt;
     }
     Op.appendToVector(NewOps);
+    OpCount++;
   }
   NewOps.append(Ops.begin(), Ops.end());
   auto *result = DIExpression::get(Expr->getContext(), NewOps);
+  assert(result->isValid() && "concatenated expression is not valid");
+
+  // Instead of applying a foldConstantMath on the entire expression, apply it
+  // only to the new operations to be added to the expression + the the
+  // preceding operations totalling to the longest foldable pattern.
+  uint64_t NewOpCount = 0;
+  for (auto It = result->expr_op_begin(); It != result->expr_op_end(); It++)
+    NewOpCount++;
+
+  // This is the number of new operations that were added to the expression,
+  // i.e. the number of operations in the Ops argument.
+  unsigned NumOfAddedOps = NewOpCount - OpCount;
+  // This is the number of operations that DIExpression::foldConstantMath should
+  // be applied upon, which is the number of new operations added + the
+  // preceding operations totalling to the longest foldable pattern.
+  unsigned NumOfOpsToBeFolded = 0;
+  if (OpCount < DIExpression::MaxRuleOpSize)
+    NumOfOpsToBeFolded = 0;
+  else
+    NumOfOpsToBeFolded =
+        NewOpCount - NumOfAddedOps - DIExpression::MaxRuleOpSize;
+  SmallVector<uint64_t> FoldedOps;
+
+  unsigned Count = 0;
+  SmallVector<uint64_t> OpsToBeFolded;
+  for (auto Op : result->expr_ops()) {
+    if (Count < NumOfOpsToBeFolded) {
+      Op.appendToVector(FoldedOps);
+      Count++;
+    } else
+      Op.appendToVector(OpsToBeFolded);
+  }
+
+  OpsToBeFolded = result->foldConstantMath(OpsToBeFolded);
+  FoldedOps.append(OpsToBeFolded);
+  result = DIExpression::get(Expr->getContext(), FoldedOps);
   assert(result->isValid() && "concatenated expression is not valid");
   return result;
 }
