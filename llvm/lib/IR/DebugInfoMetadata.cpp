@@ -1779,17 +1779,55 @@ DIExpression *DIExpression::appendOpsToArg(const DIExpression *Expr,
                                            unsigned ArgNo, bool StackValue) {
   assert(Expr && "Can't add ops to this expression");
 
+  unsigned OpCount = 0;
+
   // Handle non-variadic intrinsics by prepending the opcodes.
   if (!any_of(Expr->expr_ops(),
               [](auto Op) { return Op.getOp() == dwarf::DW_OP_LLVM_arg; })) {
     assert(ArgNo == 0 &&
            "Location Index must be 0 for a non-variadic expression.");
+
+    for (auto It = Expr->expr_op_begin(); It != Expr->expr_op_end(); It++)
+      OpCount++;
     SmallVector<uint64_t, 8> NewOps(Ops.begin(), Ops.end());
-    return DIExpression::prependOpcodes(Expr, NewOps, StackValue);
+    auto *Result = DIExpression::prependOpcodes(Expr, NewOps, StackValue);
+
+    // Instead of applying a foldConstantMath on the entire expression, apply it
+    // only on operations that are preppended + the succeeding operations
+    // totalling to the maximum foldable pattern.
+    uint64_t NewOpCount = 0;
+    for (auto It = Result->expr_op_begin(); It != Result->expr_op_end(); It++)
+      NewOpCount++;
+
+    // This is the number of new operations that were added to the expression,
+    // i.e. the number of operations in the Ops argument.
+    unsigned NumOfAddedOps = NewOpCount - OpCount;
+    // This is the number of operations that DIExpression::foldConstantMath
+    // should be applied upon, which is the number of new operations added + the
+    // succeeding operations totalling to the longest foldable pattern.
+    unsigned NumOfOpsToBeFolded = NumOfAddedOps + DIExpression::MaxRuleOpSize;
+    unsigned Count = 0;
+    SmallVector<uint64_t> OpsToBeFolded;
+    SmallVector<uint64_t> FoldedOps;
+
+    for (auto Op : Result->expr_ops()) {
+      if (Count < NumOfOpsToBeFolded) {
+        Op.appendToVector(OpsToBeFolded);
+        Count++;
+      } else {
+        Op.appendToVector(FoldedOps);
+      }
+    }
+
+    OpsToBeFolded = Result->foldConstantMath(OpsToBeFolded);
+    OpsToBeFolded.append(FoldedOps);
+    return DIExpression::get(Result->getContext(), OpsToBeFolded);
   }
 
+  unsigned ArgPos;
   SmallVector<uint64_t, 8> NewOps;
   for (auto Op : Expr->expr_ops()) {
+    OpCount++;
     // A DW_OP_stack_value comes at the end, but before a DW_OP_LLVM_fragment.
     if (StackValue) {
       if (Op.getOp() == dwarf::DW_OP_stack_value)
@@ -1800,13 +1838,54 @@ DIExpression *DIExpression::appendOpsToArg(const DIExpression *Expr,
       }
     }
     Op.appendToVector(NewOps);
-    if (Op.getOp() == dwarf::DW_OP_LLVM_arg && Op.getArg(0) == ArgNo)
+    if (Op.getOp() == dwarf::DW_OP_LLVM_arg && Op.getArg(0) == ArgNo) {
       NewOps.insert(NewOps.end(), Ops.begin(), Ops.end());
+      ArgPos = OpCount;
+    }
   }
   if (StackValue)
     NewOps.push_back(dwarf::DW_OP_stack_value);
 
-  return DIExpression::get(Expr->getContext(), NewOps);
+  auto *Result = DIExpression::get(Expr->getContext(), NewOps);
+
+  // Instead of applying a foldConstantMath on the entire expression, apply it
+  // only on operations that are inserted to the ArgNo + the preceeding
+  // operations totalling to the maximum foldable pattern.
+  unsigned NewOpCount = 0;
+  for (auto It = Result->expr_op_begin(); It != Result->expr_op_end(); It++)
+    NewOpCount++;
+
+  unsigned Count = 0;
+  SmallVector<uint64_t> OpsToBeFolded;
+  SmallVector<uint64_t> FoldedOps;
+  SmallVector<uint64_t> RemainingOps;
+
+  // This is the number of operations we can consider already folded in the
+  // expression, which precede the ArgNo that the Ops are appended to.
+  unsigned FoldedOpCount = ArgPos > DIExpression::MaxRuleOpSize
+                               ? ArgPos - DIExpression::MaxRuleOpSize
+                               : 0;
+  // This is the number of operations that DIExpression::foldConstantMath should
+  // be applied upon, which is the number of new operations added + the
+  // preceeding operations totalling to the maximum foldable pattern.
+  unsigned OpsToBeFoldedCount =
+      NewOpCount - OpCount + DIExpression::MaxRuleOpSize;
+
+  for (auto Op : Result->expr_ops()) {
+    if (Count < FoldedOpCount) {
+      Op.appendToVector(FoldedOps);
+      Count++;
+    } else if (Count >= FoldedOpCount && Count < OpsToBeFoldedCount) {
+      Op.appendToVector(OpsToBeFolded);
+      Count++;
+    } else
+      Op.appendToVector(RemainingOps);
+  }
+
+  OpsToBeFolded = Result->foldConstantMath(OpsToBeFolded);
+  FoldedOps.append(OpsToBeFolded);
+  FoldedOps.append(RemainingOps);
+  return DIExpression::get(Result->getContext(), FoldedOps);
 }
 
 DIExpression *DIExpression::replaceArg(const DIExpression *Expr,
