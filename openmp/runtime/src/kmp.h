@@ -282,6 +282,7 @@ template <bool C = false, bool S = true> class kmp_flag_32;
 template <bool C = false, bool S = true> class kmp_flag_64;
 template <bool C = false, bool S = true> class kmp_atomic_flag_64;
 class kmp_flag_oncore;
+class kmp_flag_i32_lt;
 
 #ifdef __cplusplus
 extern "C" {
@@ -4672,6 +4673,15 @@ int __kmp_execute_tasks_oncore(kmp_info_t *thread, kmp_int32 gtid,
                                void *itt_sync_obj,
 #endif /* USE_ITT_BUILD */
                                kmp_int32 is_constrained);
+
+int __kmp_execute_tasks_i32_lt(kmp_info_t *thread, kmp_int32 gtid,
+                               kmp_flag_i32_lt * flag, int final_spin,
+                               int *thread_finished,
+#if USE_ITT_BUILD
+                               void *itt_sync_obj,
+#endif /* USE_ITT_BUILD */
+                               kmp_int32 is_constrained);
+
 
 extern int __kmp_nesting_mode;
 extern int __kmp_nesting_mode_nlevels;

@@ -1477,13 +1477,19 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
   if (UNLIKELY(!TCR_4(__kmp_init_middle)))
     __kmp_middle_initialize();
 
+  // check if too many tasks are allocated already, in such case, schedule a
+  // few before allocating a new one
   if (__kmp_enable_task_throttling) {
 #if KMP_TASK_THROTTLING_GLOBAL
-  // task throttling: too many tasks existing, empty queues now
       if (__kmp_enable_task_throttling_global) {
-         while (TCR_4(__kmp_n_tasks_in_flight.load()) >= __kmp_task_maximum_global)
-               __kmpc_omp_taskyield(NULL, gtid, 0);
-         ++__kmp_n_tasks_in_flight;
+          // empty queues
+         kmp_flag_i32_lt flag(&__kmp_n_tasks_in_flight, __kmp_task_maximum_global);
+         while (KMP_ATOMIC_LD_ACQ(&__kmp_n_tasks_in_flight) >= __kmp_task_maximum_global) {
+             flag.execute_tasks(thread, gtid, FALSE, &thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), 0);
+         }
+
+          // we can now allocate a new task, increase counter
+          ++__kmp_n_tasks_in_flight;
       }
 #endif /* KMP_TASK_THROTTLING_GLOBAL */
 
@@ -1492,12 +1498,10 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
 #if USE_ITT_BUILD
          void *itt_sync_obj = NULL;
 #endif /* USE_ITT_BUILD */
-         kmp_flag_32<false, false> flag( RCAST(std::atomic<kmp_uint32> *,
-                     &(taskdata->td_incomplete_child_tasks)), 0U);
-         while (KMP_ATOMIC_LD_ACQ(&taskdata->td_incomplete_child_tasks) >= __kmp_task_maximum_children) {
-             flag.execute_tasks(thread, gtid, FALSE,
-                     &thread_finished USE_ITT_BUILD_ARG(itt_sync_obj),
-                     __kmp_task_stealing_constraint);
+
+         kmp_flag_i32_lt flag(&parent_task->td_incomplete_child_tasks, __kmp_task_maximum_children);
+         while (KMP_ATOMIC_LD_ACQ(&parent_task->td_incomplete_child_tasks) >= __kmp_task_maximum_children) {
+             flag.execute_tasks(thread, gtid, FALSE, &thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), 0);
          }
       }
   } /* __kmp_enable_task_throttling */
@@ -3395,7 +3399,7 @@ static kmp_task_t *__kmp_steal_task(kmp_info_t *victim_thr, kmp_int32 gtid,
 // spinner == NULL means only execute a single task and return.
 // checker is the value to check to terminate the spin.
 template <class C>
-static inline int __kmp_execute_tasks_template(
+static int __kmp_execute_tasks_template(
     kmp_info_t *thread, kmp_int32 gtid, C *flag, int final_spin,
     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
     kmp_int32 is_constrained) {
@@ -3651,6 +3655,15 @@ int __kmp_atomic_execute_tasks_64(
 
 int __kmp_execute_tasks_oncore(
     kmp_info_t *thread, kmp_int32 gtid, kmp_flag_oncore *flag, int final_spin,
+    int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
+    kmp_int32 is_constrained) {
+  return __kmp_execute_tasks_template(
+      thread, gtid, flag, final_spin,
+      thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), is_constrained);
+}
+
+int __kmp_execute_tasks_i32_lt(
+    kmp_info_t *thread, kmp_int32 gtid, kmp_flag_i32_lt *flag, int final_spin,
     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
     kmp_int32 is_constrained) {
   return __kmp_execute_tasks_template(
