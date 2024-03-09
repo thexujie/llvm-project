@@ -512,19 +512,16 @@ static bool simplifySeqSelectWithSameCond(SelectInst &SI,
   auto trySimplifySeqSelect = [=, &SI, &IC](unsigned OpIndex) {
     assert((OpIndex == 1 || OpIndex == 2) && "Unexpected operand index");
     SelectInst *SINext = &SI;
-    Type *SelType = SINext->getType();
     Value *ValOp = SINext->getOperand(OpIndex);
     Value *CondNext;
     while (match(ValOp, m_Select(m_Value(CondNext), m_Value(), m_Value()))) {
-      if (CondNext == CondVal && SelType->isIntOrIntVectorTy() &&
-          CondType->isVectorTy() == SelType->isVectorTy()) {
+      if (CondNext == CondVal) {
         IC.replaceOperand(*SINext, OpIndex,
                           cast<SelectInst>(ValOp)->getOperand(OpIndex));
         return true;
       }
 
       SINext = cast<SelectInst>(ValOp);
-      SelType = SINext->getType();
       ValOp = SINext->getOperand(OpIndex);
     }
     return false;
