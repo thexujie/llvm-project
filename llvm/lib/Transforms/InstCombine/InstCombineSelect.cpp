@@ -509,27 +509,34 @@ static bool simplifySeqSelectWithSameCond(SelectInst &SI,
   if (match(CondVal, m_ImmConstant()))
     return false;
 
-  Type *CondType = CondVal->getType();
-  SelectInst *SINext = &SI;
-  Type *SelType = SINext->getType();
-  Value *FalseVal = SINext->getFalseValue();
-  Value *CondNext;
-  Value *FalseNext;
-  while (match(FalseVal,
-               m_Select(m_Value(CondNext), m_Value(), m_Value(FalseNext)))) {
-    // If the type of select is not an integer type or if the condition and
-    // the selection type are not both scalar nor both vector types, there is no
-    // point in attempting to match these patterns.
-    if (CondNext == CondVal && SelType->isIntOrIntVectorTy() &&
-        CondType->isVectorTy() == SelType->isVectorTy()) {
-      IC.replaceOperand(*SINext, 2, FalseNext);
-      return true;
-    }
+  auto trySimplifySeqSelect = [=, &SI, &IC](unsigned OpIndex) {
+    assert((OpIndex == 1 || OpIndex == 2) && "Unexpected operand index");
+    SelectInst *SINext = &SI;
+    Type *SelType = SINext->getType();
+    Value *ValOp = SINext->getOperand(OpIndex);
+    Value *CondNext;
+    while (match(ValOp, m_Select(m_Value(CondNext), m_Value(), m_Value()))) {
+      if (CondNext == CondVal && SelType->isIntOrIntVectorTy() &&
+          CondType->isVectorTy() == SelType->isVectorTy()) {
+        IC.replaceOperand(*SINext, OpIndex,
+                          cast<SelectInst>(ValOp)->getOperand(OpIndex));
+        return true;
+      }
 
-    SINext = cast<SelectInst>(FalseVal);
-    SelType = SINext->getType();
-    FalseVal = SINext->getFalseValue();
-  }
+      SINext = cast<SelectInst>(ValOp);
+      SelType = SINext->getType();
+      ValOp = SINext->getOperand(OpIndex);
+    }
+    return false;
+  };
+
+  // Try to simplify the true value of select.
+  if (trySimplifySeqSelect(/*OpIndex=*/1))
+    return true;
+
+  // Try to simplify the false value of select.
+  if (trySimplifySeqSelect(/*OpIndex=*/2))
+    return true;
 
   return false;
 }
