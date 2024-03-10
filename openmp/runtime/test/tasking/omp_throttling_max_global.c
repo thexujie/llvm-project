@@ -6,8 +6,8 @@
 // REQUIRES: kmp_task_throttling_global
 // clang-format on
 
-# define ENABLE_ENV_VAR ("KMP_ENABLE_TASK_THROTTLING_GLOBAL")
-# define MAX_ENV_VAR    ("KMP_TASK_MAXIMUM_GLOBAL")
-# define USE_DEPS       (1)
+#define ENABLE_ENV_VAR ("KMP_ENABLE_TASK_THROTTLING_GLOBAL")
+#define MAX_ENV_VAR ("KMP_TASK_MAXIMUM_GLOBAL")
+#define USE_DEPS (1)
 
-# include "omp_throttling.h"
+#include "omp_throttling.h"

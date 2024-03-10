@@ -117,10 +117,6 @@ class kmp_stats_list;
 #include <xmmintrin.h>
 #endif
 
-#ifdef KMP_TASK_THROTTLING_GLOBAL
-# error "KMP_TASK_THROTTLING_GLOBAL SET !!"
-#endif
-
 // The below has to be defined before including "kmp_barrier.h".
 #define KMP_INTERNAL_MALLOC(sz) malloc(sz)
 #define KMP_INTERNAL_FREE(p) free(p)
@@ -4675,13 +4671,12 @@ int __kmp_execute_tasks_oncore(kmp_info_t *thread, kmp_int32 gtid,
                                kmp_int32 is_constrained);
 
 int __kmp_execute_tasks_i32_lt(kmp_info_t *thread, kmp_int32 gtid,
-                               kmp_flag_i32_lt * flag, int final_spin,
+                               kmp_flag_i32_lt *flag, int final_spin,
                                int *thread_finished,
 #if USE_ITT_BUILD
                                void *itt_sync_obj,
 #endif /* USE_ITT_BUILD */
                                kmp_int32 is_constrained);
-
 
 extern int __kmp_nesting_mode;
 extern int __kmp_nesting_mode_nlevels;

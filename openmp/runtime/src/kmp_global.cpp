@@ -361,13 +361,12 @@ int __kmp_task_stealing_constraint = 1; /* Constrain task stealing by default */
  *  - n of ready-tasks in the current thread queue ('per-thread')
  *  - n of children tasks of for a parent task ('children')
  */
-kmp_int32 __kmp_enable_task_throttling                  = 1;
+kmp_int32 __kmp_enable_task_throttling = 1;
 #if KMP_TASK_THROTTLING_GLOBAL
-kmp_int32 __kmp_enable_task_throttling_global           = 0;
+kmp_int32 __kmp_enable_task_throttling_global = 0;
 #endif /* KMP_TASK_THROTTLING_GLOBAL */
 kmp_int32 __kmp_enable_task_throttling_ready_per_thread = 1;
-kmp_int32 __kmp_enable_task_throttling_children         = 0;
-
+kmp_int32 __kmp_enable_task_throttling_children = 0;
 
 #if KMP_TASK_THROTTLING_GLOBAL
 std::atomic<kmp_int32> __kmp_n_tasks_in_flight = 0;
