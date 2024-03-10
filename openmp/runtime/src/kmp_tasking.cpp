@@ -3410,7 +3410,7 @@ static kmp_task_t *__kmp_steal_task(kmp_info_t *victim_thr, kmp_int32 gtid,
 // spinner == NULL means only execute a single task and return.
 // checker is the value to check to terminate the spin.
 template <class C>
-static int __kmp_execute_tasks_template(
+static inline int __kmp_execute_tasks_template(
     kmp_info_t *thread, kmp_int32 gtid, C *flag, int final_spin,
     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
     kmp_int32 is_constrained) {
