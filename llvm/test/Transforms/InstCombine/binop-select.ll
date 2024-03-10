@@ -408,8 +408,8 @@ define i32 @ashr_sel_op1_use(i1 %b) {
 define i32 @test_mul_to_const_Cmul(i32 %x) {
 ; CHECK-LABEL: @test_mul_to_const_Cmul(
 ; CHECK-NEXT:    [[C:%.*]] = icmp eq i32 [[X:%.*]], 61
-; CHECK-NEXT:    [[COND:%.*]] = select i1 [[C]], i32 9, i32 14
-; CHECK-NEXT:    [[R:%.*]] = mul i32 [[COND]], [[X]]
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[X]], 14
+; CHECK-NEXT:    [[R:%.*]] = select i1 [[C]], i32 549, i32 [[TMP1]]
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %c = icmp eq i32 %x, 61
@@ -421,8 +421,8 @@ define i32 @test_mul_to_const_Cmul(i32 %x) {
 define i32 @test_mul_to_const_mul(i32 %x, i32 %y) {
 ; CHECK-LABEL: @test_mul_to_const_mul(
 ; CHECK-NEXT:    [[C:%.*]] = icmp eq i32 [[X:%.*]], 61
-; CHECK-NEXT:    [[COND:%.*]] = select i1 [[C]], i32 9, i32 [[Y:%.*]]
-; CHECK-NEXT:    [[R:%.*]] = mul i32 [[COND]], [[X]]
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[Y:%.*]], [[X]]
+; CHECK-NEXT:    [[R:%.*]] = select i1 [[C]], i32 549, i32 [[TMP1]]
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %c = icmp eq i32 %x, 61
@@ -493,7 +493,7 @@ define i32 @test_div_with_multiuse(i1 %cond) {
 ; CHECK-LABEL: @test_div_with_multiuse(
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[COND:%.*]], i32 132, i32 66
 ; CHECK-NEXT:    call void @use(i32 [[SEL]])
-; CHECK-NEXT:    [[RET:%.*]] = udiv i32 [[SEL]], 22
+; CHECK-NEXT:    [[RET:%.*]] = select i1 [[COND]], i32 6, i32 3
 ; CHECK-NEXT:    ret i32 [[RET]]
 ;
   %sel = select i1 %cond, i32 132, i32 66
