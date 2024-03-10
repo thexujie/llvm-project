@@ -546,9 +546,10 @@ static kmp_int32 __kmp_push_task(kmp_int32 gtid, kmp_task_t *task) {
   int requires_resize = TCR_4(thread_data->td.td_deque_ntasks) >=
                         TASK_DEQUE_SIZE(thread_data->td);
   // Check if dequeue has too many tasks and needs throttling
-  int requires_throttling =
-      __kmp_enable_task_throttling && TCR_4(thread_data->td.td_deque_ntasks) >=
-                                          __kmp_task_maximum_ready_per_thread;
+  int requires_throttling = __kmp_enable_task_throttling &&
+                            __kmp_enable_task_throttling_ready_per_thread &&
+                            TCR_4(thread_data->td.td_deque_ntasks) >=
+                                __kmp_task_maximum_ready_per_thread;
   if (requires_resize || requires_throttling) {
     int thread_can_execute =
         __kmp_task_is_allowed(gtid, __kmp_task_stealing_constraint, taskdata,
@@ -575,6 +576,7 @@ static kmp_int32 __kmp_push_task(kmp_int32 gtid, kmp_task_t *task) {
     requires_resize = TCR_4(thread_data->td.td_deque_ntasks) >=
                       TASK_DEQUE_SIZE(thread_data->td);
     requires_throttling = __kmp_enable_task_throttling &&
+                          __kmp_enable_task_throttling_ready_per_thread &&
                           TCR_4(thread_data->td.td_deque_ntasks) >=
                               __kmp_task_maximum_ready_per_thread;
     if (requires_resize || requires_throttling) {
@@ -926,10 +928,10 @@ static void __kmp_free_task(kmp_int32 gtid, kmp_taskdata_t *taskdata,
 #else /* ! USE_FAST_MEMORY */
   __kmp_thread_free(thread, taskdata);
 #endif
-#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
-  if (__kmp_enable_task_throttling)
+#if KMP_TASK_THROTTLING_GLOBAL
+  if (__kmp_enable_task_throttling && __kmp_enable_task_throttling_global)
     --__kmp_n_tasks_in_flight;
-#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
+#endif /* KMP_TASK_THROTTLING_GLOBAL */
 #if OMPX_TASKGRAPH
   } else {
     taskdata->td_flags.complete = 0;
@@ -1454,6 +1456,21 @@ static size_t __kmp_round_up_to_val(size_t size, size_t val) {
   return size;
 } // __kmp_round_up_to_va
 
+static inline void __kmp_empty_queues(kmp_info_t *thread, kmp_int32 gtid,
+                                      std::atomic<kmp_int32> *counter,
+                                      kmp_int32 threshold) {
+  int thread_finished = FALSE;
+#if USE_ITT_BUILD
+  void *itt_sync_obj = NULL;
+#endif /* USE_ITT_BUILD */
+
+  kmp_flag_i32_lt flag(counter, threshold);
+  while (KMP_ATOMIC_LD_ACQ(counter) >= threshold) {
+    flag.execute_tasks(thread, gtid, FALSE,
+                       &thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), 0);
+  }
+}
+
 // __kmp_task_alloc: Allocate the taskdata and task data structures for a task
 //
 // loc_ref: source location information
@@ -1480,14 +1497,23 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
   if (UNLIKELY(!TCR_4(__kmp_init_middle)))
     __kmp_middle_initialize();
 
-#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
-  // task throttling: too many tasks co-existing, emptying queue now
+  // check if too many tasks are allocated already, in such case, schedule a
+  // few before allocating a new one
   if (__kmp_enable_task_throttling) {
-    while (TCR_4(__kmp_n_tasks_in_flight.load()) >= __kmp_task_maximum)
-      __kmpc_omp_taskyield(NULL, gtid, 0);
-    ++__kmp_n_tasks_in_flight;
-  }
-#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
+#if KMP_TASK_THROTTLING_GLOBAL
+    if (__kmp_enable_task_throttling_global) {
+      __kmp_empty_queues(thread, gtid, &__kmp_n_tasks_in_flight,
+                         __kmp_task_maximum_global);
+      // allocating a new task now, increase the global counter
+      ++__kmp_n_tasks_in_flight;
+    }
+#endif /* KMP_TASK_THROTTLING_GLOBAL */
+
+    if (__kmp_enable_task_throttling_children) {
+      __kmp_empty_queues(thread, gtid, &parent_task->td_incomplete_child_tasks,
+                         __kmp_task_maximum_children);
+    }
+  } /* __kmp_enable_task_throttling */
 
   if (flags->hidden_helper) {
     if (__kmp_enable_hidden_helper) {
@@ -1678,8 +1704,10 @@ kmp_task_t *__kmp_task_alloc(ident_t *loc_ref, kmp_int32 gtid,
     if (parent_task->td_taskgroup)
       KMP_ATOMIC_INC(&parent_task->td_taskgroup->count);
     // Only need to keep track of allocated child tasks for explicit tasks since
-    // implicit not deallocated
-    if (taskdata->td_parent->td_flags.tasktype == TASK_EXPLICIT) {
+    // implicit not deallocated; or if throttling is enabled
+    if (taskdata->td_parent->td_flags.tasktype == TASK_EXPLICIT ||
+        (__kmp_enable_task_throttling &&
+         __kmp_enable_task_throttling_children)) {
       KMP_ATOMIC_INC(&taskdata->td_parent->td_allocated_child_tasks);
     }
     if (flags->hidden_helper) {
@@ -3382,7 +3410,7 @@ static kmp_task_t *__kmp_steal_task(kmp_info_t *victim_thr, kmp_int32 gtid,
 // spinner == NULL means only execute a single task and return.
 // checker is the value to check to terminate the spin.
 template <class C>
-static inline int __kmp_execute_tasks_template(
+static int __kmp_execute_tasks_template(
     kmp_info_t *thread, kmp_int32 gtid, C *flag, int final_spin,
     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
     kmp_int32 is_constrained) {
@@ -3638,6 +3666,15 @@ int __kmp_atomic_execute_tasks_64(
 
 int __kmp_execute_tasks_oncore(
     kmp_info_t *thread, kmp_int32 gtid, kmp_flag_oncore *flag, int final_spin,
+    int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
+    kmp_int32 is_constrained) {
+  return __kmp_execute_tasks_template(
+      thread, gtid, flag, final_spin,
+      thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), is_constrained);
+}
+
+int __kmp_execute_tasks_i32_lt(
+    kmp_info_t *thread, kmp_int32 gtid, kmp_flag_i32_lt *flag, int final_spin,
     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
     kmp_int32 is_constrained) {
   return __kmp_execute_tasks_template(

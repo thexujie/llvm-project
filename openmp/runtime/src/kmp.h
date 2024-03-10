@@ -118,12 +118,6 @@ class kmp_stats_list;
 #include <xmmintrin.h>
 #endif
 
-// Enable a global task counter to enable throttling if more than
-// 'KMP_TASK_MAXIMUM' (env var.) are in flight
-#ifndef KMP_COMPILE_GLOBAL_TASK_THROTTLING
-#define KMP_COMPILE_GLOBAL_TASK_THROTTLING 0
-#endif
-
 // The below has to be defined before including "kmp_barrier.h".
 #define KMP_INTERNAL_MALLOC(sz) malloc(sz)
 #define KMP_INTERNAL_FREE(p) free(p)
@@ -285,6 +279,7 @@ template <bool C = false, bool S = true> class kmp_flag_32;
 template <bool C = false, bool S = true> class kmp_flag_64;
 template <bool C = false, bool S = true> class kmp_atomic_flag_64;
 class kmp_flag_oncore;
+class kmp_flag_i32_lt;
 
 #ifdef __cplusplus
 extern "C" {
@@ -2430,12 +2425,19 @@ extern kmp_tasking_mode_t
     __kmp_tasking_mode; /* determines how/when to execute tasks */
 extern int __kmp_task_stealing_constraint;
 
-#if KMP_COMPILE_GLOBAL_TASK_THROTTLING
+extern kmp_int32 __kmp_enable_task_throttling;
+#if KMP_TASK_THROTTLING_GLOBAL
+extern kmp_int32 __kmp_enable_task_throttling_global;
+#endif /* KMP_TASK_THROTTLING_GLOBAL */
+extern kmp_int32 __kmp_enable_task_throttling_ready_per_thread;
+extern kmp_int32 __kmp_enable_task_throttling_children;
+
+#if KMP_TASK_THROTTLING_GLOBAL
 extern std::atomic<kmp_int32> __kmp_n_tasks_in_flight;
-extern kmp_int32 __kmp_task_maximum;
-#endif /* KMP_COMPILE_GLOBAL_TASK_THROTTLING */
-extern int __kmp_enable_task_throttling;
+extern kmp_int32 __kmp_task_maximum_global;
+#endif /* KMP_TASK_THROTTLING_GLOBAL */
 extern kmp_int32 __kmp_task_maximum_ready_per_thread;
+extern kmp_int32 __kmp_task_maximum_children;
 
 extern kmp_int32 __kmp_default_device; // Set via OMP_DEFAULT_DEVICE if
 // specified, defaults to 0 otherwise
@@ -4663,6 +4665,14 @@ int __kmp_atomic_execute_tasks_64(kmp_info_t *thread, kmp_int32 gtid,
                                   kmp_int32 is_constrained);
 int __kmp_execute_tasks_oncore(kmp_info_t *thread, kmp_int32 gtid,
                                kmp_flag_oncore *flag, int final_spin,
+                               int *thread_finished,
+#if USE_ITT_BUILD
+                               void *itt_sync_obj,
+#endif /* USE_ITT_BUILD */
+                               kmp_int32 is_constrained);
+
+int __kmp_execute_tasks_i32_lt(kmp_info_t *thread, kmp_int32 gtid,
+                               kmp_flag_i32_lt *flag, int final_spin,
                                int *thread_finished,
 #if USE_ITT_BUILD
                                void *itt_sync_obj,
