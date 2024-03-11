@@ -281,8 +281,8 @@ static void testDebugInfoAttributes(MlirContext ctx) {
   // CHECK: #llvm.di_compile_unit<{{.*}}>
   mlirAttributeDump(mlirLLVMDIModuleAttrGetScope(di_module));
 
-  // CHECK: 1 : i32
-  mlirAttributeDump(mlirLLVMDIFlagsAttrGet(ctx, 0x1));
+  // CHECK: 16777216 : i32
+  mlirAttributeDump(mlirLLVMDIFlagsAttrGet(ctx, MlirLLVMDIFlagsEnumClass));
 
   // CHECK: #llvm.di_lexical_block<{{.*}}>
   mlirAttributeDump(
@@ -332,6 +332,17 @@ static void testDebugInfoAttributes(MlirContext ctx) {
 
   // CHECK: #llvm.di_expression<[(1)]>
   mlirAttributeDump(mlirLLVMDIExpressionAttrGet(ctx, 1, &expression_elem));
+
+  // CHECK: #llvm.di_namespace<{{.*}}>
+  mlirAttributeDump(mlirLLVMDINamespaceAttrGet(ctx, foo, compile_unit, true));
+
+  MlirType type = mlirIntegerTypeGet(ctx, 64);
+
+  // CHECK: #llvm.di_subrange<count = 1 : i64, lowerBound = 1 : i64, upperBound
+  // CHECK-SAME: = 10 : i64, stride = 1 : i64>
+  mlirAttributeDump(mlirLLVMDISubrangeAttrGet(
+      ctx, mlirIntegerAttrGet(type, 1), mlirIntegerAttrGet(type, 1),
+      mlirIntegerAttrGet(type, 10), mlirIntegerAttrGet(type, 1)));
 }
 
 int main(void) {
