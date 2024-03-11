@@ -108,7 +108,7 @@ bool TypeFormatImpl_Format::FormatObject(ValueObject *valobj,
             *size,                          // Byte size of item in "m_data"
             valobj->GetBitfieldBitSize(),   // Bitfield bit size
             valobj->GetBitfieldBitOffset(), // Bitfield bit offset
-            exe_scope);
+            exe_scope, valobj->GetEnumsAlwaysShowValue());
         // Given that we do not want to set the ValueObject's m_error for a
         // formatting error (or else we wouldn't be able to reformat until a
         // next update), an empty string is treated as a "false" return from

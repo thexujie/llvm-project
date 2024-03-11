@@ -398,7 +398,8 @@ public:
                              lldb::offset_t data_offset, size_t data_byte_size,
                              uint32_t bitfield_bit_size,
                              uint32_t bitfield_bit_offset,
-                             ExecutionContextScope *exe_scope) = 0;
+                             ExecutionContextScope *exe_scope,
+                             bool enums_always_show_value = false) = 0;
 
   /// Dump the type to stdout.
   virtual void DumpTypeDescription(

@@ -490,7 +490,8 @@ public:
   bool DumpTypeValue(Stream *s, lldb::Format format, const DataExtractor &data,
                      lldb::offset_t data_offset, size_t data_byte_size,
                      uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
-                     ExecutionContextScope *exe_scope);
+                     ExecutionContextScope *exe_scope,
+                     bool enums_always_show_value = false);
 
   /// Dump to stdout.
   void DumpTypeDescription(lldb::DescriptionLevel level =

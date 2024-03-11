@@ -1016,12 +1016,13 @@ bool CompilerType::DumpTypeValue(Stream *s, lldb::Format format,
                                  lldb::offset_t byte_offset, size_t byte_size,
                                  uint32_t bitfield_bit_size,
                                  uint32_t bitfield_bit_offset,
-                                 ExecutionContextScope *exe_scope) {
+                                 ExecutionContextScope *exe_scope,
+                                 bool enums_always_show_value) {
   if (IsValid())
     if (auto type_system_sp = GetTypeSystem())
       return type_system_sp->DumpTypeValue(
           m_type, *s, format, data, byte_offset, byte_size, bitfield_bit_size,
-          bitfield_bit_offset, exe_scope);
+          bitfield_bit_offset, exe_scope, enums_always_show_value);
   return false;
 }
 

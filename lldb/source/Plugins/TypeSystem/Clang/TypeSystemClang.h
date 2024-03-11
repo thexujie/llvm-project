@@ -1047,7 +1047,8 @@ public:
                      lldb::Format format, const DataExtractor &data,
                      lldb::offset_t data_offset, size_t data_byte_size,
                      uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
-                     ExecutionContextScope *exe_scope) override;
+                     ExecutionContextScope *exe_scope,
+                     bool enums_always_show_value = false) override;
 
   void DumpTypeDescription(
       lldb::opaque_compiler_type_t type,

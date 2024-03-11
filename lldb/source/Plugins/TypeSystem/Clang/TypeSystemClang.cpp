@@ -8474,7 +8474,7 @@ void TypeSystemClang::DumpFromSymbolFile(Stream &s,
 static bool DumpEnumValue(const clang::QualType &qual_type, Stream &s,
                           const DataExtractor &data, lldb::offset_t byte_offset,
                           size_t byte_size, uint32_t bitfield_bit_offset,
-                          uint32_t bitfield_bit_size) {
+                          uint32_t bitfield_bit_size, bool always_show_value) {
   const clang::EnumType *enutype =
       llvm::cast<clang::EnumType>(qual_type.getTypePtr());
   const clang::EnumDecl *enum_decl = enutype->getDecl();
@@ -8501,7 +8501,11 @@ static bool DumpEnumValue(const clang::QualType &qual_type, Stream &s,
     ++num_enumerators;
     if (val == enum_svalue) {
       // Found an exact match, that's all we need to do.
-      s.PutCString(enumerator->getNameAsString());
+      if (always_show_value)
+        s.Printf("%s (%" PRIi64 ")", enumerator->getNameAsString().c_str(),
+                 enum_svalue);
+      else
+        s.PutCString(enumerator->getNameAsString());
       return true;
     }
   }
@@ -8556,7 +8560,7 @@ bool TypeSystemClang::DumpTypeValue(
     lldb::opaque_compiler_type_t type, Stream &s, lldb::Format format,
     const lldb_private::DataExtractor &data, lldb::offset_t byte_offset,
     size_t byte_size, uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
-    ExecutionContextScope *exe_scope) {
+    ExecutionContextScope *exe_scope, bool enums_always_show_value) {
   if (!type)
     return false;
   if (IsAggregateType(type)) {
@@ -8568,8 +8572,10 @@ bool TypeSystemClang::DumpTypeValue(
 
     if (type_class == clang::Type::Elaborated) {
       qual_type = llvm::cast<clang::ElaboratedType>(qual_type)->getNamedType();
-      return DumpTypeValue(qual_type.getAsOpaquePtr(), s, format, data, byte_offset, byte_size,
-                           bitfield_bit_size, bitfield_bit_offset, exe_scope);
+      return DumpTypeValue(qual_type.getAsOpaquePtr(), s, format, data,
+                           byte_offset, byte_size, bitfield_bit_size,
+                           bitfield_bit_offset, exe_scope,
+                           enums_always_show_value);
     }
 
     switch (type_class) {
@@ -8595,7 +8601,7 @@ bool TypeSystemClang::DumpTypeValue(
                              // treat as a bitfield
           bitfield_bit_offset, // Offset in bits of a bitfield value if
                                // bitfield_bit_size != 0
-          exe_scope);
+          exe_scope, enums_always_show_value);
     } break;
 
     case clang::Type::Enum:
@@ -8604,7 +8610,8 @@ bool TypeSystemClang::DumpTypeValue(
       if ((format == eFormatEnum || format == eFormatDefault) &&
           GetCompleteType(type))
         return DumpEnumValue(qual_type, s, data, byte_offset, byte_size,
-                             bitfield_bit_offset, bitfield_bit_size);
+                             bitfield_bit_offset, bitfield_bit_size,
+                             enums_always_show_value);
       // format was not enum, just fall through and dump the value as
       // requested....
       [[fallthrough]];

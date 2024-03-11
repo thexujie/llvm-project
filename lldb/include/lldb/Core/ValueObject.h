@@ -757,6 +757,12 @@ public:
 
   AddressType GetAddressTypeOfChildren();
 
+  void SetEnumsAlwaysShowValue(bool always) {
+    m_enums_always_show_value = always;
+  }
+
+  bool GetEnumsAlwaysShowValue() { return m_enums_always_show_value; }
+
   void SetHasCompleteType() {
     m_flags.m_did_calculate_complete_objc_class_type = true;
   }
@@ -889,6 +895,7 @@ protected:
   lldb::SyntheticChildrenSP m_synthetic_children_sp;
   ProcessModID m_user_id_of_forced_summary;
   AddressType m_address_type_of_ptr_or_ref_children = eAddressTypeInvalid;
+  bool m_enums_always_show_value = false;
 
   llvm::SmallVector<uint8_t, 16> m_value_checksum;
 
