@@ -885,7 +885,8 @@ void CXXRecordDecl::addedMember(Decl *D) {
       SMKind |= SMF_MoveAssignment;
     }
 
-    if (Method->isUserProvided() && (Method->isCopyAssignment() || Method->isMoveAssignment()))
+    if (Method->isUserProvided() && (Method->isCopyAssignmentOperator() ||
+                                     Method->isMoveAssignmentOperator()))
       data().IsNaturallyTriviallyRelocatable = false;
 
     // Keep the list of conversion functions up-to-date.
