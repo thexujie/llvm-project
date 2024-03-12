@@ -9,7 +9,6 @@
 #include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 
-using namespace llvm;
 using namespace lldb;
 using namespace lldb_private;
 
@@ -29,8 +28,8 @@ VerboseTrapFrameRecognizer::RecognizeFrame(lldb::StackFrameSP frame_sp) {
 
   StackFrameSP most_relevant_frame_sp = thread_sp->GetStackFrameAtIndex(1);
 
+  Log *log = GetLog(LLDBLog::Unwind);
   if (!most_relevant_frame_sp) {
-    Log *log = GetLog(LLDBLog::Unwind);
     LLDB_LOG(
         log,
         "Failed to find most relevant frame: Hit unwinding bound (1 frame)!");
@@ -62,7 +61,6 @@ VerboseTrapFrameRecognizer::RecognizeFrame(lldb::StackFrameSP frame_sp) {
   // Replaces "__llvm_verbose_trap: " with "Runtime Error: "
   auto space_position = error_message.find(" ");
   if (space_position == std::string::npos) {
-    Log *log = GetLog(LLDBLog::Unwind);
     LLDB_LOGF(log,
               "Unexpected function name format. Expected '<trap prefix>: "
               "<trap message>' but got: '%s'.",
