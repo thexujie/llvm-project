@@ -2355,7 +2355,21 @@ void OpenMPIRBuilder::emitReductionListCopy(
         break;
       }
       case EvaluationKindTy::Complex: {
-        assert(false && "Complex data type not handled");
+        Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
+            RI.ElementType, SrcElementAddr, 0, 0, ".realp");
+        Value *SrcReal = Builder.CreateLoad(
+            RI.ElementType->getStructElementType(0), SrcRealPtr, ".real");
+        Value *SrcImgPtr = Builder.CreateConstInBoundsGEP2_32(
+            RI.ElementType, SrcElementAddr, 0, 1, ".imagp");
+        Value *SrcImg = Builder.CreateLoad(
+            RI.ElementType->getStructElementType(1), SrcImgPtr, ".imag");
+
+        Value *DestRealPtr = Builder.CreateConstInBoundsGEP2_32(
+            RI.ElementType, DestElementAddr, 0, 0, ".realp");
+        Value *DestImgPtr = Builder.CreateConstInBoundsGEP2_32(
+            RI.ElementType, DestElementAddr, 0, 1, ".imagp");
+        Builder.CreateStore(SrcReal, DestRealPtr);
+        Builder.CreateStore(SrcImg, DestImgPtr);
         break;
       }
       case EvaluationKindTy::Aggregate: {
@@ -2861,7 +2875,21 @@ Function *OpenMPIRBuilder::emitListToGlobalCopyFunction(
       break;
     }
     case EvaluationKindTy::Complex: {
-      assert(false && "Complex data type not handled");
+      Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, ElemPtr, 0, 0, ".realp");
+      Value *SrcReal = Builder.CreateLoad(
+          RI.ElementType->getStructElementType(0), SrcRealPtr, ".real");
+      Value *SrcImgPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, ElemPtr, 0, 1, ".imagp");
+      Value *SrcImg = Builder.CreateLoad(
+          RI.ElementType->getStructElementType(1), SrcImgPtr, ".imag");
+
+      Value *DestRealPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, GlobVal, 0, 0, ".realp");
+      Value *DestImgPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, GlobVal, 0, 1, ".imagp");
+      Builder.CreateStore(SrcReal, DestRealPtr);
+      Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
     case EvaluationKindTy::Aggregate: {
@@ -3037,7 +3065,21 @@ Function *OpenMPIRBuilder::emitGlobalToListCopyFunction(
       break;
     }
     case EvaluationKindTy::Complex: {
-      assert(false && "Complex data type not handled");
+      Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, GlobValPtr, 0, 0, ".realp");
+      Value *SrcReal = Builder.CreateLoad(
+          RI.ElementType->getStructElementType(0), SrcRealPtr, ".real");
+      Value *SrcImgPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, GlobValPtr, 0, 1, ".imagp");
+      Value *SrcImg = Builder.CreateLoad(
+          RI.ElementType->getStructElementType(1), SrcImgPtr, ".imag");
+
+      Value *DestRealPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, ElemPtr, 0, 0, ".realp");
+      Value *DestImgPtr = Builder.CreateConstInBoundsGEP2_32(
+          RI.ElementType, ElemPtr, 0, 1, ".imagp");
+      Builder.CreateStore(SrcReal, DestRealPtr);
+      Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
     case EvaluationKindTy::Aggregate: {
