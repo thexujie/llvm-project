@@ -920,9 +920,9 @@ public:
     requires is_constructible_v<_Err, _Err&>
   _LIBCPP_HIDE_FROM_ABI constexpr auto and_then(_Func&& __f) & {
     using _Up = remove_cvref_t<invoke_result_t<_Func, _Tp&>>;
-    static_assert(__is_std_expected<_Up>::value, "The result of f(**this) must be a specialization of std::expected");
+    static_assert(__is_std_expected<_Up>::value, "The result of f(value()) must be a specialization of std::expected");
     static_assert(is_same_v<typename _Up::error_type, _Err>,
-                  "The result of f(**this) must have the same error_type as this expected");
+                  "The result of f(value()) must have the same error_type as this expected");
     if (has_value()) {
       return std::invoke(std::forward<_Func>(__f), this->__val());
     }
@@ -933,9 +933,9 @@ public:
     requires is_constructible_v<_Err, const _Err&>
   _LIBCPP_HIDE_FROM_ABI constexpr auto and_then(_Func&& __f) const& {
     using _Up = remove_cvref_t<invoke_result_t<_Func, const _Tp&>>;
-    static_assert(__is_std_expected<_Up>::value, "The result of f(**this) must be a specialization of std::expected");
+    static_assert(__is_std_expected<_Up>::value, "The result of f(value()) must be a specialization of std::expected");
     static_assert(is_same_v<typename _Up::error_type, _Err>,
-                  "The result of f(**this) must have the same error_type as this expected");
+                  "The result of f(value()) must have the same error_type as this expected");
     if (has_value()) {
       return std::invoke(std::forward<_Func>(__f), this->__val());
     }
@@ -947,9 +947,9 @@ public:
   _LIBCPP_HIDE_FROM_ABI constexpr auto and_then(_Func&& __f) && {
     using _Up = remove_cvref_t<invoke_result_t<_Func, _Tp&&>>;
     static_assert(
-        __is_std_expected<_Up>::value, "The result of f(std::move(**this)) must be a specialization of std::expected");
+        __is_std_expected<_Up>::value, "The result of f(std::move(value())) must be a specialization of std::expected");
     static_assert(is_same_v<typename _Up::error_type, _Err>,
-                  "The result of f(std::move(**this)) must have the same error_type as this expected");
+                  "The result of f(std::move(value())) must have the same error_type as this expected");
     if (has_value()) {
       return std::invoke(std::forward<_Func>(__f), std::move(this->__val()));
     }
@@ -961,9 +961,9 @@ public:
   _LIBCPP_HIDE_FROM_ABI constexpr auto and_then(_Func&& __f) const&& {
     using _Up = remove_cvref_t<invoke_result_t<_Func, const _Tp&&>>;
     static_assert(
-        __is_std_expected<_Up>::value, "The result of f(std::move(**this)) must be a specialization of std::expected");
+        __is_std_expected<_Up>::value, "The result of f(std::move(value())) must be a specialization of std::expected");
     static_assert(is_same_v<typename _Up::error_type, _Err>,
-                  "The result of f(std::move(**this)) must have the same error_type as this expected");
+                  "The result of f(std::move(value())) must have the same error_type as this expected");
     if (has_value()) {
       return std::invoke(std::forward<_Func>(__f), std::move(this->__val()));
     }
