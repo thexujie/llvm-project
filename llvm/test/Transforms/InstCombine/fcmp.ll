@@ -1486,3 +1486,46 @@ define i1 @fcmp_fadd_fast_zero(float %x, float %y) {
   %cmp = fcmp ugt float %add, %y
   ret i1 %cmp
 }
+
+define i1 @fcmp_ogt_fsub_const(float %x, float %y) {
+; CHECK-LABEL: @fcmp_ogt_fsub_const(
+; CHECK-NEXT:    [[CMP:%.*]] = fcmp ogt float [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    ret i1 [[CMP]]
+;
+  %fs = fsub float %x, %y
+  %cmp = fcmp ogt float %fs, 0.000000e+00
+  ret i1 %cmp
+}
+
+define i1 @fcmp_olt_fsub_const(float %x, float %y) {
+; CHECK-LABEL: @fcmp_olt_fsub_const(
+; CHECK-NEXT:    [[CMP:%.*]] = fcmp olt float [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    ret i1 [[CMP]]
+;
+  %fs = fsub float %x, %y
+  %cmp = fcmp olt float %fs, 0.000000e+00
+  ret i1 %cmp
+}
+
+define i1 @fcmp_one_fsub_const(float %x, float %y) {
+; CHECK-LABEL: @fcmp_one_fsub_const(
+; CHECK-NEXT:    [[CMP:%.*]] = fcmp one float [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    ret i1 [[CMP]]
+;
+  %fs = fsub float %x, %y
+  %cmp = fcmp one float %fs, 0.000000e+00
+  ret i1 %cmp
+}
+
+define i1 @fcmp_fsub_neg_zero(float %x, float %y) {
+; CHECK-LABEL: @fcmp_fsub_neg_zero(
+; CHECK-NEXT:    [[FS:%.*]] = fsub float [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    call void @use(float [[FS]])
+; CHECK-NEXT:    [[CMP:%.*]] = fcmp ogt float [[X]], [[Y]]
+; CHECK-NEXT:    ret i1 [[CMP]]
+;
+  %fs = fsub float %x, %y
+  call void @use(float %fs)
+  %cmp = fcmp ogt float %fs, -0.000000e+00
+  ret i1 %cmp
+}
