@@ -1777,6 +1777,10 @@ public:
   /// Whether to support HIP image/texture API's.
   virtual bool hasHIPImageSupport() const { return true; }
 
+  virtual bool defaultsToMsStruct() const {
+    return getCXXABI().isMicrosoft() || getTriple().isWindowsGNUEnvironment();
+  }
+
 protected:
   /// Copy type and layout related info.
   void copyAuxTarget(const TargetInfo *Aux);
