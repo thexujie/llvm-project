@@ -1,4 +1,4 @@
-//===--- ByteCodeExprGen.h - Code generator for expressions -----*- C++ -*-===//
+//===--- Compiler.h - Code generator for expressions -----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -35,15 +35,20 @@ template <class Emitter> class DeclScope;
 template <class Emitter> class OptionScope;
 template <class Emitter> class ArrayIndexScope;
 template <class Emitter> class SourceLocScope;
+template <class Emitter> class LoopScope;
+template <class Emitter> class LabelScope;
+template <class Emitter> class SwitchScope;
 
 /// Compilation context for expressions.
 template <class Emitter>
-class ByteCodeExprGen : public ConstStmtVisitor<ByteCodeExprGen<Emitter>, bool>,
-                        public Emitter {
+class Compiler : public ConstStmtVisitor<Compiler<Emitter>, bool>,
+                 public Emitter {
 protected:
   // Aliases for types defined in the emitter.
   using LabelTy = typename Emitter::LabelTy;
   using AddrTy = typename Emitter::AddrTy;
+  using OptLabelTy = std::optional<LabelTy>;
+  using CaseMap = llvm::DenseMap<const SwitchCase *, LabelTy>;
 
   /// Current compilation context.
   Context &Ctx;
@@ -53,10 +58,10 @@ protected:
 public:
   /// Initializes the compiler and the backend emitter.
   template <typename... Tys>
-  ByteCodeExprGen(Context &Ctx, Program &P, Tys &&... Args)
+  Compiler(Context &Ctx, Program &P, Tys &&...Args)
       : Emitter(Ctx, P, Args...), Ctx(Ctx), P(P) {}
 
-  // Expression visitors - result returned on interp stack.
+  // Expressions.
   bool VisitCastExpr(const CastExpr *E);
   bool VisitIntegerLiteral(const IntegerLiteral *E);
   bool VisitFloatingLiteral(const FloatingLiteral *E);
@@ -121,10 +126,31 @@ public:
   bool VisitCXXRewrittenBinaryOperator(const CXXRewrittenBinaryOperator *E);
   bool VisitPseudoObjectExpr(const PseudoObjectExpr *E);
   bool VisitPackIndexingExpr(const PackIndexingExpr *E);
+  bool VisitStmtExpr(const StmtExpr *E);
+
+  // Statements.
+  bool visitCompoundStmt(const CompoundStmt *S);
+  bool visitLoopBody(const Stmt *S);
+  bool visitDeclStmt(const DeclStmt *DS);
+  bool visitReturnStmt(const ReturnStmt *RS);
+  bool visitIfStmt(const IfStmt *IS);
+  bool visitWhileStmt(const WhileStmt *S);
+  bool visitDoStmt(const DoStmt *S);
+  bool visitForStmt(const ForStmt *S);
+  bool visitCXXForRangeStmt(const CXXForRangeStmt *S);
+  bool visitBreakStmt(const BreakStmt *S);
+  bool visitContinueStmt(const ContinueStmt *S);
+  bool visitSwitchStmt(const SwitchStmt *S);
+  bool visitCaseStmt(const CaseStmt *S);
+  bool visitDefaultStmt(const DefaultStmt *S);
+  bool visitAttributedStmt(const AttributedStmt *S);
+  bool visitCXXTryStmt(const CXXTryStmt *S);
 
 protected:
+  bool visitStmt(const Stmt *S);
   bool visitExpr(const Expr *E) override;
   bool visitDecl(const VarDecl *VD) override;
+  bool visitFunc(const FunctionDecl *F) override;
 
 protected:
   /// Emits scope cleanup instructions.
@@ -137,8 +163,8 @@ protected:
   Record *getRecord(QualType Ty);
   Record *getRecord(const RecordDecl *RD);
 
-  // Returns a function for the given FunctionDecl.
-  // If the function does not exist yet, it is compiled.
+  /// Returns a function for the given FunctionDecl.
+  /// If the function does not exist yet, it is compiled.
   const Function *getFunction(const FunctionDecl *FD);
 
   std::optional<PrimType> classify(const Expr *E) const {
@@ -235,6 +261,9 @@ private:
   friend class OptionScope<Emitter>;
   friend class ArrayIndexScope<Emitter>;
   friend class SourceLocScope<Emitter>;
+  friend class LoopScope<Emitter>;
+  friend class LabelScope<Emitter>;
+  friend class SwitchScope<Emitter>;
 
   /// Emits a zero initializer.
   bool visitZeroInitializer(PrimType T, QualType QT, const Expr *E);
@@ -276,6 +305,7 @@ private:
 
   bool emitRecordDestruction(const Record *R);
   bool emitDestruction(const Descriptor *Desc);
+  bool emitLambdaStaticInvokerBody(const CXXMethodDecl *MD);
   unsigned collectBaseOffset(const RecordType *BaseType,
                              const RecordType *DerivedType);
 
@@ -304,16 +334,28 @@ protected:
 
   /// Flag indicating if we're initializing a global variable.
   bool GlobalDecl = false;
+
+  /// Type of the expression returned by the function.
+  std::optional<PrimType> ReturnType;
+
+  /// Switch case mapping.
+  CaseMap CaseLabels;
+
+  /// Point to break to.
+  OptLabelTy BreakLabel;
+  /// Point to continue to.
+  OptLabelTy ContinueLabel;
+  /// Default case label.
+  OptLabelTy DefaultLabel;
 };
 
-extern template class ByteCodeExprGen<ByteCodeEmitter>;
-extern template class ByteCodeExprGen<EvalEmitter>;
+extern template class Compiler<ByteCodeEmitter>;
+extern template class Compiler<EvalEmitter>;
 
 /// Scope chain managing the variable lifetimes.
 template <class Emitter> class VariableScope {
 public:
-  VariableScope(ByteCodeExprGen<Emitter> *Ctx)
-      : Ctx(Ctx), Parent(Ctx->VarScope) {
+  VariableScope(Compiler<Emitter> *Ctx) : Ctx(Ctx), Parent(Ctx->VarScope) {
     Ctx->VarScope = this;
   }
 
@@ -341,8 +383,8 @@ public:
   VariableScope *getParent() const { return Parent; }
 
 protected:
-  /// ByteCodeExprGen instance.
-  ByteCodeExprGen<Emitter> *Ctx;
+  /// Compiler instance.
+  Compiler<Emitter> *Ctx;
   /// Link to the parent scope.
   VariableScope *Parent;
 };
@@ -350,7 +392,7 @@ protected:
 /// Generic scope for local variables.
 template <class Emitter> class LocalScope : public VariableScope<Emitter> {
 public:
-  LocalScope(ByteCodeExprGen<Emitter> *Ctx) : VariableScope<Emitter>(Ctx) {}
+  LocalScope(Compiler<Emitter> *Ctx) : VariableScope<Emitter>(Ctx) {}
 
   /// Emit a Destroy op for this scope.
   ~LocalScope() override {
@@ -444,8 +486,7 @@ private:
 /// variables are automatically emitted when the AutoScope is destroyed.
 template <class Emitter> class AutoScope : public LocalScope<Emitter> {
 public:
-  AutoScope(ByteCodeExprGen<Emitter> *Ctx)
-      : LocalScope<Emitter>(Ctx), DS(*this) {}
+  AutoScope(Compiler<Emitter> *Ctx) : LocalScope<Emitter>(Ctx), DS(*this) {}
 
 private:
   DestructorScope<Emitter> DS;
@@ -454,7 +495,7 @@ private:
 /// Scope for storage declared in a compound statement.
 template <class Emitter> class BlockScope final : public AutoScope<Emitter> {
 public:
-  BlockScope(ByteCodeExprGen<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
+  BlockScope(Compiler<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
 
   void addExtended(const Scope::Local &Local) override {
     // If we to this point, just add the variable as a normal local
@@ -468,7 +509,7 @@ public:
 /// temporaries which are hoisted to the parent scope on exit.
 template <class Emitter> class ExprScope final : public AutoScope<Emitter> {
 public:
-  ExprScope(ByteCodeExprGen<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
+  ExprScope(Compiler<Emitter> *Ctx) : AutoScope<Emitter>(Ctx) {}
 
   void addExtended(const Scope::Local &Local) override {
     if (this->Parent)
@@ -478,7 +519,7 @@ public:
 
 template <class Emitter> class ArrayIndexScope final {
 public:
-  ArrayIndexScope(ByteCodeExprGen<Emitter> *Ctx, uint64_t Index) : Ctx(Ctx) {
+  ArrayIndexScope(Compiler<Emitter> *Ctx, uint64_t Index) : Ctx(Ctx) {
     OldArrayIndex = Ctx->ArrayIndex;
     Ctx->ArrayIndex = Index;
   }
@@ -486,14 +527,13 @@ public:
   ~ArrayIndexScope() { Ctx->ArrayIndex = OldArrayIndex; }
 
 private:
-  ByteCodeExprGen<Emitter> *Ctx;
+  Compiler<Emitter> *Ctx;
   std::optional<uint64_t> OldArrayIndex;
 };
 
 template <class Emitter> class SourceLocScope final {
 public:
-  SourceLocScope(ByteCodeExprGen<Emitter> *Ctx, const Expr *DefaultExpr)
-      : Ctx(Ctx) {
+  SourceLocScope(Compiler<Emitter> *Ctx, const Expr *DefaultExpr) : Ctx(Ctx) {
     assert(DefaultExpr);
     // We only switch if the current SourceLocDefaultExpr is null.
     if (!Ctx->SourceLocDefaultExpr) {
@@ -508,7 +548,7 @@ public:
   }
 
 private:
-  ByteCodeExprGen<Emitter> *Ctx;
+  Compiler<Emitter> *Ctx;
   bool Enabled = false;
 };
 
