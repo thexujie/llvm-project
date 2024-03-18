@@ -7840,11 +7840,9 @@ Sema::BuildCompoundLiteralExpr(SourceLocation LParenLoc, TypeSourceInfo *TInfo,
       return ExprError();
     }
   } else if (!literalType->isDependentType() &&
-             RequireCompleteType(
-                 LParenLoc, literalType,
-                 diag::err_typecheck_decl_incomplete_type,
-                 SourceRange(LParenLoc,
-                             LiteralExpr->getSourceRange().getEnd())))
+             RequireCompleteType(LParenLoc, literalType,
+               diag::err_typecheck_decl_incomplete_type,
+               SourceRange(LParenLoc, LiteralExpr->getSourceRange().getEnd())))
     return ExprError();
 
   InitializedEntity Entity
