@@ -46,6 +46,10 @@ class CallLowering {
 
   virtual void anchor();
 public:
+  struct PointerAuthInfo {
+    Register Discriminator;
+    uint64_t Key;
+  };
   struct BaseArgInfo {
     Type *Ty;
     SmallVector<ISD::ArgFlagsTy, 4> Flags;
@@ -124,6 +128,8 @@ public:
     const CallBase *CB = nullptr;
 
     MDNode *KnownCallees = nullptr;
+
+    std::optional<PointerAuthInfo> PAI;
 
     /// True if the call must be tail call optimized.
     bool IsMustTailCall = false;
@@ -587,6 +593,7 @@ public:
   bool lowerCall(MachineIRBuilder &MIRBuilder, const CallBase &Call,
                  ArrayRef<Register> ResRegs,
                  ArrayRef<ArrayRef<Register>> ArgRegs, Register SwiftErrorVReg,
+                 std::optional<PointerAuthInfo> PAI,
                  Register ConvergenceCtrlToken,
                  std::function<unsigned()> GetCalleeReg) const;
 
