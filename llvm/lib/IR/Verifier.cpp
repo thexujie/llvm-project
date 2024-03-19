@@ -626,6 +626,7 @@ private:
 
   void visitConstantExprsRecursively(const Constant *EntryC);
   void visitConstantExpr(const ConstantExpr *CE);
+  void visitConstantPtrAuth(const ConstantPtrAuth *SP);
   void verifyInlineAsmCall(const CallBase &Call);
   void verifyStatepoint(const CallBase &Call);
   void verifyFrameRecoverIndices();
@@ -2397,6 +2398,9 @@ void Verifier::visitConstantExprsRecursively(const Constant *EntryC) {
     if (const auto *CE = dyn_cast<ConstantExpr>(C))
       visitConstantExpr(CE);
 
+    if (const auto *SP = dyn_cast<ConstantPtrAuth>(C))
+      visitConstantPtrAuth(SP);
+
     if (const auto *GV = dyn_cast<GlobalValue>(C)) {
       // Global Values get visited separately, but we do need to make sure
       // that the global value is in the correct module
@@ -2422,6 +2426,20 @@ void Verifier::visitConstantExpr(const ConstantExpr *CE) {
     Check(CastInst::castIsValid(Instruction::BitCast, CE->getOperand(0),
                                 CE->getType()),
           "Invalid bitcast", CE);
+}
+
+void Verifier::visitConstantPtrAuth(const ConstantPtrAuth *SP) {
+  Check(SP->getPointer()->getType()->isPointerTy(),
+        "signed pointer must be a pointer");
+
+  Check(SP->getKey()->getBitWidth() == 32,
+        "signed pointer key must be i32 constant integer");
+
+  Check(SP->getAddrDiscriminator()->getType()->isPointerTy(),
+        "signed pointer address discriminator must be a pointer");
+
+  Check(SP->getDiscriminator()->getBitWidth() == 64,
+        "signed pointer discriminator must be i64 constant integer");
 }
 
 bool Verifier::verifyAttributeCount(AttributeList Attrs, unsigned Params) {
@@ -5040,6 +5058,8 @@ void Verifier::visitInstruction(Instruction &I) {
     } else if (isa<InlineAsm>(I.getOperand(i))) {
       Check(CBI && &CBI->getCalledOperandUse() == &I.getOperandUse(i),
             "Cannot take the address of an inline asm!", &I);
+    } else if (auto SP = dyn_cast<ConstantPtrAuth>(I.getOperand(i))) {
+      visitConstantExprsRecursively(SP);
     } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(I.getOperand(i))) {
       if (CE->getType()->isPtrOrPtrVectorTy()) {
         // If we have a ConstantExpr pointer, we need to see if it came from an

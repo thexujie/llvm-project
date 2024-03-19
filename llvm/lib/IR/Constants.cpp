@@ -550,6 +550,9 @@ void llvm::deleteConstant(Constant *C) {
   case Constant::NoCFIValueVal:
     delete static_cast<NoCFIValue *>(C);
     break;
+  case Constant::ConstantPtrAuthVal:
+    delete static_cast<ConstantPtrAuth *>(C);
+    break;
   case Constant::UndefValueVal:
     delete static_cast<UndefValue *>(C);
     break;
@@ -2013,6 +2016,118 @@ Value *NoCFIValue::handleOperandChangeImpl(Value *From, Value *To) {
     mutateType(GV->getType());
 
   return nullptr;
+}
+
+//---- ConstantPtrAuth::get() implementations.
+//
+
+static bool areEquivalentAddrDiscriminators(const Value *V1, const Value *V2,
+                                            const DataLayout &DL) {
+  APInt V1Off(DL.getPointerSizeInBits(), 0);
+  APInt V2Off(DL.getPointerSizeInBits(), 0);
+
+  if (auto *V1Cast = dyn_cast<PtrToIntOperator>(V1))
+    V1 = V1Cast->getPointerOperand();
+  if (auto *V2Cast = dyn_cast<PtrToIntOperator>(V2))
+    V2 = V2Cast->getPointerOperand();
+  auto *V1Base = V1->stripAndAccumulateConstantOffsets(
+      DL, V1Off, /*AllowNonInbounds=*/true);
+  auto *V2Base = V2->stripAndAccumulateConstantOffsets(
+      DL, V2Off, /*AllowNonInbounds=*/true);
+  return V1Base == V2Base && V1Off == V2Off;
+}
+
+bool ConstantPtrAuth::isCompatibleWith(const Value *Key,
+                                       const Value *Discriminator,
+                                       const DataLayout &DL) const {
+  // If the keys are different, there's no chance for this to be compatible.
+  if (Key != getKey())
+    return false;
+
+  // If the discriminators are the same, this is compatible iff there is no
+  // address discriminator.
+  if (Discriminator == getDiscriminator())
+    return getAddrDiscriminator()->isNullValue();
+
+  // If we dynamically blend the discriminator with the address discriminator,
+  // this is compatible.
+  if (auto *DiscBlend = dyn_cast<IntrinsicInst>(Discriminator)) {
+    if (DiscBlend->getIntrinsicID() == Intrinsic::ptrauth_blend &&
+        DiscBlend->getOperand(1) == getDiscriminator() &&
+        areEquivalentAddrDiscriminators(DiscBlend->getOperand(0),
+                                        getAddrDiscriminator(), DL))
+      return true;
+  }
+
+  // If we don't have a non-address discriminator, we don't need a blend in
+  // the first place:  accept the address discriminator as the discriminator.
+  if (getDiscriminator()->isNullValue() &&
+      areEquivalentAddrDiscriminators(getAddrDiscriminator(), Discriminator,
+                                      DL))
+    return true;
+
+  // Otherwise, we don't know.
+  return false;
+}
+
+ConstantPtrAuth *ConstantPtrAuth::getWithSameSchema(Constant *Pointer) const {
+  return get(Pointer, getKey(), getAddrDiscriminator(), getDiscriminator());
+}
+
+ConstantPtrAuth *ConstantPtrAuth::get(Constant *Ptr, ConstantInt *Key,
+                                      Constant *AddrDisc, ConstantInt *Disc) {
+  Constant *ArgVec[] = {Ptr, Key, AddrDisc, Disc};
+  ConstantPtrAuthKeyType MapKey(ArgVec);
+  LLVMContextImpl *pImpl = Ptr->getContext().pImpl;
+  return pImpl->ConstantPtrAuths.getOrCreate(Ptr->getType(), MapKey);
+}
+
+ConstantPtrAuth::ConstantPtrAuth(Constant *Ptr, ConstantInt *Key,
+                                 Constant *AddrDisc, ConstantInt *Disc)
+    : Constant(Ptr->getType(), Value::ConstantPtrAuthVal, &Op<0>(), 4) {
+#ifndef NDEBUG
+  assert(Ptr->getType()->isPointerTy());
+  assert(Key->getBitWidth() == 32);
+  assert(AddrDisc->getType()->isPointerTy());
+  assert(Disc->getBitWidth() == 64);
+#endif
+  setOperand(0, Ptr);
+  setOperand(1, Key);
+  setOperand(2, AddrDisc);
+  setOperand(3, Disc);
+}
+
+/// Remove the constant from the constant table.
+void ConstantPtrAuth::destroyConstantImpl() {
+  getType()->getContext().pImpl->ConstantPtrAuths.remove(this);
+}
+
+Value *ConstantPtrAuth::handleOperandChangeImpl(Value *From, Value *ToV) {
+  assert(isa<Constant>(ToV) && "Cannot make Constant refer to non-constant!");
+  Constant *To = cast<Constant>(ToV);
+
+  SmallVector<Constant *, 8> Values;
+  Values.reserve(getNumOperands()); // Build replacement array.
+
+  // Fill values with the modified operands of the constant array.  Also,
+  // compute whether this turns into an all-zeros array.
+  unsigned NumUpdated = 0;
+
+  Use *OperandList = getOperandList();
+  unsigned OperandNo = 0;
+  for (Use *O = OperandList, *E = OperandList + getNumOperands(); O != E; ++O) {
+    Constant *Val = cast<Constant>(O->get());
+    if (Val == From) {
+      OperandNo = (O - OperandList);
+      Val = To;
+      ++NumUpdated;
+    }
+    Values.push_back(Val);
+  }
+
+  // FIXME: shouldn't we check it's not already there?
+  return getContext().pImpl->ConstantPtrAuths.replaceOperandsInPlace(
+      Values, this, From, To, NumUpdated, OperandNo);
 }
 
 //---- ConstantExpr::get() implementations.

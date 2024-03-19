@@ -1578,6 +1578,21 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
     return;
   }
 
+  if (const ConstantPtrAuth *SP = dyn_cast<ConstantPtrAuth>(CV)) {
+    Out << "ptrauth (";
+
+    for (unsigned i = 0; i < SP->getNumOperands(); ++i) {
+      WriterCtx.TypePrinter->print(SP->getOperand(i)->getType(), Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, SP->getOperand(i), WriterCtx);
+      if (i != SP->getNumOperands() - 1)
+        Out << ", ";
+    }
+
+    Out << ')';
+    return;
+  }
+
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
     Type *ETy = CA->getType()->getElementType();
     Out << '[';

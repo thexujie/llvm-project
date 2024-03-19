@@ -343,6 +343,7 @@ enum Kind {
   kw_insertvalue,
   kw_blockaddress,
   kw_dso_local_equivalent,
+  kw_ptrauth,
   kw_no_cfi,
 
   kw_freeze,

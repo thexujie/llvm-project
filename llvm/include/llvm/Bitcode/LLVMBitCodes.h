@@ -411,6 +411,8 @@ enum ConstantsCodes {
                               //                 sideeffect|alignstack|
                               //                 asmdialect|unwind,
                               //                 asmstr,conststr]
+  CST_CODE_SIGNED_PTR = 31,   // CE_SIGNED_PTR: [ptrty, ptr, key,
+                              //                 addrdiscty, addrdisc, disc]
 };
 
 /// CastOpcodes - These are values used in the bitcode files to encode which

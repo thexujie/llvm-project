@@ -4748,6 +4748,33 @@ reference to the CFI jump table in the ``LowerTypeTests`` pass. These constants
 may be useful in low-level programs, such as operating system kernels, which
 need to refer to the actual function body.
 
+.. _ptrauth
+
+Authenticated Pointers
+----------------------
+
+``ptrauth (ptr CST, i32 KEY, ptr ADDRDISC, i16 DISC)
+
+A '``ptrauth``' constant represents a pointer with a cryptographic
+authentication signature embedded into some bits. Its type is the same as the
+first argument.
+
+
+If the address disciminator is ``null`` then the expression is equivalent to
+
+.. code-block:llvm
+    %tmp = call i64 @llvm.ptrauth.sign.i64(i64 ptrtoint (ptr CST to i64), i32 KEY, i64 DISC)
+    %val = inttoptr i64 %tmp to ptr
+
+If the address discriminator is present, then it is
+
+.. code-block:llvm
+    %tmp1 = call i64 @llvm.ptrauth.blend.i64(i64 ptrtoint (ptr ADDRDISC to i64), i64 DISC)
+    %tmp2 = call i64 @llvm.ptrauth.sign.i64(i64 ptrtoint (ptr CST to i64), i64  %tmp1)
+    %val = inttoptr i64 %tmp2 to ptr
+
+    %tmp = call i64 @llvm.ptrauth.blend.i64
+
 .. _constantexprs:
 
 Constant Expressions

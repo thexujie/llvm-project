@@ -2805,6 +2805,14 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
       Record.push_back(VE.getTypeID(BA->getFunction()->getType()));
       Record.push_back(VE.getValueID(BA->getFunction()));
       Record.push_back(VE.getGlobalBasicBlockID(BA->getBasicBlock()));
+    } else if (const ConstantPtrAuth *SP = dyn_cast<ConstantPtrAuth>(C)) {
+      Code = bitc::CST_CODE_SIGNED_PTR;
+      Record.push_back(VE.getTypeID(SP->getPointer()->getType()));
+      Record.push_back(VE.getValueID(SP->getPointer()));
+      Record.push_back(VE.getValueID(SP->getKey()));
+      Record.push_back(VE.getTypeID(SP->getAddrDiscriminator()->getType()));
+      Record.push_back(VE.getValueID(SP->getAddrDiscriminator()));
+      Record.push_back(VE.getValueID(SP->getDiscriminator()));
     } else if (const auto *Equiv = dyn_cast<DSOLocalEquivalent>(C)) {
       Code = bitc::CST_CODE_DSO_LOCAL_EQUIVALENT;
       Record.push_back(VE.getTypeID(Equiv->getGlobalValue()->getType()));

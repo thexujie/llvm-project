@@ -1154,6 +1154,9 @@ static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2) {
                                 GV->getType()->getAddressSpace()))
         return ICmpInst::ICMP_UGT;
     }
+  } else if (const ConstantPtrAuth *SP = dyn_cast<ConstantPtrAuth>(V1)) {
+    // FIXME: ahmedbougacha: implement ptrauth cst comparison
+    return ICmpInst::BAD_ICMP_PREDICATE;
   } else {
     // Ok, the LHS is known to be a constantexpr.  The RHS can be any of a
     // constantexpr, a global, block address, or a simple constant.
