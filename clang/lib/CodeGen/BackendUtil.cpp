@@ -75,6 +75,7 @@
 #include "llvm/Transforms/Instrumentation/KCFI.h"
 #include "llvm/Transforms/Instrumentation/MemProfiler.h"
 #include "llvm/Transforms/Instrumentation/MemorySanitizer.h"
+#include "llvm/Transforms/Instrumentation/NumericalStabilitySanitizer.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
 #include "llvm/Transforms/Instrumentation/RemoveTrapsPass.h"
 #include "llvm/Transforms/Instrumentation/SanitizerBinaryMetadata.h"
@@ -733,6 +734,12 @@ static void addSanitizers(const Triple &TargetTriple,
 
     if (LangOpts.Sanitize.has(SanitizerKind::DataFlow)) {
       MPM.addPass(DataFlowSanitizerPass(LangOpts.NoSanitizeFiles));
+    }
+
+    if (LangOpts.Sanitize.has(SanitizerKind::NumericalStability)) {
+      MPM.addPass(NumericalStabilitySanitizerPass());
+      MPM.addPass(
+          createModuleToFunctionPassAdaptor(NumericalStabilitySanitizerPass()));
     }
   };
   if (ClSanitizeOnOptimizerEarlyEP) {
