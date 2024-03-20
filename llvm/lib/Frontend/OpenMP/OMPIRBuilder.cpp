@@ -3507,60 +3507,23 @@ static Function *getFreshReductionFunc(Module &M) {
                           ".omp.reduction.func", &M);
 }
 
-static void populateReductionFunction(
-    Function *ReductionFunc,
-    ArrayRef<OpenMPIRBuilder::ReductionInfo> ReductionInfos,
-    IRBuilder<> &Builder) {
-  Module *Module = ReductionFunc->getParent();
-  BasicBlock *ReductionFuncBlock =
-      BasicBlock::Create(Module->getContext(), "", ReductionFunc);
-  Builder.SetInsertPoint(ReductionFuncBlock);
-  Value *LHSArrayPtr = nullptr;
-  Value *RHSArrayPtr = nullptr;
-  LHSArrayPtr = ReductionFunc->getArg(0);
-  RHSArrayPtr = ReductionFunc->getArg(1);
-
-  unsigned NumReductions = ReductionInfos.size();
-  Type *RedArrayTy = ArrayType::get(Builder.getPtrTy(), NumReductions);
-
-  for (auto En : enumerate(ReductionInfos)) {
-    const OpenMPIRBuilder::ReductionInfo &RI = En.value();
-    Value *LHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
-        RedArrayTy, LHSArrayPtr, 0, En.index());
-    Value *LHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), LHSI8PtrPtr);
-    Value *LHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
-        LHSI8Ptr, RI.Variable->getType());
-    Value *LHS = Builder.CreateLoad(RI.ElementType, LHSPtr);
-    Value *RHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
-        RedArrayTy, RHSArrayPtr, 0, En.index());
-    Value *RHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), RHSI8PtrPtr);
-    Value *RHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
-        RHSI8Ptr, RI.PrivateVariable->getType());
-    Value *RHS = Builder.CreateLoad(RI.ElementType, RHSPtr);
-    Value *Reduced;
-    Builder.restoreIP(RI.ReductionGen(Builder.saveIP(), LHS, RHS, Reduced));
-    if (!Builder.GetInsertBlock())
-      return;
-    Builder.CreateStore(Reduced, LHSPtr);
-  }
-  Builder.CreateRetVoid();
-}
-
 OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
     const LocationDescription &Loc, InsertPointTy AllocaIP,
-    ArrayRef<ReductionInfo> ReductionInfos, bool IsNoWait, bool IsByRef,
-    bool IsTeamsReduction, bool HasDistribute) {
-  if (Config.isGPU())
-    return createReductionsGPU(Loc, AllocaIP, Builder.saveIP(), ReductionInfos,
-                               IsNoWait, IsTeamsReduction, HasDistribute);
-
-  checkReductionInfos(ReductionInfos, /*IsGPU*/ false);
+    ArrayRef<ReductionInfo> ReductionInfos, bool IsNoWait, bool IsByRef) {
+  for (const ReductionInfo &RI : ReductionInfos) {
+    (void)RI;
+    assert(RI.Variable && "expected non-null variable");
+    assert(RI.PrivateVariable && "expected non-null private variable");
+    assert(RI.ReductionGen && "expected non-null reduction generator callback");
+    assert(RI.Variable->getType() == RI.PrivateVariable->getType() &&
+           "expected variables and their private equivalents to have the same "
+           "type");
+    assert(RI.Variable->getType()->isPointerTy() &&
+           "expected variables to be pointers");
+  }
 
   if (!updateToLocation(Loc))
     return InsertPointTy();
-
-  if (ReductionInfos.size() == 0)
-    return Builder.saveIP();
 
   BasicBlock *InsertBlock = Loc.IP.getBlock();
   BasicBlock *ContinuationBlock =
@@ -3602,7 +3565,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
   const DataLayout &DL = Module->getDataLayout();
   unsigned RedArrayByteSize = DL.getTypeStoreSize(RedArrayTy);
   Constant *RedArraySize = Builder.getInt64(RedArrayByteSize);
-  Function *ReductionFunc = getFreshReductionFunc(M);
+  Function *ReductionFunc = getFreshReductionFunc(*Module);
   Value *Lock = getOMPCriticalRegionLock(".reduction");
   Function *ReduceFunc = getOrCreateRuntimeFunctionPtr(
       IsNoWait ? RuntimeFunction::OMPRTL___kmpc_reduce_nowait
@@ -3681,7 +3644,35 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
   // Populate the outlined reduction function using the elementwise reduction
   // function. Partial values are extracted from the type-erased array of
   // pointers to private variables.
-  populateReductionFunction(ReductionFunc, ReductionInfos, Builder);
+  BasicBlock *ReductionFuncBlock =
+      BasicBlock::Create(Module->getContext(), "", ReductionFunc);
+  Builder.SetInsertPoint(ReductionFuncBlock);
+  Value *LHSArrayPtr = ReductionFunc->getArg(0);
+  Value *RHSArrayPtr = ReductionFunc->getArg(1);
+
+  for (auto En : enumerate(ReductionInfos)) {
+    const ReductionInfo &RI = En.value();
+    Value *LHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, LHSArrayPtr, 0, En.index());
+    Value *LHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), LHSI8PtrPtr);
+    Value *LHSPtr = Builder.CreateBitCast(LHSI8Ptr, RI.Variable->getType());
+    Value *LHS = Builder.CreateLoad(RI.ElementType, LHSPtr);
+    Value *RHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, RHSArrayPtr, 0, En.index());
+    Value *RHSI8Ptr = Builder.CreateLoad(Builder.getPtrTy(), RHSI8PtrPtr);
+    Value *RHSPtr =
+        Builder.CreateBitCast(RHSI8Ptr, RI.PrivateVariable->getType());
+    Value *RHS = Builder.CreateLoad(RI.ElementType, RHSPtr);
+    Value *Reduced;
+    Builder.restoreIP(RI.ReductionGen(Builder.saveIP(), LHS, RHS, Reduced));
+    if (!Builder.GetInsertBlock())
+      return InsertPointTy();
+    // store is inside of the reduction region when using by-ref
+    if (!IsByRef)
+      Builder.CreateStore(Reduced, LHSPtr);
+  }
+  Builder.CreateRetVoid();
+
   Builder.SetInsertPoint(ContinuationBlock);
   return Builder.saveIP();
 }

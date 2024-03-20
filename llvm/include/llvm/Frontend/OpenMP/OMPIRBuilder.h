@@ -1913,9 +1913,10 @@ public:
   InsertPointTy createReductions(const LocationDescription &Loc,
                                  InsertPointTy AllocaIP,
                                  ArrayRef<ReductionInfo> ReductionInfos,
-                                 bool IsNoWait = false, bool IsByRef = false,
-                                 bool IsTeamsReduction = false,
-                                 bool HasDistribute = false);
+                                 bool IsNoWait = false, bool IsByRef = false);
+
+  ///}
+
   /// Return the insertion point used by the underlying IRBuilder.
   InsertPointTy getInsertionPoint() { return Builder.saveIP(); }
 

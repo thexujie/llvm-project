@@ -171,7 +171,7 @@ int foo() {
 // CHECK:       omp.inner.for.end:                                ; preds = %[[VAL_55]]
 // CHECK-NEXT:         br label %[[VAL_91:.*]]
 // CHECK:       omp.loop.exit:                                    ; preds = %[[VAL_60]]
-// CHECK-NEXT:         call void @__kmpc_for_static_fini(ptr @3, i32 %[[VAL_45]])
+// CHECK-NEXT:         call void @__kmpc_distribute_static_fini(ptr @2, i32 %[[VAL_45]])
 // CHECK-NEXT:         %[[VAL_92:.*]] = load i32, ptr %[[VAL_29]], align 4
 // CHECK-NEXT:         %[[VAL_93:.*]] = icmp ne i32 %[[VAL_92]], 0
 // CHECK-NEXT:         br i1 %[[VAL_93]], label %[[VAL_94:.*]], label %[[VAL_95:.*]]
@@ -500,7 +500,7 @@ int foo() {
 // CHECK1:       omp.inner.for.end:                                ; preds = %[[VAL_87]]
 // CHECK1-NEXT:         br label %[[VAL_103:.*]]
 // CHECK1:       omp.loop.exit:                                    ; preds = %[[VAL_93]]
-// CHECK1-NEXT:         call void @__kmpc_for_static_fini(ptr @2, i32 %[[VAL_77]])
+// CHECK1-NEXT:         call void @__kmpc_for_static_fini(ptr @1, i32 %[[VAL_77]])
 // CHECK1-NEXT:         %[[VAL_104:.*]] = load i32, ptr %[[VAL_60]], align 4
 // CHECK1-NEXT:         %[[VAL_105:.*]] = icmp ne i32 %[[VAL_104]], 0
 // CHECK1-NEXT:         br i1 %[[VAL_105]], label %[[VAL_106:.*]], label %[[VAL_107:.*]]
@@ -764,7 +764,7 @@ int foo() {
 // CHECK2:       omp.inner.for.end:                                ; preds = %[[VAL_87]]
 // CHECK2-NEXT:         br label %[[VAL_101:.*]]
 // CHECK2:       omp.loop.exit:                                    ; preds = %[[VAL_93]]
-// CHECK2-NEXT:         call void @__kmpc_for_static_fini(ptr @2, i32 %[[VAL_77]])
+// CHECK2-NEXT:         call void @__kmpc_for_static_fini(ptr @1, i32 %[[VAL_77]])
 // CHECK2-NEXT:         %[[VAL_102:.*]] = load i32, ptr %[[VAL_60]], align 4
 // CHECK2-NEXT:         %[[VAL_103:.*]] = icmp ne i32 %[[VAL_102]], 0
 // CHECK2-NEXT:         br i1 %[[VAL_103]], label %[[VAL_104:.*]], label %[[VAL_105:.*]]
@@ -923,92 +923,91 @@ int foo() {
 // CHECK2-NEXT:         %[[VAL_214:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
 // CHECK2-NEXT:         %[[VAL_215:.*]] = load float, ptr %[[VAL_214]], align 4, !llvm.access.group !5
 // CHECK2-NEXT:         %[[VAL_216:.*]] = fadd float %[[VAL_213]], %[[VAL_211]]
-// CHECK2-NEXT:         %[[VAL_217:.*]] = fadd float %[[VAL_215]], 0.000000e+00
-// CHECK2-NEXT:         %[[VAL_218:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_219:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
-// CHECK2-NEXT:         store float %[[VAL_216]], ptr %[[VAL_218]], align 4, !llvm.access.group !5
-// CHECK2-NEXT:         store float %[[VAL_217]], ptr %[[VAL_219]], align 4, !llvm.access.group !5
-// CHECK2-NEXT:         br label %[[VAL_220:.*]]
+// CHECK2-NEXT:         %[[VAL_217:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_218:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
+// CHECK2-NEXT:         store float %[[VAL_216]], ptr %[[VAL_217]], align 4, !llvm.access.group !5
+// CHECK2-NEXT:         store float %[[VAL_215]], ptr %[[VAL_218]], align 4, !llvm.access.group !5
+// CHECK2-NEXT:         br label %[[VAL_219:.*]]
 // CHECK2:       omp.body.continue:                                ; preds = %[[VAL_197]]
 // CHECK2-NEXT:         br label %[[VAL_193]]
-// CHECK2:       omp.inner.for.inc:                                ; preds = %[[VAL_220]]
-// CHECK2-NEXT:         %[[VAL_221:.*]] = load i32, ptr %[[VAL_155]], align 4, !llvm.access.group !5
-// CHECK2-NEXT:         %[[VAL_222:.*]] = add nsw i32 %[[VAL_221]], 1
-// CHECK2-NEXT:         store i32 %[[VAL_222]], ptr %[[VAL_155]], align 4, !llvm.access.group !5
+// CHECK2:       omp.inner.for.inc:                                ; preds = %[[VAL_219]]
+// CHECK2-NEXT:         %[[VAL_220:.*]] = load i32, ptr %[[VAL_155]], align 4, !llvm.access.group !5
+// CHECK2-NEXT:         %[[VAL_221:.*]] = add nsw i32 %[[VAL_220]], 1
+// CHECK2-NEXT:         store i32 %[[VAL_221]], ptr %[[VAL_155]], align 4, !llvm.access.group !5
 // CHECK2-NEXT:         br label %[[VAL_192]], !llvm.loop !6
 // CHECK2:       omp.inner.for.end:                                ; preds = %[[VAL_192]]
-// CHECK2-NEXT:         br label %[[VAL_223:.*]]
+// CHECK2-NEXT:         br label %[[VAL_222:.*]]
 // CHECK2:       omp.loop.exit:                                    ; preds = %[[VAL_198]]
 // CHECK2-NEXT:         call void @__kmpc_for_static_fini(ptr @2, i32 %[[VAL_182]])
-// CHECK2-NEXT:         %[[VAL_224:.*]] = getelementptr inbounds [1 x ptr], ptr %[[VAL_166]], i32 0, i32 0
-// CHECK2-NEXT:         store ptr %[[VAL_163]], ptr %[[VAL_224]], align 4
-// CHECK2-NEXT:         %[[VAL_225:.*]] = call i32 @__kmpc_reduce(ptr @3, i32 %[[VAL_182]], i32 1, i32 4, ptr %[[VAL_166]], ptr @{{__omp_offloading_[0-9a-z]+_[0-9a-z]+}}__Z3foov_l31.omp_outlined.omp_outlined.omp.reduction.reduction_func, ptr @.gomp_critical_user_.reduction.var)
-// CHECK2-NEXT:         switch i32 %[[VAL_225]], label %[[VAL_226:.*]] [
-// CHECK2-NEXT:           i32 1, label %[[VAL_227:.*]]
-// CHECK2-NEXT:           i32 2, label %[[VAL_228:.*]]
+// CHECK2-NEXT:         %[[VAL_223:.*]] = getelementptr inbounds [1 x ptr], ptr %[[VAL_166]], i32 0, i32 0
+// CHECK2-NEXT:         store ptr %[[VAL_163]], ptr %[[VAL_223]], align 4
+// CHECK2-NEXT:         %[[VAL_224:.*]] = call i32 @__kmpc_reduce(ptr @3, i32 %[[VAL_182]], i32 1, i32 4, ptr %[[VAL_166]], ptr @__omp_offloading_1030b_4868a89__Z3foov_l31.omp_outlined.omp_outlined.omp.reduction.reduction_func, ptr @.gomp_critical_user_.reduction.var)
+// CHECK2-NEXT:         switch i32 %[[VAL_224]], label %[[VAL_225:.*]] [
+// CHECK2-NEXT:           i32 1, label %[[VAL_226:.*]]
+// CHECK2-NEXT:           i32 2, label %[[VAL_227:.*]]
 // CHECK2-NEXT:         ]
-// CHECK2:       .omp.reduction.case1:                             ; preds = %[[VAL_223]]
-// CHECK2-NEXT:         %[[VAL_229:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_230:.*]] = load float, ptr %[[VAL_229]], align 4
-// CHECK2-NEXT:         %[[VAL_231:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_232:.*]] = load float, ptr %[[VAL_231]], align 4
-// CHECK2-NEXT:         %[[VAL_233:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_234:.*]] = load float, ptr %[[VAL_233]], align 4
-// CHECK2-NEXT:         %[[VAL_235:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_236:.*]] = load float, ptr %[[VAL_235]], align 4
-// CHECK2-NEXT:         %[[VAL_237:.*]] = fadd float %[[VAL_230]], %[[VAL_234]]
-// CHECK2-NEXT:         %[[VAL_238:.*]] = fadd float %[[VAL_232]], %[[VAL_236]]
-// CHECK2-NEXT:         %[[VAL_239:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_240:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 1
+// CHECK2:       .omp.reduction.case1:                             ; preds = %[[VAL_222]]
+// CHECK2-NEXT:         %[[VAL_228:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_229:.*]] = load float, ptr %[[VAL_228]], align 4
+// CHECK2-NEXT:         %[[VAL_230:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_231:.*]] = load float, ptr %[[VAL_230]], align 4
+// CHECK2-NEXT:         %[[VAL_232:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_233:.*]] = load float, ptr %[[VAL_232]], align 4
+// CHECK2-NEXT:         %[[VAL_234:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_235:.*]] = load float, ptr %[[VAL_234]], align 4
+// CHECK2-NEXT:         %[[VAL_236:.*]] = fadd float %[[VAL_229]], %[[VAL_233]]
+// CHECK2-NEXT:         %[[VAL_237:.*]] = fadd float %[[VAL_231]], %[[VAL_235]]
+// CHECK2-NEXT:         %[[VAL_238:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_239:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_176]], i32 0, i32 1
+// CHECK2-NEXT:         store float %[[VAL_236]], ptr %[[VAL_238]], align 4
 // CHECK2-NEXT:         store float %[[VAL_237]], ptr %[[VAL_239]], align 4
-// CHECK2-NEXT:         store float %[[VAL_238]], ptr %[[VAL_240]], align 4
 // CHECK2-NEXT:         call void @__kmpc_end_reduce(ptr @3, i32 %[[VAL_182]], ptr @.gomp_critical_user_.reduction.var)
-// CHECK2-NEXT:         br label %[[VAL_226]]
-// CHECK2:       .omp.reduction.case2:                             ; preds = %[[VAL_223]]
-// CHECK2-NEXT:         %[[VAL_241:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_242:.*]] = load float, ptr %[[VAL_241]], align 4
-// CHECK2-NEXT:         %[[VAL_243:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_244:.*]] = load float, ptr %[[VAL_243]], align 4
+// CHECK2-NEXT:         br label %[[VAL_225]]
+// CHECK2:       .omp.reduction.case2:                             ; preds = %[[VAL_222]]
+// CHECK2-NEXT:         %[[VAL_240:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_241:.*]] = load float, ptr %[[VAL_240]], align 4
+// CHECK2-NEXT:         %[[VAL_242:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_243:.*]] = load float, ptr %[[VAL_242]], align 4
 // CHECK2-NEXT:         call void @__atomic_load(i32 noundef 8, ptr noundef %[[VAL_176]], ptr noundef %[[VAL_167]], i32 noundef 0)
-// CHECK2-NEXT:         br label %[[VAL_245:.*]]
-// CHECK2:       atomic_cont:                                      ; preds = %[[VAL_245]], %[[VAL_228]]
-// CHECK2-NEXT:         %[[VAL_246:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_167]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_247:.*]] = load float, ptr %[[VAL_246]], align 4
-// CHECK2-NEXT:         %[[VAL_248:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_167]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_249:.*]] = load float, ptr %[[VAL_248]], align 4
-// CHECK2-NEXT:         %[[VAL_250:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_251:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 1
-// CHECK2-NEXT:         store float %[[VAL_247]], ptr %[[VAL_250]], align 4
-// CHECK2-NEXT:         store float %[[VAL_249]], ptr %[[VAL_251]], align 4
-// CHECK2-NEXT:         %[[VAL_252:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_253:.*]] = load float, ptr %[[VAL_252]], align 4
-// CHECK2-NEXT:         %[[VAL_254:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_255:.*]] = load float, ptr %[[VAL_254]], align 4
-// CHECK2-NEXT:         %[[VAL_256:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_257:.*]] = load float, ptr %[[VAL_256]], align 4
-// CHECK2-NEXT:         %[[VAL_258:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
-// CHECK2-NEXT:         %[[VAL_259:.*]] = load float, ptr %[[VAL_258]], align 4
-// CHECK2-NEXT:         %[[VAL_260:.*]] = fadd float %[[VAL_253]], %[[VAL_257]]
-// CHECK2-NEXT:         %[[VAL_261:.*]] = fadd float %[[VAL_255]], %[[VAL_259]]
-// CHECK2-NEXT:         %[[VAL_262:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_168]], i32 0, i32 0
-// CHECK2-NEXT:         %[[VAL_263:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_168]], i32 0, i32 1
+// CHECK2-NEXT:         br label %[[VAL_244:.*]]
+// CHECK2:       atomic_cont:                                      ; preds = %[[VAL_244]], %[[VAL_227]]
+// CHECK2-NEXT:         %[[VAL_245:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_167]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_246:.*]] = load float, ptr %[[VAL_245]], align 4
+// CHECK2-NEXT:         %[[VAL_247:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_167]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_248:.*]] = load float, ptr %[[VAL_247]], align 4
+// CHECK2-NEXT:         %[[VAL_249:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_250:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 1
+// CHECK2-NEXT:         store float %[[VAL_246]], ptr %[[VAL_249]], align 4
+// CHECK2-NEXT:         store float %[[VAL_248]], ptr %[[VAL_250]], align 4
+// CHECK2-NEXT:         %[[VAL_251:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_252:.*]] = load float, ptr %[[VAL_251]], align 4
+// CHECK2-NEXT:         %[[VAL_253:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_169]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_254:.*]] = load float, ptr %[[VAL_253]], align 4
+// CHECK2-NEXT:         %[[VAL_255:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_256:.*]] = load float, ptr %[[VAL_255]], align 4
+// CHECK2-NEXT:         %[[VAL_257:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_163]], i32 0, i32 1
+// CHECK2-NEXT:         %[[VAL_258:.*]] = load float, ptr %[[VAL_257]], align 4
+// CHECK2-NEXT:         %[[VAL_259:.*]] = fadd float %[[VAL_252]], %[[VAL_256]]
+// CHECK2-NEXT:         %[[VAL_260:.*]] = fadd float %[[VAL_254]], %[[VAL_258]]
+// CHECK2-NEXT:         %[[VAL_261:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_168]], i32 0, i32 0
+// CHECK2-NEXT:         %[[VAL_262:.*]] = getelementptr inbounds { float, float }, ptr %[[VAL_168]], i32 0, i32 1
+// CHECK2-NEXT:         store float %[[VAL_259]], ptr %[[VAL_261]], align 4
 // CHECK2-NEXT:         store float %[[VAL_260]], ptr %[[VAL_262]], align 4
-// CHECK2-NEXT:         store float %[[VAL_261]], ptr %[[VAL_263]], align 4
-// CHECK2-NEXT:         %[[VAL_264:.*]] = call noundef zeroext i1 @__atomic_compare_exchange(i32 noundef 8, ptr noundef %[[VAL_176]], ptr noundef %[[VAL_167]], ptr noundef %[[VAL_168]], i32 noundef 0, i32 noundef 0)
-// CHECK2-NEXT:         br i1 %[[VAL_264]], label %[[VAL_265:.*]], label %[[VAL_245]]
-// CHECK2:       atomic_exit:                                      ; preds = %[[VAL_245]]
+// CHECK2-NEXT:         %[[VAL_263:.*]] = call noundef zeroext i1 @__atomic_compare_exchange(i32 noundef 8, ptr noundef %[[VAL_176]], ptr noundef %[[VAL_167]], ptr noundef %[[VAL_168]], i32 noundef 0, i32 noundef 0)
+// CHECK2-NEXT:         br i1 %[[VAL_263]], label %[[VAL_264:.*]], label %[[VAL_244]]
+// CHECK2:       atomic_exit:                                      ; preds = %[[VAL_244]]
 // CHECK2-NEXT:         call void @__kmpc_end_reduce(ptr @3, i32 %[[VAL_182]], ptr @.gomp_critical_user_.reduction.var)
-// CHECK2-NEXT:         br label %[[VAL_226]]
-// CHECK2:       .omp.reduction.default:                           ; preds = %[[VAL_265]], %[[VAL_227]], %[[VAL_223]]
-// CHECK2-NEXT:         %[[VAL_266:.*]] = load i32, ptr %[[VAL_161]], align 4
-// CHECK2-NEXT:         %[[VAL_267:.*]] = icmp ne i32 %[[VAL_266]], 0
-// CHECK2-NEXT:         br i1 %[[VAL_267]], label %[[VAL_268:.*]], label %[[VAL_269:.*]]
-// CHECK2:       .omp.lastprivate.then:                            ; preds = %[[VAL_226]]
+// CHECK2-NEXT:         br label %[[VAL_225]]
+// CHECK2:       .omp.reduction.default:                           ; preds = %[[VAL_264]], %[[VAL_226]], %[[VAL_222]]
+// CHECK2-NEXT:         %[[VAL_265:.*]] = load i32, ptr %[[VAL_161]], align 4
+// CHECK2-NEXT:         %[[VAL_266:.*]] = icmp ne i32 %[[VAL_265]], 0
+// CHECK2-NEXT:         br i1 %[[VAL_266]], label %[[VAL_267:.*]], label %[[VAL_268:.*]]
+// CHECK2:       .omp.lastprivate.then:                            ; preds = %[[VAL_225]]
 // CHECK2-NEXT:         store i32 10, ptr %[[VAL_162]], align 4
-// CHECK2-NEXT:         %[[VAL_270:.*]] = load i32, ptr %[[VAL_162]], align 4
-// CHECK2-NEXT:         store i32 %[[VAL_270]], ptr %[[VAL_153]], align 4
-// CHECK2-NEXT:         br label %[[VAL_269]]
-// CHECK2:       .omp.lastprivate.done:                            ; preds = %[[VAL_268]], %[[VAL_226]]
+// CHECK2-NEXT:         %[[VAL_269:.*]] = load i32, ptr %[[VAL_162]], align 4
+// CHECK2-NEXT:         store i32 %[[VAL_269]], ptr %[[VAL_153]], align 4
+// CHECK2-NEXT:         br label %[[VAL_268]]
+// CHECK2:       .omp.lastprivate.done:                            ; preds = %[[VAL_267]], %[[VAL_225]]
 // CHECK2-NEXT:         ret void
 //
 //
