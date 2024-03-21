@@ -279,6 +279,7 @@ protected:
     default:
       return Base::visitIntrinsicInst(II);
 
+    case Intrinsic::fake_use:
     case Intrinsic::lifetime_start:
     case Intrinsic::lifetime_end:
       return; // No-op intrinsics.
