@@ -1402,7 +1402,9 @@ def FAULTING_OP : StandardPseudoInstruction {
   let isBranch = true;
 }
 def FAKE_USE : StandardPseudoInstruction {
-  // An instruction that uses its operands but does nothing.
+  // An instruction that uses its operands but does nothing; this instruction
+  // will be treated specially by CodeGen passes, distinguishing it from any
+  // otherwise equivalent instructions.
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let AsmString = "FAKE_USE";
