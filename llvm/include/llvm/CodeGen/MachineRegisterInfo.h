@@ -94,6 +94,16 @@ private:
   /// all registers that were disabled are removed from the list.
   SmallVector<MCPhysReg, 16> UpdatedCSRs;
 
+  /// The Synthetic field of regclasses. Targets can alter this vector
+  /// to enable classes dynamically during codegen.
+  BitVector RegClassSyntheticInfo;
+
+  /// To have more restrictions on the allocation order for each register class.
+  /// For some targets, two distinct register classes can have the same set of
+  /// registers, but their allocatable set can vary. This vector helps targets
+  /// to dynamically determine the actual allocatable set for RCs.
+  std::vector<BitVector> RegClassAllocationMasks;
+
   /// RegAllocHints - This vector records register allocation hints for
   /// virtual registers. For each virtual register, it keeps a pair of hint
   /// type and hints vector making up the allocation hints. Only the first
@@ -256,6 +266,30 @@ public:
   /// Sets the updated Callee Saved Registers list.
   /// Notice that it will override ant previously disabled/saved CSRs.
   void setCalleeSavedRegs(ArrayRef<MCPhysReg> CSRs);
+
+  /// Initialize the RegClassSyntheticInfo. It sets the bit position as
+  /// exactly as the tablegened Synthetic field. Targets can later flip this
+  /// field to enable/disable the regclass whenever required.
+  void initializeRegClassSyntheticInfo();
+
+  /// Change the synthetic info for the regclass \p RC from \p Value.
+  void changeSyntheticInfoForRC(const TargetRegisterClass *RC, bool Value);
+
+  /// This function checks if \p RC is enabled or not so that it can be included
+  /// in various regclass related queries.
+  bool isEnabled(const TargetRegisterClass *RC) const;
+
+  /// Update dynamically determined allocation mask for register classes.
+  void updateAllocationMaskForRCs(std::vector<BitVector> &&Mask);
+
+  // Return the allocation mask for regclass \p RC.
+  const BitVector &getAllocationMaskForRC(const TargetRegisterClass &RC) const;
+
+  /// True when the target has dynamically determined allocation mask for its
+  /// register classes.
+  bool hasAllocationMaskForRCs() const {
+    return RegClassAllocationMasks.size();
+  }
 
   // Strictly for use by MachineInstr.cpp.
   void addRegOperandToUseList(MachineOperand *MO);

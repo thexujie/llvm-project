@@ -48,6 +48,8 @@ MachineRegisterInfo::MachineRegisterInfo(MachineFunction *MF)
   RegAllocHints.reserve(256);
   UsedPhysRegMask.resize(NumRegs);
   PhysRegUseDefLists.reset(new MachineOperand*[NumRegs]());
+  initializeRegClassSyntheticInfo();
+  RegClassAllocationMasks.clear();
   TheDelegates.clear();
 }
 
@@ -55,7 +57,8 @@ MachineRegisterInfo::MachineRegisterInfo(MachineFunction *MF)
 ///
 void
 MachineRegisterInfo::setRegClass(Register Reg, const TargetRegisterClass *RC) {
-  assert(RC && RC->isAllocatable() && "Invalid RC for virtual register");
+  assert(RC && isEnabled(RC) && RC->isAllocatable() &&
+         "Invalid RC for virtual register");
   VRegInfo[Reg].first = RC;
 }
 
@@ -71,7 +74,7 @@ constrainRegClass(MachineRegisterInfo &MRI, Register Reg,
   if (OldRC == RC)
     return RC;
   const TargetRegisterClass *NewRC =
-      MRI.getTargetRegisterInfo()->getCommonSubClass(OldRC, RC);
+      MRI.getTargetRegisterInfo()->getCommonSubClass(OldRC, RC, MRI);
   if (!NewRC || NewRC == OldRC)
     return NewRC;
   if (NewRC->getNumRegs() < MinNumRegs)
@@ -134,7 +137,7 @@ MachineRegisterInfo::recomputeRegClass(Register Reg) {
     MachineInstr *MI = MO.getParent();
     unsigned OpNo = &MO - &MI->getOperand(0);
     NewRC = MI->getRegClassConstraintEffect(OpNo, NewRC, TII,
-                                            getTargetRegisterInfo());
+                                            getTargetRegisterInfo(), *this);
     if (!NewRC || NewRC == OldRC)
       return false;
   }
@@ -159,6 +162,8 @@ MachineRegisterInfo::createVirtualRegister(const TargetRegisterClass *RegClass,
   assert(RegClass && "Cannot create register without RegClass!");
   assert(RegClass->isAllocatable() &&
          "Virtual register RegClass must be allocatable.");
+  assert(isEnabled(RegClass) &&
+         "RegClass must be enabled first to create its virtual registers.");
 
   // New virtual register number.
   Register Reg = createIncompleteVirtualRegister(Name);
@@ -648,6 +653,43 @@ void MachineRegisterInfo::setCalleeSavedRegs(ArrayRef<MCPhysReg> CSRs) {
   // (no more registers should be pushed).
   UpdatedCSRs.push_back(0);
   IsUpdatedCSRsInitialized = true;
+}
+
+void MachineRegisterInfo::initializeRegClassSyntheticInfo() {
+  const TargetRegisterInfo *TRI = getTargetRegisterInfo();
+
+  RegClassSyntheticInfo.resize(TRI->getNumRegClasses());
+  for (const TargetRegisterClass *RC : TRI->regclasses()) {
+    if (RC->isSynthetic())
+      RegClassSyntheticInfo.set(RC->getID());
+  }
+}
+
+void MachineRegisterInfo::changeSyntheticInfoForRC(
+    const TargetRegisterClass *RC, bool Value) {
+  assert(RC->isSynthetic() && "Regclasses can be enabled/disabled dynamically "
+                              "only if marked synthetic.");
+
+  if (Value)
+    RegClassSyntheticInfo.set(RC->getID());
+  else
+    RegClassSyntheticInfo.reset(RC->getID());
+}
+
+bool MachineRegisterInfo::isEnabled(const TargetRegisterClass *RC) const {
+  return !RegClassSyntheticInfo.test(RC->getID());
+}
+
+void MachineRegisterInfo::updateAllocationMaskForRCs(
+    std::vector<BitVector> &&Mask) {
+  unsigned Size = Mask.size();
+  for (unsigned I = 0; I < Size; ++I)
+    RegClassAllocationMasks.push_back(std::move(Mask[I]));
+}
+
+const BitVector &MachineRegisterInfo::getAllocationMaskForRC(
+    const TargetRegisterClass &RC) const {
+  return RegClassAllocationMasks[RC.getID()];
 }
 
 bool MachineRegisterInfo::isReservedRegUnit(unsigned Unit) const {
