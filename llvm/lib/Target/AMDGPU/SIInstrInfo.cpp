@@ -1705,7 +1705,7 @@ static unsigned getVectorRegSpillSaveOpcode(Register Reg,
   bool IsVectorSuperClass = TRI.isVectorSuperClass(RC);
 
   // Choose the right opcode if spilling a WWM register.
-  if (MFI.checkFlag(Reg, AMDGPU::VirtRegFlag::WWM_REG))
+  if (RC == &AMDGPU::WWM_VGPR_32RegClass)
     return getWWMRegSpillSaveOpcode(Size, IsVectorSuperClass);
 
   if (IsVectorSuperClass)
@@ -1930,7 +1930,7 @@ getVectorRegSpillRestoreOpcode(Register Reg, const TargetRegisterClass *RC,
   bool IsVectorSuperClass = TRI.isVectorSuperClass(RC);
 
   // Choose the right opcode if restoring a WWM register.
-  if (MFI.checkFlag(Reg, AMDGPU::VirtRegFlag::WWM_REG))
+  if (RC == &AMDGPU::WWM_VGPR_32RegClass)
     return getWWMRegSpillRestoreOpcode(Size, IsVectorSuperClass);
 
   if (IsVectorSuperClass)
@@ -2559,7 +2559,7 @@ void SIInstrInfo::reMaterialize(MachineBasicBlock &MBB,
 
     const MCInstrDesc &TID = get(NewOpcode);
     const TargetRegisterClass *NewRC =
-        RI.getAllocatableClass(getRegClass(TID, 0, &RI, *MF));
+        RI.getAllocatableClass(getRegClass(TID, 0, &RI, *MF), MRI);
     MRI.setRegClass(DestReg, NewRC);
 
     UseMO->setReg(DestReg);
@@ -4683,7 +4683,7 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr &MI,
       if (RI.hasVectorRegisters(RC) && MO.getSubReg()) {
         const TargetRegisterClass *SubRC =
             RI.getSubRegisterClass(RC, MO.getSubReg());
-        RC = RI.getCompatibleSubRegClass(RC, SubRC, MO.getSubReg());
+        RC = RI.getCompatibleSubRegClass(RC, SubRC, MO.getSubReg(), MRI);
         if (RC)
           RC = SubRC;
       }
@@ -5665,7 +5665,7 @@ bool SIInstrInfo::isLegalRegOperand(const MachineRegisterInfo &MRI,
     if (!SuperRC)
       return false;
 
-    DRC = RI.getMatchingSuperRegClass(SuperRC, DRC, MO.getSubReg());
+    DRC = RI.getMatchingSuperRegClass(SuperRC, DRC, MO.getSubReg(), MRI);
     if (!DRC)
       return false;
   }
@@ -8856,9 +8856,8 @@ SIInstrInfo::getSerializableMachineMemOperandTargetFlags() const {
 
 unsigned SIInstrInfo::getLiveRangeSplitOpcode(Register SrcReg,
                                               const MachineFunction &MF) const {
-  const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
   assert(SrcReg.isVirtual());
-  if (MFI->checkFlag(SrcReg, AMDGPU::VirtRegFlag::WWM_REG))
+  if (MF.getRegInfo().getRegClass(SrcReg) == &AMDGPU::WWM_VGPR_32RegClass)
     return AMDGPU::WWM_COPY;
 
   return AMDGPU::COPY;
