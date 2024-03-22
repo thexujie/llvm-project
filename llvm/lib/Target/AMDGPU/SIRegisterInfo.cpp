@@ -561,6 +561,37 @@ MCRegister SIRegisterInfo::reservedPrivateSegmentBufferReg(
   return getAlignedHighSGPRForRC(MF, /*Align=*/4, &AMDGPU::SGPR_128RegClass);
 }
 
+std::pair<unsigned, unsigned>
+SIRegisterInfo::getMaxNumVectorRegs(const MachineFunction &MF) const {
+  const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
+  unsigned MaxNumVGPRs = ST.getMaxNumVGPRs(MF);
+  unsigned MaxNumAGPRs = MaxNumVGPRs;
+  unsigned TotalNumVGPRs = AMDGPU::VGPR_32RegClass.getNumRegs();
+
+  // On GFX90A, the number of VGPRs and AGPRs need not be equal. Theoretically,
+  // a wave may have up to 512 total vector registers combining together both
+  // VGPRs and AGPRs. Hence, in an entry function without calls and without
+  // AGPRs used within it, it is possible to use the whole vector register
+  // budget for VGPRs.
+  //
+  // TODO: it shall be possible to estimate maximum AGPR/VGPR pressure and split
+  //       register file accordingly.
+  if (ST.hasGFX90AInsts()) {
+    if (MFI->usesAGPRs(MF)) {
+      MaxNumVGPRs /= 2;
+      MaxNumAGPRs = MaxNumVGPRs;
+    } else {
+      if (MaxNumVGPRs > TotalNumVGPRs) {
+        MaxNumAGPRs = MaxNumVGPRs - TotalNumVGPRs;
+        MaxNumVGPRs = TotalNumVGPRs;
+      } else
+        MaxNumAGPRs = 0;
+    }
+  }
+
+  return std::pair(MaxNumVGPRs, MaxNumAGPRs);
+}
+
 BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   Reserved.set(AMDGPU::MODE);
@@ -675,30 +706,7 @@ BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   // Reserve VGPRs/AGPRs.
   //
-  unsigned MaxNumVGPRs = ST.getMaxNumVGPRs(MF);
-  unsigned MaxNumAGPRs = MaxNumVGPRs;
-  unsigned TotalNumVGPRs = AMDGPU::VGPR_32RegClass.getNumRegs();
-
-  // On GFX90A, the number of VGPRs and AGPRs need not be equal. Theoretically,
-  // a wave may have up to 512 total vector registers combining together both
-  // VGPRs and AGPRs. Hence, in an entry function without calls and without
-  // AGPRs used within it, it is possible to use the whole vector register
-  // budget for VGPRs.
-  //
-  // TODO: it shall be possible to estimate maximum AGPR/VGPR pressure and split
-  //       register file accordingly.
-  if (ST.hasGFX90AInsts()) {
-    if (MFI->usesAGPRs(MF)) {
-      MaxNumVGPRs /= 2;
-      MaxNumAGPRs = MaxNumVGPRs;
-    } else {
-      if (MaxNumVGPRs > TotalNumVGPRs) {
-        MaxNumAGPRs = MaxNumVGPRs - TotalNumVGPRs;
-        MaxNumVGPRs = TotalNumVGPRs;
-      } else
-        MaxNumAGPRs = 0;
-    }
-  }
+  auto [MaxNumVGPRs, MaxNumAGPRs] = getMaxNumVectorRegs(MF);
 
   for (const TargetRegisterClass *RC : regclasses()) {
     if (RC->isBaseClass() && isVGPRClass(RC)) {
@@ -2906,13 +2914,12 @@ SIRegisterInfo::getEquivalentSGPRClass(const TargetRegisterClass *VRC) const {
   return SRC;
 }
 
-const TargetRegisterClass *
-SIRegisterInfo::getCompatibleSubRegClass(const TargetRegisterClass *SuperRC,
-                                         const TargetRegisterClass *SubRC,
-                                         unsigned SubIdx) const {
+const TargetRegisterClass *SIRegisterInfo::getCompatibleSubRegClass(
+    const TargetRegisterClass *SuperRC, const TargetRegisterClass *SubRC,
+    unsigned SubIdx, const MachineRegisterInfo &MRI) const {
   // Ensure this subregister index is aligned in the super register.
   const TargetRegisterClass *MatchRC =
-      getMatchingSuperRegClass(SuperRC, SubRC, SubIdx);
+      getMatchingSuperRegClass(SuperRC, SubRC, SubIdx, MRI);
   return MatchRC && MatchRC->hasSubClassEq(SuperRC) ? MatchRC : nullptr;
 }
 
@@ -2926,10 +2933,9 @@ bool SIRegisterInfo::opCanUseInlineConstant(unsigned OpType) const {
 }
 
 bool SIRegisterInfo::shouldRewriteCopySrc(
-  const TargetRegisterClass *DefRC,
-  unsigned DefSubReg,
-  const TargetRegisterClass *SrcRC,
-  unsigned SrcSubReg) const {
+    const TargetRegisterClass *DefRC, unsigned DefSubReg,
+    const TargetRegisterClass *SrcRC, unsigned SrcSubReg,
+    const MachineRegisterInfo &MRI) const {
   // We want to prefer the smallest register class possible, so we don't want to
   // stop and rewrite on anything that looks like a subregister
   // extract. Operations mostly don't care about the super register class, so we
@@ -2946,7 +2952,7 @@ bool SIRegisterInfo::shouldRewriteCopySrc(
   //  => %3 = COPY %0
 
   // Plain copy.
-  return getCommonSubClass(DefRC, SrcRC) != nullptr;
+  return getCommonSubClass(DefRC, SrcRC, MRI) != nullptr;
 }
 
 bool SIRegisterInfo::opCanUseLiteralConstant(unsigned OpType) const {
@@ -3121,7 +3127,7 @@ SIRegisterInfo::getConstrainedRegClassForOperand(const MachineOperand &MO,
     return getRegClassForTypeOnBank(MRI.getType(MO.getReg()), *RB);
 
   if (const auto *RC = RCOrRB.dyn_cast<const TargetRegisterClass *>())
-    return getAllocatableClass(RC);
+    return getAllocatableClass(RC, MRI);
 
   return nullptr;
 }
