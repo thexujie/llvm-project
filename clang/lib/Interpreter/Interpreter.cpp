@@ -15,6 +15,7 @@
 #include "IncrementalExecutor.h"
 #include "IncrementalParser.h"
 #include "InterpreterUtils.h"
+#include "WASM.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Mangle.h"
@@ -183,6 +184,12 @@ IncrementalCompilerBuilder::CreateCpp() {
   std::vector<const char *> Argv;
   Argv.reserve(5 + 1 + UserArgs.size());
   Argv.push_back("-xc++");
+#ifdef __EMSCRIPTEN__
+  Argv.push_back("-target");
+  Argv.push_back("wasm32-unknown-emscripten");
+  Argv.push_back("-pie");
+  Argv.push_back("-shared");
+#endif
   Argv.insert(Argv.end(), UserArgs.begin(), UserArgs.end());
 
   std::string TT = TargetTriple ? *TargetTriple : llvm::sys::getProcessTriple();
@@ -400,7 +407,11 @@ llvm::Error Interpreter::CreateExecutor() {
   if (!JB)
     return JB.takeError();
   llvm::Error Err = llvm::Error::success();
+#ifdef __EMSCRIPTEN__
+  auto Executor = std::make_unique<WASMIncrementalExecutor>(*TSCtx, **JB, Err);
+#else
   auto Executor = std::make_unique<IncrementalExecutor>(*TSCtx, **JB, Err);
+#endif
   if (!Err)
     IncrExecutor = std::move(Executor);
 
