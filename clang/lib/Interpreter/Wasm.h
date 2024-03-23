@@ -1,4 +1,4 @@
-//===------------------ WASM.h - WASM Interpreter ---------------*- C++ -*-===//
+//===------------------ Wasm.h - Wasm Interpreter ---------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -17,15 +17,15 @@
 
 namespace clang {
 
-class WASMIncrementalExecutor : public IncrementalExecutor {
+class WasmIncrementalExecutor : public IncrementalExecutor {
 public:
-  WASMIncrementalExecutor(llvm::orc::ThreadSafeContext &TSC);
+  WasmIncrementalExecutor(llvm::orc::ThreadSafeContext &TSC);
 
   llvm::Error addModule(PartialTranslationUnit &PTU) override;
   llvm::Error removeModule(PartialTranslationUnit &PTU) override;
   llvm::Error runCtors() const override;
 
-  ~WASMIncrementalExecutor() override;
+  ~WasmIncrementalExecutor() override;
 };
 
 } // namespace clang

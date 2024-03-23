@@ -1,4 +1,4 @@
-//===----------------- WASM.cpp - WASM Interpreter --------------*- C++ -*-===//
+//===----------------- Wasm.cpp - Wasm Interpreter --------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "WASM.h"
+#ifdef __EMSCRIPTEN__
+
+#include "Wasm.h"
 #include "IncrementalExecutor.h"
 
 #include <llvm/IR/LegacyPassManager.h>
@@ -24,11 +26,11 @@
 
 namespace clang {
 
-WASMIncrementalExecutor::WASMIncrementalExecutor(
+WasmIncrementalExecutor::WasmIncrementalExecutor(
     llvm::orc::ThreadSafeContext &TSC)
     : IncrementalExecutor(TSC) {}
 
-llvm::Error WASMIncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
+llvm::Error WasmIncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
   PTU.TheModule->dump();
 
   std::string ErrorString;
@@ -36,7 +38,7 @@ llvm::Error WASMIncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
   const llvm::Target *Target = llvm::TargetRegistry::lookupTarget(
       PTU.TheModule->getTargetTriple(), ErrorString);
   if (!Target) {
-    return llvm::make_error<llvm::StringError>("Failed to create WASM Target: ",
+    return llvm::make_error<llvm::StringError>("Failed to create Wasm Target: ",
                                                llvm::inconvertibleErrorCode());
   }
 
@@ -53,12 +55,12 @@ llvm::Error WASMIncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
   if (TargetMachine->addPassesToEmitFile(PM, OutputFile, nullptr,
                                          llvm::CGFT_ObjectFile)) {
     return llvm::make_error<llvm::StringError>(
-        "WASM backend cannot produce object.", llvm::inconvertibleErrorCode());
+        "Wasm backend cannot produce object.", llvm::inconvertibleErrorCode());
   }
 
   if (!PM.run(*PTU.TheModule)) {
 
-    return llvm::make_error<llvm::StringError>("Failed to emit WASM object.",
+    return llvm::make_error<llvm::StringError>("Failed to emit Wasm object.",
                                                llvm::inconvertibleErrorCode());
   }
 
@@ -92,16 +94,18 @@ llvm::Error WASMIncrementalExecutor::addModule(PartialTranslationUnit &PTU) {
   return llvm::Error::success();
 }
 
-llvm::Error WASMIncrementalExecutor::removeModule(PartialTranslationUnit &PTU) {
+llvm::Error WasmIncrementalExecutor::removeModule(PartialTranslationUnit &PTU) {
   return llvm::make_error<llvm::StringError>("Not implemented yet",
                                              llvm::inconvertibleErrorCode());
 }
 
-llvm::Error WASMIncrementalExecutor::runCtors() const {
+llvm::Error WasmIncrementalExecutor::runCtors() const {
   // This seems to be automatically done when using dlopen()
   return llvm::Error::success();
 }
 
-WASMIncrementalExecutor::~WASMIncrementalExecutor() = default;
+WasmIncrementalExecutor::~WasmIncrementalExecutor() = default;
 
 } // namespace clang
+
+#endif // __EMSCRIPTEN__
