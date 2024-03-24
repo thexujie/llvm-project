@@ -400,22 +400,24 @@ SDValue SelectionDAGLegalize::PerformInsertVectorEltInMemory(SDValue Vec,
   EVT EltVT = VT.getVectorElementType();
   SDValue StackPtr = DAG.CreateStackTemporary(VT);
 
-  int SPFI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
+  MachineMemOperand *AlignedMMO = getStackAlignedMMO(
+      StackPtr, DAG.getMachineFunction(), EltVT.isScalableVector());
 
   // Store the vector.
-  SDValue Ch = DAG.getStore(
-      DAG.getEntryNode(), dl, Tmp1, StackPtr,
-      MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), SPFI));
+  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, AlignedMMO);
+
 
   SDValue StackPtr2 = TLI.getVectorElementPointer(DAG, StackPtr, VT, Tmp3);
 
   // Store the scalar value.
-  Ch = DAG.getTruncStore(
-      Ch, dl, Tmp2, StackPtr2,
-      MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()), EltVT);
-  // Load the updated vector.
-  return DAG.getLoad(VT, dl, Ch, StackPtr, MachinePointerInfo::getFixedStack(
-                                               DAG.getMachineFunction(), SPFI));
+  Ch = DAG.getTruncStore(Ch, dl, Tmp2, StackPtr2, EltVT, AlignedMMO);
+
+  Align ElementAlignment = std::min(cast<StoreSDNode>(Ch)->getAlign(),
+                                    DAG.getDataLayout().getPrefTypeAlign(
+                                        VT.getTypeForEVT(*DAG.getContext())));
+
+  return DAG.getLoad(VT, dl, Ch, StackPtr, MachinePointerInfo(),
+                     ElementAlignment);
 }
 
 SDValue SelectionDAGLegalize::ExpandINSERT_VECTOR_ELT(SDValue Vec, SDValue Val,
@@ -1492,24 +1494,27 @@ SDValue SelectionDAGLegalize::ExpandInsertToVectorThroughStack(SDValue Op) {
   EVT VecVT = Vec.getValueType();
   EVT SubVecVT = Part.getValueType();
   SDValue StackPtr = DAG.CreateStackTemporary(VecVT);
-  int FI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
-  MachinePointerInfo PtrInfo =
-      MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI);
+  MachineMemOperand *AlignedMMO = getStackAlignedMMO(
+      StackPtr, DAG.getMachineFunction(), VecVT.isScalableVector());
 
   // First store the whole vector.
-  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, PtrInfo);
+  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, AlignedMMO);
 
   // Then store the inserted part.
   SDValue SubStackPtr =
       TLI.getVectorSubVecPointer(DAG, StackPtr, VecVT, SubVecVT, Idx);
 
   // Store the subvector.
-  Ch = DAG.getStore(
-      Ch, dl, Part, SubStackPtr,
-      MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()));
+  Ch = DAG.getStore(Ch, dl, Part, SubStackPtr, AlignedMMO);
+
+  Align ElementAlignment =
+      std::min(cast<StoreSDNode>(Ch)->getAlign(),
+               DAG.getDataLayout().getPrefTypeAlign(
+                   Op.getValueType().getTypeForEVT(*DAG.getContext())));
 
   // Finally, load the updated vector.
-  return DAG.getLoad(Op.getValueType(), dl, Ch, StackPtr, PtrInfo);
+  return DAG.getLoad(Op.getValueType(), dl, Ch, StackPtr, MachinePointerInfo(),
+                     ElementAlignment);
 }
 
 SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
