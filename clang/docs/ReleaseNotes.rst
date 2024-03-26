@@ -445,6 +445,8 @@ Bug Fixes to C++ Support
 - Fix a crash when instantiating a lambda that captures ``this`` outside of its context. Fixes (#GH85343).
 - Fix an issue where a namespace alias could be defined using a qualified name (all name components
   following the first `::` were ignored).
+- Fixed a crash where template parameter packs were not expanded correctly in a lambda used
+  as the pattern of a folded expression. (#GH56852), (#GH85667), and partially fixed (#GH18873).
 
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^

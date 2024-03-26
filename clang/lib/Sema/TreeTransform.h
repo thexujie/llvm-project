@@ -13786,6 +13786,10 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
         }
         NewVDs.push_back(NewVD);
         getSema().addInitCapture(LSI, NewVD, C->getCaptureKind() == LCK_ByRef);
+        // The initializer might be expanded later. This may happen
+        // if the lambda is within a folded expression. 
+        LSI->ContainsUnexpandedParameterPack |=
+            Init.get()->containsUnexpandedParameterPack();
       }
 
       if (Invalid)
@@ -13852,6 +13856,12 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
       Invalid = true;
       continue;
     }
+
+    // The captured variable might be expanded later. This may happen
+    // if the lambda is within a folded expression. 
+    if (auto *PVD = dyn_cast<VarDecl>(CapturedVar);
+        PVD && !C->isPackExpansion())
+      LSI->ContainsUnexpandedParameterPack |= PVD->isParameterPack();
 
     // Capture the transformed variable.
     getSema().tryCaptureVariable(CapturedVar, C->getLocation(), Kind,
@@ -13974,6 +13984,22 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
                                     /*IsInstantiation*/ true);
   SavedContext.pop();
 
+  // The lambda may contain a pack that would be expanded by a fold expression
+  // outside. We should preserve the ContainsUnexpandedParameterPack flag here
+  // because CXXFoldExprs use it for the pattern.
+  // For example,
+  //
+  // []<class... Is>() { ([I = Is()]() {}, ...); }
+  //
+  // forgetting the flag will result in getPattern() of CXXFoldExpr returning
+  // null in terms of the inner lambda.
+  if (!LSICopy.ContainsUnexpandedParameterPack) {
+    llvm::SmallVector<UnexpandedParameterPack> UnexpandedPacks;
+    getSema().collectUnexpandedParameterPacksFromLambda(NewCallOperator,
+                                                        UnexpandedPacks);
+    // Should we call DiagnoseUnexpandedParameterPacks() instead?
+    LSICopy.ContainsUnexpandedParameterPack = !UnexpandedPacks.empty();
+  }
   return getSema().BuildLambdaExpr(E->getBeginLoc(), Body.get()->getEndLoc(),
                                    &LSICopy);
 }
