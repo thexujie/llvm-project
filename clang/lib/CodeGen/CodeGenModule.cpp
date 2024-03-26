@@ -4175,6 +4175,8 @@ void CodeGenModule::emitMultiVersionFunctions() {
             for (auto &CurFeat : VerFeats)
               Feature.push_back(CurFeat.trim());
           }
+        } else if (getTarget().getTriple().isRISCV()) {
+          Feature.push_back(Version);
         } else {
           if (Version.starts_with("arch="))
             Architecture = Version.drop_front(sizeof("arch=") - 1);

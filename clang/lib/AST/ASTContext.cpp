@@ -13691,6 +13691,15 @@ void ASTContext::getFunctionFeatureMap(llvm::StringMap<bool> &FeatureMap,
       Features.insert(Features.begin(),
                       Target->getTargetOpts().FeaturesAsWritten.begin(),
                       Target->getTargetOpts().FeaturesAsWritten.end());
+    } else if (Target->getTriple().isRISCV()) {
+      if (VersionStr != "default") {
+        ParsedTargetAttr ParsedAttr = Target->parseTargetAttr(VersionStr);
+        Features.insert(Features.begin(), ParsedAttr.Features.begin(),
+                        ParsedAttr.Features.end());
+      }
+      Features.insert(Features.begin(),
+                      Target->getTargetOpts().FeaturesAsWritten.begin(),
+                      Target->getTargetOpts().FeaturesAsWritten.end());
     } else {
       if (VersionStr.starts_with("arch="))
         TargetCPU = VersionStr.drop_front(sizeof("arch=") - 1);
