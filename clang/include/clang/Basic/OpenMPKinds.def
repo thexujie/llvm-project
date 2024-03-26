@@ -144,9 +144,7 @@ OPENMP_ATOMIC_DEFAULT_MEM_ORDER_KIND(relaxed)
 // Modifiers for atomic 'fail' clause.
 OPENMP_ATOMIC_FAIL_MODIFIER(seq_cst)
 OPENMP_ATOMIC_FAIL_MODIFIER(acquire)
-OPENMP_ATOMIC_FAIL_MODIFIER(acq_rel)
 OPENMP_ATOMIC_FAIL_MODIFIER(relaxed)
-OPENMP_ATOMIC_FAIL_MODIFIER(release)
 
 // Modifiers for 'at' clause.
 OPENMP_AT_KIND(compilation)

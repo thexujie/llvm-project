@@ -1593,12 +1593,20 @@ private:
   }
 
   bool isClassLayoutKnownStatically(const ObjCInterfaceDecl *ID) {
-    // NSObject is a fixed size. If we can see the @implementation of a class
-    // which inherits from NSObject then we know that all it's offsets also must
-    // be fixed. FIXME: Can we do this if see a chain of super classes with
-    // implementations leading to NSObject?
-    return ID->getImplementation() && ID->getSuperClass() &&
-           ID->getSuperClass()->getName() == "NSObject";
+    // Test a class by checking its superclasses up to
+    // its base class if it has one.
+    for (; ID; ID = ID->getSuperClass()) {
+      // The layout of base class NSObject
+      // is guaranteed to be statically known
+      if (ID->getIdentifier()->getName() == "NSObject")
+        return true;
+
+      // If we cannot see the @implementation of a class,
+      // we cannot statically know the class layout.
+      if (!ID->getImplementation())
+        return false;
+    }
+    return false;
   }
 
 public:
@@ -1850,7 +1858,7 @@ static bool hasObjCExceptionAttribute(ASTContext &Context,
 static llvm::GlobalValue::LinkageTypes
 getLinkageTypeForObjCMetadata(CodeGenModule &CGM, StringRef Section) {
   if (CGM.getTriple().isOSBinFormatMachO() &&
-      (Section.empty() || Section.startswith("__DATA")))
+      (Section.empty() || Section.starts_with("__DATA")))
     return llvm::GlobalValue::InternalLinkage;
   return llvm::GlobalValue::PrivateLinkage;
 }
@@ -2014,7 +2022,7 @@ CGObjCCommonMac::GenerateConstantNSString(const StringLiteral *Literal) {
   // Don't enforce the target's minimum global alignment, since the only use
   // of the string is via this class initializer.
   GV->setAlignment(llvm::Align(1));
-  Fields.addBitCast(GV, CGM.Int8PtrTy);
+  Fields.add(GV);
 
   // String length.
   Fields.addInt(CGM.IntTy, StringLength);
@@ -2493,12 +2501,12 @@ void CGObjCCommonMac::BuildRCRecordLayout(const llvm::StructLayout *RecLayout,
 
     if (const ArrayType *Array = CGM.getContext().getAsArrayType(FQT)) {
       auto *CArray = cast<ConstantArrayType>(Array);
-      uint64_t ElCount = CArray->getSize().getZExtValue();
+      uint64_t ElCount = CArray->getZExtSize();
       assert(CArray && "only array with known element size is supported");
       FQT = CArray->getElementType();
       while (const ArrayType *Array = CGM.getContext().getAsArrayType(FQT)) {
         auto *CArray = cast<ConstantArrayType>(Array);
-        ElCount *= CArray->getSize().getZExtValue();
+        ElCount *= CArray->getZExtSize();
         FQT = CArray->getElementType();
       }
       if (FQT->isRecordType() && ElCount) {
@@ -3557,8 +3565,7 @@ void CGObjCMac::GenerateClass(const ObjCImplementationDecl *ID) {
     // Record a reference to the super class.
     LazySymbols.insert(Super->getIdentifier());
 
-    values.addBitCast(GetClassName(Super->getObjCRuntimeNameAsString()),
-                      ObjCTypes.ClassPtrTy);
+    values.add(GetClassName(Super->getObjCRuntimeNameAsString()));
   } else {
     values.addNullPointer(ObjCTypes.ClassPtrTy);
   }
@@ -3612,14 +3619,12 @@ llvm::Constant *CGObjCMac::EmitMetaClass(const ObjCImplementationDecl *ID,
   const ObjCInterfaceDecl *Root = ID->getClassInterface();
   while (const ObjCInterfaceDecl *Super = Root->getSuperClass())
     Root = Super;
-  values.addBitCast(GetClassName(Root->getObjCRuntimeNameAsString()),
-                    ObjCTypes.ClassPtrTy);
+  values.add(GetClassName(Root->getObjCRuntimeNameAsString()));
   // The super class for the metaclass is emitted as the name of the
   // super class. The runtime fixes this up to point to the
   // *metaclass* for the super class.
   if (ObjCInterfaceDecl *Super = ID->getClassInterface()->getSuperClass()) {
-    values.addBitCast(GetClassName(Super->getObjCRuntimeNameAsString()),
-                      ObjCTypes.ClassPtrTy);
+    values.add(GetClassName(Super->getObjCRuntimeNameAsString()));
   } else {
     values.addNullPointer(ObjCTypes.ClassPtrTy);
   }
@@ -3815,8 +3820,7 @@ llvm::Constant *CGObjCMac::EmitIvarList(const ObjCImplementationDecl *ID,
 void CGObjCMac::emitMethodDescriptionConstant(ConstantArrayBuilder &builder,
                                               const ObjCMethodDecl *MD) {
   auto description = builder.beginStruct(ObjCTypes.MethodDescriptionTy);
-  description.addBitCast(GetMethodVarName(MD->getSelector()),
-                         ObjCTypes.SelectorPtrTy);
+  description.add(GetMethodVarName(MD->getSelector()));
   description.add(GetMethodVarType(MD));
   description.finishAndAddTo(builder);
 }
@@ -3834,10 +3838,9 @@ void CGObjCMac::emitMethodConstant(ConstantArrayBuilder &builder,
   assert(fn && "no definition registered for method");
 
   auto method = builder.beginStruct(ObjCTypes.MethodTy);
-  method.addBitCast(GetMethodVarName(MD->getSelector()),
-                    ObjCTypes.SelectorPtrTy);
+  method.add(GetMethodVarName(MD->getSelector()));
   method.add(GetMethodVarType(MD));
-  method.addBitCast(fn, ObjCTypes.Int8PtrTy);
+  method.add(fn);
   method.finishAndAddTo(builder);
 }
 
@@ -5043,12 +5046,10 @@ std::string CGObjCCommonMac::GetSectionName(StringRef Section,
     return ("__DATA," + Section + "," + MachOAttributes).str();
   }
   case llvm::Triple::ELF:
-    assert(Section.substr(0, 2) == "__" &&
-           "expected the name to begin with __");
+    assert(Section.starts_with("__") && "expected the name to begin with __");
     return Section.substr(2).str();
   case llvm::Triple::COFF:
-    assert(Section.substr(0, 2) == "__" &&
-           "expected the name to begin with __");
+    assert(Section.starts_with("__") && "expected the name to begin with __");
     return ("." + Section.substr(2) + "$B").str();
   case llvm::Triple::Wasm:
   case llvm::Triple::GOFF:
@@ -5191,10 +5192,10 @@ llvm::Constant *CGObjCMac::EmitModuleSymbols() {
       if (ID->isWeakImported() && !IMP->isWeakImported())
         DefinedClasses[i]->setLinkage(llvm::GlobalVariable::ExternalLinkage);
 
-    array.addBitCast(DefinedClasses[i], ObjCTypes.Int8PtrTy);
+    array.add(DefinedClasses[i]);
   }
   for (unsigned i=0; i<NumCategories; i++)
-    array.addBitCast(DefinedCategories[i], ObjCTypes.Int8PtrTy);
+    array.add(DefinedCategories[i]);
 
   array.finishAndAddTo(values);
 
@@ -5325,7 +5326,7 @@ void IvarLayoutBuilder::visitField(const FieldDecl *field,
   }
   // Unlike incomplete arrays, constant arrays can be nested.
   while (auto arrayType = CGM.getContext().getAsConstantArrayType(fieldType)) {
-    numElts *= arrayType->getSize().getZExtValue();
+    numElts *= arrayType->getZExtSize();
     fieldType = arrayType->getElementType();
   }
 
@@ -6167,7 +6168,7 @@ void CGObjCNonFragileABIMac::AddModuleClassList(
   // Section name is obtained by calling GetSectionName, which returns
   // sections in the __DATA segment on MachO.
   assert((!CGM.getTriple().isOSBinFormatMachO() ||
-          SectionName.startswith("__DATA")) &&
+          SectionName.starts_with("__DATA")) &&
          "SectionName expected to start with __DATA on MachO");
   llvm::GlobalVariable *GV = new llvm::GlobalVariable(
       CGM.getModule(), Init->getType(), false,
@@ -6735,8 +6736,7 @@ void CGObjCNonFragileABIMac::emitMethodConstant(ConstantArrayBuilder &builder,
                                                 const ObjCMethodDecl *MD,
                                                 bool forProtocol) {
   auto method = builder.beginStruct(ObjCTypes.MethodTy);
-  method.addBitCast(GetMethodVarName(MD->getSelector()),
-                    ObjCTypes.SelectorPtrTy);
+  method.add(GetMethodVarName(MD->getSelector()));
   method.add(GetMethodVarType(MD));
 
   if (forProtocol) {
@@ -6745,7 +6745,7 @@ void CGObjCNonFragileABIMac::emitMethodConstant(ConstantArrayBuilder &builder,
   } else {
     llvm::Function *fn = GetMethodDefinition(MD);
     assert(fn && "no definition for method?");
-    method.addBitCast(fn, ObjCTypes.Int8PtrProgramASTy);
+    method.add(fn);
   }
 
   method.finishAndAddTo(builder);

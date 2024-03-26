@@ -18,7 +18,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
-#include "llvm/CodeGen/LowLevelType.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -34,6 +33,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/CodeGenTypes/LowLevelType.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
@@ -231,10 +231,6 @@ void MachineInstr::addOperand(MachineFunction &MF, const MachineOperand &Op) {
   // OpNo now points as the desired insertion point.  Unless this is a variadic
   // instruction, only implicit regs are allowed beyond MCID->getNumOperands().
   // RegMask operands go between the explicit and implicit operands.
-  assert((MCID->isVariadic() || OpNo < MCID->getNumOperands() ||
-          Op.isValidExcessOperand()) &&
-         "Trying to add an operand to a machine instr that is already done!");
-
   MachineRegisterInfo *MRI = getRegInfo();
 
   // Determine if the Operands array needs to be reallocated.
@@ -557,6 +553,17 @@ uint32_t MachineInstr::copyFlagsFromInstruction(const Instruction &I) {
       MIFlags |= MachineInstr::MIFlag::NoSWrap;
     if (OB->hasNoUnsignedWrap())
       MIFlags |= MachineInstr::MIFlag::NoUWrap;
+  }
+
+  // Copy the nonneg flag.
+  if (const PossiblyNonNegInst *PNI = dyn_cast<PossiblyNonNegInst>(&I)) {
+    if (PNI->hasNonNeg())
+      MIFlags |= MachineInstr::MIFlag::NonNeg;
+    // Copy the disjoint flag.
+  } else if (const PossiblyDisjointInst *PD =
+                 dyn_cast<PossiblyDisjointInst>(&I)) {
+    if (PD->isDisjoint())
+      MIFlags |= MachineInstr::MIFlag::Disjoint;
   }
 
   // Copy the exact flag.
@@ -1306,10 +1313,11 @@ static bool MemOperandsHaveAlias(const MachineFrameInfo &MFI, AAResults *AA,
   int64_t OffsetB = MMOb->getOffset();
   int64_t MinOffset = std::min(OffsetA, OffsetB);
 
-  uint64_t WidthA = MMOa->getSize();
-  uint64_t WidthB = MMOb->getSize();
-  bool KnownWidthA = WidthA != MemoryLocation::UnknownSize;
-  bool KnownWidthB = WidthB != MemoryLocation::UnknownSize;
+  LocationSize WidthA = MMOa->getSize();
+  LocationSize WidthB = MMOb->getSize();
+  bool KnownWidthA = WidthA.hasValue();
+  bool KnownWidthB = WidthB.hasValue();
+  bool BothMMONonScalable = !WidthA.isScalable() && !WidthB.isScalable();
 
   const Value *ValA = MMOa->getValue();
   const Value *ValB = MMOb->getValue();
@@ -1325,11 +1333,13 @@ static bool MemOperandsHaveAlias(const MachineFrameInfo &MFI, AAResults *AA,
       SameVal = true;
   }
 
-  if (SameVal) {
+  if (SameVal && BothMMONonScalable) {
     if (!KnownWidthA || !KnownWidthB)
       return true;
     int64_t MaxOffset = std::max(OffsetA, OffsetB);
-    int64_t LowWidth = (MinOffset == OffsetA) ? WidthA : WidthB;
+    int64_t LowWidth = (MinOffset == OffsetA)
+                           ? WidthA.getValue().getKnownMinValue()
+                           : WidthB.getValue().getKnownMinValue();
     return (MinOffset + LowWidth > MaxOffset);
   }
 
@@ -1342,15 +1352,29 @@ static bool MemOperandsHaveAlias(const MachineFrameInfo &MFI, AAResults *AA,
   assert((OffsetA >= 0) && "Negative MachineMemOperand offset");
   assert((OffsetB >= 0) && "Negative MachineMemOperand offset");
 
+  // If Scalable Location Size has non-zero offset, Width + Offset does not work
+  // at the moment
+  if ((WidthA.isScalable() && OffsetA > 0) ||
+      (WidthB.isScalable() && OffsetB > 0))
+    return true;
+
   int64_t OverlapA =
-      KnownWidthA ? WidthA + OffsetA - MinOffset : MemoryLocation::UnknownSize;
+      KnownWidthA ? WidthA.getValue().getKnownMinValue() + OffsetA - MinOffset
+                  : MemoryLocation::UnknownSize;
   int64_t OverlapB =
-      KnownWidthB ? WidthB + OffsetB - MinOffset : MemoryLocation::UnknownSize;
+      KnownWidthB ? WidthB.getValue().getKnownMinValue() + OffsetB - MinOffset
+                  : MemoryLocation::UnknownSize;
+
+  LocationSize LocA = (WidthA.isScalable() || !KnownWidthA)
+                          ? WidthA
+                          : LocationSize::precise(OverlapA);
+  LocationSize LocB = (WidthB.isScalable() || !KnownWidthB)
+                          ? WidthB
+                          : LocationSize::precise(OverlapB);
 
   return !AA->isNoAlias(
-      MemoryLocation(ValA, OverlapA, UseTBAA ? MMOa->getAAInfo() : AAMDNodes()),
-      MemoryLocation(ValB, OverlapB,
-                     UseTBAA ? MMOb->getAAInfo() : AAMDNodes()));
+      MemoryLocation(ValA, LocA, UseTBAA ? MMOa->getAAInfo() : AAMDNodes()),
+      MemoryLocation(ValB, LocB, UseTBAA ? MMOb->getAAInfo() : AAMDNodes()));
 }
 
 bool MachineInstr::mayAlias(AAResults *AA, const MachineInstr &Other,
@@ -1693,6 +1717,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
     OS << "nofpexcept ";
   if (getFlag(MachineInstr::NoMerge))
     OS << "nomerge ";
+  if (getFlag(MachineInstr::NonNeg))
+    OS << "nneg ";
+  if (getFlag(MachineInstr::Disjoint))
+    OS << "disjoint ";
 
   // Print the opcode name.
   if (TII)
@@ -2358,18 +2386,23 @@ void MachineInstr::changeDebugValuesDefReg(Register Reg) {
 
 using MMOList = SmallVector<const MachineMemOperand *, 2>;
 
-static unsigned getSpillSlotSize(const MMOList &Accesses,
-                                 const MachineFrameInfo &MFI) {
-  unsigned Size = 0;
-  for (const auto *A : Accesses)
+static LocationSize getSpillSlotSize(const MMOList &Accesses,
+                                     const MachineFrameInfo &MFI) {
+  uint64_t Size = 0;
+  for (const auto *A : Accesses) {
     if (MFI.isSpillSlotObjectIndex(
             cast<FixedStackPseudoSourceValue>(A->getPseudoValue())
-                ->getFrameIndex()))
-      Size += A->getSize();
+                ->getFrameIndex())) {
+      LocationSize S = A->getSize();
+      if (!S.hasValue())
+        return LocationSize::beforeOrAfterPointer();
+      Size += S.getValue();
+    }
+  }
   return Size;
 }
 
-std::optional<unsigned>
+std::optional<LocationSize>
 MachineInstr::getSpillSize(const TargetInstrInfo *TII) const {
   int FI;
   if (TII->isStoreToStackSlotPostFE(*this, FI)) {
@@ -2380,7 +2413,7 @@ MachineInstr::getSpillSize(const TargetInstrInfo *TII) const {
   return std::nullopt;
 }
 
-std::optional<unsigned>
+std::optional<LocationSize>
 MachineInstr::getFoldedSpillSize(const TargetInstrInfo *TII) const {
   MMOList Accesses;
   if (TII->hasStoreToStackSlot(*this, Accesses))
@@ -2388,7 +2421,7 @@ MachineInstr::getFoldedSpillSize(const TargetInstrInfo *TII) const {
   return std::nullopt;
 }
 
-std::optional<unsigned>
+std::optional<LocationSize>
 MachineInstr::getRestoreSize(const TargetInstrInfo *TII) const {
   int FI;
   if (TII->isLoadFromStackSlotPostFE(*this, FI)) {
@@ -2399,7 +2432,7 @@ MachineInstr::getRestoreSize(const TargetInstrInfo *TII) const {
   return std::nullopt;
 }
 
-std::optional<unsigned>
+std::optional<LocationSize>
 MachineInstr::getFoldedRestoreSize(const TargetInstrInfo *TII) const {
   MMOList Accesses;
   if (TII->hasLoadFromStackSlot(*this, Accesses))

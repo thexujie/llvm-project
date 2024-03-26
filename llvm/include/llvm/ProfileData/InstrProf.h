@@ -171,6 +171,8 @@ inline StringRef getInstrProfCounterBiasVarName() {
 /// Return the marker used to separate PGO names during serialization.
 inline StringRef getInstrProfNameSeparator() { return "\01"; }
 
+/// Please use getIRPGOFuncName for LLVM IR instrumentation. This function is
+/// for front-end (Clang, etc) instrumentation.
 /// Return the modified name for function \c F suitable to be
 /// used the key for profile lookup. Variable \c InLTO indicates if this
 /// is called in LTO optimization passes.
@@ -193,23 +195,25 @@ std::string getIRPGOFuncName(const Function &F, bool InLTO = false);
 
 /// \return the filename and the function name parsed from the output of
 /// \c getIRPGOFuncName()
-std::pair<StringRef, StringRef> getParsedIRPGOFuncName(StringRef IRPGOFuncName);
+std::pair<StringRef, StringRef> getParsedIRPGOName(StringRef IRPGOName);
 
 /// Return the name of the global variable used to store a function
-/// name in PGO instrumentation. \c FuncName is the name of the function
-/// returned by the \c getPGOFuncName call.
+/// name in PGO instrumentation. \c FuncName is the IRPGO function name
+/// (returned by \c getIRPGOFuncName) for LLVM IR instrumentation and PGO
+/// function name (returned by \c getPGOFuncName) for front-end instrumentation.
 std::string getPGOFuncNameVarName(StringRef FuncName,
                                   GlobalValue::LinkageTypes Linkage);
 
 /// Create and return the global variable for function name used in PGO
-/// instrumentation. \c FuncName is the name of the function returned
-/// by \c getPGOFuncName call.
+/// instrumentation. \c FuncName is the IRPGO function name (returned by
+/// \c getIRPGOFuncName) for LLVM IR instrumentation and PGO function name
+/// (returned by \c getPGOFuncName) for front-end instrumentation.
 GlobalVariable *createPGOFuncNameVar(Function &F, StringRef PGOFuncName);
 
 /// Create and return the global variable for function name used in PGO
-/// instrumentation.  /// \c FuncName is the name of the function
-/// returned by \c getPGOFuncName call, \c M is the owning module,
-/// and \c Linkage is the linkage of the instrumented function.
+/// instrumentation. \c FuncName is the IRPGO function name (returned by
+/// \c getIRPGOFuncName) for LLVM IR instrumentation and PGO function name
+/// (returned by \c getPGOFuncName) for front-end instrumentation.
 GlobalVariable *createPGOFuncNameVar(Module &M,
                                      GlobalValue::LinkageTypes Linkage,
                                      StringRef PGOFuncName);
@@ -241,11 +245,6 @@ Error collectGlobalObjectNameStrings(ArrayRef<std::string> NameStrs,
 /// variables.
 Error collectPGOFuncNameStrings(ArrayRef<GlobalVariable *> NameVars,
                                 std::string &Result, bool doCompression = true);
-
-/// \c NameStrings is a string composed of one of more sub-strings encoded in
-/// the format described above. The substrings are separated by 0 or more zero
-/// bytes. This method decodes the string and populates the \c Symtab.
-Error readPGOFuncNameStrings(StringRef NameStrings, InstrProfSymtab &Symtab);
 
 /// Check if INSTR_PROF_RAW_VERSION_VAR is defined. This global is only being
 /// set in IR PGO compilation.
@@ -333,8 +332,8 @@ enum class instrprof_error {
   too_large,
   truncated,
   malformed,
-  missing_debug_info_for_correlation,
-  unexpected_debug_info_for_correlation,
+  missing_correlation_info,
+  unexpected_correlation_info,
   unable_to_correlate_profile,
   unknown_function,
   invalid_prof,
@@ -422,11 +421,11 @@ uint64_t ComputeHash(StringRef K);
 
 } // end namespace IndexedInstrProf
 
-/// A symbol table used for function PGO name look-up with keys
+/// A symbol table used for function [IR]PGO name look-up with keys
 /// (such as pointers, md5hash values) to the function. A function's
-/// PGO name or name's md5hash are used in retrieving the profile
-/// data of the function. See \c getPGOFuncName() method for details
-/// on how PGO name is formed.
+/// [IR]PGO name or name's md5hash are used in retrieving the profile
+/// data of the function. See \c getIRPGOFuncName() and \c getPGOFuncName
+/// methods for details how [IR]PGO name is formed.
 class InstrProfSymtab {
 public:
   using AddrHashMap = std::vector<std::pair<uint64_t, uint64_t>>;
@@ -450,6 +449,17 @@ private:
     return "** External Symbol **";
   }
 
+  // Returns the canonial name of the given PGOName. In a canonical name, all
+  // suffixes that begins with "." except ".__uniq." are stripped.
+  // FIXME: Unify this with `FunctionSamples::getCanonicalFnName`.
+  static StringRef getCanonicalName(StringRef PGOName);
+
+  // Add the function into the symbol table, by creating the following
+  // map entries:
+  // name-set = {PGOFuncName} + {getCanonicalName(PGOFuncName)} if the canonical
+  // name is different from pgo name
+  // - In MD5NameMap: <MD5Hash(name), name> for name in name-set
+  // - In MD5FuncMap: <MD5Hash(name), &F> for name in name-set
   Error addFuncWithName(Function &F, StringRef PGOFuncName);
 
   // If the symtab is created by a series of calls to \c addFuncName, \c
@@ -469,14 +479,14 @@ public:
   /// until before it is used. See also \c create(StringRef) method.
   Error create(object::SectionRef &Section);
 
-  /// This interface is used by reader of CoverageMapping test
-  /// format.
-  inline Error create(StringRef D, uint64_t BaseAddr);
-
   /// \c NameStrings is a string composed of one of more sub-strings
   ///  encoded in the format described in \c collectPGOFuncNameStrings.
   /// This method is a wrapper to \c readPGOFuncNameStrings method.
-  inline Error create(StringRef NameStrings);
+  Error create(StringRef NameStrings);
+
+  /// This interface is used by reader of CoverageMapping test
+  /// format.
+  inline Error create(StringRef D, uint64_t BaseAddr);
 
   /// A wrapper interface to populate the PGO symtab with functions
   /// decls from module \c M. This interface is used by transformation
@@ -545,10 +555,6 @@ Error InstrProfSymtab::create(StringRef D, uint64_t BaseAddr) {
   Data = D;
   Address = BaseAddr;
   return Error::success();
-}
-
-Error InstrProfSymtab::create(StringRef NameStrings) {
-  return readPGOFuncNameStrings(NameStrings, *this);
 }
 
 template <typename NameIterRange>
@@ -825,6 +831,7 @@ private:
   struct ValueProfData {
     std::vector<InstrProfValueSiteRecord> IndirectCallSites;
     std::vector<InstrProfValueSiteRecord> MemOPSizes;
+    std::vector<InstrProfValueSiteRecord> VTableTargets;
   };
   std::unique_ptr<ValueProfData> ValueData;
 
@@ -847,6 +854,8 @@ private:
       return ValueData->IndirectCallSites;
     case IPVK_MemOPSize:
       return ValueData->MemOPSizes;
+    case IPVK_VTableTarget:
+      return ValueData->VTableTargets;
     default:
       llvm_unreachable("Unknown value kind!");
     }
@@ -1030,7 +1039,9 @@ enum ProfVersion {
   Version10 = 10,
   // An additional field is used for bitmap bytes.
   Version11 = 11,
-  // The current version is 11.
+  // VTable profiling,
+  Version12 = 12,
+  // The current version is 12.
   CurrentVersion = INSTR_PROF_INDEX_VERSION
 };
 const uint64_t Version = ProfVersion::CurrentVersion;
@@ -1040,7 +1051,8 @@ const HashT HashType = HashT::MD5;
 inline uint64_t ComputeHash(StringRef K) { return ComputeHash(HashType, K); }
 
 // This structure defines the file header of the LLVM profile
-// data file in indexed-format.
+// data file in indexed-format. Please update llvm/docs/InstrProfileFormat.rst
+// as appropriate when updating the indexed profile format.
 struct Header {
   uint64_t Magic;
   uint64_t Version;
@@ -1050,6 +1062,7 @@ struct Header {
   uint64_t MemProfOffset;
   uint64_t BinaryIdOffset;
   uint64_t TemporalProfTracesOffset;
+  uint64_t VTableNamesOffset;
   // New fields should only be added at the end to ensure that the size
   // computation is correct. The methods below need to be updated to ensure that
   // the new field is read correctly.
@@ -1186,8 +1199,13 @@ template <> inline uint64_t getMagic<uint32_t>() {
 // It should also match the synthesized type in
 // Transforms/Instrumentation/InstrProfiling.cpp:getOrCreateRegionCounters.
 template <class IntPtrT> struct alignas(8) ProfileData {
-  #define INSTR_PROF_DATA(Type, LLVMType, Name, Init) Type Name;
-  #include "llvm/ProfileData/InstrProfData.inc"
+#define INSTR_PROF_DATA(Type, LLVMType, Name, Init) Type Name;
+#include "llvm/ProfileData/InstrProfData.inc"
+};
+
+template <class IntPtrT> struct alignas(8) VTableProfileData {
+#define INSTR_PROF_VTABLE_DATA(Type, LLVMType, Name, Init) Type Name;
+#include "llvm/ProfileData/InstrProfData.inc"
 };
 
 // File header structure of the LLVM profile data in raw format.

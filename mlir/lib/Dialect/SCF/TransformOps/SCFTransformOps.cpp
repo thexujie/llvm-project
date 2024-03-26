@@ -17,8 +17,8 @@
 #include "mlir/Dialect/SCF/Transforms/Transforms.h"
 #include "mlir/Dialect/SCF/Utils/Utils.h"
 #include "mlir/Dialect/Transform/IR/TransformDialect.h"
-#include "mlir/Dialect/Transform/IR/TransformInterfaces.h"
 #include "mlir/Dialect/Transform/IR/TransformOps.h"
+#include "mlir/Dialect/Transform/Interfaces/TransformInterfaces.h"
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -193,13 +193,24 @@ transform::LoopPeelOp::applyToOne(transform::TransformRewriter &rewriter,
                                   transform::ApplyToEachResultList &results,
                                   transform::TransformState &state) {
   scf::ForOp result;
-  LogicalResult status =
-      scf::peelForLoopAndSimplifyBounds(rewriter, target, result);
-  if (failed(status)) {
-    DiagnosedSilenceableFailure diag = emitSilenceableError()
-                                       << "failed to peel";
-    return diag;
+  if (getPeelFront()) {
+    LogicalResult status =
+        scf::peelForLoopFirstIteration(rewriter, target, result);
+    if (failed(status)) {
+      DiagnosedSilenceableFailure diag =
+          emitSilenceableError() << "failed to peel the first iteration";
+      return diag;
+    }
+  } else {
+    LogicalResult status =
+        scf::peelForLoopAndSimplifyBounds(rewriter, target, result);
+    if (failed(status)) {
+      DiagnosedSilenceableFailure diag = emitSilenceableError()
+                                         << "failed to peel the last iteration";
+      return diag;
+    }
   }
+
   results.push_back(target);
   results.push_back(result);
 

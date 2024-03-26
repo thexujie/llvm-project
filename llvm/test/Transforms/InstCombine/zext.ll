@@ -757,7 +757,7 @@ define i32  @zext_icmp_eq0_no_shift(ptr %ptr ) {
 ; CHECK-LABEL: @zext_icmp_eq0_no_shift(
 ; CHECK-NEXT:    [[X:%.*]] = load i8, ptr [[PTR:%.*]], align 1, !range [[RNG1:![0-9]+]]
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor i8 [[X]], 1
-; CHECK-NEXT:    [[RES:%.*]] = zext i8 [[TMP1]] to i32
+; CHECK-NEXT:    [[RES:%.*]] = zext nneg i8 [[TMP1]] to i32
 ; CHECK-NEXT:    ret i32 [[RES]]
 ;
   %X = load i8, ptr %ptr,align 1, !range !{i8 0, i8 2} ; range [0, 2)
@@ -835,4 +835,35 @@ define i64 @zext_nneg_demanded_constant(i8 %a) nounwind {
   call void @use64(i64 %b)
   %c = and i64 %b, 254
   ret i64 %c
+}
+
+define i32 @zext_nneg_i1(i1 %x) {
+; CHECK-LABEL: @zext_nneg_i1(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    ret i32 0
+;
+entry:
+  %res = zext nneg i1 %x to i32
+  ret i32 %res
+}
+
+define <2 x i32> @zext_nneg_i1_vec(<2 x i1> %x) {
+; CHECK-LABEL: @zext_nneg_i1_vec(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    ret <2 x i32> zeroinitializer
+;
+entry:
+  %res = zext nneg <2 x i1> %x to <2 x i32>
+  ret <2 x i32> %res
+}
+
+define i32 @zext_nneg_i2(i2 %x) {
+; CHECK-LABEL: @zext_nneg_i2(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[RES:%.*]] = zext nneg i2 [[X:%.*]] to i32
+; CHECK-NEXT:    ret i32 [[RES]]
+;
+entry:
+  %res = zext nneg i2 %x to i32
+  ret i32 %res
 }

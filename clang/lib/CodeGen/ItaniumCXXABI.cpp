@@ -1347,9 +1347,10 @@ static llvm::FunctionCallee getItaniumDynamicCastFn(CodeGenFunction &CGF) {
 
   llvm::FunctionType *FTy = llvm::FunctionType::get(Int8PtrTy, Args, false);
 
-  // Mark the function as nounwind readonly.
+  // Mark the function as nounwind willreturn readonly.
   llvm::AttrBuilder FuncAttrs(CGF.getLLVMContext());
   FuncAttrs.addAttribute(llvm::Attribute::NoUnwind);
+  FuncAttrs.addAttribute(llvm::Attribute::WillReturn);
   FuncAttrs.addMemoryAttr(llvm::MemoryEffects::readOnly());
   llvm::AttributeList Attrs = llvm::AttributeList::get(
       CGF.getLLVMContext(), llvm::AttributeList::FunctionIndex, FuncAttrs);
@@ -1884,19 +1885,27 @@ ItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
 
   // Find the appropriate vtable within the vtable group, and the address point
   // within that vtable.
+  const VTableLayout &Layout =
+      CGM.getItaniumVTableContext().getVTableLayout(VTableClass);
   VTableLayout::AddressPointLocation AddressPoint =
-      CGM.getItaniumVTableContext()
-          .getVTableLayout(VTableClass)
-          .getAddressPoint(Base);
+      Layout.getAddressPoint(Base);
   llvm::Value *Indices[] = {
     llvm::ConstantInt::get(CGM.Int32Ty, 0),
     llvm::ConstantInt::get(CGM.Int32Ty, AddressPoint.VTableIndex),
     llvm::ConstantInt::get(CGM.Int32Ty, AddressPoint.AddressPointIndex),
   };
 
-  return llvm::ConstantExpr::getGetElementPtr(VTable->getValueType(), VTable,
-                                              Indices, /*InBounds=*/true,
-                                              /*InRangeIndex=*/1);
+  // Add inrange attribute to indicate that only the VTableIndex can be
+  // accessed.
+  unsigned ComponentSize =
+      CGM.getDataLayout().getTypeAllocSize(CGM.getVTableComponentType());
+  unsigned VTableSize =
+      ComponentSize * Layout.getVTableSize(AddressPoint.VTableIndex);
+  unsigned Offset = ComponentSize * AddressPoint.AddressPointIndex;
+  llvm::ConstantRange InRange(llvm::APInt(32, -Offset, true),
+                              llvm::APInt(32, VTableSize - Offset, true));
+  return llvm::ConstantExpr::getGetElementPtr(
+      VTable->getValueType(), VTable, Indices, /*InBounds=*/true, InRange);
 }
 
 // Check whether all the non-inline virtual methods for the class have the
@@ -2794,6 +2803,14 @@ void ItaniumCXXABI::registerGlobalDtor(CodeGenFunction &CGF, const VarDecl &D,
   if (D.isNoDestroy(CGM.getContext()))
     return;
 
+  // OpenMP offloading supports C++ constructors and destructors but we do not
+  // always have 'atexit' available. Instead lower these to use the LLVM global
+  // destructors which we can handle directly in the runtime. Note that this is
+  // not strictly 1-to-1 with using `atexit` because we no longer tear down
+  // globals in reverse order of when they were constructed.
+  if (!CGM.getLangOpts().hasAtExit() && !D.isStaticLocal())
+    return CGF.registerGlobalDtorWithLLVM(D, dtor, addr);
+
   // emitGlobalDtorWithCXAAtExit will emit a call to either __cxa_thread_atexit
   // or __cxa_atexit depending on whether this VarDecl is a thread-local storage
   // or not. CXAAtExit controls only __cxa_atexit, so use it if it is enabled.
@@ -3087,9 +3104,6 @@ void ItaniumCXXABI::EmitThreadLocalInitFuncs(
       CharUnits Align = CGM.getContext().getDeclAlign(VD);
       Val = Builder.CreateAlignedLoad(Var->getValueType(), Val, Align);
     }
-    if (Val->getType() != Wrapper->getReturnType())
-      Val = Builder.CreatePointerBitCastOrAddrSpaceCast(
-          Val, Wrapper->getReturnType(), "");
 
     Builder.CreateRet(Val);
   }
