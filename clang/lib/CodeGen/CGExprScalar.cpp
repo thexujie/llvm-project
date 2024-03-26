@@ -1117,7 +1117,8 @@ void ScalarExprEmitter::EmitIntegerTruncationCheck(Value *Src, QualType SrcType,
   // If the comparison result is 'i1 false', then the truncation was lossy.
 
   // Do we care about this type of truncation?
-  if (!CGF.SanOpts.has(Check.second.second))
+  if (!CGF.SanOpts.has(Check.second.second) ||
+      DstType.getTypePtr()->hasAttr(attr::Wraps))
     return;
 
   llvm::Constant *StaticArgs[] = {
