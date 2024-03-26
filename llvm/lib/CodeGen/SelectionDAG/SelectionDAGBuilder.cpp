@@ -7527,6 +7527,24 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     return;
   }
 
+  case Intrinsic::fake_use: {
+    Value *V = I.getArgOperand(0);
+    SDValue Ops[2];
+    // If this fake use uses an argument that has an empty SDValue, it is a
+    // zero-length array or some other type that does not produce a register,
+    // so do not translate a fake use for it.
+    if (isa<Argument>(V) && !NodeMap[V])
+      return;
+    Ops[0] = getRoot();
+    Ops[1] = getValue(V);
+    // Also, do not translate a fake use with an undef operand, or any other
+    // empty SDValues.
+    if (!Ops[1] || Ops[1].isUndef())
+      return;
+    DAG.setRoot(DAG.getNode(ISD::FAKE_USE, sdl, MVT::Other, Ops));
+    return;
+  }
+
   case Intrinsic::eh_exceptionpointer:
   case Intrinsic::eh_exceptioncode: {
     // Get the exception pointer vreg, copy from it, and resize it to fit.
