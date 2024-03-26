@@ -42,28 +42,24 @@ int main(int, char**) {
   // Testing with vector of doubles
   {
     std::vector<double> v(test_size, value);
-    overwrite(
-        v, [&](double& n) { n *= n; }, value);
+    overwrite(v, [&](double& n) { n *= n; }, value);
   }
   // Testing with vector of integers
   {
     std::vector<int> v(test_size, (int)value);
-    overwrite(
-        v, [&](int& n) { n *= n; }, (int)value);
+    overwrite(v, [&](int& n) { n *= n; }, (int)value);
   }
   // Testing with array of doubles
   {
     std::array<double, test_size> a;
     a.fill(value);
-    overwrite(
-        a, [&](double& n) { n *= n; }, value);
+    overwrite(a, [&](double& n) { n *= n; }, value);
   }
   // Testing with array of integers
   {
     std::array<int, test_size> a;
     a.fill((int)value);
-    overwrite(
-        a, [&](int& n) { n *= n; }, (int)value);
+    overwrite(a, [&](int& n) { n *= n; }, (int)value);
   }
   return 0;
 }
