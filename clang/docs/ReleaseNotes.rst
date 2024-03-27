@@ -454,6 +454,8 @@ Bug Fixes to C++ Support
 - Fix a crash when instantiating a lambda that captures ``this`` outside of its context. Fixes (#GH85343).
 - Fix an issue where a namespace alias could be defined using a qualified name (all name components
   following the first `::` were ignored).
+- A follow-up fix was added for (#GH61460), where the fix previously overlooked the parentheses
+  around the expression. (#GH86361)
 
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
