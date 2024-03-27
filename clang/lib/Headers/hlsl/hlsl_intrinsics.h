@@ -18,6 +18,8 @@ namespace hlsl {
 
 #define _HLSL_BUILTIN_ALIAS(builtin)                                           \
   __attribute__((clang_builtin_alias(builtin)))
+#define _HLSL_ELEMENTWISE_BUILTIN_ALIAS(builtin)                               \
+  __attribute__((clang_elementwise_builtin_alias(builtin)))
 #define _HLSL_AVAILABILITY(environment, version)                               \
   __attribute__((availability(environment, introduced = version)))
 
@@ -249,7 +251,7 @@ _HLSL_BUILTIN_ALIAS(__builtin_elementwise_ceil)
 double2 ceil(double2);
 _HLSL_BUILTIN_ALIAS(__builtin_elementwise_ceil)
 double3 ceil(double3);
-_HLSL_BUILTIN_ALIAS(__builtin_elementwise_ceil)
+_HLSL_ELEMENTWISE_BUILTIN_ALIAS(__builtin_ceil)
 double4 ceil(double4);
 
 //===----------------------------------------------------------------------===//
