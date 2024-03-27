@@ -1690,7 +1690,7 @@ void CGOpenMPRuntimeGPU::emitReduction(
     llvm::Type *ElementType;
     llvm::Value *Variable;
     llvm::Value *PrivateVariable;
-    llvm::OpenMPIRBuilder::AtomicReductionGenCB AtomicReductionGen = nullptr;
+    llvm::OpenMPIRBuilder::ReductionGenAtomicCBTy AtomicReductionGen = nullptr;
     ElementType = CGF.ConvertTypeForMem(Private->getType());
     const auto *RHSVar =
         cast<VarDecl>(cast<DeclRefExpr>(RHSExprs[Idx])->getDecl());
@@ -1698,16 +1698,16 @@ void CGOpenMPRuntimeGPU::emitReduction(
     const auto *LHSVar =
         cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[Idx])->getDecl());
     Variable = CGF.GetAddrOfLocalVar(LHSVar).getPointer();
-    llvm::OpenMPIRBuilder::EvaluationKindTy EvalKind;
+    llvm::OpenMPIRBuilder::EvaluationKind EvalKind;
     switch (CGF.getEvaluationKind(Private->getType())) {
     case TEK_Scalar:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Scalar;
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Scalar;
       break;
     case TEK_Complex:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Complex;
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Complex;
       break;
     case TEK_Aggregate:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Aggregate;
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Aggregate;
       break;
     }
     auto ReductionGen = [&](InsertPointTy CodeGenIP, unsigned I,
@@ -1741,7 +1741,7 @@ void CGOpenMPRuntimeGPU::emitReduction(
 
   CGF.Builder.restoreIP(OMPBuilder.createReductionsGPU(
       OmpLoc, AllocaIP, CodeGenIP, ReductionInfos, false, TeamsReduction,
-      DistributeReduction, llvm::OpenMPIRBuilder::ReductionGenCBTy::Clang,
+      DistributeReduction, llvm::OpenMPIRBuilder::ReductionGenCBKind::Clang,
       CGF.getTarget().getGridValue(), C.getLangOpts().OpenMPCUDAReductionBufNum,
       RTLoc));
   return;

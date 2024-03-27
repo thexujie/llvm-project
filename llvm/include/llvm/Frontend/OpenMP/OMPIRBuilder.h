@@ -628,8 +628,8 @@ public:
   /// \param ThreadID Optional parameter to pass in any existing ThreadID value.
   ///
   /// \returns The insertion point after the barrier.
-  InsertPointTy createBarrier(const LocationDescription &Loc, omp::Directive DK,
-                              bool ForceSimpleCall = false,
+  InsertPointTy createBarrier(const LocationDescription &Loc,
+                              omp::Directive Kind, bool ForceSimpleCall = false,
                               bool CheckCancelFlag = true,
                               Value *ThreadID = nullptr);
 
@@ -1252,7 +1252,7 @@ public:
                            StringRef ParentName = "");
 
   /// Enum class for the RedctionGen CallBack type to be used.
-  enum class ReductionGenCBTy { Clang, MLIR };
+  enum class ReductionGenCBKind { Clang, MLIR };
 
   /// ReductionGen CallBack for Clang
   ///
@@ -1264,7 +1264,7 @@ public:
   /// return the RHSPtr it used for codegen, used for fixup later.
   /// \param CurFn Optionally used by Clang to pass in the Current Function as
   /// Clang context may be old.
-  using ReductionGenCBClang =
+  using ReductionGenClangCBTy =
       std::function<InsertPointTy(InsertPointTy CodeGenIP, unsigned Index,
                                   Value **LHS, Value **RHS, Function *CurFn)>;
 
@@ -1273,25 +1273,25 @@ public:
   /// \param CodeGenIP InsertPoint for CodeGen.
   /// \param LHS Pass in the LHS Value to be used for CodeGen.
   /// \param RHS Pass in the RHS Value to be used for CodeGen.
-  using ReductionGenCB = std::function<InsertPointTy(
+  using ReductionGenCBTy = std::function<InsertPointTy(
       InsertPointTy CodeGenIP, Value *LHS, Value *RHS, Value *&Res)>;
 
   /// Functions used to generate atomic reductions. Such functions take two
   /// Values representing pointers to LHS and RHS of the reduction, as well as
   /// the element type of these pointers. They are expected to atomically
   /// update the LHS to the reduced value.
-  using AtomicReductionGenCB =
+  using ReductionGenAtomicCBTy =
       std::function<InsertPointTy(InsertPointTy, Type *, Value *, Value *)>;
 
   /// Enum class for reduction evaluation types scalar, complex and aggregate.
-  enum class EvaluationKindTy { Scalar, Complex, Aggregate };
+  enum class EvaluationKind { Scalar, Complex, Aggregate };
 
   /// Information about an OpenMP reduction.
   struct ReductionInfo {
     ReductionInfo(Type *ElementType, Value *Variable, Value *PrivateVariable,
-                  EvaluationKindTy EvaluationKind, ReductionGenCB ReductionGen,
-                  ReductionGenCBClang ReductionGenClang,
-                  AtomicReductionGenCB AtomicReductionGen)
+                  EvaluationKind EvaluationKind, ReductionGenCBTy ReductionGen,
+                  ReductionGenClangCBTy ReductionGenClang,
+                  ReductionGenAtomicCBTy AtomicReductionGen)
         : ElementType(ElementType), Variable(Variable),
           PrivateVariable(PrivateVariable), EvaluationKind(EvaluationKind),
           ReductionGen(ReductionGen), ReductionGenClang(ReductionGenClang),
@@ -1299,7 +1299,7 @@ public:
     ReductionInfo(Value *PrivateVariable)
         : ElementType(nullptr), Variable(nullptr),
           PrivateVariable(PrivateVariable),
-          EvaluationKind(EvaluationKindTy::Scalar), ReductionGen(),
+          EvaluationKind(EvaluationKind::Scalar), ReductionGen(),
           ReductionGenClang(), AtomicReductionGen() {}
 
     /// Reduction element type, must match pointee type of variable.
@@ -1312,23 +1312,23 @@ public:
     Value *PrivateVariable;
 
     /// Reduction evaluation type - scalar, complex or aggregate.
-    EvaluationKindTy EvaluationKind;
+    EvaluationKind EvaluationKind;
 
     /// Callback for generating the reduction body. The IR produced by this will
     /// be used to combine two values in a thread-safe context, e.g., under
     /// lock or within the same thread, and therefore need not be atomic.
-    ReductionGenCB ReductionGen;
+    ReductionGenCBTy ReductionGen;
 
     /// Clang callback for generating the reduction body. The IR produced by
     /// this will be used to combine two values in a thread-safe context, e.g.,
     /// under lock or within the same thread, and therefore need not be atomic.
-    ReductionGenCBClang ReductionGenClang;
+    ReductionGenClangCBTy ReductionGenClang;
 
     /// Callback for generating the atomic reduction body, may be null. The IR
     /// produced by this will be used to atomically combine two values during
     /// reduction. If null, the implementation will use the non-atomic version
     /// along with the appropriate synchronization mechanisms.
-    AtomicReductionGenCB AtomicReductionGen;
+    ReductionGenAtomicCBTy AtomicReductionGen;
   };
 
   enum class CopyAction : unsigned {
@@ -1574,7 +1574,7 @@ private:
   /// \return The reduction function.
   Function *createReductionFunction(
       StringRef ReducerName, ArrayRef<ReductionInfo> ReductionInfos,
-      ReductionGenCBTy ReductionGenCBTy = ReductionGenCBTy::MLIR,
+      ReductionGenCBKind ReductionGenCBTy = ReductionGenCBKind::MLIR,
       AttributeList FuncAttrs = {});
 
 public:
@@ -1843,7 +1843,7 @@ public:
       InsertPointTy CodeGenIP, ArrayRef<ReductionInfo> ReductionInfos,
       bool IsNoWait = false, bool IsTeamsReduction = false,
       bool HasDistribute = false,
-      ReductionGenCBTy ReductionGenCBTy = ReductionGenCBTy::MLIR,
+      ReductionGenCBKind ReductionGenCBTy = ReductionGenCBKind::MLIR,
       std::optional<omp::GV> GridValue = {}, unsigned ReductionBufNum = 1024,
       Value *SrcLocInfo = nullptr);
 

@@ -2348,13 +2348,13 @@ void OpenMPIRBuilder::emitReductionListCopy(
                       RemoteLaneOffset, ReductionArrayTy);
     } else {
       switch (RI.EvaluationKind) {
-      case EvaluationKindTy::Scalar: {
+      case EvaluationKind::Scalar: {
         Value *Elem = Builder.CreateLoad(RI.ElementType, SrcElementAddr);
         // Store the source element value to the dest element address.
         Builder.CreateStore(Elem, DestElementAddr);
         break;
       }
-      case EvaluationKindTy::Complex: {
+      case EvaluationKind::Complex: {
         Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
             RI.ElementType, SrcElementAddr, 0, 0, ".realp");
         Value *SrcReal = Builder.CreateLoad(
@@ -2372,7 +2372,7 @@ void OpenMPIRBuilder::emitReductionListCopy(
         Builder.CreateStore(SrcImg, DestImgPtr);
         break;
       }
-      case EvaluationKindTy::Aggregate: {
+      case EvaluationKind::Aggregate: {
         Value *SizeVal = Builder.getInt64(
             M.getDataLayout().getTypeStoreSize(RI.ElementType));
         Builder.CreateMemCpy(
@@ -2869,12 +2869,12 @@ Function *OpenMPIRBuilder::emitListToGlobalCopyFunction(
         ReductionsBufferTy, BufferVD, 0, En.index(), "sum");
 
     switch (RI.EvaluationKind) {
-    case EvaluationKindTy::Scalar: {
+    case EvaluationKind::Scalar: {
       Value *TargetElement = Builder.CreateLoad(RI.ElementType, ElemPtr);
       Builder.CreateStore(TargetElement, GlobVal);
       break;
     }
-    case EvaluationKindTy::Complex: {
+    case EvaluationKind::Complex: {
       Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
           RI.ElementType, ElemPtr, 0, 0, ".realp");
       Value *SrcReal = Builder.CreateLoad(
@@ -2892,7 +2892,7 @@ Function *OpenMPIRBuilder::emitListToGlobalCopyFunction(
       Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
-    case EvaluationKindTy::Aggregate: {
+    case EvaluationKind::Aggregate: {
       Value *SizeVal =
           Builder.getInt64(M.getDataLayout().getTypeStoreSize(RI.ElementType));
       Builder.CreateMemCpy(
@@ -3059,12 +3059,12 @@ Function *OpenMPIRBuilder::emitGlobalToListCopyFunction(
         ReductionsBufferTy, BufferVD, 0, En.index(), "sum");
 
     switch (RI.EvaluationKind) {
-    case EvaluationKindTy::Scalar: {
+    case EvaluationKind::Scalar: {
       Value *TargetElement = Builder.CreateLoad(RI.ElementType, GlobValPtr);
       Builder.CreateStore(TargetElement, ElemPtr);
       break;
     }
-    case EvaluationKindTy::Complex: {
+    case EvaluationKind::Complex: {
       Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
           RI.ElementType, GlobValPtr, 0, 0, ".realp");
       Value *SrcReal = Builder.CreateLoad(
@@ -3082,7 +3082,7 @@ Function *OpenMPIRBuilder::emitGlobalToListCopyFunction(
       Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
-    case EvaluationKindTy::Aggregate: {
+    case EvaluationKind::Aggregate: {
       Value *SizeVal =
           Builder.getInt64(M.getDataLayout().getTypeStoreSize(RI.ElementType));
       Builder.CreateMemCpy(
@@ -3190,7 +3190,7 @@ std::string OpenMPIRBuilder::getReductionFuncName(StringRef Name) const {
 
 Function *OpenMPIRBuilder::createReductionFunction(
     StringRef ReducerName, ArrayRef<ReductionInfo> ReductionInfos,
-    ReductionGenCBTy ReductionGenCBTy, AttributeList FuncAttrs) {
+    ReductionGenCBKind ReductionGenCBTy, AttributeList FuncAttrs) {
   auto *FuncTy = FunctionType::get(Builder.getVoidTy(),
                                    {Builder.getPtrTy(), Builder.getPtrTy()},
                                    /* IsVarArg */ false);
@@ -3247,7 +3247,7 @@ Function *OpenMPIRBuilder::createReductionFunction(
     Value *LHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
         LHSI8Ptr, RI.Variable->getType(), LHSI8Ptr->getName() + ".ascast");
 
-    if (ReductionGenCBTy == ReductionGenCBTy::Clang) {
+    if (ReductionGenCBTy == ReductionGenCBKind::Clang) {
       LHSPtrs.emplace_back(LHSPtr);
       RHSPtrs.emplace_back(RHSPtr);
     } else {
@@ -3261,7 +3261,7 @@ Function *OpenMPIRBuilder::createReductionFunction(
     }
   }
 
-  if (ReductionGenCBTy == ReductionGenCBTy::Clang)
+  if (ReductionGenCBTy == ReductionGenCBKind::Clang)
     for (auto En : enumerate(ReductionInfos)) {
       unsigned Index = En.index();
       const ReductionInfo &RI = En.value();
@@ -3311,7 +3311,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
     const LocationDescription &Loc, InsertPointTy AllocaIP,
     InsertPointTy CodeGenIP, ArrayRef<ReductionInfo> ReductionInfos,
     bool IsNoWait, bool IsTeamsReduction, bool HasDistribute,
-    ReductionGenCBTy ReductionGenCBTy, std::optional<omp::GV> GridValue,
+    ReductionGenCBKind ReductionGenCBTy, std::optional<omp::GV> GridValue,
     unsigned ReductionBufNum, Value *SrcLocInfo) {
   if (!updateToLocation(Loc))
     return InsertPointTy();
@@ -3470,7 +3470,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
     Value *RHS =
         Builder.CreatePointerBitCastOrAddrSpaceCast(RI.PrivateVariable, PtrTy);
 
-    if (ReductionGenCBTy == ReductionGenCBTy::Clang) {
+    if (ReductionGenCBTy == ReductionGenCBKind::Clang) {
       Value *LHSPtr, *RHSPtr;
       Builder.restoreIP(RI.ReductionGenClang(Builder.saveIP(), En.index(),
                                              &LHSPtr, &RHSPtr, CurFunc));
