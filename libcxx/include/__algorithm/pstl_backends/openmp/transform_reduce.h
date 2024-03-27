@@ -39,7 +39,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 // Templates for predefined reductions
 //===----------------------------------------------------------------------===//
 
-#  define __PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                                  \
+#  define _LIBCPP_PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                            \
     template <class _Iterator,                                                                                         \
               class _DifferenceType,                                                                                   \
               typename _Tp,                                                                                            \
@@ -59,7 +59,7 @@ _PSTL_PRAGMA(omp target teams distribute parallel for reduction(omp_op:__init)) 
       return __init;                                                                                                   \
     }
 
-#  define __PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)                                                                  \
+#  define _LIBCPP_PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)                                                            \
     template <class _Iterator1,                                                                                        \
               class _Iterator2,                                                                                        \
               class _DifferenceType,                                                                                   \
@@ -83,33 +83,33 @@ _PSTL_PRAGMA(omp target teams distribute parallel for reduction(omp_op:__init)) 
       return __init;                                                                                                   \
     }
 
-#  define __PSTL_OMP_SIMD_REDUCTION(omp_op, std_op)                                                                    \
-    __PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                                        \
-    __PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)
+#  define _LIBCPP_PSTL_OMP_SIMD_REDUCTION(omp_op, std_op)                                                              \
+    _LIBCPP_PSTL_OMP_SIMD_1_REDUCTION(omp_op, std_op)                                                                  \
+    _LIBCPP_PSTL_OMP_SIMD_2_REDUCTION(omp_op, std_op)
 
 // Addition
-__PSTL_OMP_SIMD_REDUCTION(+, std::plus)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(+, std::plus)
 
 // Subtraction
-__PSTL_OMP_SIMD_REDUCTION(-, std::minus)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(-, std::minus)
 
 // Multiplication
-__PSTL_OMP_SIMD_REDUCTION(*, std::multiplies)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(*, std::multiplies)
 
 // Logical and
-__PSTL_OMP_SIMD_REDUCTION(&&, std::logical_and)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(&&, std::logical_and)
 
 // Logical or
-__PSTL_OMP_SIMD_REDUCTION(||, std::logical_or)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(||, std::logical_or)
 
 // Bitwise and
-__PSTL_OMP_SIMD_REDUCTION(&, std::bit_and)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(&, std::bit_and)
 
 // Bitwise or
-__PSTL_OMP_SIMD_REDUCTION(|, std::bit_or)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(|, std::bit_or)
 
 // Bitwise xor
-__PSTL_OMP_SIMD_REDUCTION(^, std::bit_xor)
+_LIBCPP_PSTL_OMP_SIMD_REDUCTION(^, std::bit_xor)
 
 //===----------------------------------------------------------------------===//
 // The following struct is used to determine whether a reduction is supported by
@@ -119,21 +119,21 @@ __PSTL_OMP_SIMD_REDUCTION(^, std::bit_xor)
 template <class _T1, class _T2, class _T3>
 struct __is_supported_reduction : std::false_type {};
 
-#  define __PSTL_IS_SUPPORTED_REDUCTION(funname)                                                                       \
+#  define _LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(func)                                                                    \
     template <class _Tp>                                                                                               \
-    struct __is_supported_reduction<std::funname<_Tp>, _Tp, _Tp> : std::true_type {};                                  \
+    struct __is_supported_reduction<func<_Tp>, _Tp, _Tp> : std::true_type {};                                          \
     template <class _Tp, class _Up>                                                                                    \
-    struct __is_supported_reduction<std::funname<>, _Tp, _Up> : std::true_type {};
+    struct __is_supported_reduction<func<>, _Tp, _Up> : std::true_type {};
 
 // __is_trivial_plus_operation already exists
-__PSTL_IS_SUPPORTED_REDUCTION(plus)
-__PSTL_IS_SUPPORTED_REDUCTION(minus)
-__PSTL_IS_SUPPORTED_REDUCTION(multiplies)
-__PSTL_IS_SUPPORTED_REDUCTION(logical_and)
-__PSTL_IS_SUPPORTED_REDUCTION(logical_or)
-__PSTL_IS_SUPPORTED_REDUCTION(bit_and)
-__PSTL_IS_SUPPORTED_REDUCTION(bit_or)
-__PSTL_IS_SUPPORTED_REDUCTION(bit_xor)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::plus)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::minus)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::multiplies)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::logical_and)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::logical_or)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::bit_and)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::bit_or)
+_LIBCPP_PSTL_IS_SUPPORTED_REDUCTION(std::bit_xor)
 
 //===----------------------------------------------------------------------===//
 // Implementation of PSTL transform_reduce for one and two input iterators
