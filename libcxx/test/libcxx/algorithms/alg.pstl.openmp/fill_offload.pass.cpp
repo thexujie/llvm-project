@@ -23,10 +23,6 @@
 #include <omp.h>
 
 int main(int, char**) {
-  // We only run the test if a device is detected by OpenMP
-  if (omp_get_num_devices() < 1)
-    return 0;
-
   // Initializing test array
   const int test_size = 10000;
   std::vector<int> v(test_size, 2);

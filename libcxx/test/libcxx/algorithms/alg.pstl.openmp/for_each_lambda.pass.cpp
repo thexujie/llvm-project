@@ -34,10 +34,6 @@ void test_lambda(Function fun, Tp initial_value, Tp final_value) {
 }
 
 int main(int, char**) {
-  // We only run the test if a device is detected by OpenMP
-  if (omp_get_num_devices() < 1)
-    return 0;
-
   // Capturing by reference
   auto cube_ref = [&](double& a) { a *= a * a; };
   test_lambda(cube_ref, 2.0, 8.0);

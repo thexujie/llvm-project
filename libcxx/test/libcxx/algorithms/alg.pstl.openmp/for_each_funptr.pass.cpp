@@ -26,10 +26,6 @@ void cube(double& d) { d *= d * d; }
 #pragma omp declare target indirect to(cube)
 
 int main(int, char**) {
-  // We only run the test if a device is detected by OpenMP
-  if (omp_get_num_devices() < 1)
-    return 0;
-
   const int test_size = 10000;
   std::vector<double> v(test_size, 2.0);
 
