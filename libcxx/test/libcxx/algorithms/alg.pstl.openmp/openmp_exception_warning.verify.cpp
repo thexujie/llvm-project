@@ -17,7 +17,7 @@
 
 // ADDITIONAL_COMPILE_FLAGS: -Wopenmp-target-exception -fexceptions --offload-arch=native --offload-device-only
 
-// REQUIRES: openmp_pstl_backend
+// REQUIRES: libcpp-pstl-backend-openmp
 
 #include <algorithm>
 #include <execution>

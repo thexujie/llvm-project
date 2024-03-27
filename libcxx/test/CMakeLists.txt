@@ -30,14 +30,6 @@ if (LLVM_USE_SANITIZER)
   serialize_lit_string_param(SERIALIZED_LIT_PARAMS use_sanitizer "${LLVM_USE_SANITIZER}")
 endif()
 
-# If the OpenMP PSTL backend was enabled, the OpenMP compilation toolchain must
-# also be enabled for the LIT tests
-if (DEFINED LIBCXX_PSTL_BACKEND)
-  if (LIBCXX_PSTL_BACKEND STREQUAL "openmp")
-    serialize_lit_string_param(SERIALIZED_LIT_PARAMS openmp_pstl_backend "ON")
-  endif()
-endif()
-
 serialize_lit_params_list(SERIALIZED_LIT_PARAMS LIBCXX_TEST_PARAMS)
 
 if (NOT DEFINED LIBCXX_TEST_DEPS)

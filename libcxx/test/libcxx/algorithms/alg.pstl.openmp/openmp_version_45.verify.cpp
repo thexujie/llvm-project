@@ -14,7 +14,7 @@
 
 // ADDITIONAL_COMPILE_FLAGS: -fopenmp -fopenmp-version=45
 
-// REQUIRES: openmp_pstl_backend
+// REQUIRES: libcpp-pstl-backend-openmp
 
 #include <algorithm>
 

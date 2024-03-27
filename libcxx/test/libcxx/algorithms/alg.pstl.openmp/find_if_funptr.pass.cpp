@@ -14,7 +14,7 @@
 
 // ADDITIONAL_COMPILE_FLAGS: --offload-arch=native
 
-// REQUIRES: openmp_pstl_backend
+// REQUIRES: libcpp-pstl-backend-openmp
 
 #include <algorithm>
 #include <cassert>
