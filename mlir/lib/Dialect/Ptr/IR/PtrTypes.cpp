@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/Dialect/Ptr/IR/MemorySpace.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
@@ -64,9 +65,13 @@ getPointerDataLayoutEntry(DataLayoutEntryListRef params, PtrType type,
   return std::nullopt;
 }
 
-int64_t PtrType::getAddressSpace() const { return 0; }
+int64_t PtrType::getAddressSpace() const {
+  return MemorySpace(getMemorySpace()).getAddressSpace();
+}
 
-Attribute PtrType::getDefaultMemorySpace() const { return nullptr; }
+Attribute PtrType::getDefaultMemorySpace() const {
+  return MemorySpace(getMemorySpace()).getDefaultMemorySpace();
+}
 
 bool PtrType::areCompatible(DataLayoutEntryListRef oldLayout,
                             DataLayoutEntryListRef newLayout) const {

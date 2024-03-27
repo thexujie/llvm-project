@@ -79,6 +79,7 @@ add_mlir_library(MLIRTestDialect
   MLIRInferTypeOpInterface
   MLIRLinalgDialect
   MLIRLinalgTransforms
+  MLIRPtrDialect
   MLIRLLVMDialect
   MLIRPass
   MLIRReduce

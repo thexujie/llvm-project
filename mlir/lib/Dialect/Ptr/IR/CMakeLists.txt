@@ -6,6 +6,8 @@ add_mlir_dialect_library(
   ${PROJECT_SOURCE_DIR}/mlir/Dialect/Pointer
   DEPENDS
   MLIRPtrOpsIncGen
+  MLIRPtrOpsEnumsGen
+  MLIRPtrMemorySpaceInterfacesIncGen
   LINK_LIBS
   PUBLIC
   MLIRIR
