@@ -21,11 +21,15 @@
 #include <__type_traits/is_trivially_copyable.h>
 #include <__type_traits/operation_traits.h>
 #include <__type_traits/remove_pointer.h>
+#include <__utility/move.h>
 #include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
 #endif
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
 
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
@@ -185,5 +189,7 @@ _LIBCPP_HIDE_FROM_ABI optional<_Tp> __pstl_transform_reduce(
 _LIBCPP_END_NAMESPACE_STD
 
 #endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
+
+_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_OPENMP_BACKEND_TRANSFORM_REDUCE_H
