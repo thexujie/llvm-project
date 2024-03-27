@@ -108,7 +108,11 @@ constexpr void test_default_ctor_basic() {
   }
 }
 
-constexpr void issue_86686() { static_assert(std::variant<std::string>{}.index() == 0); }
+constexpr void issue_86686() {
+#if TEST_STD_VER >= 20
+  static_assert(std::variant<std::string>{}.index() == 0);
+#endif
+}
 
 constexpr bool test() {
   test_default_ctor_basic();
