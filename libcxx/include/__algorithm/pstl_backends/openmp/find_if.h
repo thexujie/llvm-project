@@ -15,6 +15,7 @@
 #include <__algorithm/unwrap_iter.h>
 #include <__config>
 #include <__iterator/wrap_iter.h>
+#include <__type_traits/is_execution_policy.h>
 #include <__type_traits/is_trivially_copyable.h>
 #include <__type_traits/remove_pointer.h>
 #include <optional>
