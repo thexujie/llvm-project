@@ -411,16 +411,16 @@ Offloading C++ Parallel Algorithms to GPUs
 Experimental support for GPU offloading has been added to ``libc++``. The
 implementation uses OpenMP target offloading to leverage GPU compute resources.
 The OpenMP PSTL backend can target both NVIDIA and AMD GPUs.
-However, the implementation only supports contiguous iterators, such as 
+However, the implementation only supports contiguous iterators, such as
 iterators for ``std::vector`` or ``std::array``.
 To enable the OpenMP offloading backend it must be selected with
 ``LIBCXX_PSTL_BACKEND=openmp`` when installing ``libc++``. Further, when
 compiling a program, the user must specify the command line options
 ``-fopenmp -fexperimental-library``. To install LLVM with OpenMP offloading
 enabled, please read
-`the LLVM OpenMP FAQ. <https://openmp.llvm.org/SupportAndFAQ.html>`_ 
+`the LLVM OpenMP FAQ. <https://openmp.llvm.org/SupportAndFAQ.html>`_
 You may also want to to visit
-`the OpenMP offloading command-line argument reference. <https://openmp.llvm.org/CommandLineArgumentReference.html#offload-command-line-arguments>`_ 
+`the OpenMP offloading command-line argument reference. <https://openmp.llvm.org/CommandLineArgumentReference.html#offload-command-line-arguments>`_
 
 Example
 ~~~~~~~
