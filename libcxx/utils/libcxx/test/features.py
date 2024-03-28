@@ -329,13 +329,13 @@ DEFAULT_FEATURES.append(
         actions=[
             AddCompileFlag("-fopenmp"),
             # The linker needs to find the correct version of libomptarget
-            AddLinkFlag("-Wl,-rpath,%{lib}/../../lib"),
+            AddLinkFlag("-Wl,-rpath,%{lib-dir}"),
             # The preprocessor needs to find the omp.h header. If OpenMP was
             # installed as a project, the header lives in the following
             # directory
-            AddFlag("-I %{lib}/../../projects/openmp/runtime/src/"),
+            AddFlag("-I %{lib-dir}/../../projects/openmp/runtime/src/"),
             # And if it was installed as a runtime it lives in the following:
-            AddFlag("-I %{lib}/../../runtimes/runtimes-bins/openmp/runtime/src"),
+            AddFlag("-I %{lib-dir}/../../runtimes/runtimes-bins/openmp/runtime/src"),
         ]
     )
 )
