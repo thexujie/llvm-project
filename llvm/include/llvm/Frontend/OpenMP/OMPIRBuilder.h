@@ -1284,12 +1284,12 @@ public:
       std::function<InsertPointTy(InsertPointTy, Type *, Value *, Value *)>;
 
   /// Enum class for reduction evaluation types scalar, complex and aggregate.
-  enum class EvaluationKind { Scalar, Complex, Aggregate };
+  enum class EvalKind { Scalar, Complex, Aggregate };
 
   /// Information about an OpenMP reduction.
   struct ReductionInfo {
     ReductionInfo(Type *ElementType, Value *Variable, Value *PrivateVariable,
-                  EvaluationKind EvaluationKind, ReductionGenCBTy ReductionGen,
+                  EvalKind EvaluationKind, ReductionGenCBTy ReductionGen,
                   ReductionGenClangCBTy ReductionGenClang,
                   ReductionGenAtomicCBTy AtomicReductionGen)
         : ElementType(ElementType), Variable(Variable),
@@ -1298,9 +1298,8 @@ public:
           AtomicReductionGen(AtomicReductionGen) {}
     ReductionInfo(Value *PrivateVariable)
         : ElementType(nullptr), Variable(nullptr),
-          PrivateVariable(PrivateVariable),
-          EvaluationKind(EvaluationKind::Scalar), ReductionGen(),
-          ReductionGenClang(), AtomicReductionGen() {}
+          PrivateVariable(PrivateVariable), EvaluationKind(EvalKind::Scalar),
+          ReductionGen(), ReductionGenClang(), AtomicReductionGen() {}
 
     /// Reduction element type, must match pointee type of variable.
     Type *ElementType;
@@ -1312,7 +1311,7 @@ public:
     Value *PrivateVariable;
 
     /// Reduction evaluation type - scalar, complex or aggregate.
-    EvaluationKind EvaluationKind;
+    EvalKind EvaluationKind;
 
     /// Callback for generating the reduction body. The IR produced by this will
     /// be used to combine two values in a thread-safe context, e.g., under

@@ -1698,16 +1698,16 @@ void CGOpenMPRuntimeGPU::emitReduction(
     const auto *LHSVar =
         cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[Idx])->getDecl());
     Variable = CGF.GetAddrOfLocalVar(LHSVar).getPointer();
-    llvm::OpenMPIRBuilder::EvaluationKind EvalKind;
+    llvm::OpenMPIRBuilder::EvalKind EvalKind;
     switch (CGF.getEvaluationKind(Private->getType())) {
     case TEK_Scalar:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Scalar;
+      EvalKind = llvm::OpenMPIRBuilder::EvalKind::Scalar;
       break;
     case TEK_Complex:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Complex;
+      EvalKind = llvm::OpenMPIRBuilder::EvalKind::Complex;
       break;
     case TEK_Aggregate:
-      EvalKind = llvm::OpenMPIRBuilder::EvaluationKind::Aggregate;
+      EvalKind = llvm::OpenMPIRBuilder::EvalKind::Aggregate;
       break;
     }
     auto ReductionGen = [&](InsertPointTy CodeGenIP, unsigned I,

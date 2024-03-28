@@ -874,7 +874,7 @@ static void collectReductionInfo(
     reductionInfos.push_back(
         {moduleTranslation.convertType(reductionDecls[i].getType()), variable,
          privateReductionVariables[i],
-         /*EvaluationKind=*/llvm::OpenMPIRBuilder::EvaluationKind::Scalar,
+         /*EvaluationKind=*/llvm::OpenMPIRBuilder::EvalKind::Scalar,
          owningReductionGens[i],
          /*ReductionGenClang=*/nullptr, atomicGen});
   }

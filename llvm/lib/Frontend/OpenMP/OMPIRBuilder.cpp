@@ -2348,13 +2348,13 @@ void OpenMPIRBuilder::emitReductionListCopy(
                       RemoteLaneOffset, ReductionArrayTy);
     } else {
       switch (RI.EvaluationKind) {
-      case EvaluationKind::Scalar: {
+      case EvalKind::Scalar: {
         Value *Elem = Builder.CreateLoad(RI.ElementType, SrcElementAddr);
         // Store the source element value to the dest element address.
         Builder.CreateStore(Elem, DestElementAddr);
         break;
       }
-      case EvaluationKind::Complex: {
+      case EvalKind::Complex: {
         Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
             RI.ElementType, SrcElementAddr, 0, 0, ".realp");
         Value *SrcReal = Builder.CreateLoad(
@@ -2372,7 +2372,7 @@ void OpenMPIRBuilder::emitReductionListCopy(
         Builder.CreateStore(SrcImg, DestImgPtr);
         break;
       }
-      case EvaluationKind::Aggregate: {
+      case EvalKind::Aggregate: {
         Value *SizeVal = Builder.getInt64(
             M.getDataLayout().getTypeStoreSize(RI.ElementType));
         Builder.CreateMemCpy(
@@ -2869,12 +2869,12 @@ Function *OpenMPIRBuilder::emitListToGlobalCopyFunction(
         ReductionsBufferTy, BufferVD, 0, En.index(), "sum");
 
     switch (RI.EvaluationKind) {
-    case EvaluationKind::Scalar: {
+    case EvalKind::Scalar: {
       Value *TargetElement = Builder.CreateLoad(RI.ElementType, ElemPtr);
       Builder.CreateStore(TargetElement, GlobVal);
       break;
     }
-    case EvaluationKind::Complex: {
+    case EvalKind::Complex: {
       Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
           RI.ElementType, ElemPtr, 0, 0, ".realp");
       Value *SrcReal = Builder.CreateLoad(
@@ -2892,7 +2892,7 @@ Function *OpenMPIRBuilder::emitListToGlobalCopyFunction(
       Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
-    case EvaluationKind::Aggregate: {
+    case EvalKind::Aggregate: {
       Value *SizeVal =
           Builder.getInt64(M.getDataLayout().getTypeStoreSize(RI.ElementType));
       Builder.CreateMemCpy(
@@ -3059,12 +3059,12 @@ Function *OpenMPIRBuilder::emitGlobalToListCopyFunction(
         ReductionsBufferTy, BufferVD, 0, En.index(), "sum");
 
     switch (RI.EvaluationKind) {
-    case EvaluationKind::Scalar: {
+    case EvalKind::Scalar: {
       Value *TargetElement = Builder.CreateLoad(RI.ElementType, GlobValPtr);
       Builder.CreateStore(TargetElement, ElemPtr);
       break;
     }
-    case EvaluationKind::Complex: {
+    case EvalKind::Complex: {
       Value *SrcRealPtr = Builder.CreateConstInBoundsGEP2_32(
           RI.ElementType, GlobValPtr, 0, 0, ".realp");
       Value *SrcReal = Builder.CreateLoad(
@@ -3082,7 +3082,7 @@ Function *OpenMPIRBuilder::emitGlobalToListCopyFunction(
       Builder.CreateStore(SrcImg, DestImgPtr);
       break;
     }
-    case EvaluationKind::Aggregate: {
+    case EvalKind::Aggregate: {
       Value *SizeVal =
           Builder.getInt64(M.getDataLayout().getTypeStoreSize(RI.ElementType));
       Builder.CreateMemCpy(
