@@ -1775,7 +1775,6 @@ Hard register operands will instead only apply to the specific inline ASM
 statement which improves readability and solves a few other issues experienced
 by local register variables, such as:
 
-* function calls might clobber register variables
 * the constraints for the register operands are superfluous
 * one register variable cannot be used for 2 different inline
   assemblies if the value is expected in different hard regs
