@@ -3627,6 +3627,9 @@ bool Sema::checkTargetClonesAttrString(
         return Diag(LiteralLoc,
                     diag::err_sme_streaming_cannot_be_multiversioned);
     } else if (TInfo.getTriple().isRISCV()) {
+      // Suppress warn_target_clone_mixed_values
+      HasCommas = false;
+
       if (Str.starts_with("arch=")) {
         // parseTargetAttr will parse full version string,
         // the following split Cur string is no longer interesting.
