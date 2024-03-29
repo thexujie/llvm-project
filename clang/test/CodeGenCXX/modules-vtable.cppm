@@ -61,12 +61,12 @@ int use() {
     return 43;
 }
 
-// CHECK-NOT: @_ZTSW3Mod4Base = constant
-// CHECK-NOT: @_ZTIW3Mod4Base = constant
+// CHECK-NOT: @_ZTSW3Mod4Base
+// CHECK-NOT: @_ZTIW3Mod4Base
 // CHECK: @_ZTVW3Mod4Base = external
 
-// CHECK-INLINE-NOT: @_ZTSW3Mod4Base = constant
-// CHECK-INLINE-NOT: @_ZTIW3Mod4Base = constant
+// CHECK-INLINE-NOT: @_ZTSW3Mod4Base
+// CHECK-INLINE-NOT: @_ZTIW3Mod4Base
 // CHECK-INLINE: @_ZTVW3Mod4Base = external
 
 // Check the case that the declaration of the key function comes from another
@@ -101,5 +101,5 @@ int b_use() {
 }
 
 // CHECK: @_ZTVW1M1C = external
-// CHECK-NOT: @_ZTSW1M1C = constant
-// CHECK-NOT: @_ZTIW1M1C = constant
+// CHECK-NOT: @_ZTSW1M1C
+// CHECK-NOT: @_ZTIW1M1C
