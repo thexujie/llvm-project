@@ -60,6 +60,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
+#include "llvm/TargetParser/RISCVTargetParser.h"
 #include "llvm/TargetParser/X86TargetParser.h"
 #include <optional>
 #include <sstream>
@@ -14154,6 +14155,59 @@ CodeGenFunction::EmitAArch64CpuSupports(ArrayRef<StringRef> FeaturesStrs) {
     Result = Builder.CreateAnd(Result, Cmp);
   }
   return Result;
+}
+
+llvm::SmallVector<llvm::Value *>
+CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
+  auto BaseExtKey = llvm::RISCV::getBaseExtensionKey(FeaturesStrs);
+  auto IMACompatibleExtKey =
+      llvm::RISCV::getIMACompatibleExtensionKey(FeaturesStrs);
+
+  auto createConstVal =
+      [&](const std::vector<unsigned long long> &ExtKeys) -> llvm::Value * {
+    unsigned long long CurrKey = 0;
+    for (auto ExtKey : ExtKeys) {
+      if (ExtKey == 0)
+        continue;
+      CurrKey |= ExtKey;
+    }
+    return Builder.getInt64(CurrKey);
+  };
+
+  // check whether all FeatureStrs are available for hwprobe.
+  llvm::SmallVector<StringRef> UnsupportByHwprobe;
+  llvm::StringSet<> ImpliedExtBySupportExt;
+  for (unsigned Idx = 0; Idx < FeaturesStrs.size(); Idx++) {
+    if (BaseExtKey[Idx] == 0 && IMACompatibleExtKey[Idx] == 0)
+      UnsupportByHwprobe.push_back(FeaturesStrs[Idx]);
+    else
+      ImpliedExtBySupportExt.insert(FeaturesStrs[Idx].str());
+  }
+
+  // Repeatly find ImpliedExts until no longer found new.
+  bool Changed = true;
+  while (Changed) {
+    unsigned Size = ImpliedExtBySupportExt.size();
+    for (auto Ext : ImpliedExtBySupportExt.keys()) {
+      auto ImpliedExts = llvm::RISCV::getImpliedExts(Ext);
+      for (auto ImpliedExt : ImpliedExts)
+        ImpliedExtBySupportExt.insert(ImpliedExt);
+    }
+    if (Size == ImpliedExtBySupportExt.size())
+      Changed = false;
+  }
+
+  // FIXME: Could hwprobe guarantee that the hardware will support the Implied
+  // extension?
+  for (unsigned Idx = 0; Idx < UnsupportByHwprobe.size(); Idx++) {
+    if (!llvm::is_contained(ImpliedExtBySupportExt, UnsupportByHwprobe[Idx]))
+      CGM.getDiags().Report(diag::err_extension_unsupport_riscv_hwprobe)
+          << UnsupportByHwprobe[Idx];
+  }
+
+  llvm::SmallVector<llvm::Value *> Vals = {createConstVal(BaseExtKey),
+                                           createConstVal(IMACompatibleExtKey)};
+  return Vals;
 }
 
 Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,

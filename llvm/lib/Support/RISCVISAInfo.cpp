@@ -1388,3 +1388,15 @@ std::string RISCVISAInfo::getTargetFeatureForExtension(StringRef Ext) {
   return isExperimentalExtension(Name) ? "experimental-" + Name.str()
                                        : Name.str();
 }
+
+llvm::SmallVector<std::string> RISCVISAInfo::getImpliedExts(StringRef Ext) {
+  auto *I = llvm::lower_bound(ImpliedExts, Ext);
+  if (I != std::end(ImpliedExts) && I->Name == Ext) {
+    llvm::SmallVector<std::string> Result;
+    for (auto ImpiledExt : ArrayRef(I->Exts)) {
+      Result.push_back(std::string(ImpiledExt));
+    }
+    return Result;
+  }
+  return llvm::SmallVector<std::string>();
+}

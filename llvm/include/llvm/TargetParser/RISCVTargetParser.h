@@ -36,6 +36,10 @@ StringRef getMArchFromMcpu(StringRef CPU);
 void fillValidCPUArchList(SmallVectorImpl<StringRef> &Values, bool IsRV64);
 void fillValidTuneCPUArchList(SmallVectorImpl<StringRef> &Values, bool IsRV64);
 bool hasFastUnalignedAccess(StringRef CPU);
+std::vector<unsigned long long> getBaseExtensionKey(ArrayRef<StringRef>);
+std::vector<unsigned long long>
+    getIMACompatibleExtensionKey(ArrayRef<StringRef>);
+llvm::SmallVector<std::string> getImpliedExts(StringRef Ext);
 
 } // namespace RISCV
 

@@ -2817,9 +2817,12 @@ void CodeGenFunction::EmitRISCVMultiVersionResolver(
     llvm::Function *Resolver, ArrayRef<MultiVersionResolverOption> Options) {
 
   auto EmitIFUNCFeatureCheckFunc =
-      [&](std::string CurrFeatStr) -> llvm::Value * {
-    llvm::Constant *FeatStr = Builder.CreateGlobalString(CurrFeatStr);
-    llvm::Type *Args[] = {Int8PtrTy};
+      [&](llvm::SmallVector<StringRef, 8> CurrFeatStrs) -> llvm::Value * {
+    llvm::SmallVector<llvm::Value *> FeatValue =
+        EmitRISCVExtSupports(CurrFeatStrs);
+    // Invoke `bool __riscv_ifunc_select(long long FeatsBaseKey, long long
+    // FeatsIMAKey)`
+    llvm::Type *Args[] = {FeatValue[0]->getType(), FeatValue[1]->getType()};
     llvm::FunctionType *FTy =
         llvm::FunctionType::get(Builder.getInt1Ty(), Args, /*Variadic*/ false);
     llvm::FunctionCallee Func =
@@ -2827,7 +2830,7 @@ void CodeGenFunction::EmitRISCVMultiVersionResolver(
     cast<llvm::GlobalValue>(Func.getCallee())->setDSOLocal(true);
     cast<llvm::GlobalValue>(Func.getCallee())
         ->setDLLStorageClass(llvm::GlobalValue::DefaultStorageClass);
-    return Builder.CreateCall(Func, FeatStr);
+    return Builder.CreateCall(Func, {FeatValue[0], FeatValue[1]});
   };
 
   llvm::BasicBlock *CurBlock = createBasicBlock("resolver_entry", Resolver);
@@ -2865,23 +2868,16 @@ void CodeGenFunction::EmitRISCVMultiVersionResolver(
         TargetAttrFeats.erase(I);
 
       // Only consider +<extension-feature>.
-      std::vector<std::string> PlusTargetAttrFeats;
+      llvm::SmallVector<StringRef, 8> PlusTargetAttrFeats;
       for (StringRef Feat : TargetAttrFeats) {
         if (!getContext().getTargetInfo().isValidFeatureName(
                 Feat.substr(1).str()))
           continue;
         if (Feat.starts_with("+"))
-          PlusTargetAttrFeats.push_back(Feat.substr(1).str());
+          PlusTargetAttrFeats.push_back(Feat.substr(1));
       }
 
-      // Join with ';' delimiter
-      std::string CurrFeatStr = std::accumulate(
-          std::begin(PlusTargetAttrFeats), std::end(PlusTargetAttrFeats),
-          std::string(), [](const std::string &a, const std::string &b) {
-            return a.empty() ? b : a + ";" + b;
-          });
-
-      llvm::Value *Condition = EmitIFUNCFeatureCheckFunc(CurrFeatStr);
+      llvm::Value *Condition = EmitIFUNCFeatureCheckFunc(PlusTargetAttrFeats);
       llvm::BasicBlock *RetBlock =
           createBasicBlock("resolver_return", Resolver);
       CGBuilderTy RetBuilder(*this, RetBlock);

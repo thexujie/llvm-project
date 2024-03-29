@@ -93,6 +93,7 @@ public:
   static llvm::Expected<std::unique_ptr<RISCVISAInfo>>
   postProcessAndChecking(std::unique_ptr<RISCVISAInfo> &&ISAInfo);
   static std::string getTargetFeatureForExtension(StringRef Ext);
+  static llvm::SmallVector<std::string> getImpliedExts(StringRef Ext);
 
 private:
   RISCVISAInfo(unsigned XLen)
