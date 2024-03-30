@@ -223,7 +223,17 @@ DWARFUnit *DWARFDebugInfo::GetUnitAtOffset(DIERef::Section section,
 }
 
 DWARFUnit *DWARFDebugInfo::GetUnit(const DIERef &die_ref) {
-  return GetUnitContainingDIEOffset(die_ref.section(), die_ref.die_offset());
+  // Make sure we get the correct SymbolFileDWARF from the DIERef before
+  // asking for information from a debug info object. We might start with the
+  // DWARFDebugInfo for the main executable in a split DWARF and the DIERef
+  // might be pointing to a specific .dwo file or to the .dwp file. So this
+  // makes sure we get the right SymbolFileDWARF instance before finding the
+  // DWARFUnit that contains the offset. If we just use this object to do the
+  // search, we might be using the wrong .debug_info section from the wrong
+  // file with an offset meant for a different section.
+  SymbolFileDWARF *dwarf = m_dwarf.GetDIERefSymbolFile(die_ref);
+  return dwarf->DebugInfo().GetUnitContainingDIEOffset(die_ref.section(),
+                                                       die_ref.die_offset());
 }
 
 DWARFUnit *
@@ -234,6 +244,10 @@ DWARFDebugInfo::GetUnitContainingDIEOffset(DIERef::Section section,
   if (result && !result->ContainsDIEOffset(die_offset))
     return nullptr;
   return result;
+}
+
+const std::shared_ptr<SymbolFileDWARFDwo> DWARFDebugInfo::GetDwpSymbolFile() {
+  return m_dwarf.GetDwpSymbolFile();
 }
 
 DWARFTypeUnit *DWARFDebugInfo::GetTypeUnitForHash(uint64_t hash) {
