@@ -6,106 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define BUFSIZE 1024
-
-static void fillzero(char *s, unsigned size) {
-  for (int i = 0; i < size; i++)
-    s[i] = '\0';
-}
-
-static unsigned strcmp(const char *a, const char *b) {
-  while (*a != '\0' && *b != '\0') {
-    if (*a != *b)
-      return 0;
-    a++;
-    b++;
-  }
-  if (*a == *b)
-    return 1;
-  return 0;
-}
-
-static void memcpy(char *dest, const char *src, unsigned len) {
-  for (unsigned i = 0; i < len; i++)
-    dest[i] = src[i];
-}
-
-static unsigned strlen(char *s) {
-  int len = 0;
-  while (*s != '\0') {
-    len++;
-    s++;
-  }
-  return len;
-}
-
-// TODO: Replace with more efficient algorithm
-static unsigned isPatternInSrc(char *src, char *pattern) {
-  char buf[BUFSIZE];
-  int lenOfSrc = strlen(src);
-  int lenOfPattern = strlen(pattern);
-  for (int i = 0; i + lenOfPattern < lenOfSrc; i++) {
-    fillzero(buf, BUFSIZE);
-    memcpy(buf, src + i, lenOfPattern);
-    if (strcmp(buf, pattern))
-      return 1;
-  }
-  return 0;
-}
-
-static char *tokenize(char *src, char *rst, char delim) {
-  while (*src != '\0' && *src != delim) {
-    *rst = *src;
-    src++;
-    rst++;
-  }
-  if (*src == delim)
-    src++;
-  return src;
-}
-
-static void getBasicExtFromHwFeatStr(char *rst, char *src) {
-  while (*src != 'r') {
-    src++;
-  }
-
-  while (*src != '_' && *src != '\0') {
-    *rst = *src;
-    rst++;
-    src++;
-  }
-}
-
-static unsigned checkFeatStrInHwFeatStr(char *FeatStr, char *HwFeatStr) {
-  // For basic extension like a,m,f,d...
-  if (strlen(FeatStr) == 1) {
-    char BasicExt[BUFSIZE];
-    fillzero(BasicExt, BUFSIZE);
-    getBasicExtFromHwFeatStr(BasicExt, HwFeatStr);
-    return isPatternInSrc(BasicExt, FeatStr);
-  }
-  // For zbb,zihintntl...
-  return isPatternInSrc(HwFeatStr, FeatStr);
-}
-
 #if defined(__linux__)
 
-#define SYS_read 63
-#define SYS_openat 56
 #define SYS_riscv_hwprobe 258
-
-static long syscall_impl_3_args(long number, long arg1, long arg2, long arg3) {
-  register long a7 __asm__("a7") = number;
-  register long a0 __asm__("a0") = arg1;
-  register long a1 __asm__("a1") = arg2;
-  register long a2 __asm__("a2") = arg3;
-  __asm__ __volatile__("ecall\n\t"
-                       : "=r"(a0)
-                       : "r"(a7), "r"(a0), "r"(a1), "r"(a2)
-                       : "memory");
-  return a0;
-}
-
 static long syscall_impl_5_args(long number, long arg1, long arg2, long arg3,
                                 long arg4, long arg5) {
   register long a7 __asm__("a7") = number;
@@ -121,42 +24,12 @@ static long syscall_impl_5_args(long number, long arg1, long arg2, long arg3,
   return a0;
 }
 
-static unsigned read(int fd, const void *buf, unsigned count) {
-  return syscall_impl_3_args(SYS_read, fd, (long)buf, count);
-}
-
-static int openat(int dirfd, const char *pathname, int flags) {
-  return syscall_impl_3_args(SYS_openat, (long)dirfd, (long)pathname, flags);
-}
-
-static void readUntilNextLine(int fd, char *rst, int len) {
-  char buf = '\0';
-  while (buf != '\n' && read(fd, &buf, 1) != 0 && len > 0) {
-    *rst = buf;
-    rst++;
-    len--;
-  }
-}
-
-static void __riscv_cpuinfo(char *FeatStr) {
-  char buf[BUFSIZE];
-  int fd = openat(0, "/proc/cpuinfo", 2);
-  do {
-    fillzero(buf, BUFSIZE);
-    readUntilNextLine(fd, buf, BUFSIZE);
-    if (isPatternInSrc(buf, "isa")) {
-      memcpy(FeatStr, buf, BUFSIZE);
-      return;
-    }
-  } while (strlen(buf) != 0);
-}
-
 struct riscv_hwprobe {
   long long key;
   unsigned long long value;
 };
 
-#define RISCV_HWPROBE_MAX_KEY 5
+// Note: sync with linux/arch/riscv/include/uapi/asm/hwprobe.h
 #define RISCV_HWPROBE_KEY_MVENDORID 0
 #define RISCV_HWPROBE_KEY_MARCHID 1
 #define RISCV_HWPROBE_KEY_MIMPID 2
@@ -169,6 +42,36 @@ struct riscv_hwprobe {
 #define RISCV_HWPROBE_EXT_ZBA (1 << 3)
 #define RISCV_HWPROBE_EXT_ZBB (1 << 4)
 #define RISCV_HWPROBE_EXT_ZBS (1 << 5)
+#define RISCV_HWPROBE_EXT_ZICBOZ (1 << 6)
+#define RISCV_HWPROBE_EXT_ZBC (1 << 7)
+#define RISCV_HWPROBE_EXT_ZBKB (1 << 8)
+#define RISCV_HWPROBE_EXT_ZBKC (1 << 9)
+#define RISCV_HWPROBE_EXT_ZBKX (1 << 10)
+#define RISCV_HWPROBE_EXT_ZKND (1 << 11)
+#define RISCV_HWPROBE_EXT_ZKNE (1 << 12)
+#define RISCV_HWPROBE_EXT_ZKNH (1 << 13)
+#define RISCV_HWPROBE_EXT_ZKSED (1 << 14)
+#define RISCV_HWPROBE_EXT_ZKSH (1 << 15)
+#define RISCV_HWPROBE_EXT_ZKT (1 << 16)
+#define RISCV_HWPROBE_EXT_ZVBB (1 << 17)
+#define RISCV_HWPROBE_EXT_ZVBC (1 << 18)
+#define RISCV_HWPROBE_EXT_ZVKB (1 << 19)
+#define RISCV_HWPROBE_EXT_ZVKG (1 << 20)
+#define RISCV_HWPROBE_EXT_ZVKNED (1 << 21)
+#define RISCV_HWPROBE_EXT_ZVKNHA (1 << 22)
+#define RISCV_HWPROBE_EXT_ZVKNHB (1 << 23)
+#define RISCV_HWPROBE_EXT_ZVKSED (1 << 24)
+#define RISCV_HWPROBE_EXT_ZVKSH (1 << 25)
+#define RISCV_HWPROBE_EXT_ZVKT (1 << 26)
+#define RISCV_HWPROBE_EXT_ZFH (1 << 27)
+#define RISCV_HWPROBE_EXT_ZFHMIN (1 << 28)
+#define RISCV_HWPROBE_EXT_ZIHINTNTL (1 << 29)
+#define RISCV_HWPROBE_EXT_ZVFH (1 << 30)
+#define RISCV_HWPROBE_EXT_ZVFHMIN (1 << 31)
+#define RISCV_HWPROBE_EXT_ZFA (1ULL << 32)
+#define RISCV_HWPROBE_EXT_ZTSO (1ULL << 33)
+#define RISCV_HWPROBE_EXT_ZACAS (1ULL << 34)
+#define RISCV_HWPROBE_EXT_ZICOND (1ULL << 35)
 #define RISCV_HWPROBE_KEY_CPUPERF_0 5
 #define RISCV_HWPROBE_MISALIGNED_UNKNOWN (0 << 0)
 #define RISCV_HWPROBE_MISALIGNED_EMULATED (1 << 0)
@@ -176,6 +79,11 @@ struct riscv_hwprobe {
 #define RISCV_HWPROBE_MISALIGNED_FAST (3 << 0)
 #define RISCV_HWPROBE_MISALIGNED_UNSUPPORTED (4 << 0)
 #define RISCV_HWPROBE_MISALIGNED_MASK (7 << 0)
+#define RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE 6
+/* Increase RISCV_HWPROBE_MAX_KEY when adding items. */
+
+/* Flags */
+#define RISCV_HWPROBE_WHICH_CPUS (1 << 0)
 
 /* Size definition for CPU sets.  */
 #define __CPU_SETSIZE 1024
@@ -197,59 +105,30 @@ static void initHwProbe(struct riscv_hwprobe *Hwprobes, int len) {
   sys_riscv_hwprobe(Hwprobes, len, 0, 0, 0);
 }
 
-static unsigned checkFeatStrInHwProbe(char *FeatStr,
-                                      struct riscv_hwprobe Hwprobe) {
-  if (Hwprobe.key == -1)
-    return 0;
-
-  if (strcmp(FeatStr, "i"))
-    return Hwprobe.value & RISCV_HWPROBE_KEY_IMA_EXT_0;
-  if (strcmp(FeatStr, "m"))
-    return Hwprobe.value & RISCV_HWPROBE_KEY_IMA_EXT_0;
-  if (strcmp(FeatStr, "a"))
-    return Hwprobe.value & RISCV_HWPROBE_KEY_IMA_EXT_0;
-  if (strcmp(FeatStr, "f"))
-    return Hwprobe.value & RISCV_HWPROBE_IMA_FD;
-  if (strcmp(FeatStr, "d"))
-    return Hwprobe.value & RISCV_HWPROBE_IMA_FD;
-  if (strcmp(FeatStr, "c"))
-    return Hwprobe.value & RISCV_HWPROBE_IMA_C;
-  if (strcmp(FeatStr, "v"))
-    return Hwprobe.value & RISCV_HWPROBE_IMA_V;
-  if (strcmp(FeatStr, "zba"))
-    return Hwprobe.value & RISCV_HWPROBE_EXT_ZBA;
-  if (strcmp(FeatStr, "zbb"))
-    return Hwprobe.value & RISCV_HWPROBE_EXT_ZBB;
-  if (strcmp(FeatStr, "zbs"))
-    return Hwprobe.value & RISCV_HWPROBE_EXT_ZBS;
-
-  return 0;
-}
 #endif // defined(__linux__)
 
-// FeatStr format is like <Feature1>;<Feature2>...<FeatureN>.
-unsigned __riscv_ifunc_select(char *FeatStrs) {
+unsigned __riscv_ifunc_select(unsigned long long BaseKey,
+                              unsigned long long IMAKey) {
 #if defined(__linux__)
   // Init Hwprobe
   struct riscv_hwprobe pairs[] = {
+      {RISCV_HWPROBE_KEY_BASE_BEHAVIOR, 0},
       {RISCV_HWPROBE_KEY_IMA_EXT_0, 0},
   };
-  initHwProbe(pairs, 1);
-  // Init from cpuinfo
-  char HwFeatStr[BUFSIZE];
-  fillzero(HwFeatStr, BUFSIZE);
-  __riscv_cpuinfo(HwFeatStr);
+  initHwProbe(pairs, 2);
 
-  // Check each extension whether available
-  char FeatStr[BUFSIZE];
-  while (*FeatStrs != '\0') {
-    fillzero(FeatStr, BUFSIZE);
-    FeatStrs = tokenize(FeatStrs, FeatStr, ';');
-    if (checkFeatStrInHwProbe(FeatStr, pairs[0]))
-      continue;
-    if (!checkFeatStrInHwFeatStr(FeatStr, HwFeatStr))
-      return 0;
-  }
+  // sys_riscv_hwprobe key is unknown to the kernel
+  if (pairs[0].key == -1 || pairs[1].key == -1)
+    return 0;
+
+  // Check KEY_BASE_BEHAVIOR
+  if ((BaseKey & pairs[0].value) != BaseKey)
+    return 0;
+
+  if ((IMAKey & pairs[1].value) != IMAKey)
+    return 0;
+
+  // Check KEY_IMA_EXT_0
 
   return 1;
 #else
