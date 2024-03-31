@@ -20,6 +20,7 @@
 #include "../GlobList.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/PluginLoader.h"
@@ -560,15 +561,17 @@ static void recreateOptionsParserIfNeeded(
     llvm::ArrayRef<const char *> Args,
     const ClangTidyOptions &EffectiveOptions) {
 
-  auto DoubleDashIt = std::find(Args.begin(), Args.end(), StringRef("--"));
+  if (Args.empty())
+    return;
+
+  const auto DoubleDashIt = llvm::find(Args, StringRef("--"));
 
   // Exit if we don't have any compiler arguments
-  if (DoubleDashIt == Args.end() || Args.empty() ||
-      Args.back() == StringRef("--"))
+  if (DoubleDashIt == Args.end() || Args.back() == StringRef("--"))
     return;
 
   auto IsDriverMode = [](StringRef Argument) {
-    return Argument.startswith("--driver-mode=");
+    return Argument.starts_with("--driver-mode=");
   };
 
   // Exit if --driver-mode= is explicitly passed in compiler arguments
@@ -581,7 +584,7 @@ static void recreateOptionsParserIfNeeded(
 
   // Add clang-tool as program name if not added
   if (CommandArguments.empty() ||
-      llvm::StringRef(CommandArguments.front()).startswith("-"))
+      llvm::StringRef(CommandArguments.front()).starts_with("-"))
     CommandArguments.insert(CommandArguments.begin(), "clang-tool");
 
   // Apply --extra-arg and --extra-arg-before to compiler arguments
@@ -605,22 +608,21 @@ static void recreateOptionsParserIfNeeded(
                                    CommandArguments.end(), IsDriverMode);
   if (DriverModeIt == CommandArguments.end()) {
     // Try to detect and add --driver-mode=
-    std::string ExeName = CommandArguments.front();
+    const std::string ExeName = CommandArguments.front();
     tooling::addTargetAndModeForProgramName(CommandArguments, ExeName);
-    DriverModeIt = std::find_if(CommandArguments.begin(),
-                                CommandArguments.end(), IsDriverMode);
+    DriverModeIt = llvm::find_if(CommandArguments, IsDriverMode);
   }
 
   // Exit if there is no --driver-mode= at this stage
   if (DriverModeIt == CommandArguments.end())
     return;
 
-  std::vector<const char *> NewArgs(Args.begin(), Args.end());
+  std::vector<const char *> NewArgs = Args.vec();
 
   // Find place to insert --driver-mode= into new args, best after program name.
   auto InsertIt =
       NewArgs.begin() + std::distance(Args.begin(), DoubleDashIt) + 1U;
-  if (!StringRef(*InsertIt).startswith("-"))
+  if (!StringRef(*InsertIt).starts_with("-"))
     ++InsertIt;
   NewArgs.insert(InsertIt, DriverModeIt->c_str());
 
