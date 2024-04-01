@@ -125,10 +125,9 @@ unsigned __riscv_ifunc_select(unsigned long long BaseKey,
   if ((BaseKey & pairs[0].value) != BaseKey)
     return 0;
 
+  // Check KEY_IMA_EXT_0
   if ((IMAKey & pairs[1].value) != IMAKey)
     return 0;
-
-  // Check KEY_IMA_EXT_0
 
   return 1;
 #else
