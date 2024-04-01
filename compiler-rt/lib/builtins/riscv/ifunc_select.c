@@ -102,7 +102,7 @@ static long sys_riscv_hwprobe(struct riscv_hwprobe *pairs, unsigned pair_count,
 }
 
 static void initHwProbe(struct riscv_hwprobe *Hwprobes, int len) {
-  sys_riscv_hwprobe(Hwprobes, len, 0, 0, 0);
+  sys_riscv_hwprobe(Hwprobes, len, 0, (cpu_set_t *)((void*) 0), 0);
 }
 
 #endif // defined(__linux__)
