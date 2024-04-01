@@ -28,7 +28,7 @@ struct riscv_hwprobe {
   unsigned long long value;
 };
 
-// Note: sync with linux/arch/riscv/include/uapi/asm/hwprobe.h
+// Note: sync with https://docs.kernel.org/arch/riscv/hwprobe.html
 #define RISCV_HWPROBE_KEY_MVENDORID 0
 #define RISCV_HWPROBE_KEY_MARCHID 1
 #define RISCV_HWPROBE_KEY_MIMPID 2
