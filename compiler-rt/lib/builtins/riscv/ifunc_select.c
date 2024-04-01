@@ -8,7 +8,6 @@
 
 #if defined(__linux__)
 
-#define SYS_riscv_hwprobe 258
 static long syscall_impl_5_args(long number, long arg1, long arg2, long arg3,
                                 long arg4, long arg5) {
   register long a7 __asm__("a7") = number;
@@ -94,6 +93,7 @@ typedef struct {
   unsigned long int __bits[__CPU_SETSIZE / __NCPUBITS];
 } cpu_set_t;
 
+#define SYS_riscv_hwprobe 258
 static long sys_riscv_hwprobe(struct riscv_hwprobe *pairs, unsigned pair_count,
                               unsigned cpu_count, cpu_set_t *cpus,
                               unsigned int flags) {
