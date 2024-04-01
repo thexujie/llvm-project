@@ -788,6 +788,8 @@ def NSobjectAttribute : DiagGroup<"NSObject-attribute">;
 def NSConsumedMismatch : DiagGroup<"nsconsumed-mismatch">;
 def NSReturnsMismatch : DiagGroup<"nsreturns-mismatch">;
 
+def UnsupportedBuiltin : DiagGroup<"unsupported-builtin">;
+
 def IndependentClassAttribute : DiagGroup<"IndependentClass-attribute">;
 def UnknownAttributes : DiagGroup<"unknown-attributes">;
 def IgnoredAttributes : DiagGroup<"ignored-attributes">;
@@ -1082,6 +1084,7 @@ def Most : DiagGroup<"most", [
     PrivateExtern,
     SelTypeCast,
     ExternCCompat,
+    UnsupportedBuiltin,
     UserDefinedWarnings
  ]>;
 

@@ -4328,11 +4328,10 @@ def DiagnoseAsBuiltin : InheritableAttr {
 }
 
 def Builtin : InheritableAttr {
-  let Spellings = [];
+  let Spellings = [Clang<"builtin">];
   let Args = [UnsignedArgument<"ID">];
   let Subjects = SubjectList<[Function]>;
-  let SemaHandler = 0;
-  let Documentation = [InternalOnly];
+  let Documentation = [Undocumented];
 }
 
 def EnforceTCB : InheritableAttr {
