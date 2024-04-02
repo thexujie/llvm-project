@@ -875,6 +875,9 @@ public:
       new (Buffer + sizeof(Header) + sizeof(T)) RawAddress(ActiveFlag);
   }
 
+  void pushTemporaryCleanup(const MaterializeTemporaryExpr *M, const Expr *E,
+                            Address ReferenceTemporary);
+
   /// Set up the last cleanup that was pushed as a conditional
   /// full-expression cleanup.
   void initFullExprCleanup() {
@@ -982,10 +985,23 @@ public:
   EHScopeStack::stable_iterator CurrentCleanupScopeDepth =
       EHScopeStack::stable_end();
 
+  struct ForRangeInitLifetimeExtendTemporary {
+    const MaterializeTemporaryExpr *M;
+    RawAddress Object;
+  };
+
   class LexicalScope : public RunCleanupsScope {
     SourceRange Range;
     SmallVector<const LabelDecl*, 4> Labels;
+    SmallVector<ForRangeInitLifetimeExtendTemporary, 4> ForRangeInitTemps;
     LexicalScope *ParentScope;
+
+    // This will be set to `__range` variable when we emitting a
+    // CXXForRangeStmt. It was used to check whether we are emitting a
+    // materialized temporary which in for-range-init and lifetime-extended by
+    // __range var. If so, the codegen of cleanup for that temporary object
+    // needs to be delayed.
+    const VarDecl *ForRangeVar = nullptr;
 
     LexicalScope(const LexicalScope &) = delete;
     void operator=(const LexicalScope &) = delete;
@@ -1002,6 +1018,21 @@ public:
     void addLabel(const LabelDecl *label) {
       assert(PerformCleanup && "adding label to dead scope?");
       Labels.push_back(label);
+    }
+
+    void addForRangeInitTemp(const MaterializeTemporaryExpr *M,
+                             RawAddress Object) {
+      assert(PerformCleanup && "adding temps to dead scope?");
+      ForRangeInitTemps.push_back({M, Object});
+    }
+
+    ArrayRef<ForRangeInitLifetimeExtendTemporary> getForRangeInitTemps() const {
+      return ForRangeInitTemps;
+    }
+
+    void setForRangeVar(const VarDecl *Var) { ForRangeVar = Var; }
+    bool isExtendedByForRangeVar(const MaterializeTemporaryExpr *M) const {
+      return M && ForRangeVar && M->getExtendingDecl() == ForRangeVar;
     }
 
     /// Exit this cleanup scope, emitting any accumulated

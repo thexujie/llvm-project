@@ -274,9 +274,9 @@ void CodeGenFunction::EmitAnyExprToMem(const Expr *E,
   llvm_unreachable("bad evaluation kind");
 }
 
-static void
-pushTemporaryCleanup(CodeGenFunction &CGF, const MaterializeTemporaryExpr *M,
-                     const Expr *E, Address ReferenceTemporary) {
+void CodeGenFunction::pushTemporaryCleanup(const MaterializeTemporaryExpr *M,
+                                           const Expr *E,
+                                           Address ReferenceTemporary) {
   // Objective-C++ ARC:
   //   If we are binding a reference to a temporary that has ownership, we
   //   need to perform retain/release operations on the temporary.
@@ -311,9 +311,9 @@ pushTemporaryCleanup(CodeGenFunction &CGF, const MaterializeTemporaryExpr *M,
         CleanupKind CleanupKind;
         if (Lifetime == Qualifiers::OCL_Strong) {
           const ValueDecl *VD = M->getExtendingDecl();
-          bool Precise =
-              VD && isa<VarDecl>(VD) && VD->hasAttr<ObjCPreciseLifetimeAttr>();
-          CleanupKind = CGF.getARCCleanupKind();
+          bool Precise = isa_and_nonnull<VarDecl>(VD) &&
+                         VD->hasAttr<ObjCPreciseLifetimeAttr>();
+          CleanupKind = getARCCleanupKind();
           Destroy = Precise ? &CodeGenFunction::destroyARCStrongPrecise
                             : &CodeGenFunction::destroyARCStrongImprecise;
         } else {
@@ -323,13 +323,12 @@ pushTemporaryCleanup(CodeGenFunction &CGF, const MaterializeTemporaryExpr *M,
           Destroy = &CodeGenFunction::destroyARCWeak;
         }
         if (Duration == SD_FullExpression)
-          CGF.pushDestroy(CleanupKind, ReferenceTemporary,
-                          M->getType(), *Destroy,
-                          CleanupKind & EHCleanup);
+          pushDestroy(CleanupKind, ReferenceTemporary, M->getType(), *Destroy,
+                      CleanupKind & EHCleanup);
         else
-          CGF.pushLifetimeExtendedDestroy(CleanupKind, ReferenceTemporary,
-                                          M->getType(),
-                                          *Destroy, CleanupKind & EHCleanup);
+          pushLifetimeExtendedDestroy(CleanupKind, ReferenceTemporary,
+                                      M->getType(), *Destroy,
+                                      CleanupKind & EHCleanup);
         return;
 
       case SD_Dynamic:
@@ -358,32 +357,31 @@ pushTemporaryCleanup(CodeGenFunction &CGF, const MaterializeTemporaryExpr *M,
     llvm::FunctionCallee CleanupFn;
     llvm::Constant *CleanupArg;
     if (E->getType()->isArrayType()) {
-      CleanupFn = CodeGenFunction(CGF.CGM).generateDestroyHelper(
-          ReferenceTemporary, E->getType(),
-          CodeGenFunction::destroyCXXObject, CGF.getLangOpts().Exceptions,
+      CleanupFn = CodeGenFunction(CGM).generateDestroyHelper(
+          ReferenceTemporary, E->getType(), CodeGenFunction::destroyCXXObject,
+          getLangOpts().Exceptions,
           dyn_cast_or_null<VarDecl>(M->getExtendingDecl()));
-      CleanupArg = llvm::Constant::getNullValue(CGF.Int8PtrTy);
+      CleanupArg = llvm::Constant::getNullValue(Int8PtrTy);
     } else {
-      CleanupFn = CGF.CGM.getAddrAndTypeOfCXXStructor(
+      CleanupFn = CGM.getAddrAndTypeOfCXXStructor(
           GlobalDecl(ReferenceTemporaryDtor, Dtor_Complete));
-      CleanupArg = cast<llvm::Constant>(ReferenceTemporary.emitRawPointer(CGF));
+      CleanupArg =
+          cast<llvm::Constant>(ReferenceTemporary.emitRawPointer(*this));
     }
-    CGF.CGM.getCXXABI().registerGlobalDtor(
-        CGF, *cast<VarDecl>(M->getExtendingDecl()), CleanupFn, CleanupArg);
+    CGM.getCXXABI().registerGlobalDtor(
+        *this, *cast<VarDecl>(M->getExtendingDecl()), CleanupFn, CleanupArg);
     break;
   }
 
   case SD_FullExpression:
-    CGF.pushDestroy(NormalAndEHCleanup, ReferenceTemporary, E->getType(),
-                    CodeGenFunction::destroyCXXObject,
-                    CGF.getLangOpts().Exceptions);
+    pushDestroy(NormalAndEHCleanup, ReferenceTemporary, E->getType(),
+                CodeGenFunction::destroyCXXObject, getLangOpts().Exceptions);
     break;
 
   case SD_Automatic:
-    CGF.pushLifetimeExtendedDestroy(NormalAndEHCleanup,
-                                    ReferenceTemporary, E->getType(),
-                                    CodeGenFunction::destroyCXXObject,
-                                    CGF.getLangOpts().Exceptions);
+    pushLifetimeExtendedDestroy(NormalAndEHCleanup, ReferenceTemporary,
+                                E->getType(), CodeGenFunction::destroyCXXObject,
+                                getLangOpts().Exceptions);
     break;
 
   case SD_Dynamic:
@@ -490,7 +488,7 @@ EmitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *M) {
     }
     }
 
-    pushTemporaryCleanup(*this, M, E, Object);
+    pushTemporaryCleanup(M, E, Object);
     return RefTempDst;
   }
 
@@ -579,7 +577,13 @@ EmitMaterializeTemporaryExpr(const MaterializeTemporaryExpr *M) {
     }
     EmitAnyExprToMem(E, Object, Qualifiers(), /*IsInit*/true);
   }
-  pushTemporaryCleanup(*this, M, E, Object);
+
+  // If this temporary extended by for-range variable, delay to emitting
+  // cleanup.
+  if (CurLexicalScope && CurLexicalScope->isExtendedByForRangeVar(M))
+    CurLexicalScope->addForRangeInitTemp(M, Object);
+  else
+    pushTemporaryCleanup(M, E, Object);
 
   // Perform derived-to-base casts and/or field accesses, to get from the
   // temporary object we created (and, potentially, for which we extended
