@@ -988,31 +988,106 @@ InstructionCost RISCVTTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst,
     return Cost;
   }
   case ISD::FP_TO_SINT:
-  case ISD::FP_TO_UINT:
-  case ISD::SINT_TO_FP:
-  case ISD::UINT_TO_FP:
-    if (Src->getScalarSizeInBits() == 1 || Dst->getScalarSizeInBits() == 1) {
-      // The cost of convert from or to mask vector is different from other
-      // cases. We could not use PowDiff to calculate it.
-      // For mask vector to fp, we should use the following instructions:
-      // vmv.v.i v8, 0
-      // vmerge.vim v8, v8, -1, v0
-      // vfcvt.f.x.v v8, v8
-
-      // And for fp vector to mask, we use:
+  case ISD::FP_TO_UINT: {
+    unsigned IsSigned = ISD == ISD::FP_TO_SINT;
+    unsigned FCVT = IsSigned ? RISCV::VFCVT_RTZ_X_F_V : RISCV::VFCVT_RTZ_XU_F_V;
+    unsigned FWCVT =
+        IsSigned ? RISCV::VFWCVT_RTZ_X_F_V : RISCV::VFWCVT_RTZ_XU_F_V;
+    unsigned FNCVT =
+        IsSigned ? RISCV::VFNCVT_RTZ_X_F_W : RISCV::VFNCVT_RTZ_XU_F_W;
+    unsigned SrcEltSize = Src->getScalarSizeInBits();
+    unsigned DstEltSize = Dst->getScalarSizeInBits();
+    if (DstEltSize == 1) {
+      // For fp vector to mask, we use:
       // vfncvt.rtz.x.f.w v9, v8
       // vand.vi v8, v9, 1
       // vmsne.vi v0, v8, 0
-      return 3;
+      SrcEltSize /= 2;
+      MVT ElementVT = MVT::getIntegerVT(SrcEltSize);
+      MVT InterimVT = SrcLT.second.changeVectorElementType(ElementVT);
+      return getRISCVInstructionCost(FNCVT, InterimVT, CostKind) +
+             getRISCVInstructionCost({RISCV::VAND_VI, RISCV::VMSNE_VI},
+                                     DstLT.second, CostKind);
     }
-    if (std::abs(PowDiff) <= 1)
-      return 1;
-    // Backend could lower (v[sz]ext i8 to double) to vfcvt(v[sz]ext.f8 i8),
-    // so it only need two conversion.
-    if (Src->isIntOrIntVectorTy())
-      return 2;
-    // Counts of narrow/widen instructions.
-    return std::abs(PowDiff);
+    if (DstEltSize == SrcEltSize)
+      return getRISCVInstructionCost(FCVT, DstLT.second, CostKind);
+    if (DstEltSize == (2 * SrcEltSize))
+      return getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+    if (DstEltSize == (4 * SrcEltSize) && (SrcEltSize == 16)) {
+      // Convert f16 to f32 then convert f32 to i64.
+      MVT VecF32VT = DstLT.second.changeVectorElementType(MVT::f32);
+      return getRISCVInstructionCost(RISCV::VFWCVT_F_F_V, VecF32VT, CostKind) +
+             getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+    }
+    if (DstEltSize < SrcEltSize) {
+      SrcEltSize /= 2;
+      MVT ElementVT = MVT::getIntegerVT(SrcEltSize);
+      MVT InterimVT = DstLT.second.changeVectorElementType(ElementVT);
+      InstructionCost Cost =
+          getRISCVInstructionCost(FNCVT, InterimVT, CostKind);
+      while (DstEltSize < SrcEltSize) {
+        SrcEltSize /= 2;
+        ElementVT = MVT::getIntegerVT(SrcEltSize);
+        InterimVT = DstLT.second.changeVectorElementType(ElementVT);
+        Cost += getRISCVInstructionCost(RISCV::VNSRL_WI, InterimVT, CostKind);
+      }
+      return Cost;
+    }
+    return BaseT::getCastInstrCost(Opcode, Dst, Src, CCH, CostKind, I);
+  }
+  case ISD::SINT_TO_FP:
+  case ISD::UINT_TO_FP: {
+    unsigned IsSigned = ISD == ISD::SINT_TO_FP;
+    unsigned FCVT = IsSigned ? RISCV::VFCVT_F_X_V : RISCV::VFCVT_F_XU_V;
+    unsigned FWCVT = IsSigned ? RISCV::VFWCVT_F_X_V : RISCV::VFWCVT_F_XU_V;
+    unsigned FNCVT = IsSigned ? RISCV::VFNCVT_F_X_W : RISCV::VFNCVT_F_XU_W;
+    unsigned SrcEltSize = Src->getScalarSizeInBits();
+    unsigned DstEltSize = Dst->getScalarSizeInBits();
+
+    if (SrcEltSize == 1) {
+      // For mask vector to fp, we use:
+      // vmv.v.i v8, 0
+      // vmerge.vim v8, v8, -1, v0
+      // vfwcvt.f.x.v v8, v8
+      MVT ElementVT = MVT::getIntegerVT(DstEltSize >> 1);
+      MVT VecHalfVT = DstLT.second.changeVectorElementType(ElementVT);
+      return getRISCVInstructionCost({RISCV::VMV_V_I, RISCV::VMERGE_VIM},
+                                     VecHalfVT, CostKind) +
+             getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+    }
+
+    if (DstEltSize == SrcEltSize)
+      return getRISCVInstructionCost(FCVT, DstLT.second, CostKind);
+
+    if (DstEltSize == (2 * SrcEltSize))
+      return getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+
+    if (DstEltSize == (4 * SrcEltSize)) {
+      unsigned WidenIntOp = IsSigned ? RISCV::VSEXT_VF2 : RISCV::VZEXT_VF2;
+      MVT ElementVT = MVT::getIntegerVT(DstEltSize >> 1);
+      MVT VecVT = DstLT.second.changeVectorElementType(ElementVT);
+      return getRISCVInstructionCost(WidenIntOp, VecVT, CostKind) +
+             getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+    }
+    if (DstEltSize == (8 * SrcEltSize)) {
+      unsigned WidenIntOp = IsSigned ? RISCV::VSEXT_VF4 : RISCV::VZEXT_VF4;
+      MVT ElementVT = MVT::getIntegerVT(DstEltSize >> 1);
+      MVT VecVT = DstLT.second.changeVectorElementType(ElementVT);
+      return getRISCVInstructionCost(WidenIntOp, VecVT, CostKind) +
+             getRISCVInstructionCost(FWCVT, DstLT.second, CostKind);
+    }
+    if (SrcEltSize == (2 * DstEltSize))
+      return getRISCVInstructionCost(FNCVT, DstLT.second, CostKind);
+
+    if ((SrcEltSize == (4 * DstEltSize)) && (DstEltSize == 16)) {
+      // Handle i64 to f16: vfncvt.f.x/xu + vfncvt.f.f
+      MVT DstVT = DstLT.second.changeVectorElementType(MVT::f32);
+      return getRISCVInstructionCost(FNCVT, DstVT, CostKind) +
+             getRISCVInstructionCost(RISCV::VFNCVT_F_F_W, DstLT.second,
+                                     CostKind);
+    }
+    return BaseT::getCastInstrCost(Opcode, Dst, Src, CCH, CostKind, I);
+  }
   }
   return BaseT::getCastInstrCost(Opcode, Dst, Src, CCH, CostKind, I);
 }
