@@ -21,14 +21,14 @@
 namespace mlir {
 class Operation;
 namespace ptr {
-/// This method checks if it's valid to perform an `addrspacecast` op in the
+/// Checks if it's valid to perform an `addrspacecast` op in the
 /// memory space.
 /// Compatible types are:
 /// Vectors of rank 1, or scalars of `ptr` type.
 LogicalResult isValidAddrSpaceCastImpl(Type tgt, Type src,
                                        Operation *diagnosticOp);
 
-/// This method checks if it's valid to perform a `ptrtoint` or `inttoptr` op in
+/// Checks if it's valid to perform a `ptrtoint` or `inttoptr` op in
 /// the memory space.
 /// Compatible types are:
 /// IntLikeTy: Vectors of rank 1, or scalars of integer types or `index` type.
@@ -52,28 +52,29 @@ public:
   MemorySpace() = default;
   MemorySpace(std::nullptr_t) {}
   MemorySpace(MemorySpaceAttrInterface memorySpace)
-      : memorySpaceAttr(memorySpace), memorySpace(memorySpace) {}
-  MemorySpace(Attribute memorySpace)
-      : memorySpaceAttr(memorySpace),
+      : underlyingMemorySpace(memorySpace), memorySpace(memorySpace) {}
+  explicit MemorySpace(Attribute memorySpace)
+      : underlyingMemorySpace(memorySpace),
         memorySpace(dyn_cast_or_null<MemorySpaceAttrInterface>(memorySpace)) {}
 
-  operator Attribute() const { return memorySpaceAttr; }
+  operator Attribute() const { return underlyingMemorySpace; }
   operator MemorySpaceAttrInterface() const { return memorySpace; }
   bool operator==(const MemorySpace &memSpace) const {
-    return memSpace.memorySpaceAttr == memorySpaceAttr;
+    return memSpace.underlyingMemorySpace == underlyingMemorySpace;
   }
 
   /// Returns the underlying memory space.
-  Attribute getUnderlyingSpace() const { return memorySpaceAttr; }
+  Attribute getUnderlyingSpace() const { return underlyingMemorySpace; }
 
-  /// Returns true if the underlying memory space is null.
+  /// Returns true if the memory space is null.
   bool isDefaultModel() const { return memorySpace == nullptr; }
 
   /// Returns the memory space as an integer, or 0 if using the default space.
   unsigned getAddressSpace() const {
     if (memorySpace)
       return memorySpace.getAddressSpace();
-    if (auto intAttr = llvm::dyn_cast_or_null<IntegerAttr>(memorySpaceAttr))
+    if (auto intAttr =
+            llvm::dyn_cast_or_null<IntegerAttr>(underlyingMemorySpace))
       return intAttr.getInt();
     return 0;
   }
@@ -84,9 +85,9 @@ public:
     return memorySpace ? memorySpace.getDefaultMemorySpace() : nullptr;
   }
 
-  /// This method checks if it's valid to load a value from the memory space
-  /// with a specific type, alignment, and atomic ordering. The default model
-  /// assumes all values are loadable.
+  /// Checks if it's valid to load a value from the memory space with a specific
+  /// type, alignment, and atomic ordering. The default model assumes all values
+  /// can be loaded.
   LogicalResult isValidLoad(Type type, AtomicOrdering ordering,
                             IntegerAttr alignment,
                             Operation *diagnosticOp = nullptr) const {
@@ -95,9 +96,9 @@ public:
                        : success();
   }
 
-  /// This method checks if it's valid to store a value in the memory space with
-  /// a specific type, alignment, and atomic ordering. The default model assumes
-  /// all values are loadable.
+  /// Checks if it's valid to store a value in the memory space with a specific
+  /// type, alignment, and atomic ordering. The default model assumes all values
+  /// can be stored.
   LogicalResult isValidStore(Type type, AtomicOrdering ordering,
                              IntegerAttr alignment,
                              Operation *diagnosticOp = nullptr) const {
@@ -106,8 +107,8 @@ public:
                        : success();
   }
 
-  /// This method checks if it's valid to perform an atomic operation in the
-  /// memory space with a specific type, alignment, and atomic ordering.
+  /// Checks if it's valid to perform an atomic operation in the memory space
+  /// with a specific type, alignment, and atomic ordering.
   LogicalResult isValidAtomicOp(AtomicBinOp op, Type type,
                                 AtomicOrdering ordering, IntegerAttr alignment,
                                 Operation *diagnosticOp = nullptr) const {
@@ -116,8 +117,8 @@ public:
                        : success();
   }
 
-  /// This method checks if it's valid to perform an atomic operation in the
-  /// memory space with a specific type, alignment, and atomic ordering.
+  /// Checks if it's valid to perform an atomic exchange operation in the memory
+  /// space with a specific type, alignment, and atomic ordering.
   LogicalResult isValidAtomicXchg(Type type, AtomicOrdering successOrdering,
                                   AtomicOrdering failureOrdering,
                                   IntegerAttr alignment,
@@ -128,8 +129,7 @@ public:
                        : success();
   }
 
-  /// This method checks if it's valid to perform an `addrspacecast` op in the
-  /// memory space.
+  /// Checks if it's valid to perform an `addrspacecast` op in the memory space.
   LogicalResult isValidAddrSpaceCast(Type tgt, Type src,
                                      Operation *diagnosticOp = nullptr) const {
     return memorySpace
@@ -137,8 +137,8 @@ public:
                : isValidAddrSpaceCastImpl(tgt, src, diagnosticOp);
   }
 
-  /// This method checks if it's valid to perform a `ptrtoint` or `inttoptr` op
-  /// in the memory space.
+  /// Checks if it's valid to perform a `ptrtoint` or `inttoptr` op in the
+  /// memory space.
   LogicalResult isValidPtrIntCast(Type intLikeTy, Type ptrLikeTy,
                                   Operation *diagnosticOp = nullptr) const {
     return memorySpace
@@ -149,7 +149,7 @@ public:
 
 protected:
   /// Underlying memory space.
-  Attribute memorySpaceAttr{};
+  Attribute underlyingMemorySpace{};
   /// Memory space.
   MemorySpaceAttrInterface memorySpace{};
 };

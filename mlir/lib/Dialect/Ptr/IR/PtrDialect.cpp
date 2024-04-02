@@ -39,6 +39,10 @@ void PtrDialect::initialize() {
 // Pointer API.
 //===----------------------------------------------------------------------===//
 
+// Error constants for vector data types.
+constexpr const static unsigned kInvalidRankError = -1;
+constexpr const static unsigned kScalableDimsError = -2;
+
 // Returns a pair containing:
 // The underlying type of a vector or the type itself if it's not a vector.
 // The number of elements in the vector or an error code if the type is not
@@ -49,26 +53,28 @@ static std::pair<Type, int64_t> getVecOrScalarInfo(Type ty) {
     // Vectors of rank greater than one or with scalable dimensions are not
     // supported.
     if (vecTy.getRank() != 1)
-      return {elemTy, -1};
+      return {elemTy, kInvalidRankError};
     else if (vecTy.getScalableDims()[0])
-      return {elemTy, -2};
+      return {elemTy, kScalableDimsError};
     return {elemTy, vecTy.getShape()[0]};
   }
   // `ty` is a scalar type.
   return {ty, 0};
 }
 
-LogicalResult mlir::ptr::isValidAddrSpaceCastImpl(Type tgt, Type src,
-                                                  Operation *op) {
-  std::pair<Type, int64_t> tgtInfo = getVecOrScalarInfo(tgt);
-  std::pair<Type, int64_t> srcInfo = getVecOrScalarInfo(src);
-  if (!isa<PtrType>(tgtInfo.first) || !isa<PtrType>(srcInfo.first))
-    return op ? op->emitError("invalid ptr-like operand") : failure();
+/// Checks whether the shape of the operands is compatible with the operation.
+/// Operands must be scalars or have the same vector shape, additionally only
+/// vectors of rank 1 are supported.
+static LogicalResult verifyShapeInfo(mlir::Operation *op,
+                                     const std::pair<Type, int64_t> &tgtInfo,
+                                     const std::pair<Type, int64_t> &srcInfo) {
   // Check shape validity.
-  if (tgtInfo.second == -1 || srcInfo.second == -1)
+  if (tgtInfo.second == kInvalidRankError ||
+      srcInfo.second == kInvalidRankError)
     return op ? op->emitError("vectors of rank != 1 are not supported")
               : failure();
-  if (tgtInfo.second == -2 || srcInfo.second == -2)
+  if (tgtInfo.second == kScalableDimsError ||
+      srcInfo.second == kScalableDimsError)
     return op ? op->emitError(
                     "vectors with scalable dimensions are not supported")
               : failure();
@@ -77,29 +83,30 @@ LogicalResult mlir::ptr::isValidAddrSpaceCastImpl(Type tgt, Type src,
   return success();
 }
 
+LogicalResult mlir::ptr::isValidAddrSpaceCastImpl(Type tgt, Type src,
+                                                  Operation *op) {
+  std::pair<Type, int64_t> tgtInfo = getVecOrScalarInfo(tgt);
+  std::pair<Type, int64_t> srcInfo = getVecOrScalarInfo(src);
+  if (!isa<PtrType>(tgtInfo.first) || !isa<PtrType>(srcInfo.first))
+    return op ? op->emitError("invalid ptr-like operand") : failure();
+  // Verify shape validity.
+  return verifyShapeInfo(op, tgtInfo, srcInfo);
+}
+
 LogicalResult mlir::ptr::isValidPtrIntCastImpl(Type intLikeTy, Type ptrLikeTy,
                                                Operation *op) {
   // Check int-like type.
   std::pair<Type, int64_t> intInfo = getVecOrScalarInfo(intLikeTy);
+  // The int-like operand is invalid.
   if (!intInfo.first.isSignlessIntOrIndex())
-    /// The int-like operand is invalid.
     return op ? op->emitError("invalid int-like type") : failure();
   // Check ptr-like type.
   std::pair<Type, int64_t> ptrInfo = getVecOrScalarInfo(ptrLikeTy);
+  // The pointer-like operand is invalid.
   if (!isa<PtrType>(ptrInfo.first))
-    /// The pointer-like operand is invalid.
     return op ? op->emitError("invalid ptr-like type") : failure();
-  // Check shape validity.
-  if (intInfo.second == -1 || ptrInfo.second == -1)
-    return op ? op->emitError("vectors of rank != 1 are not supported")
-              : failure();
-  if (intInfo.second == -2 || ptrInfo.second == -2)
-    return op ? op->emitError(
-                    "vectors with scalable dimensions are not supported")
-              : failure();
-  if (intInfo.second != ptrInfo.second)
-    return op ? op->emitError("incompatible operand shapes") : failure();
-  return success();
+  // Verify shape validity.
+  return verifyShapeInfo(op, intInfo, ptrInfo);
 }
 
 #include "mlir/Dialect/Ptr/IR/PtrOpsDialect.cpp.inc"
