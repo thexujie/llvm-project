@@ -228,6 +228,8 @@ static const char *getLDMOption(const llvm::Triple &T, const ArgList &Args) {
       return "elf_iamcu";
     return "elf_i386";
   case llvm::Triple::aarch64:
+    if (T.getOS() == llvm::Triple::Managarm)
+      return "aarch64managarm";
     return "aarch64linux";
   case llvm::Triple::aarch64_be:
     return "aarch64linuxb";
@@ -2456,7 +2458,8 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
   static const char *const AArch64LibDirs[] = {"/lib64", "/lib"};
   static const char *const AArch64Triples[] = {
       "aarch64-none-linux-gnu", "aarch64-linux-gnu", "aarch64-redhat-linux",
-      "aarch64-suse-linux"};
+      "aarch64-suse-linux",     "aarch64-managarm",  "aarch64-managarm-mlibc",
+      "aarch64-managarm-kernel"};
   static const char *const AArch64beLibDirs[] = {"/lib"};
   static const char *const AArch64beTriples[] = {"aarch64_be-none-linux-gnu",
                                                  "aarch64_be-linux-gnu"};
@@ -2486,7 +2489,8 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
       "x86_64-redhat-linux",    "x86_64-suse-linux",
       "x86_64-manbo-linux-gnu", "x86_64-linux-gnu",
       "x86_64-slackware-linux", "x86_64-unknown-linux",
-      "x86_64-amazon-linux"};
+      "x86_64-amazon-linux",    "x86_64-managarm",
+      "x86_64-managarm-mlibc",  "x86_64-managarm-kernel"};
   static const char *const X32Triples[] = {"x86_64-linux-gnux32",
                                            "x86_64-pc-linux-gnux32"};
   static const char *const X32LibDirs[] = {"/libx32", "/lib"};
@@ -2562,7 +2566,10 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
   static const char *const RISCV64LibDirs[] = {"/lib64", "/lib"};
   static const char *const RISCV64Triples[] = {"riscv64-unknown-linux-gnu",
                                                "riscv64-linux-gnu",
-                                               "riscv64-unknown-elf"};
+                                               "riscv64-unknown-elf",
+                                               "riscv64-managarm",
+                                               "riscv64-managarm-kernel",
+                                               "riscv64-managarm-mlibc"};
 
   static const char *const SPARCv8LibDirs[] = {"/lib32", "/lib"};
   static const char *const SPARCv8Triples[] = {"sparc-linux-gnu",

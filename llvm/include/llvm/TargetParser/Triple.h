@@ -196,6 +196,7 @@ public:
     Linux,
     Lv2, // PS3
     MacOSX,
+    Managarm,
     NetBSD,
     OpenBSD,
     Solaris,
@@ -279,8 +280,10 @@ public:
     Amplification,
     OpenCL,
     OpenHOS,
+    Kernel,
+    Mlibc,
 
-    LastEnvironmentType = OpenHOS
+    LastEnvironmentType = Mlibc
   };
   enum ObjectFormatType {
     UnknownObjectFormat,

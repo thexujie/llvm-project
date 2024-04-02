@@ -1007,6 +1007,30 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::Serenity, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
 
+  T = Triple("aarch64-pc-managarm-mlibc");
+  EXPECT_EQ(Triple::aarch64, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Managarm, T.getOS());
+  EXPECT_EQ(Triple::Mlibc, T.getEnvironment());
+
+  T = Triple("aarch64-pc-managarm-kernel");
+  EXPECT_EQ(Triple::aarch64, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Managarm, T.getOS());
+  EXPECT_EQ(Triple::Kernel, T.getEnvironment());
+
+  T = Triple("x86_64-pc-managarm-mlibc");
+  EXPECT_EQ(Triple::x86_64, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Managarm, T.getOS());
+  EXPECT_EQ(Triple::Mlibc, T.getEnvironment());
+
+  T = Triple("x86_64-pc-managarm-kernel");
+  EXPECT_EQ(Triple::x86_64, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::Managarm, T.getOS());
+  EXPECT_EQ(Triple::Kernel, T.getEnvironment());
+
   T = Triple("huh");
   EXPECT_EQ(Triple::UnknownArch, T.getArch());
 }
