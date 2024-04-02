@@ -1694,10 +1694,10 @@ void CGOpenMPRuntimeGPU::emitReduction(
     ElementType = CGF.ConvertTypeForMem(Private->getType());
     const auto *RHSVar =
         cast<VarDecl>(cast<DeclRefExpr>(RHSExprs[Idx])->getDecl());
-    PrivateVariable = CGF.GetAddrOfLocalVar(RHSVar).getPointer();
+    PrivateVariable = CGF.GetAddrOfLocalVar(RHSVar).emitRawPointer(CGF);
     const auto *LHSVar =
         cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[Idx])->getDecl());
-    Variable = CGF.GetAddrOfLocalVar(LHSVar).getPointer();
+    Variable = CGF.GetAddrOfLocalVar(LHSVar).emitRawPointer(CGF);
     llvm::OpenMPIRBuilder::EvalKind EvalKind;
     switch (CGF.getEvaluationKind(Private->getType())) {
     case TEK_Scalar:
@@ -1719,10 +1719,10 @@ void CGOpenMPRuntimeGPU::emitReduction(
 
       *LHSPtr = CGF.GetAddrOfLocalVar(
                        cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[I])->getDecl()))
-                    .getPointer();
+                    .emitRawPointer(CGF);
       *RHSPtr = CGF.GetAddrOfLocalVar(
                        cast<VarDecl>(cast<DeclRefExpr>(RHSExprs[I])->getDecl()))
-                    .getPointer();
+                    .emitRawPointer(CGF);
 
       emitSingleReductionCombiner(CGF, ReductionOps[I], Privates[I],
                                   cast<DeclRefExpr>(LHSExprs[I]),
