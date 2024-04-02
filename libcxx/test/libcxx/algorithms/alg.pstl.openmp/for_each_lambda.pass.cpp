@@ -11,8 +11,6 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
-// ADDITIONAL_COMPILE_FLAGS: --offload-arch=native
-
 // REQUIRES: libcpp-pstl-backend-openmp
 
 #include <algorithm>

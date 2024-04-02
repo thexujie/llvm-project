@@ -336,6 +336,10 @@ DEFAULT_FEATURES.append(
             AddFlag("-I %{lib-dir}/../../projects/openmp/runtime/src/"),
             # And if it was installed as a runtime it lives in the following:
             AddFlag("-I %{lib-dir}/../../runtimes/runtimes-bins/openmp/runtime/src"),
+            # TODO: Add conditional to test if a GPU target has been detected.
+            # For now, we only offload to the host in this test configuration.
+            # If a GPU were present, we should instead pass --offload-arch=native.
+            AddFlagIfSupported("-fopenmp-targets=%{triple}"),
         ],
     )
 )

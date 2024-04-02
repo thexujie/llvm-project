@@ -15,7 +15,7 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, gcc
 
-// ADDITIONAL_COMPILE_FLAGS: -Wopenmp-target-exception -fexceptions --offload-arch=native --offload-device-only
+// ADDITIONAL_COMPILE_FLAGS: -Wopenmp-target-exception -fexceptions --offload-device-only
 
 // REQUIRES: libcpp-pstl-backend-openmp
 

@@ -534,7 +534,12 @@ generic-optimized-speed)
 ;;
 generic-pstl-openmp)
     clean
-    generate-cmake-openmp -C "${MONOREPO_ROOT}/libcxx/cmake/caches/Generic-pstl-openmp.cmake"
+    # TODO: Pass different host and device triples to the test configuration.
+    # For now, the OpenMP buildbot offloads to the host. To set the correct host target triple,
+    # we pass it via the LIBCXX test parameters.
+    PARAMS="target_triple=$(${CXX} --print-target-triple)"
+    generate-cmake-openmp -C "${MONOREPO_ROOT}/libcxx/cmake/caches/Generic-pstl-openmp.cmake" \
+                          -DLIBCXX_TEST_PARAMS="${PARAMS}"
     echo "+++ Installing OpenMP and Clang"
     ${NINJA} -vC "${BUILD_DIR}" install
     check-runtimes
