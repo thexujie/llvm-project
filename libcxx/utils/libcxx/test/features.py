@@ -325,7 +325,7 @@ for macro, feature in macros.items():
 DEFAULT_FEATURES.append(
     Feature(
         name="libcpp-pstl-backend-openmp",
-        when=lambda cfg: '_LIBCPP_PSTL_BACKEND_OPENMP' in compilerMacros(cfg),
+        when=lambda cfg: "_LIBCPP_PSTL_BACKEND_OPENMP" in compilerMacros(cfg),
         actions=[
             AddCompileFlag("-fopenmp"),
             # The linker needs to find the correct version of libomptarget
@@ -336,7 +336,7 @@ DEFAULT_FEATURES.append(
             AddFlag("-I %{lib-dir}/../../projects/openmp/runtime/src/"),
             # And if it was installed as a runtime it lives in the following:
             AddFlag("-I %{lib-dir}/../../runtimes/runtimes-bins/openmp/runtime/src"),
-        ]
+        ],
     )
 )
 
