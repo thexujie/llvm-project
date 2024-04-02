@@ -2274,10 +2274,7 @@ ASTDeclReader::VisitCXXRecordDeclImpl(CXXRecordDecl *D) {
 
   // Lazily load the key function to avoid deserializing every method so we can
   // compute it.
-  //
-  // The key function in named module is meaningless.
-  if (WasDefinition && (!D->getOwningModule() ||
-                        !D->getOwningModule()->isInterfaceOrPartition())) {
+  if (WasDefinition) {
     DeclID KeyFn = readDeclID();
     if (KeyFn && D->isCompleteDefinition())
       // FIXME: This is wrong for the ARM ABI, where some other module may have
