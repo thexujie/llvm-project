@@ -2820,8 +2820,8 @@ void CodeGenFunction::EmitRISCVMultiVersionResolver(
       [&](llvm::SmallVector<StringRef, 8> CurrFeatStrs) -> llvm::Value * {
     llvm::SmallVector<llvm::Value *> FeatValue =
         EmitRISCVExtSupports(CurrFeatStrs);
-    // Invoke `bool __riscv_ifunc_select(long long FeatsBaseKey, long long
-    // FeatsIMAKey)`
+    // Invoke `bool __riscv_ifunc_select(struct riscv_hwprobe *ReqirePreKey,
+    // unsigned Length)`
     llvm::Type *Args[] = {FeatValue[0]->getType(), FeatValue[1]->getType()};
     llvm::FunctionType *FTy =
         llvm::FunctionType::get(Builder.getInt1Ty(), Args, /*Variadic*/ false);

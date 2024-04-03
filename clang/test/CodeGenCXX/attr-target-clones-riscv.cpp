@@ -15,6 +15,11 @@ __attribute__((target_clones("default"))) int foo5(void) { return 5; }
 int bar() { return foo1() + foo2() + foo3() + foo4() + foo5(); }
 
 //.
+// CHECK: @__riscv_hwprobe_args = internal global [2 x %riscv_hwprobe_pair] [%riscv_hwprobe_pair { i64 3, i64 1 }, %riscv_hwprobe_pair { i64 4, i64 0 }]
+// CHECK: @__riscv_hwprobe_args.1 = internal global [2 x %riscv_hwprobe_pair.0] [%riscv_hwprobe_pair.0 { i64 3, i64 1 }, %riscv_hwprobe_pair.0 { i64 4, i64 16 }]
+// CHECK: @__riscv_hwprobe_args.2 = internal global [2 x %riscv_hwprobe_pair.1] [%riscv_hwprobe_pair.1 { i64 3, i64 1 }, %riscv_hwprobe_pair.1 { i64 4, i64 18 }]
+// CHECK: @__riscv_hwprobe_args.3 = internal global [2 x %riscv_hwprobe_pair.2] [%riscv_hwprobe_pair.2 { i64 3, i64 1 }, %riscv_hwprobe_pair.2 { i64 4, i64 0 }]
+// CHECK: @__riscv_hwprobe_args.4 = internal global [2 x %riscv_hwprobe_pair.3] [%riscv_hwprobe_pair.3 { i64 3, i64 1 }, %riscv_hwprobe_pair.3 { i64 4, i64 20 }]
 // CHECK: @_Z4foo1v.ifunc = weak_odr alias i32 (), ptr @_Z4foo1v
 // CHECK: @_Z4foo2v.ifunc = weak_odr alias i32 (), ptr @_Z4foo2v
 // CHECK: @_Z4foo3v.ifunc = weak_odr alias i32 (), ptr @_Z4foo3v
@@ -34,7 +39,7 @@ int bar() { return foo1() + foo2() + foo3() + foo4() + foo5(); }
 //
 // CHECK-LABEL: define weak_odr ptr @_Z4foo1v.resolver() comdat {
 // CHECK-NEXT:  resolver_entry:
-// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(i64 1, i64 0)
+// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(ptr @__riscv_hwprobe_args, i32 2)
 // CHECK-NEXT:    br i1 [[TMP0]], label [[RESOLVER_RETURN:%.*]], label [[RESOLVER_ELSE:%.*]]
 // CHECK:       resolver_return:
 // CHECK-NEXT:    ret ptr @"_Z4foo1v.arch=rv64im"
@@ -50,7 +55,7 @@ int bar() { return foo1() + foo2() + foo3() + foo4() + foo5(); }
 //
 // CHECK-LABEL: define weak_odr ptr @_Z4foo2v.resolver() comdat {
 // CHECK-NEXT:  resolver_entry:
-// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(i64 1, i64 16)
+// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(ptr @__riscv_hwprobe_args.1, i32 2)
 // CHECK-NEXT:    br i1 [[TMP0]], label [[RESOLVER_RETURN:%.*]], label [[RESOLVER_ELSE:%.*]]
 // CHECK:       resolver_return:
 // CHECK-NEXT:    ret ptr @"_Z4foo2v.arch=+zbb"
@@ -66,7 +71,7 @@ int bar() { return foo1() + foo2() + foo3() + foo4() + foo5(); }
 //
 // CHECK-LABEL: define weak_odr ptr @_Z4foo3v.resolver() comdat {
 // CHECK-NEXT:  resolver_entry:
-// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(i64 1, i64 18)
+// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(ptr @__riscv_hwprobe_args.2, i32 2)
 // CHECK-NEXT:    br i1 [[TMP0]], label [[RESOLVER_RETURN:%.*]], label [[RESOLVER_ELSE:%.*]]
 // CHECK:       resolver_return:
 // CHECK-NEXT:    ret ptr @"_Z4foo3v.arch=+zbb,+c"
@@ -82,12 +87,12 @@ int bar() { return foo1() + foo2() + foo3() + foo4() + foo5(); }
 //
 // CHECK-LABEL: define weak_odr ptr @_Z4foo4v.resolver() comdat {
 // CHECK-NEXT:  resolver_entry:
-// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(i64 1, i64 0)
+// CHECK-NEXT:    [[TMP0:%.*]] = call i1 @__riscv_ifunc_select(ptr @__riscv_hwprobe_args.3, i32 2)
 // CHECK-NEXT:    br i1 [[TMP0]], label [[RESOLVER_RETURN:%.*]], label [[RESOLVER_ELSE:%.*]]
 // CHECK:       resolver_return:
 // CHECK-NEXT:    ret ptr @"_Z4foo4v.arch=rv64ima"
 // CHECK:       resolver_else:
-// CHECK-NEXT:    [[TMP1:%.*]] = call i1 @__riscv_ifunc_select(i64 1, i64 20)
+// CHECK-NEXT:    [[TMP1:%.*]] = call i1 @__riscv_ifunc_select(ptr @__riscv_hwprobe_args.4, i32 2)
 // CHECK-NEXT:    br i1 [[TMP1]], label [[RESOLVER_RETURN1:%.*]], label [[RESOLVER_ELSE2:%.*]]
 // CHECK:       resolver_return1:
 // CHECK-NEXT:    ret ptr @"_Z4foo4v.arch=+zbb,+v"
