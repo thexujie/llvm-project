@@ -99,14 +99,12 @@ define i32 @load_gv_from_op_remove_store(ptr %p) local_unnamed_addr {
 ; CHECK-NEXT:    call void @fn0()
 ; CHECK-NEXT:    br label [[IF_END]]
 ; CHECK:       if.end:
-; CHECK-NEXT:    store ptr [[E]], ptr getelementptr inbounds ([3 x ptr], ptr @b, i64 0, i64 2), align 16
 ; CHECK-NEXT:    [[TMP1:%.*]] = load i32, ptr @a, align 4
 ; CHECK-NEXT:    [[INC:%.*]] = add nsw i32 [[TMP1]], 1
 ; CHECK-NEXT:    store i32 [[INC]], ptr @a, align 4
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp slt i32 [[TMP1]], 2
 ; CHECK-NEXT:    br i1 [[CMP]], label [[FOR_BODY]], label [[FOR_END]]
 ; CHECK:       for.end:
-; CHECK-NEXT:    call void @llvm.memcpy.p0.p0.i64(ptr @b, ptr [[P:%.*]], i64 8, i1 false)
 ; CHECK-NEXT:    ret i32 0
 ;
 entry:
