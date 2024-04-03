@@ -327,7 +327,7 @@ DEFAULT_FEATURES.append(
         name="libcpp-pstl-backend-openmp",
         when=lambda cfg: "_LIBCPP_PSTL_BACKEND_OPENMP" in compilerMacros(cfg),
         actions=[
-            AddCompileFlag("-fopenmp"),
+            AddFlagIfSupported("-fopenmp"),
             # The linker needs to find the correct version of libomptarget
             AddLinkFlag("-Wl,-rpath,%{lib-dir}"),
             # The preprocessor needs to find the omp.h header. If OpenMP was
