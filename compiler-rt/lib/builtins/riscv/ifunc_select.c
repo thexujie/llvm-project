@@ -101,33 +101,34 @@ static long sys_riscv_hwprobe(struct riscv_hwprobe *pairs, unsigned pair_count,
                              cpu_count, (long)cpus, flags);
 }
 
-static void initHwProbe(struct riscv_hwprobe *Hwprobes, int len) {
-  sys_riscv_hwprobe(Hwprobes, len, 0, (cpu_set_t *)((void *)0), 0);
+static long initHwProbe(struct riscv_hwprobe *Hwprobes, int len) {
+  return sys_riscv_hwprobe(Hwprobes, len, 0, (cpu_set_t *)((void *)0), 0);
 }
 
 #endif // defined(__linux__)
 
-unsigned __riscv_ifunc_select(unsigned long long BaseKey,
-                              unsigned long long IMAKey) {
+unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqirePreKey,
+                              unsigned Length) {
 #if defined(__linux__)
   // Init Hwprobe
-  struct riscv_hwprobe pairs[] = {
-      {RISCV_HWPROBE_KEY_BASE_BEHAVIOR, 0},
-      {RISCV_HWPROBE_KEY_IMA_EXT_0, 0},
-  };
-  initHwProbe(pairs, 2);
+  struct riscv_hwprobe Pairs[64];
 
-  // sys_riscv_hwprobe key is unknown to the kernel
-  if (pairs[0].key == -1 || pairs[1].key == -1)
+  for (unsigned Idx = 0; Idx < Length; Idx++) {
+    Pairs[Idx].key = ReqirePreKey[Idx].key;
+    Pairs[Idx].value = 0;
+  }
+
+  // hwprobe not success
+  if (initHwProbe(Pairs, 2))
     return 0;
 
-  // Check KEY_BASE_BEHAVIOR
-  if ((BaseKey & pairs[0].value) != BaseKey)
-    return 0;
+  for (unsigned Idx = 0; Idx < Length; Idx++) {
+    if (Pairs[Idx].key == -1)
+      return 0;
 
-  // Check KEY_IMA_EXT_0
-  if ((IMAKey & pairs[1].value) != IMAKey)
-    return 0;
+    if ((ReqirePreKey[Idx].value & Pairs[Idx].value) != ReqirePreKey[Idx].value)
+      return 0;
+  }
 
   return 1;
 #else
