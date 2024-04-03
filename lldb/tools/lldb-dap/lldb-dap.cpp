@@ -1628,7 +1628,14 @@ void request_initialize(const llvm::json::Object &request) {
   body.try_emplace("supportsEvaluateForHovers", true);
   // Available filters or options for the setExceptionBreakpoints request.
   llvm::json::Array filters;
+  std::string triple =
+      std::string(g_dap.debugger.GetSelectedPlatform().GetTriple());
   for (const auto &exc_bp : g_dap.exception_breakpoints) {
+    // Skipping objc breakpoint filters if not working on macos.
+    if (exc_bp.language == lldb::eLanguageTypeObjC &&
+        triple.find("macos") == std::string::npos) {
+      continue;
+    }
     filters.emplace_back(CreateExceptionBreakpointFilter(exc_bp));
   }
   body.try_emplace("exceptionBreakpointFilters", std::move(filters));
