@@ -6,8 +6,7 @@ declare void @use.i8(i8)
 define i8 @replace_with_y_noundef(i8 %x, i8 noundef %y, i8 %z) {
 ; CHECK-LABEL: @replace_with_y_noundef(
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X:%.*]], [[Y:%.*]]
-; CHECK-NEXT:    [[AND:%.*]] = and i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[AND]], i8 [[Z:%.*]]
+; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[Y]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;
   %cmp = icmp eq i8 %x, %y
@@ -20,8 +19,7 @@ define i8 @replace_with_x_noundef(i8 noundef %x, i8 %y, i8 %z) {
 ; CHECK-LABEL: @replace_with_x_noundef(
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp ne i8 [[X:%.*]], [[Y:%.*]]
 ; CHECK-NEXT:    call void @use.i1(i1 [[CMP]])
-; CHECK-NEXT:    [[AND:%.*]] = or i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[Z:%.*]], i8 [[AND]]
+; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[Z:%.*]], i8 [[X]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;
   %cmp = icmp ne i8 %x, %y
@@ -50,7 +48,7 @@ define i8 @replace_with_y_for_new_oneuse(i8 noundef %xx, i8 noundef %y, i8 %z) {
 ; CHECK-LABEL: @replace_with_y_for_new_oneuse(
 ; CHECK-NEXT:    [[X:%.*]] = mul i8 [[XX:%.*]], 13
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X]], [[Y:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = add nuw i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[ADD:%.*]] = shl nuw i8 [[Y]], 1
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[ADD]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;
@@ -65,7 +63,7 @@ define i8 @replace_with_y_for_new_oneuse2(i8 %xx, i8 noundef %y, i8 %z, i8 %q) {
 ; CHECK-LABEL: @replace_with_y_for_new_oneuse2(
 ; CHECK-NEXT:    [[X:%.*]] = mul i8 [[XX:%.*]], 13
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X]], [[Y:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = add nuw i8 [[X]], [[Q:%.*]]
+; CHECK-NEXT:    [[ADD:%.*]] = add nuw i8 [[Y]], [[Q:%.*]]
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[ADD]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;
@@ -81,7 +79,7 @@ define i8 @replace_with_x_for_new_oneuse(i8 noundef %xx, i8 noundef %yy, i8 %z, 
 ; CHECK-NEXT:    [[X:%.*]] = mul i8 [[XX:%.*]], 13
 ; CHECK-NEXT:    [[Y:%.*]] = add i8 [[YY:%.*]], [[W:%.*]]
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X]], [[X]]
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[MUL]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;
@@ -115,7 +113,7 @@ define i8 @replace_with_x_for_simple_binop(i8 noundef %xx, i8 %yy, i8 %z, i8 %w)
 ; CHECK-NEXT:    [[X:%.*]] = mul i8 [[XX:%.*]], 13
 ; CHECK-NEXT:    [[Y:%.*]] = add i8 [[YY:%.*]], [[W:%.*]]
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X]], [[Y]]
-; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X]], [[X]]
 ; CHECK-NEXT:    call void @use.i8(i8 [[Y]])
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[MUL]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
@@ -147,7 +145,7 @@ define i8 @replace_with_none_for_new_oneuse_fail_maybe_undef(i8 %xx, i8 %y, i8 %
 define i8 @replace_with_y_for_simple_binop(i8 %x, i8 noundef %y, i8 %z) {
 ; CHECK-LABEL: @replace_with_y_for_simple_binop(
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X:%.*]], [[Y:%.*]]
-; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i8 [[X]], [[Y]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i8 [[Y]], [[Y]]
 ; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[CMP]], i8 [[MUL]], i8 [[Z:%.*]]
 ; CHECK-NEXT:    ret i8 [[SEL]]
 ;

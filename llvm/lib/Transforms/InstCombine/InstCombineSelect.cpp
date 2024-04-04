@@ -1285,22 +1285,77 @@ Instruction *InstCombinerImpl::foldSelectValueEquivalence(SelectInst &Sel,
     Swapped = true;
   }
 
-  // In X == Y ? f(X) : Z, try to evaluate f(Y) and replace the operand.
-  // Make sure Y cannot be undef though, as we might pick different values for
-  // undef in the icmp and in f(Y). Additionally, take care to avoid replacing
-  // X == Y ? X : Z with X == Y ? Y : Z, as that would lead to an infinite
-  // replacement cycle.
   Value *CmpLHS = Cmp.getOperand(0), *CmpRHS = Cmp.getOperand(1);
-  if (TrueVal != CmpLHS &&
-      isGuaranteedNotToBeUndefOrPoison(CmpRHS, SQ.AC, &Sel, &DT)) {
-    if (Value *V = simplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, SQ,
-                                          /* AllowRefinement */ true))
-      // Require either the replacement or the simplification result to be a
-      // constant to avoid infinite loops.
-      // FIXME: Make this check more precise.
-      if (isa<Constant>(CmpRHS) || isa<Constant>(V))
-        return replaceOperand(Sel, Swapped ? 2 : 1, V);
+  auto ReplaceLHSOpWithRHSOp = [&](Value *OldOp,
+                                   Value *NewOp) -> Instruction * {
+    // In X == Y ? f(X) : Z, try to evaluate f(Y) and replace the operand.
+    // Take care to avoid replacing X == Y ? X : Z with X == Y ? Y : Z, as that
+    // would lead to an infinite replacement cycle.
+    // If we will be able to evaluate f(Y) to a constant, we can allow undef,
+    // otherwise Y cannot be undef as we might pick different values for undef
+    // in the icmp and in f(Y).
+    if (TrueVal == OldOp)
+      return nullptr;
 
+    std::optional<bool> IsNeverUndefCached;
+    auto IsNeverUndef = [&](Value *Op) {
+      if (!IsNeverUndefCached.has_value())
+        IsNeverUndefCached =
+            isGuaranteedNotToBeUndefOrPoison(Op, SQ.AC, &Sel, &DT);
+      return *IsNeverUndefCached;
+    };
+
+    if (Value *V = simplifyWithOpReplaced(TrueVal, OldOp, NewOp, SQ,
+                                          /* AllowRefinement */ true)) {
+      // Need some gurantees about the new simplified op to ensure we don't inf
+      // loop.
+      // If we simplify to a constant, replace.
+      bool ShouldReplace = match(V, m_ImmConstant());
+      bool NeedsNoUndef = !ShouldReplace;
+      // Or replace if either NewOp is a constant
+      if (!ShouldReplace && match(NewOp, m_ImmConstant()))
+        ShouldReplace = true;
+      // Or if we end up simplifying f(Y) -> Y i.e: Old & New -> New & New ->
+      // New.
+      if (!ShouldReplace && V == NewOp)
+        ShouldReplace = true;
+
+      // Finally, if we are going to create a new one-use instruction, replace.
+      if (!ShouldReplace && isa<Instruction>(OldOp) && OldOp->hasNUses(2) &&
+          (!isa<Instruction>(NewOp) || !NewOp->hasOneUse()))
+        ShouldReplace = true;
+
+      // Unless we simplify the new instruction to a constant, need to ensure Y
+      // is not undef.
+      if (NeedsNoUndef && ShouldReplace)
+        ShouldReplace = IsNeverUndef(NewOp);
+
+      if (ShouldReplace)
+        return replaceOperand(Sel, Swapped ? 2 : 1, V);
+    }
+    // If we can't simplify, but we will either:
+    //  1) Create a new binop where both ops are NewOp i.e (add x, y) is "worse"
+    //     than (add y, y) in this case, wait until the second call so we don't
+    //     miss a one-use simplification.
+    //  2) Create a new one-use instruction.
+    // proceed.
+    else if (TrueVal->hasOneUse() &&
+             (match(TrueVal, m_c_BinOp(m_Specific(OldOp), m_Specific(NewOp))) ||
+              (isa<Instruction>(TrueVal) && isa<Instruction>(OldOp) &&
+               OldOp->hasNUses(2) &&
+               (!isa<Instruction>(NewOp) || !NewOp->hasOneUse())))) {
+      auto *TrueIns = cast<Instruction>(TrueVal);
+      for (unsigned OpIdx = 0; OpIdx < TrueIns->getNumOperands(); ++OpIdx) {
+        if (TrueIns->getOperand(OpIdx) == OldOp) {
+          // Need to ensure NewOp is noundef (same reason as above). Wait until
+          // the last moment to do this check as it can be relatively expensive.
+          if (!IsNeverUndef(NewOp))
+            break;
+          TrueIns->setOperand(OpIdx, NewOp);
+          return replaceOperand(Sel, Swapped ? 2 : 1, TrueIns);
+        }
+      }
+    }
     // Even if TrueVal does not simplify, we can directly replace a use of
     // CmpLHS with CmpRHS, as long as the instruction is not used anywhere
     // else and is safe to speculatively execute (we may end up executing it
@@ -1308,17 +1363,19 @@ Instruction *InstCombinerImpl::foldSelectValueEquivalence(SelectInst &Sel,
     // undefined behavior). Only do this if CmpRHS is a constant, as
     // profitability is not clear for other cases.
     // FIXME: Support vectors.
-    if (match(CmpRHS, m_ImmConstant()) && !match(CmpLHS, m_ImmConstant()) &&
-        !Cmp.getType()->isVectorTy())
-      if (replaceInInstruction(TrueVal, CmpLHS, CmpRHS))
+    if (OldOp == CmpLHS && match(NewOp, m_ImmConstant()) &&
+        !match(OldOp, m_ImmConstant()) && !Cmp.getType()->isVectorTy() &&
+        IsNeverUndef(NewOp))
+      if (replaceInInstruction(TrueVal, OldOp, NewOp))
         return &Sel;
-  }
-  if (TrueVal != CmpRHS &&
-      isGuaranteedNotToBeUndefOrPoison(CmpLHS, SQ.AC, &Sel, &DT))
-    if (Value *V = simplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, SQ,
-                                          /* AllowRefinement */ true))
-      if (isa<Constant>(CmpLHS) || isa<Constant>(V))
-        return replaceOperand(Sel, Swapped ? 2 : 1, V);
+
+    return nullptr;
+  };
+
+  if (Instruction *R = ReplaceLHSOpWithRHSOp(CmpLHS, CmpRHS))
+    return R;
+  if (Instruction *R = ReplaceLHSOpWithRHSOp(CmpRHS, CmpLHS))
+    return R;
 
   auto *FalseInst = dyn_cast<Instruction>(FalseVal);
   if (!FalseInst)
