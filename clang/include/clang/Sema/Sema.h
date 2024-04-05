@@ -3725,6 +3725,10 @@ public:
   bool DiagnoseSwiftName(Decl *D, StringRef Name, SourceLocation Loc,
                          const ParsedAttr &AL, bool IsAsync);
 
+  void DiagnoseMissingFormatAttributes(const FunctionDecl *FDecl,
+                                       ArrayRef<const Expr *> Args,
+                                       SourceLocation Loc);
+
   UuidAttr *mergeUuidAttr(Decl *D, const AttributeCommonInfo &CI,
                           StringRef UuidAsWritten, MSGuidDecl *GuidDecl);
 
