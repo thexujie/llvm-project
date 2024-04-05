@@ -9,14 +9,16 @@
 #ifndef _LIBCPP___ALGORITHM_PSTL_MERGE_H
 #define _LIBCPP___ALGORITHM_PSTL_MERGE_H
 
-#include <__algorithm/pstl_backend.h>
 #include <__config>
 #include <__functional/operations.h>
+#include <__iterator/cpp17_iterator_concepts.h>
+#include <__pstl/configuration.h>
+#include <__pstl/run_backend.h>
 #include <__type_traits/enable_if.h>
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/remove_cvref.h>
+#include <__utility/forward.h>
 #include <__utility/move.h>
-#include <optional>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -33,33 +35,7 @@ template <class _ExecutionPolicy,
           class _ForwardIterator1,
           class _ForwardIterator2,
           class _ForwardOutIterator,
-          class _Comp                                         = std::less<>,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator>
-__merge(_ExecutionPolicy&&,
-        _ForwardIterator1 __first1,
-        _ForwardIterator1 __last1,
-        _ForwardIterator2 __first2,
-        _ForwardIterator2 __last2,
-        _ForwardOutIterator __result,
-        _Comp __comp = {}) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_merge<_RawPolicy>(
-      _Backend{},
-      std::move(__first1),
-      std::move(__last1),
-      std::move(__first2),
-      std::move(__last2),
-      std::move(__result),
-      std::move(__comp));
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator1,
-          class _ForwardIterator2,
-          class _ForwardOutIterator,
-          class _Comp                                         = std::less<>,
+          class _Comp,
           class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
           enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
 _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator
@@ -68,19 +44,48 @@ merge(_ExecutionPolicy&& __policy,
       _ForwardIterator1 __last1,
       _ForwardIterator2 __first2,
       _ForwardIterator2 __last2,
-      _ForwardOutIterator __result,
-      _Comp __comp = {}) {
-  auto __res = std::__merge(
-      __policy,
+      _ForwardOutIterator __out,
+      _Comp __comp) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator1);
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator2);
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(_ForwardOutIterator, decltype(*__first1));
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(_ForwardOutIterator, decltype(*__first2));
+  using _Implementation = __pstl::__merge<__pstl::__configured_backend, _RawPolicy>;
+  return __pstl::__run_backend<_Implementation>(
+      std::forward<_ExecutionPolicy>(__policy),
       std::move(__first1),
       std::move(__last1),
       std::move(__first2),
       std::move(__last2),
-      std::move(__result),
+      std::move(__out),
       std::move(__comp));
-  if (!__res)
-    std::__throw_bad_alloc();
-  return *std::move(__res);
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator1,
+          class _ForwardIterator2,
+          class _ForwardOutIterator,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator
+merge(_ExecutionPolicy&& __policy,
+      _ForwardIterator1 __first1,
+      _ForwardIterator1 __last1,
+      _ForwardIterator2 __first2,
+      _ForwardIterator2 __last2,
+      _ForwardOutIterator __out) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator1);
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator2);
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(_ForwardOutIterator, decltype(*__first1));
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(_ForwardOutIterator, decltype(*__first2));
+  return std::merge(
+      std::forward<_ExecutionPolicy>(__policy),
+      std::move(__first1),
+      std::move(__last1),
+      std::move(__first2),
+      std::move(__last2),
+      std::move(__out),
+      less{});
 }
 
 _LIBCPP_END_NAMESPACE_STD

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP___ALGORITHM_PSTL_BACKENDS_CPU_BACKENDS_LIBDISPATCH_H
-#define _LIBCPP___ALGORITHM_PSTL_BACKENDS_CPU_BACKENDS_LIBDISPATCH_H
+#ifndef _LIBCPP___PSTL_BACKENDS_LIBDISPATCH_H
+#define _LIBCPP___PSTL_BACKENDS_LIBDISPATCH_H
 
 #include <__algorithm/inplace_merge.h>
 #include <__algorithm/lower_bound.h>
@@ -23,7 +23,17 @@
 #include <__memory/construct_at.h>
 #include <__memory/unique_ptr.h>
 #include <__numeric/reduce.h>
+#include <__pstl/backend_fwd.h>
+#include <__pstl/cpu_algos/any_of.h>
 #include <__pstl/cpu_algos/cpu_traits.h>
+#include <__pstl/cpu_algos/fill.h>
+#include <__pstl/cpu_algos/find_if.h>
+#include <__pstl/cpu_algos/for_each.h>
+#include <__pstl/cpu_algos/merge.h>
+#include <__pstl/cpu_algos/stable_sort.h>
+#include <__pstl/cpu_algos/transform.h>
+#include <__pstl/cpu_algos/transform_reduce.h>
+#include <__pstl/defaults.h>
 #include <__utility/empty.h>
 #include <__utility/exception_guard.h>
 #include <__utility/move.h>
@@ -31,11 +41,6 @@
 #include <cstddef>
 #include <new>
 #include <optional>
-
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
-#if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __pstl {
@@ -79,6 +84,16 @@ __dispatch_parallel_for(__chunk_partitions __partitions, _RandomAccessIterator _
   return __empty{};
 }
 
+template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIteratorOut>
+struct __merge_range {
+  __merge_range(_RandomAccessIterator1 __mid1, _RandomAccessIterator2 __mid2, _RandomAccessIteratorOut __result)
+      : __mid1_(__mid1), __mid2_(__mid2), __result_(__result) {}
+
+  _RandomAccessIterator1 __mid1_;
+  _RandomAccessIterator2 __mid2_;
+  _RandomAccessIteratorOut __result_;
+};
+
 template <>
 struct __cpu_traits<__libdispatch_backend_tag> {
   template <class _RandomAccessIterator, class _Functor>
@@ -87,16 +102,6 @@ struct __cpu_traits<__libdispatch_backend_tag> {
     return __pstl::__dispatch_parallel_for(
         __pstl::__partition_chunks(__last - __first), std::move(__first), std::move(__func));
   }
-
-  template <class _RandomAccessIterator1, class _RandomAccessIterator2, class _RandomAccessIteratorOut>
-  struct __merge_range {
-    __merge_range(_RandomAccessIterator1 __mid1, _RandomAccessIterator2 __mid2, _RandomAccessIteratorOut __result)
-        : __mid1_(__mid1), __mid2_(__mid2), __result_(__result) {}
-
-    _RandomAccessIterator1 __mid1_;
-    _RandomAccessIterator2 __mid2_;
-    _RandomAccessIteratorOut __result_;
-  };
 
   template <typename _RandomAccessIterator1,
             typename _RandomAccessIterator2,
@@ -133,15 +138,15 @@ struct __cpu_traits<__libdispatch_backend_tag> {
 
     unique_ptr<__merge_range_t[], decltype(__destroy)> __ranges(
         [&]() -> __merge_range_t* {
-#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
           try {
-#  endif
+#endif
             return std::allocator<__merge_range_t>().allocate(__n_ranges);
-#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
           } catch (const std::bad_alloc&) {
             return nullptr;
           }
-#  endif
+#endif
         }(),
         __destroy);
 
@@ -336,15 +341,51 @@ struct __cpu_traits<__libdispatch_backend_tag> {
   }
 
   _LIBCPP_HIDE_FROM_ABI static void __cancel_execution() {}
-
-  static constexpr size_t __lane_size = 64;
 };
+
+// Mandatory implementations of the computational basis
+template <class _ExecutionPolicy>
+struct __find_if<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_find_if<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __for_each<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_for_each<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __merge<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_merge<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __stable_sort<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_stable_sort<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __transform<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_transform<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __transform_binary<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_transform_binary<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __transform_reduce<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_transform_reduce<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __transform_reduce_binary<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_transform_reduce_binary<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+// Not mandatory, but better optimized
+template <class _ExecutionPolicy>
+struct __any_of<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_any_of<__libdispatch_backend_tag, _ExecutionPolicy> {};
+
+template <class _ExecutionPolicy>
+struct __fill<__libdispatch_backend_tag, _ExecutionPolicy>
+    : __cpu_parallel_fill<__libdispatch_backend_tag, _ExecutionPolicy> {};
 
 } // namespace __pstl
 _LIBCPP_END_NAMESPACE_STD
 
-#endif // !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
-
-_LIBCPP_POP_MACROS
-
-#endif // _LIBCPP___ALGORITHM_PSTL_BACKENDS_CPU_BACKENDS_LIBDISPATCH_H
+#endif // _LIBCPP___PSTL_BACKENDS_LIBDISPATCH_H

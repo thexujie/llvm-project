@@ -9,11 +9,15 @@
 #ifndef _LIBCPP___ALGORITHM_PSTL_ROTATE_COPY_H
 #define _LIBCPP___ALGORITHM_PSTL_ROTATE_COPY_H
 
-#include <__algorithm/pstl_backend.h>
-#include <__algorithm/pstl_copy.h>
-#include <__algorithm/pstl_frontend_dispatch.h>
+#include <__config>
+#include <__iterator/cpp17_iterator_concepts.h>
+#include <__pstl/configuration.h>
+#include <__pstl/run_backend.h>
+#include <__type_traits/enable_if.h>
 #include <__type_traits/is_execution_policy.h>
-#include <optional>
+#include <__type_traits/remove_cvref.h>
+#include <__utility/forward.h>
+#include <__utility/move.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
@@ -26,38 +30,6 @@ _LIBCPP_PUSH_MACROS
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-template <class>
-void __pstl_rotate_copy();
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _ForwardOutIterator,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<_ForwardOutIterator>
-__rotate_copy(_ExecutionPolicy&& __policy,
-              _ForwardIterator&& __first,
-              _ForwardIterator&& __middle,
-              _ForwardIterator&& __last,
-              _ForwardOutIterator&& __result) noexcept {
-  return std::__pstl_frontend_dispatch(
-      _LIBCPP_PSTL_CUSTOMIZATION_POINT(__pstl_rotate_copy, _RawPolicy),
-      [&__policy](_ForwardIterator __g_first,
-                  _ForwardIterator __g_middle,
-                  _ForwardIterator __g_last,
-                  _ForwardOutIterator __g_result) -> optional<_ForwardOutIterator> {
-        auto __result_mid =
-            std::__copy(__policy, _ForwardIterator(__g_middle), std::move(__g_last), std::move(__g_result));
-        if (!__result_mid)
-          return nullopt;
-        return std::__copy(__policy, std::move(__g_first), std::move(__g_middle), *std::move(__result_mid));
-      },
-      std::move(__first),
-      std::move(__middle),
-      std::move(__last),
-      std::move(__result));
-}
-
 template <class _ExecutionPolicy,
           class _ForwardIterator,
           class _ForwardOutIterator,
@@ -68,12 +40,16 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator rotate_copy(
     _ForwardIterator __first,
     _ForwardIterator __middle,
     _ForwardIterator __last,
-    _ForwardOutIterator __result) {
-  auto __res =
-      std::__rotate_copy(__policy, std::move(__first), std::move(__middle), std::move(__last), std::move(__result));
-  if (!__res)
-    std::__throw_bad_alloc();
-  return *__res;
+    _ForwardOutIterator __out) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator);
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(_ForwardOutIterator, decltype(*__first));
+  using _Implementation = __pstl::__rotate_copy<__pstl::__configured_backend, _RawPolicy>;
+  return __pstl::__run_backend<_Implementation>(
+      std::forward<_ExecutionPolicy>(__policy),
+      std::move(__first),
+      std::move(__middle),
+      std::move(__last),
+      std::move(__out));
 }
 
 _LIBCPP_END_NAMESPACE_STD

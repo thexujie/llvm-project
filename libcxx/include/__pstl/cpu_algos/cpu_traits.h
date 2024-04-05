@@ -69,9 +69,10 @@ namespace __pstl {
 // ==================
 //
 // CPU backends are expected to report errors (i.e. failure to allocate) by returning a disengaged `optional` from their
-// implementation. Exceptions shouldn't be used to report an internal failure-to-allocate, since all exceptions are turned
-// into a program termination at the front-end level. When a backend returns a disengaged `optional` to the frontend, the
-// frontend will turn that into a call to `std::__throw_bad_alloc();` to report the internal failure to the user.
+// implementation. Exceptions shouldn't be used to report an internal failure-to-allocate, since all exceptions are
+// turned into a program termination at the front-end level. When a backend returns a disengaged `optional` to the
+// frontend, the frontend will turn that into a call to `std::__throw_bad_alloc();` to report the internal failure to
+// the user.
 
 template <class _Backend>
 struct __cpu_traits;
