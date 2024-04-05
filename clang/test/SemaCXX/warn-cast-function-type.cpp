@@ -28,8 +28,12 @@ struct S
 
 typedef void (S::*mf)(int);
 
+enum E : long;
+int efunc(E);
+
 void foo() {
   a = (f1 *)x;
+  a = (f1 *)efunc; // enum is just type system sugar, still passed as a long.
   b = (f2 *)x; // expected-warning {{cast from 'int (*)(long)' to 'f2 *' (aka 'int (*)(void *)') converts to incompatible function type}}
   b = reinterpret_cast<f2 *>(x); // expected-warning {{cast from 'int (*)(long)' to 'f2 *' (aka 'int (*)(void *)') converts to incompatible function type}}
   c = (f3 *)x;

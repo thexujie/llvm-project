@@ -1083,9 +1083,10 @@ static bool argTypeIsABIEquivalent(QualType SrcType, QualType DestType,
     return true;
 
   // Allow integral type mismatch if their size are equal.
-  if (SrcType->isIntegralType(Context) && DestType->isIntegralType(Context))
-    if (Context.getTypeInfoInChars(SrcType).Width ==
-        Context.getTypeInfoInChars(DestType).Width)
+  if ((SrcType->isIntegralType(Context) || SrcType->isEnumeralType()) &&
+      (DestType->isIntegralType(Context) || DestType->isEnumeralType()))
+    if (Context.getTypeSizeInChars(SrcType) ==
+        Context.getTypeSizeInChars(DestType))
       return true;
 
   return Context.hasSameUnqualifiedType(SrcType, DestType);
