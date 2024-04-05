@@ -1541,9 +1541,8 @@ define i1 @select_v2i8(ptr %s0, ptr %s1) {
 ; SSE2-NEXT:    movd %eax, %xmm1
 ; SSE2-NEXT:    pcmpeqb %xmm0, %xmm1
 ; SSE2-NEXT:    punpcklbw {{.*#+}} xmm1 = xmm1[0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7]
-; SSE2-NEXT:    pshuflw {{.*#+}} xmm0 = xmm1[0,1,1,3,4,5,6,7]
-; SSE2-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,1,1,3]
-; SSE2-NEXT:    psllq $63, %xmm0
+; SSE2-NEXT:    pshuflw {{.*#+}} xmm0 = xmm1[0,0,1,1,4,5,6,7]
+; SSE2-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[0,0,1,1]
 ; SSE2-NEXT:    movmskpd %xmm0, %eax
 ; SSE2-NEXT:    cmpl $3, %eax
 ; SSE2-NEXT:    sete %al
@@ -1556,8 +1555,7 @@ define i1 @select_v2i8(ptr %s0, ptr %s1) {
 ; SSE42-NEXT:    movzwl (%rsi), %eax
 ; SSE42-NEXT:    movd %eax, %xmm1
 ; SSE42-NEXT:    pcmpeqb %xmm0, %xmm1
-; SSE42-NEXT:    pmovzxbq {{.*#+}} xmm0 = xmm1[0],zero,zero,zero,zero,zero,zero,zero,xmm1[1],zero,zero,zero,zero,zero,zero,zero
-; SSE42-NEXT:    psllq $63, %xmm0
+; SSE42-NEXT:    pmovsxbq %xmm1, %xmm0
 ; SSE42-NEXT:    movmskpd %xmm0, %eax
 ; SSE42-NEXT:    cmpl $3, %eax
 ; SSE42-NEXT:    sete %al
@@ -1570,8 +1568,7 @@ define i1 @select_v2i8(ptr %s0, ptr %s1) {
 ; AVX1OR2-NEXT:    movzwl (%rsi), %eax
 ; AVX1OR2-NEXT:    vmovd %eax, %xmm1
 ; AVX1OR2-NEXT:    vpcmpeqb %xmm1, %xmm0, %xmm0
-; AVX1OR2-NEXT:    vpmovzxbq {{.*#+}} xmm0 = xmm0[0],zero,zero,zero,zero,zero,zero,zero,xmm0[1],zero,zero,zero,zero,zero,zero,zero
-; AVX1OR2-NEXT:    vpsllq $63, %xmm0, %xmm0
+; AVX1OR2-NEXT:    vpmovsxbq %xmm0, %xmm0
 ; AVX1OR2-NEXT:    vpcmpeqd %xmm1, %xmm1, %xmm1
 ; AVX1OR2-NEXT:    vtestpd %xmm1, %xmm0
 ; AVX1OR2-NEXT:    setb %al
