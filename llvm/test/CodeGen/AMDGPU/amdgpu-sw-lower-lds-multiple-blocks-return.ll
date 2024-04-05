@@ -4,11 +4,8 @@
 ; Test to check malloc and free blocks are placed correctly when multiple
 ; blocks and branching is present in the function with LDS accesses lowered correctly.
 
-target datalayout = "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9"
-target triple = "amdgcn-unknown-unknown"
-
-@lds_1 = internal unnamed_addr addrspace(3) global i32 poison
-@lds_2 = internal unnamed_addr addrspace(3) global i32 poison
+@lds_1 = internal addrspace(3) global i32 poison
+@lds_2 = internal addrspace(3) global i32 poison
 
 define amdgpu_kernel void @test_kernel() {
 ; CHECK-LABEL: define amdgpu_kernel void @test_kernel() {

@@ -2,15 +2,12 @@
 ; RUN: opt < %s -passes=amdgpu-sw-lower-lds -S -mtriple=amdgcn-- | FileCheck %s
 
 ; Test to check if static LDS accesses in kernel are lowered correctly.
-
-target datalayout = "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-p7:160:256:256:32-p8:128:128-p9:192:256:256:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7:8:9"
-target triple = "amdgcn-unknown-unknown"
-@lds_1 = internal unnamed_addr addrspace(3) global [1 x i8] poison, align 4
-@lds_2 = internal unnamed_addr addrspace(3) global [1 x i32] poison, align 8
+@lds_1 = internal addrspace(3) global [1 x i8] poison, align 4
+@lds_2 = internal addrspace(3) global [1 x i32] poison, align 8
 
 ;.
-; CHECK: @lds_1 = internal unnamed_addr addrspace(3) global [1 x i8] poison, align 4
-; CHECK: @lds_2 = internal unnamed_addr addrspace(3) global [1 x i32] poison, align 8
+; CHECK: @lds_1 = internal addrspace(3) global [1 x i8] poison, align 4
+; CHECK: @lds_2 = internal addrspace(3) global [1 x i32] poison, align 8
 ; CHECK: @llvm.amdgcn.sw.lds.k0 = internal addrspace(3) global ptr poison
 ; CHECK: @llvm.amdgcn.sw.lds.k0.md = internal addrspace(1) global %llvm.amdgcn.sw.lds.k0.md.type { %llvm.amdgcn.sw.lds.k0.md.item { i32 0, i32 1 }, %llvm.amdgcn.sw.lds.k0.md.item { i32 8, i32 4 } }, no_sanitize_address, align 8
 ;.
