@@ -504,24 +504,47 @@ static bool isSelect01(const APInt &C1I, const APInt &C2I) {
 /// indicates the condition.
 static bool simplifySeqSelectWithSameCond(SelectInst &SI,
                                           const SimplifyQuery &SQ,
+                                          InstCombiner::BuilderTy &Builder,
                                           InstCombinerImpl &IC) {
   Value *CondVal = SI.getCondition();
   if (match(CondVal, m_ImmConstant()))
     return false;
 
-  auto trySimplifySeqSelect = [=, &SI, &IC](unsigned OpIndex) {
+  auto trySimplifySeqSelect = [=, &SI, &IC, &Builder](unsigned OpIndex) {
     assert((OpIndex == 1 || OpIndex == 2) && "Unexpected operand index");
     SelectInst *SINext = &SI;
     Value *ValOp = SINext->getOperand(OpIndex);
     Value *CondNext;
+    // Record the use chain
+    SmallVector<SelectInst *, 8> SIChain;
     while (match(ValOp, m_Select(m_Value(CondNext), m_Value(), m_Value()))) {
+      SelectInst *ValSI = cast<SelectInst>(ValOp);
       if (CondNext == CondVal) {
-        IC.replaceOperand(*SINext, OpIndex,
-                          cast<SelectInst>(ValOp)->getOperand(OpIndex));
+        SelectInst *SIPre = &SI;
+        if (SIChain.empty()) {
+          IC.replaceOperand(SI, OpIndex, ValSI->getOperand(OpIndex));
+        } else {
+          // Create a new select to get around the case which SINext used in
+          // multi arms, and insert the new Select just before SINext.
+          Value *NewSI;
+          IC.Builder.SetInsertPoint(SINext);
+          if (OpIndex == 1)
+            NewSI = Builder.CreateSelect(
+                SINext->getCondition(), ValSI->getOperand(1),
+                SINext->getOperand(2), SINext->getName() + ".new", SINext);
+          else
+            NewSI = Builder.CreateSelect(
+                SINext->getCondition(), SINext->getOperand(1),
+                ValSI->getOperand(2), SINext->getName() + ".new", SINext);
+          SIPre = SIChain.back();
+          IC.replaceOperand(*SIPre, OpIndex, NewSI);
+        }
+
         return true;
       }
 
-      SINext = cast<SelectInst>(ValOp);
+      SIChain.push_back(SINext);
+      SINext = ValSI;
       ValOp = SINext->getOperand(OpIndex);
     }
     return false;
@@ -605,7 +628,7 @@ Instruction *InstCombinerImpl::foldSelectIntoOp(SelectInst &SI, Value *TrueVal,
   if (Instruction *R = TryFoldSelectIntoOp(SI, FalseVal, TrueVal, true))
     return R;
 
-  if (simplifySeqSelectWithSameCond(SI, SQ, *this))
+  if (simplifySeqSelectWithSameCond(SI, SQ, Builder, *this))
     return &SI;
 
   return nullptr;

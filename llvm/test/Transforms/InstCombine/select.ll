@@ -3759,3 +3759,18 @@ define i32 @sequence_select_with_same_cond_extra_use(i1 %c1, i1 %c2){
   %s3 = select i1 %c1, i32 789, i32 %s2
   ret i32 %s3
 }
+
+define i8 @sequence_select_with_same_cond_multi_arms(i1 %cond0, i1 %cond1, i8 %a, i8 %b) {
+; CHECK-LABEL: @sequence_select_with_same_cond_multi_arms(
+; CHECK-NEXT:    [[SEL2:%.*]] = select i1 [[TMP1:%.*]], i8 [[A:%.*]], i8 [[B:%.*]]
+; CHECK-NEXT:    [[SEL1_NEW:%.*]] = select i1 [[COND1:%.*]], i8 [[A]], i8 2
+; CHECK-NEXT:    [[SEL4:%.*]] = select i1 [[COND1]], i8 [[SEL2]], i8 3
+; CHECK-NEXT:    [[SEL3:%.*]] = select i1 [[TMP1]], i8 [[SEL1_NEW]], i8 [[SEL4]]
+; CHECK-NEXT:    ret i8 [[SEL3]]
+;
+  %sel0 = select i1 %cond0, i8 %a, i8 %b
+  %sel1 = select i1 %cond1, i8 %sel0, i8 2; %sel1 used in multi arms
+  %sel2 = select i1 %cond1, i8 %sel1, i8 3
+  %sel3 = select i1 %cond0, i8 %sel1, i8 %sel2
+  ret i8 %sel3
+}
