@@ -311,8 +311,8 @@ void CodeGenFunction::pushTemporaryCleanup(const MaterializeTemporaryExpr *M,
         CleanupKind CleanupKind;
         if (Lifetime == Qualifiers::OCL_Strong) {
           const ValueDecl *VD = M->getExtendingDecl();
-          bool Precise = isa_and_nonnull<VarDecl>(VD) &&
-                         VD->hasAttr<ObjCPreciseLifetimeAttr>();
+          bool Precise =
+              VD && isa<VarDecl>(VD) && VD->hasAttr<ObjCPreciseLifetimeAttr>();
           CleanupKind = getARCCleanupKind();
           Destroy = Precise ? &CodeGenFunction::destroyARCStrongPrecise
                             : &CodeGenFunction::destroyARCStrongImprecise;
