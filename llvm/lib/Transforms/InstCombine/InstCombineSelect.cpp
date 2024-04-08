@@ -507,8 +507,6 @@ static bool simplifySeqSelectWithSameCond(SelectInst &SI,
                                           InstCombiner::BuilderTy &Builder,
                                           InstCombinerImpl &IC) {
   Value *CondVal = SI.getCondition();
-  if (match(CondVal, m_ImmConstant()))
-    return false;
 
   auto trySimplifySeqSelect = [=, &SI, &IC, &Builder](unsigned OpIndex) {
     assert((OpIndex == 1 || OpIndex == 2) && "Unexpected operand index");
