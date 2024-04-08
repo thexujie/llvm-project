@@ -873,6 +873,7 @@ add_entrypoint_object(
     .explogxf
     libc.src.errno.errno
     libc.src.__support.common
+    libc.src.__support.FPUtil.except_value_utils
     libc.src.__support.FPUtil.fenv_impl
     libc.src.__support.FPUtil.fp_bits
     libc.src.__support.FPUtil.multiply_add
@@ -939,6 +940,27 @@ add_entrypoint_object(
     ../exp10f.h
   DEPENDS
     .exp10f_impl
+  COMPILE_OPTIONS
+    -O3
+)
+
+add_entrypoint_object(
+  exp10m1f
+  SRCS
+    exp10m1f.cpp
+  HDRS
+    ../exp10m1f.h
+  DEPENDS
+    .explogxf
+    libc.src.errno.errno
+    libc.src.__support.common
+    libc.src.__support.FPUtil.except_value_utils
+    libc.src.__support.FPUtil.fenv_impl
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.FPUtil.multiply_add
+    libc.src.__support.FPUtil.polyeval
+    libc.src.__support.FPUtil.rounding_mode
+    libc.src.__support.macros.optimization
   COMPILE_OPTIONS
     -O3
 )
