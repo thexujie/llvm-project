@@ -104,6 +104,12 @@ Improvements to clang-tidy
 New checks
 ^^^^^^^^^^
 
+- New :doc:`bugprone-null-check-after-dereference
+  <clang-tidy/checks/bugprone/null-check-after-dereference>` check.
+
+  This check identifies redundant pointer null-checks, by finding cases where
+  the pointer cannot be null at the location of the null-check.
+
 - New :doc:`modernize-use-designated-initializers
   <clang-tidy/checks/modernize/use-designated-initializers>` check.
 
@@ -115,12 +121,6 @@ New checks
 
   Replaces certain conditional statements with equivalent calls to
   ``std::min`` or ``std::max``.
-
-- New :doc:`bugprone-null-check-after-dereference
-  <clang-tidy/checks/bugprone/null-check-after-dereference>` check.
-
-  Finds locations where a pointer's nullability is checked after it has already
-  been dereferenced.
 
 New check aliases
 ^^^^^^^^^^^^^^^^^
