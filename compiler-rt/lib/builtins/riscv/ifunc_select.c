@@ -111,22 +111,22 @@ unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqireKeys,
                               unsigned Length) {
 #if defined(__linux__)
   // Init Hwprobe
-  struct riscv_hwprobe Pairs[64];
+  struct riscv_hwprobe HwprobePairs[64];
 
   for (unsigned Idx = 0; Idx < Length; Idx++) {
-    Pairs[Idx].key = ReqireKeys[Idx].key;
-    Pairs[Idx].value = 0;
+    HwprobePairs[Idx].key = ReqireKeys[Idx].key;
+    HwprobePairs[Idx].value = 0;
   }
 
   // hwprobe not success
-  if (initHwProbe(Pairs, 2))
+  if (initHwProbe(HwprobePairs, 2))
     return 0;
 
   for (unsigned Idx = 0; Idx < Length; Idx++) {
-    if (Pairs[Idx].key == -1)
+    if (HwprobePairs[Idx].key == -1)
       return 0;
 
-    if ((ReqireKeys[Idx].value & Pairs[Idx].value) != ReqireKeys[Idx].value)
+    if ((ReqireKeys[Idx].value & HwprobePairs[Idx].value) != ReqireKeys[Idx].value)
       return 0;
   }
 
