@@ -2816,6 +2816,12 @@ void CodeGenFunction::EmitMultiVersionResolver(
 void CodeGenFunction::EmitRISCVMultiVersionResolver(
     llvm::Function *Resolver, ArrayRef<MultiVersionResolverOption> Options) {
 
+  if (getContext().getTargetInfo().getTriple().getOS() !=
+      llvm::Triple::OSType::Linux) {
+    CGM.getDiags().Report(diag::err_os_unsupport_riscv_hwprobe);
+    return;
+  }
+
   auto EmitIFUNCFeatureCheckFunc =
       [&](llvm::SmallVector<StringRef, 8> CurrFeatStrs) -> llvm::Value * {
     llvm::SmallVector<llvm::Value *> FeatValue =
