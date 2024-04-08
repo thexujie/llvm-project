@@ -193,7 +193,9 @@ end
   converted.  BOZ literals are interpreted as default INTEGER only
   when they appear as the first items of array constructors with no
   explicit type.  Otherwise, they generally cannot be used if the type would
-  not be known (e.g., `IAND(X'1',X'2')`).
+  not be known (e.g., `IAND(X'1',X'2')`, or as arguments of `DIM`, `MOD`,
+  `MODULO`, and `SIGN`. Note that while other compilers may accept such usages,
+  the type resolution of such BOZ literals usages is highly non portable).
 * BOZ literals can also be used as REAL values in some contexts where the
   type is unambiguous, such as initializations of REAL parameters.
 * EQUIVALENCE of numeric and character sequences (a ubiquitous extension),
@@ -705,6 +707,21 @@ end
   At least one other compiler (XLF) seems to expect that the interface for
   `INDEX` include an optional `BACK=` argument, but it doesn't actually
   work.
+
+* Allocatable components of array and structure constructors are deallocated
+  after use without calling final subroutines.
+  The standard does not specify when and how deallocation of array and structure
+  constructors allocatable components should happen. All compilers free the
+  memory after use, but the behavior when the allocatable component is a derived
+  type with finalization differ, especially when dealing with nested array and
+  structure constructors expressions. Some compilers call final routine for the
+  allocatable components of each constructor sub-expressions, some call it only
+  for the allocatable component of the top level constructor, and some only
+  deallocate the memory. Deallocating only the memory offers the most
+  flexibility when lowering such expressions, and it is not clear finalization
+  is desirable in such context (Fortran interop 1.6.2 in F2018 standards require
+  array and structure constructors not to be finalized, so it also makes sense
+  not to finalize their allocatable components when releasing their storage).
 
 ## De Facto Standard Features
 

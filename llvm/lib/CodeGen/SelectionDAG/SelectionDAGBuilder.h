@@ -385,6 +385,11 @@ public:
     N = NewN;
   }
 
+  bool shouldKeepJumpConditionsTogether(
+      const FunctionLoweringInfo &FuncInfo, const BranchInst &I,
+      Instruction::BinaryOps Opc, const Value *Lhs, const Value *Rhs,
+      TargetLoweringBase::CondMergingParams Params) const;
+
   void FindMergedConditions(const Value *Cond, MachineBasicBlock *TBB,
                             MachineBasicBlock *FBB, MachineBasicBlock *CurBB,
                             MachineBasicBlock *SwitchBB,
@@ -444,7 +449,7 @@ public:
     ArrayRef<const Use> GCTransitionArgs;
 
     /// The ID that the resulting STATEPOINT instruction has to report.
-    unsigned ID = -1;
+    uint64_t ID = -1;
 
     /// Information regarding the underlying call instruction.
     TargetLowering::CallLoweringInfo CLI;
