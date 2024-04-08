@@ -70,7 +70,8 @@ unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqireKeys,
     if (HwprobePairs[Idx].key == -1)
       return 0;
 
-    if ((ReqireKeys[Idx].value & HwprobePairs[Idx].value) != ReqireKeys[Idx].value)
+    if ((ReqireKeys[Idx].value & HwprobePairs[Idx].value) !=
+        ReqireKeys[Idx].value)
       return 0;
   }
 
