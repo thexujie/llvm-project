@@ -6963,6 +6963,11 @@ static void handleWrapsAttr(QualType &Type, const ParsedAttr &Attr,
   Sema &S = State.getSema();
   ASTContext &Ctx = S.Context;
 
+  // No need to warn here, that is handled by SemaDeclAttr.
+  // Simply disable applying this attribute.
+  if (S.getLangOpts().CPlusPlus)
+    return;
+
   if (!Type->isIntegerType())
     S.Diag(Attr.getLoc(), diag::warn_wraps_attr_var_decl_type_not_integer)
         << Type.getAsString();

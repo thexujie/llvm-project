@@ -4456,6 +4456,11 @@ void Sema::AddAlignValueAttr(Decl *D, const AttributeCommonInfo &CI, Expr *E) {
 }
 
 static void handleWrapsAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (S.getLangOpts().CPlusPlus) {
+    S.Diag(AL.getLoc(), diag::warn_attribute_ignored) << AL;
+    return;
+  }
+
   S.AddWrapsAttr(D, AL);
 }
 

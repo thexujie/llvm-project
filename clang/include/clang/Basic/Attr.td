@@ -4508,7 +4508,7 @@ def CodeAlign: StmtAttr {
 }
 
 def Wraps : DeclOrTypeAttr {
-  let Spellings = [Clang<"wraps">, CXX11<"", "wraps", 202403>];
+  let Spellings = [GNU<"wraps">];
   let Subjects = SubjectList<[Var, TypedefName, Field]>;
   let Documentation = [WrapsDocs];
 }
