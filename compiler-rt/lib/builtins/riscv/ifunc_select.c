@@ -51,14 +51,14 @@ static long initHwProbe(struct riscv_hwprobe *Hwprobes, int len) {
 
 #endif // defined(__linux__)
 
-unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqireKeys,
+unsigned __riscv_ifunc_select(struct riscv_hwprobe *RequireKeys,
                               unsigned Length) {
 #if defined(__linux__)
   // Init Hwprobe
   struct riscv_hwprobe HwprobePairs[64];
 
   for (unsigned Idx = 0; Idx < Length; Idx++) {
-    HwprobePairs[Idx].key = ReqireKeys[Idx].key;
+    HwprobePairs[Idx].key = RequireKeys[Idx].key;
     HwprobePairs[Idx].value = 0;
   }
 
@@ -70,8 +70,8 @@ unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqireKeys,
     if (HwprobePairs[Idx].key == -1)
       return 0;
 
-    if ((ReqireKeys[Idx].value & HwprobePairs[Idx].value) !=
-        ReqireKeys[Idx].value)
+    if ((RequireKeys[Idx].value & HwprobePairs[Idx].value) !=
+        RequireKeys[Idx].value)
       return 0;
   }
 
