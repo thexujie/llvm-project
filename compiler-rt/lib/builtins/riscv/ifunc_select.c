@@ -55,7 +55,7 @@ unsigned __riscv_ifunc_select(struct riscv_hwprobe *RequireKeys,
                               unsigned Length) {
 #if defined(__linux__)
   // Init Hwprobe
-  struct riscv_hwprobe HwprobePairs[64];
+  struct riscv_hwprobe HwprobePairs[Length];
 
   for (unsigned Idx = 0; Idx < Length; Idx++) {
     HwprobePairs[Idx].key = RequireKeys[Idx].key;
