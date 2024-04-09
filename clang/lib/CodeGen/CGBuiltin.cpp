@@ -14173,7 +14173,7 @@ CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
       ImpliedExtBySupportExt.insert(FeaturesStrs[Idx].str());
   }
 
-  // Repeatly find ImpliedExts until no longer found new.
+  // Repeatly find ImpliedExts until no longer find new.
   bool Changed = true;
   while (Changed) {
     unsigned Size = ImpliedExtBySupportExt.size();
