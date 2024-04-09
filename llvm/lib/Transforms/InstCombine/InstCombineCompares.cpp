@@ -3483,6 +3483,56 @@ Instruction *InstCombinerImpl::foldICmpBinOpEqualityWithConstant(
       Value *And = Builder.CreateAnd(BOp0, NotBOC);
       return new ICmpInst(Pred, And, NotBOC);
     }
+    // (icmp eq (or (select cond, 0, NonZero), Other))
+    //  -> (and cond, (icmp eq Other, 0))
+    // (icmp ne (or (select cond, NonZero, 0), Other))
+    //  -> (or cond, (icmp ne Other, 0))
+    // (icmp ne (or (select cond, 0, NonZero), Other))
+    //  -> (or (not cond), (icmp ne Other, 0))
+    // (icmp eq (or (select cond, NonZero, 0), Other))
+    //  -> (and (not cond), (icmp eq Other, 0))
+    Value *Cond, *TV, *FV, *Other;
+    if (C.isZero() && BO->hasOneUse() &&
+        match(BO, m_c_Or(m_Select(m_Value(Cond), m_Value(TV), m_Value(FV)),
+                         m_Value(Other)))) {
+      const SimplifyQuery Q = SQ.getWithInstruction(&Cmp);
+      // Easy case is if eq/ne matches whether 0 is trueval/falseval.
+      if (Pred == ICmpInst::ICMP_EQ
+              ? (match(TV, m_SpecificInt(C)) && isKnownNonZero(FV, Q))
+              : (match(FV, m_SpecificInt(C)) && isKnownNonZero(TV, Q))) {
+        Value *Cmp = Builder.CreateICmp(
+            Pred, Other, Constant::getNullValue(Other->getType()));
+        return BinaryOperator::Create(
+            Pred == ICmpInst::ICMP_EQ ? Instruction::And : Instruction::Or, Cmp,
+            Cond);
+      }
+      // Harder case is if eq/ne matches whether 0 is falseval/trueval. In this
+      // case we need to invert the select condition so we need to be careful to
+      // avoid creating extra instructions.
+      if (Pred == ICmpInst::ICMP_EQ
+              ? (match(FV, m_SpecificInt(C)) && isKnownNonZero(TV, Q))
+              : (match(TV, m_SpecificInt(C)) && isKnownNonZero(FV, Q))) {
+        Value *NotCond = nullptr;
+        // If the select is one use, we are essentially replacing select with
+        // `(not Cond)`.
+        if (match(BO, m_c_Or(m_OneUse(m_Select(m_Specific(Cond), m_Specific(TV),
+                                               m_Specific(FV))),
+                             m_Value())))
+          NotCond = Builder.CreateNot(Cond);
+        // Otherwise, see if we can get NotCond for free.
+        else
+          NotCond =
+              getFreelyInverted(Cond, /*WillInvertAllUses=*/false, &Builder);
+
+        if (NotCond) {
+          Value *Cmp = Builder.CreateICmp(
+              Pred, Other, Constant::getNullValue(Other->getType()));
+          return BinaryOperator::Create(
+              Pred == ICmpInst::ICMP_EQ ? Instruction::And : Instruction::Or,
+              Cmp, NotCond);
+        }
+      }
+    }
     break;
   }
   case Instruction::UDiv:
