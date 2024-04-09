@@ -52,13 +52,13 @@ static double computeVariance(const SmallVector<int64_t, 4> &Values) {
 static int64_t findMin(const SmallVector<int64_t, 4> &Values) {
   if (Values.empty())
     return 0;
-  return *std::min_element(Values.begin(), Values.end());
+  return *llvm::min_element(Values);
 }
 
 static int64_t findMax(const SmallVector<int64_t, 4> &Values) {
   if (Values.empty())
     return 0;
-  return *std::max_element(Values.begin(), Values.end());
+  return *llvm::max_element(Values);
 }
 
 static int64_t findMean(const SmallVector<int64_t, 4> &Values) {
@@ -107,8 +107,8 @@ Expected<std::vector<BenchmarkMeasure>> LatencyBenchmarkRunner::runMeasurements(
     }
 
     for (size_t I = 0; I < ValCounterValues.size(); ++I) {
-      LLVM_DEBUG(dbgs() << validationEventToString(ValidationCounters[I])
-                        << ": " << IterationValCounterValues[I] << "\n");
+      LLVM_DEBUG(dbgs() << getValidationEventName(ValidationCounters[I]) << ": "
+                        << IterationValCounterValues[I] << "\n");
       ValCounterValues[I] += IterationValCounterValues[I];
     }
   }

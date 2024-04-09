@@ -16,6 +16,7 @@ template <typename T> struct Ref {
   }
   T *get() { return t; }
   T *ptr() { return t; }
+  T *operator->() { return t; }
   operator const T &() const { return *t; }
   operator T &() { return *t; }
 };
@@ -61,6 +62,8 @@ struct RefCountable {
   static Ref<RefCountable> create();
   void ref() {}
   void deref() {}
+  void method();
+  int trivial() { return 123; }
 };
 
 template <typename T> T *downcast(T *t) { return t; }
