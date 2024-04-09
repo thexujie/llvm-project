@@ -14165,31 +14165,30 @@ CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
 
   // check whether all FeatureStrs are available for hwprobe.
   llvm::SmallVector<StringRef> UnsupportByHwprobe;
-  llvm::StringSet<> ImpliedExtBySupportExt;
+  llvm::SmallVector<std::string> SupportByHwprobe;
   for (unsigned Idx = 0; Idx < FeaturesStrs.size(); Idx++) {
     if (BaseExtReqs[Idx] == 0 && IMACompatibleExtReqs[Idx] == 0)
       UnsupportByHwprobe.push_back(FeaturesStrs[Idx]);
     else
-      ImpliedExtBySupportExt.insert(FeaturesStrs[Idx].str());
+      SupportByHwprobe.push_back(FeaturesStrs[Idx].str());
   }
 
   // Repeatly find ImpliedExts until no longer find new.
-  bool Changed = true;
-  while (Changed) {
-    unsigned Size = ImpliedExtBySupportExt.size();
-    for (auto Ext : ImpliedExtBySupportExt.keys()) {
-      auto ImpliedExts = llvm::RISCV::getImpliedExts(Ext);
-      for (auto ImpliedExt : ImpliedExts)
-        ImpliedExtBySupportExt.insert(ImpliedExt);
-    }
-    if (Size == ImpliedExtBySupportExt.size())
-      Changed = false;
+  llvm::SmallVector<std::string> ImpliedExts;
+
+  while (!SupportByHwprobe.empty()) {
+    std::string Ext = SupportByHwprobe.pop_back_val();
+    if (llvm::is_contained(ImpliedExts, Ext))
+      continue;
+    ImpliedExts.push_back(Ext);
+    for (auto ImpliedExt : llvm::RISCV::getImpliedExts(Ext))
+      SupportByHwprobe.push_back(ImpliedExt);
   }
 
   // FIXME: Could hwprobe guarantee that the hardware will support the Implied
   // extension?
   for (unsigned Idx = 0; Idx < UnsupportByHwprobe.size(); Idx++) {
-    if (!llvm::is_contained(ImpliedExtBySupportExt, UnsupportByHwprobe[Idx]))
+    if (!llvm::is_contained(ImpliedExts, UnsupportByHwprobe[Idx]))
       CGM.getDiags().Report(diag::err_extension_unsupport_riscv_hwprobe)
           << UnsupportByHwprobe[Idx];
   }
