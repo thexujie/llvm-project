@@ -14163,7 +14163,7 @@ CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
   auto IMACompatibleExtReqs =
       llvm::RISCV::getIMACompatibleExtensionKey(FeaturesStrs);
 
-  // check whether all FeatureStrs are available for hwprobe.
+  // Check whether all FeatureStrs are available for hwprobe.
   llvm::SmallVector<StringRef> UnsupportByHwprobe;
   llvm::SmallVector<std::string> SupportByHwprobe;
   for (unsigned Idx = 0; Idx < FeaturesStrs.size(); Idx++) {
