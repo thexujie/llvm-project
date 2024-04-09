@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_PARSE_PARSER_H
 #define LLVM_CLANG_PARSE_PARSER_H
 
+#include "clang/Basic/OpenACCKinds.h"
 #include "clang/Basic/OperatorPrecedence.h"
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/Preprocessor.h"
@@ -40,6 +41,7 @@ namespace clang {
   class InMessageExpressionRAIIObject;
   class PoisonSEHIdentifiersRAIIObject;
   class OMPClause;
+  class OpenACCClause;
   class ObjCTypeParamList;
   struct OMPTraitProperty;
   struct OMPTraitSelector;
@@ -53,6 +55,7 @@ namespace clang {
 class Parser : public CodeCompletionHandler {
   friend class ColonProtectionRAIIObject;
   friend class ParsingOpenMPDirectiveRAII;
+  friend class ParsingOpenACCDirectiveRAII;
   friend class InMessageExpressionRAIIObject;
   friend class OffsetOfStateRAIIObject;
   friend class PoisonSEHIdentifiersRAIIObject;
@@ -175,6 +178,7 @@ class Parser : public CodeCompletionHandler {
   std::unique_ptr<PragmaHandler> FPContractHandler;
   std::unique_ptr<PragmaHandler> OpenCLExtensionHandler;
   std::unique_ptr<PragmaHandler> OpenMPHandler;
+  std::unique_ptr<PragmaHandler> OpenACCHandler;
   std::unique_ptr<PragmaHandler> PCSectionHandler;
   std::unique_ptr<PragmaHandler> MSCommentHandler;
   std::unique_ptr<PragmaHandler> MSDetectMismatchHandler;
@@ -228,6 +232,29 @@ class Parser : public CodeCompletionHandler {
 
   /// Parsing OpenMP directive mode.
   bool OpenMPDirectiveParsing = false;
+
+  /// Parsing OpenACC directive mode.
+  bool OpenACCDirectiveParsing = false;
+
+  /// Currently parsing a situation where an OpenACC array section could be
+  /// legal, such as a 'var-list'.
+  bool AllowOpenACCArraySections = false;
+
+  /// RAII object to set reset OpenACC parsing a context where Array Sections
+  /// are allowed.
+  class OpenACCArraySectionRAII {
+    Parser &P;
+
+  public:
+    OpenACCArraySectionRAII(Parser &P) : P(P) {
+      assert(!P.AllowOpenACCArraySections);
+      P.AllowOpenACCArraySections = true;
+    }
+    ~OpenACCArraySectionRAII() {
+      assert(P.AllowOpenACCArraySections);
+      P.AllowOpenACCArraySections = false;
+    }
+  };
 
   /// When true, we are directly inside an Objective-C message
   /// send expression.
@@ -410,18 +437,15 @@ class Parser : public CodeCompletionHandler {
 
   /// Flags describing a context in which we're parsing a statement.
   enum class ParsedStmtContext {
-    /// This context permits declarations in language modes where declarations
-    /// are not statements.
-    AllowDeclarationsInC = 0x1,
     /// This context permits standalone OpenMP directives.
-    AllowStandaloneOpenMPDirectives = 0x2,
+    AllowStandaloneOpenMPDirectives = 0x1,
     /// This context is at the top level of a GNU statement expression.
-    InStmtExpr = 0x4,
+    InStmtExpr = 0x2,
 
     /// The context of a regular substatement.
     SubStmt = 0,
     /// The context of a compound-statement.
-    Compound = AllowDeclarationsInC | AllowStandaloneOpenMPDirectives,
+    Compound = AllowStandaloneOpenMPDirectives,
 
     LLVM_MARK_AS_BITMASK_ENUM(InStmtExpr)
   };
@@ -768,6 +792,10 @@ private:
   void HandlePragmaFEnvRound();
 
   /// Handle the annotation token produced for
+  /// #pragma STDC CX_LIMITED_RANGE...
+  void HandlePragmaCXLimitedRange();
+
+  /// Handle the annotation token produced for
   /// #pragma float_control
   void HandlePragmaFloatControl();
 
@@ -1094,6 +1122,8 @@ private:
   /// if not.
   void checkCompoundToken(SourceLocation FirstTokLoc,
                           tok::TokenKind FirstTokKind, CompoundToken Op);
+
+  void diagnoseUseOfC11Keyword(const Token &Tok);
 
 public:
   //===--------------------------------------------------------------------===//
@@ -1774,6 +1804,7 @@ public:
   ExprResult ParseConstraintLogicalOrExpression(bool IsTrailingRequiresClause);
   // Expr that doesn't include commas.
   ExprResult ParseAssignmentExpression(TypeCastState isTypeCast = NotTypeCast);
+  ExprResult ParseConditionalExpression();
 
   ExprResult ParseMSAsmIdentifier(llvm::SmallVectorImpl<Token> &LineToks,
                                   unsigned &NumLineToksConsumed,
@@ -1884,6 +1915,10 @@ private:
   // C++ Expressions
   ExprResult tryParseCXXIdExpression(CXXScopeSpec &SS, bool isAddressOfOperand,
                                      Token &Replacement);
+
+  ExprResult tryParseCXXPackIndexingExpression(ExprResult PackIdExpression);
+  ExprResult ParseCXXPackIndexingExpression(ExprResult PackIdExpression);
+
   ExprResult ParseCXXIdExpression(bool isAddressOfOperand = false);
 
   bool areTokensAdjacent(const Token &A, const Token &B);
@@ -2371,7 +2406,7 @@ private:
   struct ForRangeInit {
     SourceLocation ColonLoc;
     ExprResult RangeExpr;
-
+    SmallVector<MaterializeTemporaryExpr *, 8> LifetimeExtendTemps;
     bool ParsedForRangeDecl() { return !ColonLoc.isInvalid(); }
   };
   struct ForRangeInfo : ForRangeInit {
@@ -2392,6 +2427,7 @@ private:
   bool MightBeDeclarator(DeclaratorContext Context);
   DeclGroupPtrTy ParseDeclGroup(ParsingDeclSpec &DS, DeclaratorContext Context,
                                 ParsedAttributes &Attrs,
+                                ParsedTemplateInfo &TemplateInfo,
                                 SourceLocation *DeclEnd = nullptr,
                                 ForRangeInit *FRI = nullptr);
   Decl *ParseDeclarationAfterDeclarator(Declarator &D,
@@ -2429,6 +2465,11 @@ private:
       DeclSpec &DS, const ParsedTemplateInfo &TemplateInfo, AccessSpecifier AS,
       DeclSpecContext DSC, LateParsedAttrList *LateAttrs,
       ImplicitTypenameContext AllowImplicitTypename);
+
+  SourceLocation ParsePackIndexingType(DeclSpec &DS);
+  void AnnotateExistingIndexedTypeNamePack(ParsedType T,
+                                           SourceLocation StartLoc,
+                                           SourceLocation EndLoc);
 
   bool DiagnoseMissingSemiAfterTagDefinition(
       DeclSpec &DS, AccessSpecifier AS, DeclSpecContext DSContext,
@@ -2916,6 +2957,12 @@ private:
                                SourceLocation ScopeLoc,
                                CachedTokens &OpenMPTokens);
 
+  /// Parse a C++23 assume() attribute. Returns true on error.
+  bool ParseCXXAssumeAttributeArg(ParsedAttributes &Attrs,
+                                  IdentifierInfo *AttrName,
+                                  SourceLocation AttrNameLoc,
+                                  SourceLocation *EndLoc);
+
   IdentifierInfo *TryParseCXX11AttributeIdentifier(
       SourceLocation &Loc,
       Sema::AttributeCompletion Completion = Sema::AttributeCompletion::None,
@@ -2968,6 +3015,7 @@ private:
   void DiagnoseAndSkipExtendedMicrosoftTypeAttributes();
   SourceLocation SkipExtendedMicrosoftTypeAttributes();
   void ParseMicrosoftInheritanceClassAttributes(ParsedAttributes &attrs);
+  void ParseNullabilityClassAttributes(ParsedAttributes &attrs);
   void ParseBorlandTypeAttributes(ParsedAttributes &attrs);
   void ParseOpenCLKernelAttributes(ParsedAttributes &attrs);
   void ParseOpenCLQualifiers(ParsedAttributes &Attrs);
@@ -3026,6 +3074,11 @@ private:
                                  IdentifierInfo *ScopeName,
                                  SourceLocation ScopeLoc,
                                  ParsedAttr::Form Form);
+
+  void ParseBoundsAttribute(IdentifierInfo &AttrName,
+                            SourceLocation AttrNameLoc, ParsedAttributes &Attrs,
+                            IdentifierInfo *ScopeName, SourceLocation ScopeLoc,
+                            ParsedAttr::Form Form);
 
   void ParseTypeofSpecifier(DeclSpec &DS);
   SourceLocation ParseDecltypeSpecifier(DeclSpec &DS);
@@ -3524,21 +3577,105 @@ public:
   /// where, map-type-modifier ::= always | close | mapper(mapper-identifier)
   bool parseMapTypeModifiers(Sema::OpenMPVarListDataTy &Data);
 
+  //===--------------------------------------------------------------------===//
+  // OpenACC Parsing.
+
+  /// Placeholder for now, should just ignore the directives after emitting a
+  /// diagnostic. Eventually will be split into a few functions to parse
+  /// different situations.
+public:
+  DeclGroupPtrTy ParseOpenACCDirectiveDecl();
+  StmtResult ParseOpenACCDirectiveStmt();
+
+private:
+  /// A struct to hold the information that got parsed by ParseOpenACCDirective,
+  /// so that the callers of it can use that to construct the appropriate AST
+  /// nodes.
+  struct OpenACCDirectiveParseInfo {
+    OpenACCDirectiveKind DirKind;
+    SourceLocation StartLoc;
+    SourceLocation EndLoc;
+    SmallVector<OpenACCClause *> Clauses;
+    // TODO OpenACC: As we implement support for the Atomic, Routine, Cache, and
+    // Wait constructs, we likely want to put that information in here as well.
+  };
+
+  /// Represents the 'error' state of parsing an OpenACC Clause, and stores
+  /// whether we can continue parsing, or should give up on the directive.
+  enum class OpenACCParseCanContinue { Cannot = 0, Can = 1 };
+
+  /// A type to represent the state of parsing an OpenACC Clause. Situations
+  /// that result in an OpenACCClause pointer are a success and can continue
+  /// parsing, however some other situations can also continue.
+  /// FIXME: This is better represented as a std::expected when we get C++23.
+  using OpenACCClauseParseResult =
+      llvm::PointerIntPair<OpenACCClause *, 1, OpenACCParseCanContinue>;
+
+  OpenACCClauseParseResult OpenACCCanContinue();
+  OpenACCClauseParseResult OpenACCCannotContinue();
+  OpenACCClauseParseResult OpenACCSuccess(OpenACCClause *Clause);
+
+  /// Parses the OpenACC directive (the entire pragma) including the clause
+  /// list, but does not produce the main AST node.
+  OpenACCDirectiveParseInfo ParseOpenACCDirective();
+  /// Helper that parses an ID Expression based on the language options.
+  ExprResult ParseOpenACCIDExpression();
+  /// Parses the variable list for the `cache` construct.
+  void ParseOpenACCCacheVarList();
+  /// Parses a single variable in a variable list for OpenACC.
+  bool ParseOpenACCVar();
+  /// Parses the variable list for the variety of clauses that take a var-list,
+  /// including the optional Special Token listed for some,based on clause type.
+  bool ParseOpenACCClauseVarList(OpenACCClauseKind Kind);
+  /// Parses any parameters for an OpenACC Clause, including required/optional
+  /// parens.
+  OpenACCClauseParseResult
+  ParseOpenACCClauseParams(ArrayRef<const OpenACCClause *> ExistingClauses,
+                           OpenACCDirectiveKind DirKind, OpenACCClauseKind Kind,
+                           SourceLocation ClauseLoc);
+  /// Parses a single clause in a clause-list for OpenACC. Returns nullptr on
+  /// error.
+  OpenACCClauseParseResult
+  ParseOpenACCClause(ArrayRef<const OpenACCClause *> ExistingClauses,
+                     OpenACCDirectiveKind DirKind);
+  /// Parses the clause-list for an OpenACC directive.
+  SmallVector<OpenACCClause *>
+  ParseOpenACCClauseList(OpenACCDirectiveKind DirKind);
+  bool ParseOpenACCWaitArgument();
+  /// Parses the clause of the 'bind' argument, which can be a string literal or
+  /// an ID expression.
+  ExprResult ParseOpenACCBindClauseArgument();
+  /// Parses the clause kind of 'int-expr', which can be any integral
+  /// expression.
+  ExprResult ParseOpenACCIntExpr();
+  /// Parses the 'device-type-list', which is a list of identifiers.
+  bool ParseOpenACCDeviceTypeList();
+  /// Parses the 'async-argument', which is an integral value with two
+  /// 'special' values that are likely negative (but come from Macros).
+  ExprResult ParseOpenACCAsyncArgument();
+  /// Parses the 'size-expr', which is an integral value, or an asterisk.
+  bool ParseOpenACCSizeExpr();
+  /// Parses a comma delimited list of 'size-expr's.
+  bool ParseOpenACCSizeExprList();
+  /// Parses a 'gang-arg-list', used for the 'gang' clause.
+  bool ParseOpenACCGangArgList();
+  /// Parses a 'gang-arg', used for the 'gang' clause.
+  bool ParseOpenACCGangArg();
+
 private:
   //===--------------------------------------------------------------------===//
   // C++ 14: Templates [temp]
 
   // C++ 14.1: Template Parameters [temp.param]
-  Decl *ParseDeclarationStartingWithTemplate(DeclaratorContext Context,
-                                             SourceLocation &DeclEnd,
-                                             ParsedAttributes &AccessAttrs,
-                                             AccessSpecifier AS = AS_none);
-  Decl *ParseTemplateDeclarationOrSpecialization(DeclaratorContext Context,
-                                                 SourceLocation &DeclEnd,
-                                                 ParsedAttributes &AccessAttrs,
-                                                 AccessSpecifier AS);
-  Decl *ParseSingleDeclarationAfterTemplate(
-      DeclaratorContext Context, const ParsedTemplateInfo &TemplateInfo,
+  DeclGroupPtrTy
+  ParseDeclarationStartingWithTemplate(DeclaratorContext Context,
+                                       SourceLocation &DeclEnd,
+                                       ParsedAttributes &AccessAttrs);
+  DeclGroupPtrTy ParseTemplateDeclarationOrSpecialization(
+      DeclaratorContext Context, SourceLocation &DeclEnd,
+      ParsedAttributes &AccessAttrs, AccessSpecifier AS);
+  DeclGroupPtrTy ParseDeclarationAfterTemplate(
+      DeclaratorContext Context, ParsedTemplateInfo &TemplateInfo,
       ParsingDeclRAIIObject &DiagsFromParams, SourceLocation &DeclEnd,
       ParsedAttributes &AccessAttrs, AccessSpecifier AS = AS_none);
   bool ParseTemplateParameters(MultiParseScope &TemplateScopes, unsigned Depth,
@@ -3587,16 +3724,28 @@ private:
                                  TemplateTy Template, SourceLocation OpenLoc);
   ParsedTemplateArgument ParseTemplateTemplateArgument();
   ParsedTemplateArgument ParseTemplateArgument();
-  Decl *ParseExplicitInstantiation(DeclaratorContext Context,
-                                   SourceLocation ExternLoc,
-                                   SourceLocation TemplateLoc,
-                                   SourceLocation &DeclEnd,
-                                   ParsedAttributes &AccessAttrs,
-                                   AccessSpecifier AS = AS_none);
+  DeclGroupPtrTy ParseExplicitInstantiation(DeclaratorContext Context,
+                                            SourceLocation ExternLoc,
+                                            SourceLocation TemplateLoc,
+                                            SourceLocation &DeclEnd,
+                                            ParsedAttributes &AccessAttrs,
+                                            AccessSpecifier AS = AS_none);
   // C++2a: Template, concept definition [temp]
   Decl *
   ParseConceptDefinition(const ParsedTemplateInfo &TemplateInfo,
                          SourceLocation &DeclEnd);
+
+  /// Parse the given string as a type.
+  ///
+  /// This is a dangerous utility function currently employed only by API notes.
+  /// It is not a general entry-point for safely parsing types from strings.
+  ///
+  /// \param TypeStr The string to be parsed as a type.
+  /// \param Context The name of the context in which this string is being
+  /// parsed, which will be used in diagnostics.
+  /// \param IncludeLoc The location at which this parse was triggered.
+  TypeResult ParseTypeFromString(StringRef TypeStr, StringRef Context,
+                                 SourceLocation IncludeLoc);
 
   //===--------------------------------------------------------------------===//
   // Modules

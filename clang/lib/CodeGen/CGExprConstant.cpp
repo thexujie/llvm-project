@@ -656,7 +656,7 @@ static bool EmitDesignatedInitUpdater(ConstantEmitter &Emitter,
   }
 
   unsigned NumElementsToUpdate =
-      FillC ? CAT->getSize().getZExtValue() : Updater->getNumInits();
+      FillC ? CAT->getZExtSize() : Updater->getNumInits();
   for (unsigned I = 0; I != NumElementsToUpdate; ++I, Offset += ElemSize) {
     Expr *Init = nullptr;
     if (I < Updater->getNumInits())
@@ -800,8 +800,8 @@ bool ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
     // Add a vtable pointer, if we need one and it hasn't already been added.
     if (Layout.hasOwnVFPtr()) {
       llvm::Constant *VTableAddressPoint =
-          CGM.getCXXABI().getVTableAddressPointForConstExpr(
-              BaseSubobject(CD, Offset), VTableClass);
+          CGM.getCXXABI().getVTableAddressPoint(BaseSubobject(CD, Offset),
+                                                VTableClass);
       if (!AppendBytes(Offset, VTableAddressPoint))
         return false;
     }
@@ -1225,6 +1225,8 @@ public:
     case CK_IntegralToFixedPoint:
     case CK_ZeroToOCLOpaqueType:
     case CK_MatrixCast:
+    case CK_HLSLVectorTruncation:
+    case CK_HLSLArrayRValue:
       return nullptr;
     }
     llvm_unreachable("Invalid CastKind");
@@ -1248,7 +1250,7 @@ public:
     auto *CAT = CGM.getContext().getAsConstantArrayType(ILE->getType());
     assert(CAT && "can't emit array init for non-constant-bound array");
     unsigned NumInitElements = ILE->getNumInits();
-    unsigned NumElements = CAT->getSize().getZExtValue();
+    unsigned NumElements = CAT->getZExtSize();
 
     // Initialising an array requires us to automatically
     // initialise any elements that have not been initialised explicitly
@@ -1373,7 +1375,7 @@ public:
 
     // Resize the string to the right size, adding zeros at the end, or
     // truncating as needed.
-    Str.resize(CAT->getSize().getZExtValue(), '\0');
+    Str.resize(CAT->getZExtSize(), '\0');
     return llvm::ConstantDataArray::getString(VMContext, Str, false);
   }
 
@@ -1386,6 +1388,10 @@ public:
       if (auto *CI = dyn_cast<llvm::ConstantInt>(C))
         return llvm::ConstantInt::get(CGM.getLLVMContext(), -CI->getValue());
     return nullptr;
+  }
+
+  llvm::Constant *VisitPackIndexingExpr(PackIndexingExpr *E, QualType T) {
+    return Visit(E->getSelectedExpr(), T);
   }
 
   // Utility methods
@@ -1630,13 +1636,8 @@ namespace {
         IndexValues[i] = llvm::ConstantInt::get(CGM.Int32Ty, Indices[i]);
       }
 
-      // Form a GEP and then bitcast to the placeholder type so that the
-      // replacement will succeed.
-      llvm::Constant *location =
-        llvm::ConstantExpr::getInBoundsGetElementPtr(BaseValueTy,
-                                                     Base, IndexValues);
-      location = llvm::ConstantExpr::getBitCast(location,
-                                                placeholder->getType());
+      llvm::Constant *location = llvm::ConstantExpr::getInBoundsGetElementPtr(
+          BaseValueTy, Base, IndexValues);
 
       Locations.insert({placeholder, location});
     }
@@ -1866,10 +1867,7 @@ private:
     if (!hasNonZeroOffset())
       return C;
 
-    llvm::Type *origPtrTy = C->getType();
-    C = llvm::ConstantExpr::getGetElementPtr(CGM.Int8Ty, C, getOffset());
-    C = llvm::ConstantExpr::getPointerCast(C, origPtrTy);
-    return C;
+    return llvm::ConstantExpr::getGetElementPtr(CGM.Int8Ty, C, getOffset());
   }
 };
 
@@ -2037,8 +2035,6 @@ ConstantLValue
 ConstantLValueEmitter::VisitAddrLabelExpr(const AddrLabelExpr *E) {
   assert(Emitter.CGF && "Invalid address of label expression outside function");
   llvm::Constant *Ptr = Emitter.CGF->GetAddrOfLabel(E->getLabel());
-  Ptr = llvm::ConstantExpr::getBitCast(Ptr,
-                                   CGM.getTypes().ConvertType(E->getType()));
   return Ptr;
 }
 
@@ -2086,10 +2082,7 @@ ConstantLValue
 ConstantLValueEmitter::VisitMaterializeTemporaryExpr(
                                             const MaterializeTemporaryExpr *E) {
   assert(E->getStorageDuration() == SD_Static);
-  SmallVector<const Expr *, 2> CommaLHSs;
-  SmallVector<SubobjectAdjustment, 2> Adjustments;
-  const Expr *Inner =
-      E->getSubExpr()->skipRValueSubobjectAdjustments(CommaLHSs, Adjustments);
+  const Expr *Inner = E->getSubExpr()->skipRValueSubobjectAdjustments();
   return CGM.GetAddrOfGlobalTemporary(E, Inner);
 }
 
@@ -2390,7 +2383,7 @@ llvm::Constant *CodeGenModule::EmitNullConstant(QualType T) {
 
     llvm::Constant *Element =
       ConstantEmitter::emitNullForMemory(*this, ElementTy);
-    unsigned NumElements = CAT->getSize().getZExtValue();
+    unsigned NumElements = CAT->getZExtSize();
     SmallVector<llvm::Constant *, 8> Array(NumElements, Element);
     return llvm::ConstantArray::get(ATy, Array);
   }

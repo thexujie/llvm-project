@@ -286,6 +286,7 @@ struct OMPInformationCache : public InformationCache {
       : InformationCache(M, AG, Allocator, CGSCC), OMPBuilder(M),
         OpenMPPostLink(OpenMPPostLink) {
 
+    OMPBuilder.Config.IsTargetDevice = isOpenMPDevice(OMPBuilder.M);
     OMPBuilder.initialize();
     initializeRuntimeFunctions(M);
     initializeInternalControlVars();
@@ -621,7 +622,7 @@ struct OMPInformationCache : public InformationCache {
       for (Function &F : M) {
         for (StringRef Prefix : {"__kmpc", "_ZN4ompx", "omp_"})
           if (F.hasFnAttribute(Attribute::NoInline) &&
-              F.getName().startswith(Prefix) &&
+              F.getName().starts_with(Prefix) &&
               !F.hasFnAttribute(Attribute::OptimizeNone))
             F.removeFnAttr(Attribute::NoInline);
       }
@@ -1145,17 +1146,18 @@ private:
         const DataLayout &DL = M.getDataLayout();
         AllocaInst *AllocaI = new AllocaInst(
             I.getType(), DL.getAllocaAddrSpace(), nullptr,
-            I.getName() + ".seq.output.alloc", &OuterFn->front().front());
+            I.getName() + ".seq.output.alloc", OuterFn->front().begin());
 
         // Emit a store instruction in the sequential BB to update the
         // value.
-        new StoreInst(&I, AllocaI, SeqStartBB->getTerminator());
+        new StoreInst(&I, AllocaI, SeqStartBB->getTerminator()->getIterator());
 
         // Emit a load instruction and replace the use of the output value
         // with it.
         for (Instruction *UsrI : OutsideUsers) {
-          LoadInst *LoadI = new LoadInst(
-              I.getType(), AllocaI, I.getName() + ".seq.output.load", UsrI);
+          LoadInst *LoadI = new LoadInst(I.getType(), AllocaI,
+                                         I.getName() + ".seq.output.load",
+                                         UsrI->getIterator());
           UsrI->replaceUsesOfWith(&I, LoadI);
         }
       }
@@ -1260,7 +1262,8 @@ private:
              ++U)
           Args.push_back(CI->getArgOperand(U));
 
-        CallInst *NewCI = CallInst::Create(FT, Callee, Args, "", CI);
+        CallInst *NewCI =
+            CallInst::Create(FT, Callee, Args, "", CI->getIterator());
         if (CI->getDebugLoc())
           NewCI->setDebugLoc(CI->getDebugLoc());
 
@@ -1470,7 +1473,6 @@ private:
         OMPRTL_omp_get_num_threads,
         OMPRTL_omp_in_parallel,
         OMPRTL_omp_get_cancellation,
-        OMPRTL_omp_get_thread_limit,
         OMPRTL_omp_get_supported_active_levels,
         OMPRTL_omp_get_level,
         OMPRTL_omp_get_ancestor_thread_num,
@@ -1739,8 +1741,8 @@ private:
       Args.push_back(Arg.get());
     Args.push_back(Handle);
 
-    CallInst *IssueCallsite =
-        CallInst::Create(IssueDecl, Args, /*NameStr=*/"", &RuntimeCall);
+    CallInst *IssueCallsite = CallInst::Create(IssueDecl, Args, /*NameStr=*/"",
+                                               RuntimeCall.getIterator());
     OMPInfoCache.setCallingConvention(IssueDecl, IssueCallsite);
     RuntimeCall.eraseFromParent();
 
@@ -1755,7 +1757,7 @@ private:
         Handle                             // handle to wait on.
     };
     CallInst *WaitCallsite = CallInst::Create(
-        WaitDecl, WaitParams, /*NameStr=*/"", &WaitMovementPoint);
+        WaitDecl, WaitParams, /*NameStr=*/"", WaitMovementPoint.getIterator());
     OMPInfoCache.setCallingConvention(WaitDecl, WaitCallsite);
 
     return true;
@@ -1995,7 +1997,7 @@ private:
     Function *F = I->getParent()->getParent();
     auto &ORE = OREGetter(F);
 
-    if (RemarkName.startswith("OMP"))
+    if (RemarkName.starts_with("OMP"))
       ORE.emit([&]() {
         return RemarkCB(RemarkKind(DEBUG_TYPE, RemarkName, I))
                << " [" << RemarkName << "]";
@@ -2011,7 +2013,7 @@ private:
                   RemarkCallBack &&RemarkCB) const {
     auto &ORE = OREGetter(F);
 
-    if (RemarkName.startswith("OMP"))
+    if (RemarkName.starts_with("OMP"))
       ORE.emit([&]() {
         return RemarkCB(RemarkKind(DEBUG_TYPE, RemarkName, F))
                << " [" << RemarkName << "]";
@@ -2051,6 +2053,9 @@ private:
 
     LLVM_DEBUG(dbgs() << "[Attributor] Done with " << SCC.size()
                       << " functions, result: " << Changed << ".\n");
+
+    if (Changed == ChangeStatus::CHANGED)
+      OMPInfoCache.invalidateAnalyses();
 
     return Changed == ChangeStatus::CHANGED;
   }
@@ -3762,7 +3767,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
     ConstantInt *ExecModeC =
         KernelInfo::getExecModeFromKernelEnvironment(KernelEnvC);
     ConstantInt *AssumedExecModeC = ConstantInt::get(
-        ExecModeC->getType(),
+        ExecModeC->getIntegerType(),
         ExecModeC->getSExtValue() | OMP_TGT_EXEC_MODE_GENERIC_SPMD);
     if (ExecModeC->getSExtValue() & OMP_TGT_EXEC_MODE_SPMD)
       SPMDCompatibilityTracker.indicateOptimisticFixpoint();
@@ -3791,7 +3796,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
     ConstantInt *MayUseNestedParallelismC =
         KernelInfo::getMayUseNestedParallelismFromKernelEnvironment(KernelEnvC);
     ConstantInt *AssumedMayUseNestedParallelismC = ConstantInt::get(
-        MayUseNestedParallelismC->getType(), NestedParallelism);
+        MayUseNestedParallelismC->getIntegerType(), NestedParallelism);
     setMayUseNestedParallelismOfKernelEnvironment(
         AssumedMayUseNestedParallelismC);
 
@@ -3800,7 +3805,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
           KernelInfo::getUseGenericStateMachineFromKernelEnvironment(
               KernelEnvC);
       ConstantInt *AssumedUseGenericStateMachineC =
-          ConstantInt::get(UseGenericStateMachineC->getType(), false);
+          ConstantInt::get(UseGenericStateMachineC->getIntegerType(), false);
       setUseGenericStateMachineOfKernelEnvironment(
           AssumedUseGenericStateMachineC);
     }
@@ -4022,11 +4027,12 @@ struct AAKernelInfoFunction : AAKernelInfo {
             static_cast<unsigned>(AddressSpace::Shared));
 
         // Emit a store instruction to update the value.
-        new StoreInst(&I, SharedMem, RegionEndBB->getTerminator());
+        new StoreInst(&I, SharedMem,
+                      RegionEndBB->getTerminator()->getIterator());
 
-        LoadInst *LoadI = new LoadInst(I.getType(), SharedMem,
-                                       I.getName() + ".guarded.output.load",
-                                       RegionBarrierBB->getTerminator());
+        LoadInst *LoadI = new LoadInst(
+            I.getType(), SharedMem, I.getName() + ".guarded.output.load",
+            RegionBarrierBB->getTerminator()->getIterator());
 
         // Emit a load instruction and replace uses of the output value.
         for (Use *U : OutsideUses)
@@ -4079,8 +4085,9 @@ struct AAKernelInfoFunction : AAKernelInfo {
 
       // Second barrier ensures workers have read broadcast values.
       if (HasBroadcastValues) {
-        CallInst *Barrier = CallInst::Create(BarrierFn, {Ident, Tid}, "",
-                                             RegionBarrierBB->getTerminator());
+        CallInst *Barrier =
+            CallInst::Create(BarrierFn, {Ident, Tid}, "",
+                             RegionBarrierBB->getTerminator()->getIterator());
         Barrier->setDebugLoc(DL);
         OMPInfoCache.setCallingConvention(BarrierFn, Barrier);
       }
@@ -4279,8 +4286,9 @@ struct AAKernelInfoFunction : AAKernelInfo {
     // kernel is executed in.
     assert(ExecModeVal == OMP_TGT_EXEC_MODE_GENERIC &&
            "Initially non-SPMD kernel has SPMD exec mode!");
-    setExecModeOfKernelEnvironment(ConstantInt::get(
-        ExecModeC->getType(), ExecModeVal | OMP_TGT_EXEC_MODE_GENERIC_SPMD));
+    setExecModeOfKernelEnvironment(
+        ConstantInt::get(ExecModeC->getIntegerType(),
+                         ExecModeVal | OMP_TGT_EXEC_MODE_GENERIC_SPMD));
 
     ++NumOpenMPTargetRegionKernelsSPMD;
 
@@ -4331,7 +4339,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
 
     // If not SPMD mode, indicate we use a custom state machine now.
     setUseGenericStateMachineOfKernelEnvironment(
-        ConstantInt::get(UseStateMachineC->getType(), false));
+        ConstantInt::get(UseStateMachineC->getIntegerType(), false));
 
     // If we don't actually need a state machine we are done here. This can
     // happen if there simply are no parallel regions. In the resulting kernel
@@ -4484,7 +4492,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
     Type *VoidPtrTy = PointerType::getUnqual(Ctx);
     Instruction *WorkFnAI =
         new AllocaInst(VoidPtrTy, DL.getAllocaAddrSpace(), nullptr,
-                       "worker.work_fn.addr", &Kernel->getEntryBlock().front());
+                       "worker.work_fn.addr", Kernel->getEntryBlock().begin());
     WorkFnAI->setDebugLoc(DLoc);
 
     OMPInfoCache.OMPBuilder.updateToLocation(
@@ -4526,9 +4534,6 @@ struct AAKernelInfoFunction : AAKernelInfo {
     FunctionType *ParallelRegionFnTy = FunctionType::get(
         Type::getVoidTy(Ctx), {Type::getInt16Ty(Ctx), Type::getInt32Ty(Ctx)},
         false);
-    Value *WorkFnCast = BitCastInst::CreatePointerBitCastOrAddrSpaceCast(
-        WorkFn, ParallelRegionFnTy->getPointerTo(), "worker.work_fn.addr_cast",
-        StateMachineBeginBB);
 
     Instruction *IsDone =
         ICmpInst::Create(ICmpInst::ICmp, llvm::CmpInst::ICMP_EQ, WorkFn,
@@ -4575,7 +4580,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
       Value *IsPR;
       if (I + 1 < E || !ReachedUnknownParallelRegions.empty()) {
         Instruction *CmpI = ICmpInst::Create(
-            ICmpInst::ICmp, llvm::CmpInst::ICMP_EQ, WorkFnCast, ParallelRegion,
+            ICmpInst::ICmp, llvm::CmpInst::ICMP_EQ, WorkFn, ParallelRegion,
             "worker.check_parallel_region", StateMachineIfCascadeCurrentBB);
         CmpI->setDebugLoc(DLoc);
         IsPR = CmpI;
@@ -4595,7 +4600,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
     if (!ReachedUnknownParallelRegions.empty()) {
       StateMachineIfCascadeCurrentBB->setName(
           "worker_state_machine.parallel_region.fallback.execute");
-      CallInst::Create(ParallelRegionFnTy, WorkFnCast, {ZeroArg, GTid}, "",
+      CallInst::Create(ParallelRegionFnTy, WorkFn, {ZeroArg, GTid}, "",
                        StateMachineIfCascadeCurrentBB)
           ->setDebugLoc(DLoc);
     }
@@ -4660,7 +4665,7 @@ struct AAKernelInfoFunction : AAKernelInfo {
             KernelInfo::getMayUseNestedParallelismFromKernelEnvironment(
                 AA.KernelEnvC);
         ConstantInt *NewMayUseNestedParallelismC = ConstantInt::get(
-            MayUseNestedParallelismC->getType(), AA.NestedParallelism);
+            MayUseNestedParallelismC->getIntegerType(), AA.NestedParallelism);
         AA.setMayUseNestedParallelismOfKernelEnvironment(
             NewMayUseNestedParallelismC);
       }
@@ -4940,7 +4945,6 @@ struct AAKernelInfoCallSite : AAKernelInfo {
       case OMPRTL___kmpc_barrier:
       case OMPRTL___kmpc_nvptx_parallel_reduce_nowait_v2:
       case OMPRTL___kmpc_nvptx_teams_reduce_nowait_v2:
-      case OMPRTL___kmpc_nvptx_end_reduce_nowait:
       case OMPRTL___kmpc_error:
       case OMPRTL___kmpc_flush:
       case OMPRTL___kmpc_get_hardware_thread_id_in_block:

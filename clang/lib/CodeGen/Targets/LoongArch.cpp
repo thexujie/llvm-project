@@ -146,7 +146,7 @@ bool LoongArchABIInfo::detectFARsEligibleStructHelper(
   }
 
   if (const ConstantArrayType *ATy = getContext().getAsConstantArrayType(Ty)) {
-    uint64_t ArraySize = ATy->getSize().getZExtValue();
+    uint64_t ArraySize = ATy->getZExtSize();
     QualType EltTy = ATy->getElementType();
     // Non-zero-length arrays of empty records make the struct ineligible to be
     // passed via FARs in C++.
@@ -170,10 +170,11 @@ bool LoongArchABIInfo::detectFARsEligibleStructHelper(
     // copy constructor are not eligible for the FP calling convention.
     if (getRecordArgABI(Ty, CGT.getCXXABI()))
       return false;
-    if (isEmptyRecord(getContext(), Ty, true, true))
-      return true;
     const RecordDecl *RD = RTy->getDecl();
-    // Unions aren't eligible unless they're empty (which is caught above).
+    if (isEmptyRecord(getContext(), Ty, true, true) &&
+        (!RD->isUnion() || !isa<CXXRecordDecl>(RD)))
+      return true;
+    // Unions aren't eligible unless they're empty in C (which is caught above).
     if (RD->isUnion())
       return false;
     const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
@@ -322,13 +323,6 @@ ABIArgInfo LoongArchABIInfo::classifyArgumentType(QualType Ty, bool IsFixed,
     FARsLeft--;
     return ABIArgInfo::getDirect();
   }
-
-  // Pass 128-bit/256-bit vector values via vector registers directly.
-  if (Ty->isVectorType() && (((getContext().getTypeSize(Ty) == 128) &&
-                              (getTarget().hasFeature("lsx"))) ||
-                             ((getContext().getTypeSize(Ty) == 256) &&
-                              getTarget().hasFeature("lasx"))))
-    return ABIArgInfo::getDirect();
 
   // Complex types for the *f or *d ABI must be passed directly rather than
   // using CoerceAndExpand.
