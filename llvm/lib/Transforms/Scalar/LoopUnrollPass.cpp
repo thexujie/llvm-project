@@ -1154,9 +1154,11 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
   // automatic unrolling from interfering with the user requested
   // transformation.
   Loop *ParentL = L->getParentLoop();
+  const bool UnrollIsForcedByUser =
+      hasUnrollTransformation(L) == TM_ForcedByUser;
   if (ParentL != nullptr &&
       hasUnrollAndJamTransformation(ParentL) == TM_ForcedByUser &&
-      hasUnrollTransformation(L) != TM_ForcedByUser) {
+      !UnrollIsForcedByUser) {
     LLVM_DEBUG(dbgs() << "Not unrolling loop since parent loop has"
                       << " llvm.loop.unroll_and_jam.\n");
     return LoopUnrollResult::Unmodified;
@@ -1166,7 +1168,7 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
   // loop has an explicit unroll-and-jam pragma. This is to prevent automatic
   // unrolling from interfering with the user requested transformation.
   if (hasUnrollAndJamTransformation(L) == TM_ForcedByUser &&
-      hasUnrollTransformation(L) != TM_ForcedByUser) {
+      !UnrollIsForcedByUser) {
     LLVM_DEBUG(
         dbgs()
         << "  Not unrolling loop since it has llvm.loop.unroll_and_jam.\n");
@@ -1216,7 +1218,10 @@ tryToUnrollLoop(Loop *L, DominatorTree &DT, LoopInfo *LI, ScalarEvolution &SE,
   if (OptForSize)
     UP.Threshold = std::max(UP.Threshold, LoopSize + 1);
 
-  if (UCE.NumInlineCandidates != 0) {
+  // Ignore the potential for inlining if unrolling is forced by the user. It's
+  // only _very likely_ that `NumInlineCandidates` functions will be inlined;
+  // things like profile data can make this significantly less likely.
+  if (!UnrollIsForcedByUser && UCE.NumInlineCandidates != 0) {
     LLVM_DEBUG(dbgs() << "  Not unrolling loop with inlinable calls.\n");
     return LoopUnrollResult::Unmodified;
   }
