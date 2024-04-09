@@ -63,7 +63,7 @@ unsigned __riscv_ifunc_select(struct riscv_hwprobe *ReqireKeys,
   }
 
   // hwprobe not success
-  if (initHwProbe(HwprobePairs, 2))
+  if (initHwProbe(HwprobePairs, Length))
     return 0;
 
   for (unsigned Idx = 0; Idx < Length; Idx++) {
