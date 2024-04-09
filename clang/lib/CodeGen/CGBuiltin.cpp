@@ -14194,13 +14194,13 @@ CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
           << UnsupportByHwprobe[Idx];
   }
 
-  StructType *structType =
+  StructType *StructType =
       StructType::create({llvm::Type::getInt64Ty(CGM.getLLVMContext()),
                           llvm::Type::getInt64Ty(CGM.getLLVMContext())},
                          "riscv_hwprobe_pair");
 
   auto *ATy =
-      llvm::ArrayType::get(structType, llvm::RISCV::RISCVHwprobeLengthOfKey);
+      llvm::ArrayType::get(StructType, llvm::RISCV::RISCVHwprobeLengthOfKey);
 
   auto createConstant = [&](unsigned long long Value) -> Constant * {
     return ConstantInt::get(llvm::Type::getInt64Ty(CGM.getLLVMContext()),
@@ -14220,10 +14220,10 @@ CodeGenFunction::EmitRISCVExtSupports(ArrayRef<StringRef> FeaturesStrs) {
 
   SmallVector<Constant *> KeyValPairs;
   KeyValPairs.push_back(ConstantStruct::get(
-      structType, {createConstant(llvm::RISCV::RISCVHwprobeKeyBase),
+      StructType, {createConstant(llvm::RISCV::RISCVHwprobeKeyBase),
                    createConstant(createHwprobeVal(BaseExtReqs))}));
   KeyValPairs.push_back(ConstantStruct::get(
-      structType, {createConstant(llvm::RISCV::RISCVHwprobeKeyIMA),
+      StructType, {createConstant(llvm::RISCV::RISCVHwprobeKeyIMA),
                    createConstant(createHwprobeVal(IMACompatibleExtReqs))}));
 
   GlobalVariable *KeyValuePairs = new GlobalVariable(
