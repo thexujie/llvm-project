@@ -51,6 +51,11 @@ bool isKernelLDS(const Function *F);
 
 LDSUsesInfoTy getTransitiveUsesOfLDS(CallGraph const &CG, Module &M);
 
+/// Strip FnAttr attribute from any functions where we may have
+/// introduced its use.
+void removeFnAttrFromReachable(CallGraph &CG, Function *KernelRoot,
+                               StringRef FnAttr);
+
 /// Given a \p Def clobbering a load from \p Ptr according to the MSSA check
 /// if this is actually a memory update or an artificial clobber to facilitate
 /// ordering constraints.

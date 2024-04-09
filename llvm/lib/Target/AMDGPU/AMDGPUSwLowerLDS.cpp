@@ -303,10 +303,12 @@ void AMDGPUSwLowerLDS::populateMallocMetadataGlobal(Function *Func) {
 
   StructType *MetadataStructType =
       StructType::create(Ctx, Items, MDTypeOS.str());
+  SmallString<128> MDStr;
+  raw_svector_ostream MDOS(MDStr);
+  MDOS << "llvm.amdgcn.sw.lds." << Func->getName().str() << ".md";
   LDSParams.MallocMetadataGlobal = new GlobalVariable(
       M, MetadataStructType, false, GlobalValue::InternalLinkage,
-      PoisonValue::get(MetadataStructType),
-      ("llvm.amdgcn.sw.lds." + Func->getName().str() + ".md"), nullptr,
+      PoisonValue::get(MetadataStructType), MDOS.str(), nullptr,
       GlobalValue::NotThreadLocal, AMDGPUAS::GLOBAL_ADDRESS, false);
   Constant *data = ConstantStruct::get(MetadataStructType, Initializers);
   LDSParams.MallocMetadataGlobal->setInitializer(data);
@@ -759,6 +761,9 @@ bool AMDGPUSwLowerLDS::run() {
         LDSParams.IndirectAccess.DynamicLDSGlobals.empty()) {
       Changed = false;
     } else {
+      removeFnAttrFromReachable(CG, Func, "amdgpu-no-workitem-id-x");
+      removeFnAttrFromReachable(CG, Func, "amdgpu-no-workitem-id-y");
+      removeFnAttrFromReachable(CG, Func, "amdgpu-no-workitem-id-z");
       reorderStaticDynamicIndirectLDSSet(LDSParams);
       populateMallocLDSGlobal(Func);
       populateMallocMetadataGlobal(Func);
