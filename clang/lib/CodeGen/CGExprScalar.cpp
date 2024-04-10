@@ -159,9 +159,7 @@ struct BinOpInfo {
 
   /// Does the BinaryOperator have the wraps attribute?
   /// If so, we can ellide overflow sanitizer checks.
-  bool hasWrappingOperand() const {
-    return E->getType().hasWrapsAttr();
-  }
+  bool hasWrappingOperand() const { return E->getType().hasWrapsAttr(); }
 };
 
 static bool MustVisitNullValue(const Expr *E) {
@@ -4430,7 +4428,8 @@ Value *ScalarExprEmitter::EmitShl(const BinOpInfo &Ops) {
   bool SanitizeSignedBase = CGF.SanOpts.has(SanitizerKind::ShiftBase) &&
                             Ops.Ty->hasSignedIntegerRepresentation() &&
                             !CGF.getLangOpts().isSignedOverflowDefined() &&
-                            !CGF.getLangOpts().CPlusPlus20 && !Ops.hasWrappingOperand();
+                            !CGF.getLangOpts().CPlusPlus20 &&
+                            !Ops.hasWrappingOperand();
   bool SanitizeUnsignedBase =
       CGF.SanOpts.has(SanitizerKind::UnsignedShiftBase) &&
       Ops.Ty->hasUnsignedIntegerRepresentation();
