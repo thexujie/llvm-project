@@ -303,7 +303,8 @@ Attribute Changes in Clang
   overflow warnings or sanitizer warnings. They also cannot be optimized away
   by some eager UB optimizations.
 
-  This attribute is ignored in C++.
+  This attribute is only valid for C, as there are built-in language
+  alternatives for other languages.
 
 Improvements to Clang's diagnostics
 -----------------------------------
