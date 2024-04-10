@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wno-microsoft -fno-rtti -std=c++11 -emit-llvm %s -o - -triple=i386-pc-win32 | FileCheck %s
+// RUN: %clang_cc1 -Wno-microsoft -fno-rtti -std=c++11 -emit-llvm %s -o - -triple=i386-pc-win32 -fexperimental-new-constant-interpreter | FileCheck %s
 
 struct U;
 static_assert(sizeof(void (U::*)()) == 2 * sizeof(void*) + 2 * sizeof(int), "");

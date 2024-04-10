@@ -17,6 +17,7 @@
 #include "Integral.h"
 #include "IntegralAP.h"
 #include "InterpFrame.h"
+#include "MemberPointer.h"
 #include "Opcode.h"
 #include "PrimType.h"
 #include "Program.h"
@@ -120,6 +121,8 @@ static const char *primTypeToString(PrimType T) {
     return "Ptr";
   case PT_FnPtr:
     return "FnPtr";
+  case PT_MemberPtr:
+    return "MemberPtr";
   }
   llvm_unreachable("Unhandled PrimType");
 }
