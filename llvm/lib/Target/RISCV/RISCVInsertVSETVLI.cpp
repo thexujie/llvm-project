@@ -57,10 +57,7 @@ namespace {
 template <typename T>
 static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
                            const LiveIntervals *LIS) {
-  if (MRI->isSSA())
-    return MRI->getVRegDef(Reg);
-
-  if (!MI)
+  if (MRI->isSSA() || !MI)
     return MRI->getUniqueVRegDef(Reg);
 
   // For O0 situation
