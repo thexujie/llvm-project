@@ -1113,7 +1113,7 @@ void ScalarExprEmitter::EmitIntegerTruncationCheck(Value *Src, QualType SrcType,
 
   // Do we care about this type of truncation?
   if (!CGF.SanOpts.has(Check.second.second) ||
-      DstType.getTypePtr()->hasAttr(attr::Wraps))
+      DstType.hasWrapsAttr())
     return;
 
   llvm::Constant *StaticArgs[] = {
