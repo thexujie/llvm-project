@@ -160,10 +160,7 @@ struct BinOpInfo {
   /// Does the BinaryOperator have the wraps attribute?
   /// If so, we can ellide overflow sanitizer checks.
   bool hasWrappingOperand() const {
-    const Type *TyPtr = E->getType().getTypePtrOrNull();
-    if (TyPtr)
-      return TyPtr->hasAttr(attr::Wraps);
-    return false;
+    return E->getType().hasWrapsAttr();
   }
 };
 

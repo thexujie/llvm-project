@@ -2238,18 +2238,8 @@ bool BinaryOperator::isNullPointerArithmeticExtension(ASTContext &Ctx,
 }
 
 bool BinaryOperator::hasWrappingOperand(const ASTContext &Ctx) const {
-  llvm::SmallVector<Expr *, 2> Both = {getLHS(), getRHS()};
-
-  for (const Expr *oneOf : Both) {
-    if (!oneOf)
-      continue;
-    if (auto *TypePtr =
-            oneOf->IgnoreParenImpCasts()->getType().getTypePtrOrNull())
-      if (TypePtr->hasAttr(attr::Wraps)) {
-        return true;
-      }
-  }
-  return false;
+  return getLHS()->getType().hasWrapsAttr() ||
+         getRHS()->getType().hasWrapsAttr();
 }
 
 SourceLocExpr::SourceLocExpr(const ASTContext &Ctx, SourceLocIdentKind Kind,
