@@ -2237,7 +2237,7 @@ bool BinaryOperator::isNullPointerArithmeticExtension(ASTContext &Ctx,
   return true;
 }
 
-bool BinaryOperator::oneOfWraps(const ASTContext &Ctx) const {
+bool BinaryOperator::hasWrappingOperand(const ASTContext &Ctx) const {
   llvm::SmallVector<Expr *, 2> Both = {getLHS(), getRHS()};
 
   for (const Expr *oneOf : Both) {
@@ -4766,7 +4766,7 @@ BinaryOperator::BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs,
   if (hasStoredFPFeatures())
     setStoredFPFeatures(FPFeatures);
   setDependence(computeDependence(this));
-  if (oneOfWraps(Ctx))
+  if (hasWrappingOperand(Ctx))
     setType(Ctx.getAttributedType(attr::Wraps, getType(), getType()));
 }
 
@@ -4785,7 +4785,7 @@ BinaryOperator::BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs,
   if (hasStoredFPFeatures())
     setStoredFPFeatures(FPFeatures);
   setDependence(computeDependence(this));
-  if (oneOfWraps(Ctx))
+  if (hasWrappingOperand(Ctx))
     setType(Ctx.getAttributedType(attr::Wraps, getType(), getType()));
 }
 
