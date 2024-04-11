@@ -16479,8 +16479,7 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
       S.Context, E, S.isConstantEvaluatedContext(), /*Approximate=*/true);
   IntRange TargetRange = IntRange::forTargetOfCanonicalType(S.Context, Target);
 
-  if (LikelySourceRange.Width > TargetRange.Width &&
-      !T.hasWrapsAttr()) {
+  if (LikelySourceRange.Width > TargetRange.Width && !T.hasWrapsAttr()) {
     // If the source is a constant, use a default-on diagnostic.
     // TODO: this should happen for bitfield stores, too.
     Expr::EvalResult Result;
