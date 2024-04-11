@@ -26,7 +26,7 @@ namespace mlir {
 using namespace mlir;
 
 namespace {
-// The algorithm is listed in https://dl.acm.org/doi/pdf/10.1145/363717.363780.
+
 struct AbsOpConversion : public OpConversionPattern<complex::AbsOp> {
   using OpConversionPattern<complex::AbsOp>::OpConversionPattern;
 
@@ -35,49 +35,27 @@ struct AbsOpConversion : public OpConversionPattern<complex::AbsOp> {
                   ConversionPatternRewriter &rewriter) const override {
     mlir::ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
+    arith::FastMathFlags fmf = op.getFastMathFlagsAttr().getValue();
 
     Type elementType = op.getType();
-    Value arg = adaptor.getComplex();
-
-    Value zero =
-        b.create<arith::ConstantOp>(elementType, b.getZeroAttr(elementType));
     Value one = b.create<arith::ConstantOp>(elementType,
                                             b.getFloatAttr(elementType, 1.0));
 
-    Value real = b.create<complex::ReOp>(elementType, arg);
-    Value imag = b.create<complex::ImOp>(elementType, arg);
+    Value real = b.create<complex::ReOp>(adaptor.getComplex());
+    Value imag = b.create<complex::ImOp>(adaptor.getComplex());
+    Value absReal = b.create<math::AbsFOp>(real, fmf);
+    Value absImag = b.create<math::AbsFOp>(imag, fmf);
 
-    Value realIsZero =
-        b.create<arith::CmpFOp>(arith::CmpFPredicate::OEQ, real, zero);
-    Value imagIsZero =
-        b.create<arith::CmpFOp>(arith::CmpFPredicate::OEQ, imag, zero);
-
-    // Real > Imag
-    Value imagDivReal = b.create<arith::DivFOp>(imag, real, fmf.getValue());
-    Value imagSq =
-        b.create<arith::MulFOp>(imagDivReal, imagDivReal, fmf.getValue());
-    Value imagSqPlusOne = b.create<arith::AddFOp>(imagSq, one, fmf.getValue());
-    Value imagSqrt = b.create<math::SqrtOp>(imagSqPlusOne, fmf.getValue());
-    Value realAbs = b.create<math::AbsFOp>(real, fmf.getValue());
-    Value absImag = b.create<arith::MulFOp>(imagSqrt, realAbs, fmf.getValue());
-
-    // Real <= Imag
-    Value realDivImag = b.create<arith::DivFOp>(real, imag, fmf.getValue());
-    Value realSq =
-        b.create<arith::MulFOp>(realDivImag, realDivImag, fmf.getValue());
-    Value realSqPlusOne = b.create<arith::AddFOp>(realSq, one, fmf.getValue());
-    Value realSqrt = b.create<math::SqrtOp>(realSqPlusOne, fmf.getValue());
-    Value imagAbs = b.create<math::AbsFOp>(imag, fmf.getValue());
-    Value absReal = b.create<arith::MulFOp>(realSqrt, imagAbs, fmf.getValue());
-
-    rewriter.replaceOpWithNewOp<arith::SelectOp>(
-        op, realIsZero, imagAbs,
-        b.create<arith::SelectOp>(
-            imagIsZero, realAbs,
-            b.create<arith::SelectOp>(
-                b.create<arith::CmpFOp>(arith::CmpFPredicate::OGT, real, imag),
-                absImag, absReal)));
+    Value max = b.create<arith::MaximumFOp>(absReal, absImag, fmf);
+    Value min = b.create<arith::MinimumFOp>(absReal, absImag, fmf);
+    Value ratio = b.create<arith::DivFOp>(min, max, fmf);
+    Value ratioSq = b.create<arith::MulFOp>(ratio, ratio, fmf);
+    Value ratioSqPlusOne = b.create<arith::AddFOp>(ratioSq, one, fmf);
+    Value sqrt = b.create<math::SqrtOp>(ratioSqPlusOne, fmf);
+    Value result = b.create<arith::MulFOp>(max, sqrt, fmf);
+    Value isNaN =
+        b.create<arith::CmpFOp>(arith::CmpFPredicate::UNO, result, result, fmf);
+    rewriter.replaceOpWithNewOp<arith::SelectOp>(op, isNaN, min, result);
 
     return success();
   }
@@ -94,34 +72,35 @@ struct Atan2OpConversion : public OpConversionPattern<complex::Atan2Op> {
 
     auto type = cast<ComplexType>(op.getType());
     Type elementType = type.getElementType();
+    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
 
     Value lhs = adaptor.getLhs();
     Value rhs = adaptor.getRhs();
 
-    Value rhsSquared = b.create<complex::MulOp>(type, rhs, rhs);
-    Value lhsSquared = b.create<complex::MulOp>(type, lhs, lhs);
+    Value rhsSquared = b.create<complex::MulOp>(type, rhs, rhs, fmf);
+    Value lhsSquared = b.create<complex::MulOp>(type, lhs, lhs, fmf);
     Value rhsSquaredPlusLhsSquared =
-        b.create<complex::AddOp>(type, rhsSquared, lhsSquared);
+        b.create<complex::AddOp>(type, rhsSquared, lhsSquared, fmf);
     Value sqrtOfRhsSquaredPlusLhsSquared =
-        b.create<complex::SqrtOp>(type, rhsSquaredPlusLhsSquared);
+        b.create<complex::SqrtOp>(type, rhsSquaredPlusLhsSquared, fmf);
 
     Value zero =
         b.create<arith::ConstantOp>(elementType, b.getZeroAttr(elementType));
     Value one = b.create<arith::ConstantOp>(elementType,
                                             b.getFloatAttr(elementType, 1));
     Value i = b.create<complex::CreateOp>(type, zero, one);
-    Value iTimesLhs = b.create<complex::MulOp>(i, lhs);
-    Value rhsPlusILhs = b.create<complex::AddOp>(rhs, iTimesLhs);
+    Value iTimesLhs = b.create<complex::MulOp>(i, lhs, fmf);
+    Value rhsPlusILhs = b.create<complex::AddOp>(rhs, iTimesLhs, fmf);
 
-    Value divResult =
-        b.create<complex::DivOp>(rhsPlusILhs, sqrtOfRhsSquaredPlusLhsSquared);
-    Value logResult = b.create<complex::LogOp>(divResult);
+    Value divResult = b.create<complex::DivOp>(
+        rhsPlusILhs, sqrtOfRhsSquaredPlusLhsSquared, fmf);
+    Value logResult = b.create<complex::LogOp>(divResult, fmf);
 
     Value negativeOne = b.create<arith::ConstantOp>(
         elementType, b.getFloatAttr(elementType, -1));
     Value negativeI = b.create<complex::CreateOp>(type, zero, negativeOne);
 
-    rewriter.replaceOpWithNewOp<complex::MulOp>(op, negativeI, logResult);
+    rewriter.replaceOpWithNewOp<complex::MulOp>(op, negativeI, logResult, fmf);
     return success();
   }
 };
@@ -195,6 +174,7 @@ struct TrigonometricOpConversion : public OpConversionPattern<TrigonometricOp> {
     auto loc = op.getLoc();
     auto type = cast<ComplexType>(adaptor.getComplex().getType());
     auto elementType = cast<FloatType>(type.getElementType());
+    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
 
     Value real =
         rewriter.create<complex::ReOp>(loc, elementType, adaptor.getComplex());
@@ -206,14 +186,14 @@ struct TrigonometricOpConversion : public OpConversionPattern<TrigonometricOp> {
     // implementation in the subclass to combine them.
     Value half = rewriter.create<arith::ConstantOp>(
         loc, elementType, rewriter.getFloatAttr(elementType, 0.5));
-    Value exp = rewriter.create<math::ExpOp>(loc, imag);
-    Value scaledExp = rewriter.create<arith::MulFOp>(loc, half, exp);
-    Value reciprocalExp = rewriter.create<arith::DivFOp>(loc, half, exp);
-    Value sin = rewriter.create<math::SinOp>(loc, real);
-    Value cos = rewriter.create<math::CosOp>(loc, real);
+    Value exp = rewriter.create<math::ExpOp>(loc, imag, fmf);
+    Value scaledExp = rewriter.create<arith::MulFOp>(loc, half, exp, fmf);
+    Value reciprocalExp = rewriter.create<arith::DivFOp>(loc, half, exp, fmf);
+    Value sin = rewriter.create<math::SinOp>(loc, real, fmf);
+    Value cos = rewriter.create<math::CosOp>(loc, real, fmf);
 
     auto resultPair =
-        combine(loc, scaledExp, reciprocalExp, sin, cos, rewriter);
+        combine(loc, scaledExp, reciprocalExp, sin, cos, rewriter, fmf);
 
     rewriter.replaceOpWithNewOp<complex::CreateOp>(op, type, resultPair.first,
                                                    resultPair.second);
@@ -222,15 +202,17 @@ struct TrigonometricOpConversion : public OpConversionPattern<TrigonometricOp> {
 
   virtual std::pair<Value, Value>
   combine(Location loc, Value scaledExp, Value reciprocalExp, Value sin,
-          Value cos, ConversionPatternRewriter &rewriter) const = 0;
+          Value cos, ConversionPatternRewriter &rewriter,
+          arith::FastMathFlagsAttr fmf) const = 0;
 };
 
 struct CosOpConversion : public TrigonometricOpConversion<complex::CosOp> {
   using TrigonometricOpConversion<complex::CosOp>::TrigonometricOpConversion;
 
-  std::pair<Value, Value>
-  combine(Location loc, Value scaledExp, Value reciprocalExp, Value sin,
-          Value cos, ConversionPatternRewriter &rewriter) const override {
+  std::pair<Value, Value> combine(Location loc, Value scaledExp,
+                                  Value reciprocalExp, Value sin, Value cos,
+                                  ConversionPatternRewriter &rewriter,
+                                  arith::FastMathFlagsAttr fmf) const override {
     // Complex cosine is defined as;
     //   cos(x + iy) = 0.5 * (exp(i(x + iy)) + exp(-i(x + iy)))
     // Plugging in:
@@ -240,10 +222,12 @@ struct CosOpConversion : public TrigonometricOpConversion<complex::CosOp> {
     // We get:
     //   Re(cos(x + iy)) = (0.5/t + 0.5*t) * cos x
     //   Im(cos(x + iy)) = (0.5/t - 0.5*t) * sin x
-    Value sum = rewriter.create<arith::AddFOp>(loc, reciprocalExp, scaledExp);
-    Value resultReal = rewriter.create<arith::MulFOp>(loc, sum, cos);
-    Value diff = rewriter.create<arith::SubFOp>(loc, reciprocalExp, scaledExp);
-    Value resultImag = rewriter.create<arith::MulFOp>(loc, diff, sin);
+    Value sum =
+        rewriter.create<arith::AddFOp>(loc, reciprocalExp, scaledExp, fmf);
+    Value resultReal = rewriter.create<arith::MulFOp>(loc, sum, cos, fmf);
+    Value diff =
+        rewriter.create<arith::SubFOp>(loc, reciprocalExp, scaledExp, fmf);
+    Value resultImag = rewriter.create<arith::MulFOp>(loc, diff, sin, fmf);
     return {resultReal, resultImag};
   }
 };
@@ -564,37 +548,40 @@ struct Log1pOpConversion : public OpConversionPattern<complex::Log1pOp> {
                   ConversionPatternRewriter &rewriter) const override {
     auto type = cast<ComplexType>(adaptor.getComplex().getType());
     auto elementType = cast<FloatType>(type.getElementType());
-    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
+    arith::FastMathFlags fmf = op.getFastMathFlagsAttr().getValue();
     mlir::ImplicitLocOpBuilder b(op.getLoc(), rewriter);
 
-    Value real = b.create<complex::ReOp>(elementType, adaptor.getComplex());
-    Value imag = b.create<complex::ImOp>(elementType, adaptor.getComplex());
+    Value real = b.create<complex::ReOp>(adaptor.getComplex());
+    Value imag = b.create<complex::ImOp>(adaptor.getComplex());
 
     Value half = b.create<arith::ConstantOp>(elementType,
                                              b.getFloatAttr(elementType, 0.5));
     Value one = b.create<arith::ConstantOp>(elementType,
                                             b.getFloatAttr(elementType, 1));
-    Value two = b.create<arith::ConstantOp>(elementType,
-                                            b.getFloatAttr(elementType, 2));
+    Value realPlusOne = b.create<arith::AddFOp>(real, one, fmf);
+    Value absRealPlusOne = b.create<math::AbsFOp>(realPlusOne, fmf);
+    Value absImag = b.create<math::AbsFOp>(imag, fmf);
 
-    // log1p(a+bi) = .5*log((a+1)^2+b^2) + i*atan2(b, a + 1)
-    // log((a+1)+bi) = .5*log(a*a + 2*a + 1 + b*b) + i*atan2(b, a+1)
-    // log((a+1)+bi) = .5*log1p(a*a + 2*a + b*b) + i*atan2(b, a+1)
-    Value sumSq = b.create<arith::MulFOp>(real, real, fmf.getValue());
-    sumSq = b.create<arith::AddFOp>(
-        sumSq, b.create<arith::MulFOp>(real, two, fmf.getValue()),
-        fmf.getValue());
-    sumSq = b.create<arith::AddFOp>(
-        sumSq, b.create<arith::MulFOp>(imag, imag, fmf.getValue()),
-        fmf.getValue());
-    Value logSumSq =
-        b.create<math::Log1pOp>(elementType, sumSq, fmf.getValue());
-    Value resultReal = b.create<arith::MulFOp>(logSumSq, half, fmf.getValue());
+    Value maxAbs = b.create<arith::MaximumFOp>(absRealPlusOne, absImag, fmf);
+    Value minAbs = b.create<arith::MinimumFOp>(absRealPlusOne, absImag, fmf);
 
-    Value realPlusOne = b.create<arith::AddFOp>(real, one, fmf.getValue());
-
-    Value resultImag =
-        b.create<math::Atan2Op>(elementType, imag, realPlusOne, fmf.getValue());
+    Value useReal = b.create<arith::CmpFOp>(arith::CmpFPredicate::OGT,
+                                            realPlusOne, absImag, fmf);
+    Value maxMinusOne = b.create<arith::SubFOp>(maxAbs, one, fmf);
+    Value maxAbsOfRealPlusOneAndImagMinusOne =
+        b.create<arith::SelectOp>(useReal, real, maxMinusOne);
+    Value minMaxRatio = b.create<arith::DivFOp>(minAbs, maxAbs, fmf);
+    Value logOfMaxAbsOfRealPlusOneAndImag =
+        b.create<math::Log1pOp>(maxAbsOfRealPlusOneAndImagMinusOne, fmf);
+    Value logOfSqrtPart = b.create<math::Log1pOp>(
+        b.create<arith::MulFOp>(minMaxRatio, minMaxRatio, fmf), fmf);
+    Value r = b.create<arith::AddFOp>(
+        b.create<arith::MulFOp>(half, logOfSqrtPart, fmf),
+        logOfMaxAbsOfRealPlusOneAndImag, fmf);
+    Value resultReal = b.create<arith::SelectOp>(
+        b.create<arith::CmpFOp>(arith::CmpFPredicate::UNO, r, r, fmf), minAbs,
+        r);
+    Value resultImag = b.create<math::Atan2Op>(imag, realPlusOne, fmf);
     rewriter.replaceOpWithNewOp<complex::CreateOp>(op, type, resultReal,
                                                    resultImag);
     return success();
@@ -812,9 +799,10 @@ struct NegOpConversion : public OpConversionPattern<complex::NegOp> {
 struct SinOpConversion : public TrigonometricOpConversion<complex::SinOp> {
   using TrigonometricOpConversion<complex::SinOp>::TrigonometricOpConversion;
 
-  std::pair<Value, Value>
-  combine(Location loc, Value scaledExp, Value reciprocalExp, Value sin,
-          Value cos, ConversionPatternRewriter &rewriter) const override {
+  std::pair<Value, Value> combine(Location loc, Value scaledExp,
+                                  Value reciprocalExp, Value sin, Value cos,
+                                  ConversionPatternRewriter &rewriter,
+                                  arith::FastMathFlagsAttr fmf) const override {
     // Complex sine is defined as;
     //   sin(x + iy) = -0.5i * (exp(i(x + iy)) - exp(-i(x + iy)))
     // Plugging in:
@@ -824,10 +812,12 @@ struct SinOpConversion : public TrigonometricOpConversion<complex::SinOp> {
     // We get:
     //   Re(sin(x + iy)) = (0.5*t + 0.5/t) * sin x
     //   Im(cos(x + iy)) = (0.5*t - 0.5/t) * cos x
-    Value sum = rewriter.create<arith::AddFOp>(loc, scaledExp, reciprocalExp);
-    Value resultReal = rewriter.create<arith::MulFOp>(loc, sum, sin);
-    Value diff = rewriter.create<arith::SubFOp>(loc, scaledExp, reciprocalExp);
-    Value resultImag = rewriter.create<arith::MulFOp>(loc, diff, cos);
+    Value sum =
+        rewriter.create<arith::AddFOp>(loc, scaledExp, reciprocalExp, fmf);
+    Value resultReal = rewriter.create<arith::MulFOp>(loc, sum, sin, fmf);
+    Value diff =
+        rewriter.create<arith::SubFOp>(loc, scaledExp, reciprocalExp, fmf);
+    Value resultImag = rewriter.create<arith::MulFOp>(loc, diff, cos, fmf);
     return {resultReal, resultImag};
   }
 };
@@ -844,6 +834,7 @@ struct SqrtOpConversion : public OpConversionPattern<complex::SqrtOp> {
     auto type = cast<ComplexType>(op.getType());
     Type elementType = type.getElementType();
     Value arg = adaptor.getComplex();
+    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
 
     Value zero =
         b.create<arith::ConstantOp>(elementType, b.getZeroAttr(elementType));
@@ -851,14 +842,14 @@ struct SqrtOpConversion : public OpConversionPattern<complex::SqrtOp> {
     Value real = b.create<complex::ReOp>(elementType, adaptor.getComplex());
     Value imag = b.create<complex::ImOp>(elementType, adaptor.getComplex());
 
-    Value absLhs = b.create<math::AbsFOp>(real);
-    Value absArg = b.create<complex::AbsOp>(elementType, arg);
-    Value addAbs = b.create<arith::AddFOp>(absLhs, absArg);
+    Value absLhs = b.create<math::AbsFOp>(real, fmf);
+    Value absArg = b.create<complex::AbsOp>(elementType, arg, fmf);
+    Value addAbs = b.create<arith::AddFOp>(absLhs, absArg, fmf);
 
     Value half = b.create<arith::ConstantOp>(elementType,
                                              b.getFloatAttr(elementType, 0.5));
-    Value halfAddAbs = b.create<arith::MulFOp>(addAbs, half);
-    Value sqrtAddAbs = b.create<math::SqrtOp>(halfAddAbs);
+    Value halfAddAbs = b.create<arith::MulFOp>(addAbs, half, fmf);
+    Value sqrtAddAbs = b.create<math::SqrtOp>(halfAddAbs, fmf);
 
     Value realIsNegative =
         b.create<arith::CmpFOp>(arith::CmpFPredicate::OLT, real, zero);
@@ -868,7 +859,7 @@ struct SqrtOpConversion : public OpConversionPattern<complex::SqrtOp> {
     Value resultReal = sqrtAddAbs;
 
     Value imagDivTwoResultReal = b.create<arith::DivFOp>(
-        imag, b.create<arith::AddFOp>(resultReal, resultReal));
+        imag, b.create<arith::AddFOp>(resultReal, resultReal, fmf), fmf);
 
     Value negativeResultReal = b.create<arith::NegFOp>(resultReal);
 
@@ -881,7 +872,7 @@ struct SqrtOpConversion : public OpConversionPattern<complex::SqrtOp> {
     resultReal = b.create<arith::SelectOp>(
         realIsNegative,
         b.create<arith::DivFOp>(
-            imag, b.create<arith::AddFOp>(resultImag, resultImag)),
+            imag, b.create<arith::AddFOp>(resultImag, resultImag, fmf), fmf),
         resultReal);
 
     Value realIsZero =
@@ -908,6 +899,7 @@ struct SignOpConversion : public OpConversionPattern<complex::SignOp> {
     auto type = cast<ComplexType>(adaptor.getComplex().getType());
     auto elementType = cast<FloatType>(type.getElementType());
     mlir::ImplicitLocOpBuilder b(op.getLoc(), rewriter);
+    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
 
     Value real = b.create<complex::ReOp>(elementType, adaptor.getComplex());
     Value imag = b.create<complex::ImOp>(elementType, adaptor.getComplex());
@@ -918,9 +910,9 @@ struct SignOpConversion : public OpConversionPattern<complex::SignOp> {
     Value imagIsZero =
         b.create<arith::CmpFOp>(arith::CmpFPredicate::OEQ, imag, zero);
     Value isZero = b.create<arith::AndIOp>(realIsZero, imagIsZero);
-    auto abs = b.create<complex::AbsOp>(elementType, adaptor.getComplex());
-    Value realSign = b.create<arith::DivFOp>(real, abs);
-    Value imagSign = b.create<arith::DivFOp>(imag, abs);
+    auto abs = b.create<complex::AbsOp>(elementType, adaptor.getComplex(), fmf);
+    Value realSign = b.create<arith::DivFOp>(real, abs, fmf);
+    Value imagSign = b.create<arith::DivFOp>(imag, abs, fmf);
     Value sign = b.create<complex::CreateOp>(type, realSign, imagSign);
     rewriter.replaceOpWithNewOp<arith::SelectOp>(op, isZero,
                                                  adaptor.getComplex(), sign);
@@ -935,9 +927,11 @@ struct TanOpConversion : public OpConversionPattern<complex::TanOp> {
   matchAndRewrite(complex::TanOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    Value cos = rewriter.create<complex::CosOp>(loc, adaptor.getComplex());
-    Value sin = rewriter.create<complex::SinOp>(loc, adaptor.getComplex());
-    rewriter.replaceOpWithNewOp<complex::DivOp>(op, sin, cos);
+    arith::FastMathFlagsAttr fmf = op.getFastMathFlagsAttr();
+
+    Value cos = rewriter.create<complex::CosOp>(loc, adaptor.getComplex(), fmf);
+    Value sin = rewriter.create<complex::SinOp>(loc, adaptor.getComplex(), fmf);
+    rewriter.replaceOpWithNewOp<complex::DivOp>(op, sin, cos, fmf);
     return success();
   }
 };

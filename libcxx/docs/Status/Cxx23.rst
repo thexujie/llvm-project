@@ -43,6 +43,7 @@ Paper Status
    .. [#note-P0533R9] P0533R9: ``isfinite``, ``isinf``, ``isnan`` and ``isnormal`` are implemented.
    .. [#note-P1413R3] P1413R3: ``std::aligned_storage_t`` and ``std::aligned_union_t`` are marked deprecated, but
       clang doesn't issue a diagnostic for deprecated using template declarations.
+   .. [#note-P2387R3] P2387R3: ``bind_back`` only
    .. [#note-P2520R0] P2520R0: Libc++ implemented this paper as a DR in C++20 as well.
    .. [#note-P2441R2] P2441R2: ``views::join_with`` cannot be used in constant expressions (depends on P2231R1).
    .. [#note-P2693R1] P2693R1: The formatter for ``std::thread::id`` is implemented.
@@ -63,3 +64,4 @@ Library Working Group Issues Status
 
    .. [#note-LWG3750] LWG3750 Only ``__cpp_lib_format_ranges`` is fully implemented.
    .. [#note-LWG3798] LWG3798: ``zip_transform_view`` and ``adjacent_transform_view`` haven't been done yet since these types aren't implemented yet.
+   .. [#note-LWG3036] LWG3036: This issue was reverted by P2875R4
