@@ -179,17 +179,33 @@ bool VPRecipeBase::mayHaveSideEffects() const {
 }
 
 void VPLiveOut::fixPhi(VPlan &Plan, VPTransformState &State) {
-  auto Lane = VPLane::getLastLaneForVF(State.VF);
   VPValue *ExitValue = getOperand(0);
-  if (vputils::isUniformAfterVectorization(ExitValue))
-    Lane = VPLane::getFirstLane();
-  VPBasicBlock *MiddleVPBB =
-      cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getSingleSuccessor());
-  assert(MiddleVPBB->getNumSuccessors() == 0 &&
-         "the middle block must not have any successors");
-  BasicBlock *MiddleBB = State.CFG.VPBB2IRBB[MiddleVPBB];
-  Phi->addIncoming(State.get(ExitValue, VPIteration(State.UF - 1, Lane)),
-                   MiddleBB);
+  VPLane Lane = VPLane::getFirstLane();
+  if (!vputils::isUniformAfterVectorization(ExitValue))
+    Lane = VPLane::getLastLaneForVF(State.VF);
+
+  VPBasicBlock *ExitVPBB;
+  if (EarlyExit)
+    ExitVPBB = cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getEarlyExit());
+  else
+    ExitVPBB =
+        cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getSingleSuccessor());
+  assert(ExitVPBB->getNumSuccessors() == 0 &&
+         "the middle or early exit block must not have any successors");
+
+  Value *NewIncoming = nullptr;
+  if (!Lane.isFirstLane() && EarlyExit) {
+    assert(State.UF == 1 && "Early exits unsupported for unrolled loops");
+    NewIncoming = State.get(ExitValue, 0);
+    Value *EarlyExitMask = Plan.getVectorLoopRegion()->getEarlyExitMask(&State);
+    Value *Ctz = State.Builder.CreateCountTrailingZeroElems(
+        State.Builder.getInt64Ty(), EarlyExitMask);
+    NewIncoming = State.Builder.CreateExtractElement(NewIncoming, Ctz);
+  } else
+    NewIncoming = State.get(ExitValue, VPIteration(State.UF - 1, Lane));
+
+  BasicBlock *ExitBB = State.CFG.VPBB2IRBB[ExitVPBB];
+  Phi->addIncoming(NewIncoming, ExitBB);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -282,6 +298,8 @@ bool VPInstruction::doesGeneratePerAllLanes() const {
   return Opcode == VPInstruction::PtrAdd && !vputils::onlyFirstLaneUsed(this);
 }
 
+// TODO: Can this function be made static given it's only ever called from one
+// place in this file?
 bool VPInstruction::canGenerateScalarForFirstLane() const {
   if (Instruction::isBinaryOp(getOpcode()))
     return true;
@@ -292,6 +310,7 @@ bool VPInstruction::canGenerateScalarForFirstLane() const {
   case VPInstruction::CalculateTripCountMinusVF:
   case VPInstruction::CanonicalIVIncrementForPart:
   case VPInstruction::ComputeReductionResult:
+  case VPInstruction::OrReduction:
   case VPInstruction::PtrAdd:
   case VPInstruction::ExplicitVectorLength:
     return true;
@@ -558,6 +577,10 @@ Value *VPInstruction::generatePerPart(VPTransformState &State, unsigned Part) {
     Value *Addend = State.get(getOperand(1), Part, /* IsScalar */ true);
     return Builder.CreatePtrAdd(Ptr, Addend, Name);
   }
+  case VPInstruction::OrReduction: {
+    Value *Val = State.get(getOperand(0), Part);
+    return Builder.CreateOrReduce(Val);
+  }
   default:
     llvm_unreachable("Unsupported opcode for instruction");
   }
@@ -586,7 +609,8 @@ void VPInstruction::execute(VPTransformState &State) {
   bool GeneratesPerFirstLaneOnly =
       canGenerateScalarForFirstLane() &&
       (vputils::onlyFirstLaneUsed(this) ||
-       getOpcode() == VPInstruction::ComputeReductionResult);
+       getOpcode() == VPInstruction::ComputeReductionResult ||
+       getOpcode() == VPInstruction::OrReduction);
   bool GeneratesPerAllLanes = doesGeneratePerAllLanes();
   for (unsigned Part = 0; Part < State.UF; ++Part) {
     if (GeneratesPerAllLanes) {
@@ -685,6 +709,9 @@ void VPInstruction::print(raw_ostream &O, const Twine &Indent,
     break;
   case VPInstruction::PtrAdd:
     O << "ptradd";
+    break;
+  case VPInstruction::OrReduction:
+    O << "or reduction";
     break;
   default:
     O << Instruction::getOpcodeName(getOpcode());

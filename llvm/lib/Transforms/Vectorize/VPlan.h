@@ -79,7 +79,8 @@ Value *createStepForVF(IRBuilderBase &B, Type *Ty, ElementCount VF,
                        int64_t Step);
 
 const SCEV *createTripCountSCEV(Type *IdxTy, PredicatedScalarEvolution &PSE,
-                                Loop *CurLoop = nullptr);
+                                Loop *CurLoop = nullptr,
+                                bool IsSpeculative = false);
 
 /// A range of powers-of-2 vectorization factors with fixed start and
 /// adjustable end. The range includes start and excludes end, e.g.,:
@@ -669,9 +670,14 @@ public:
 class VPLiveOut : public VPUser {
   PHINode *Phi;
 
+  /// Is this a live-out value specifically for an early exit from the vector
+  /// loop? If so, it needs handling specially.
+  bool EarlyExit;
+
 public:
-  VPLiveOut(PHINode *Phi, VPValue *Op)
-      : VPUser({Op}, VPUser::VPUserID::LiveOut), Phi(Phi) {}
+  VPLiveOut(PHINode *Phi, VPValue *Op, bool EarlyExit = false)
+      : VPUser({Op}, VPUser::VPUserID::LiveOut), Phi(Phi),
+        EarlyExit(EarlyExit) {}
 
   static inline bool classof(const VPUser *U) {
     return U->getVPUserID() == VPUser::VPUserID::LiveOut;
@@ -1180,6 +1186,7 @@ public:
     // operand). Only generates scalar values (either for the first lane only or
     // for all lanes, depending on its uses).
     PtrAdd,
+    OrReduction,
   };
 
 private:
@@ -2938,7 +2945,9 @@ private:
 };
 
 /// VPRegionBlock represents a collection of VPBasicBlocks and VPRegionBlocks
-/// which form a Single-Entry-Single-Exiting subgraph of the output IR CFG.
+/// which form a Single-Entry-Single-Exiting or Single-Entry-Multiple-Exiting
+/// subgraph of the output IR CFG. For the multiple-exiting case we currently
+/// only support a total of two exits and the early exit is tracked separately.
 /// A VPRegionBlock may indicate that its contents are to be replicated several
 /// times. This is designed to support predicated scalarization, in which a
 /// scalar if-then code structure needs to be generated VF * UF times. Having
@@ -2953,6 +2962,18 @@ class VPRegionBlock : public VPBlockBase {
   /// VPRegionBlock.
   VPBlockBase *Exiting;
 
+  /// Hold the Early Exiting block of the SEME region, if one exists.
+  VPBlockBase *EarlyExit;
+
+  /// We need to keep track of the early exit block from the original scalar
+  /// loop in order to update the dominator tree correctly, since the vector
+  /// early exit will also jump to the original.
+  BasicBlock *OrigEarlyExit;
+
+  /// If one exists, this keeps track of the vector early mask that triggered
+  /// the early exit.
+  VPValue *VectorEarlyExitCond;
+
   /// An indicator whether this region is to generate multiple replicated
   /// instances of output IR corresponding to its VPBlockBases.
   bool IsReplicator;
@@ -2961,7 +2982,8 @@ public:
   VPRegionBlock(VPBlockBase *Entry, VPBlockBase *Exiting,
                 const std::string &Name = "", bool IsReplicator = false)
       : VPBlockBase(VPRegionBlockSC, Name), Entry(Entry), Exiting(Exiting),
-        IsReplicator(IsReplicator) {
+        EarlyExit(nullptr), OrigEarlyExit(nullptr),
+        VectorEarlyExitCond(nullptr), IsReplicator(IsReplicator) {
     assert(Entry->getPredecessors().empty() && "Entry block has predecessors.");
     assert(Exiting->getSuccessors().empty() && "Exit block has successors.");
     Entry->setParent(this);
@@ -2969,7 +2991,8 @@ public:
   }
   VPRegionBlock(const std::string &Name = "", bool IsReplicator = false)
       : VPBlockBase(VPRegionBlockSC, Name), Entry(nullptr), Exiting(nullptr),
-        IsReplicator(IsReplicator) {}
+        EarlyExit(nullptr), OrigEarlyExit(nullptr),
+        VectorEarlyExitCond(nullptr), IsReplicator(IsReplicator) {}
 
   ~VPRegionBlock() override {
     if (Entry) {
@@ -2986,6 +3009,14 @@ public:
 
   const VPBlockBase *getEntry() const { return Entry; }
   VPBlockBase *getEntry() { return Entry; }
+
+  /// Returns the early exit vector mask, if one exists.
+  Value *getEarlyExitMask(VPTransformState *State) {
+    return VectorEarlyExitCond ? State->get(VectorEarlyExitCond, 0) : nullptr;
+  }
+
+  /// Sets the early exit vector mask.
+  void setVectorEarlyExitCond(VPValue *V) { VectorEarlyExitCond = V; }
 
   /// Set \p EntryBlock as the entry VPBlockBase of this VPRegionBlock. \p
   /// EntryBlock must have no predecessors.
@@ -3007,6 +3038,22 @@ public:
     Exiting = ExitingBlock;
     ExitingBlock->setParent(this);
   }
+
+  void setEarlyExit(VPBlockBase *ExitBlock) {
+    assert(ExitBlock->getSuccessors().empty() &&
+           "Exit block cannot have successors.");
+    EarlyExit = ExitBlock;
+    ExitBlock->setParent(this);
+  }
+
+  const VPBlockBase *getEarlyExit() const { return EarlyExit; }
+  VPBlockBase *getEarlyExit() { return EarlyExit; }
+
+  void setOrigEarlyExit(BasicBlock *EarlyExitBlock) {
+    OrigEarlyExit = EarlyExitBlock;
+  }
+
+  BasicBlock *getOrigEarlyExit() { return OrigEarlyExit; }
 
   /// Returns the pre-header VPBasicBlock of the loop region.
   VPBasicBlock *getPreheaderVPBB() {
@@ -3093,6 +3140,9 @@ class VPlan {
 
   /// Values used outside the plan.
   MapVector<PHINode *, VPLiveOut *> LiveOuts;
+
+  /// Values used outside the plan.
+  MapVector<PHINode *, VPLiveOut *> EarlyExitLiveOuts;
 
   /// Mapping from SCEVs to the VPValues representing their expansions.
   /// NOTE: This mapping is temporary and will be removed once all users have
@@ -3258,6 +3308,17 @@ public:
     return LiveOuts;
   }
 
+  void addEarlyExitLiveOut(PHINode *PN, VPValue *V);
+
+  void removeEarlyExitLiveOut(PHINode *PN) {
+    delete EarlyExitLiveOuts[PN];
+    EarlyExitLiveOuts.erase(PN);
+  }
+
+  const MapVector<PHINode *, VPLiveOut *> &getEarlyExitLiveOuts() const {
+    return EarlyExitLiveOuts;
+  }
+
   VPValue *getSCEVExpansion(const SCEV *S) const {
     return SCEVToExpansion.lookup(S);
   }
@@ -3280,7 +3341,10 @@ private:
   /// that was created between it and the latch block, inclusive.
   static void updateDominatorTree(DominatorTree *DT, BasicBlock *LoopLatchBB,
                                   BasicBlock *LoopPreHeaderBB,
-                                  BasicBlock *LoopExitBB);
+                                  BasicBlock *LoopExitBB,
+                                  BasicBlock *VectorLoopEarlyExitingBB,
+                                  BasicBlock *VectorLoopEarlyExitBB,
+                                  BasicBlock *OrigEarlyExitBB);
 };
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)

@@ -159,6 +159,16 @@ BlockT *LoopBase<BlockT, LoopT>::getUniqueExitBlock() const {
   return getExitBlockHelper(this, true).first;
 }
 
+template <class BlockT, class LoopT>
+BlockT *LoopBase<BlockT, LoopT>::getLatchExitBlock() const {
+  BlockT *Latch = getLoopLatch();
+  assert(Latch && "Latch block must exists");
+  for (BlockT *Successor : children<BlockT *>(Latch))
+    if (!contains(Successor))
+      return Successor;
+  return nullptr;
+}
+
 /// getExitEdges - Return all pairs of (_inside_block_,_outside_block_).
 template <class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::getExitEdges(

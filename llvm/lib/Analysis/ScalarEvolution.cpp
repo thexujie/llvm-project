@@ -8276,10 +8276,13 @@ const SCEV *ScalarEvolution::getExitCount(const Loop *L,
   llvm_unreachable("Invalid ExitCountKind!");
 }
 
-const SCEV *
-ScalarEvolution::getPredicatedBackedgeTakenCount(const Loop *L,
-                                                 SmallVector<const SCEVPredicate *, 4> &Preds) {
-  return getPredicatedBackedgeTakenInfo(L).getExact(L, this, &Preds);
+const SCEV *ScalarEvolution::getPredicatedBackedgeTakenCount(
+    const Loop *L, SmallVector<const SCEVPredicate *, 4> &Preds,
+    bool Speculative) {
+  if (Speculative)
+    return getPredicatedBackedgeTakenInfo(L).getSpeculative(L, this, &Preds);
+  else
+    return getPredicatedBackedgeTakenInfo(L).getExact(L, this, &Preds);
 }
 
 const SCEV *ScalarEvolution::getBackedgeTakenCount(const Loop *L,
@@ -8592,6 +8595,66 @@ ScalarEvolution::BackedgeTakenInfo::getExact(const Loop *L, ScalarEvolution *SE,
     assert((Preds || ENT.hasAlwaysTruePredicate()) &&
            "Predicate should be always true!");
   }
+
+  // If an earlier exit exits on the first iteration (exit count zero), then
+  // a later poison exit count should not propagate into the result. This are
+  // exactly the semantics provided by umin_seq.
+  return SE->getUMinFromMismatchedTypes(Ops, /* Sequential */ true);
+}
+
+void ScalarEvolution::BackedgeTakenInfo::getExactExitingBlocks(
+    const Loop *L, ScalarEvolution *SE,
+    SmallVector<BasicBlock *, 4> *Blocks) const {
+  // All exiting blocks we have collected must dominate the only backedge.
+  const BasicBlock *Latch = L->getLoopLatch();
+  if (!Latch || !hasAnyInfo())
+    return;
+
+  for (const auto &ENT : ExitNotTaken) {
+    const SCEV *BECount = ENT.ExactNotTaken;
+    if (BECount == SE->getCouldNotCompute())
+      continue;
+    Blocks->push_back(ENT.ExitingBlock);
+  }
+
+  return;
+}
+
+const SCEV *ScalarEvolution::BackedgeTakenInfo::getSpeculative(
+    const Loop *L, ScalarEvolution *SE,
+    SmallVector<const SCEVPredicate *, 4> *Preds) const {
+  // All exiting blocks we have collected must dominate the only backedge.
+  const BasicBlock *Latch = L->getLoopLatch();
+  if (!Latch)
+    return SE->getCouldNotCompute();
+
+  if (!hasAnyInfo())
+    return SE->getCouldNotCompute();
+
+  // All exiting blocks we have gathered dominate loop's latch, so speculative
+  // trip count is simply a minimum out of all these calculated exit counts.
+  SmallVector<const SCEV *, 2> Ops;
+  bool FoundLatch = false;
+  for (const auto &ENT : ExitNotTaken) {
+    const SCEV *BECount = ENT.ExactNotTaken;
+    if (BECount == SE->getCouldNotCompute())
+      continue;
+
+    assert(SE->DT.dominates(ENT.ExitingBlock, Latch) &&
+           "We should only have known counts for exiting blocks that dominate "
+           "latch!");
+    Ops.push_back(BECount);
+    if (Preds)
+      for (const auto *P : ENT.Predicates)
+        Preds->push_back(P);
+    assert((Preds || ENT.hasAlwaysTruePredicate()) &&
+           "Predicate should be always true!");
+    if (ENT.ExitingBlock == Latch)
+      FoundLatch = true;
+  }
+
+  if (!FoundLatch)
+    return SE->getCouldNotCompute();
 
   // If an earlier exit exits on the first iteration (exit count zero), then
   // a later poison exit count should not propagate into the result. This are
@@ -13564,8 +13627,15 @@ static void PrintLoopInfo(raw_ostream &OS, ScalarEvolution *SE,
     if (!isa<SCEVCouldNotCompute>(PBT)) {
       OS << "Predicated backedge-taken count is ";
       PrintSCEVWithTypeHint(OS, PBT);
-    } else
-      OS << "Unpredictable predicated backedge-taken count.";
+    } else {
+      SmallVector<const SCEVPredicate *, 4> SpecPreds;
+      PBT = SE->getPredicatedBackedgeTakenCount(L, SpecPreds);
+      if (!isa<SCEVCouldNotCompute>(PBT)) {
+        OS << "Speculative predicated backedge-taken count is ";
+        PrintSCEVWithTypeHint(OS, PBT);
+      } else
+        OS << "Unpredictable predicated backedge-taken count.";
+    }
     OS << "\n";
     OS << " Predicates:\n";
     for (const auto *P : Preds)
@@ -14781,6 +14851,18 @@ const SCEV *PredicatedScalarEvolution::getBackedgeTakenCount() {
       addPredicate(*P);
   }
   return BackedgeCount;
+}
+
+const SCEV *PredicatedScalarEvolution::getSpeculativeBackedgeTakenCount() {
+  if (!SpeculativeBackedgeCount) {
+    SmallVector<const SCEVPredicate *, 4> Preds;
+    SpeculativeBackedgeCount =
+        SE.getPredicatedBackedgeTakenCount(&L, Preds, true);
+    // TODO: Should we be adding these to a different set of predicates?
+    for (const auto *P : Preds)
+      addPredicate(*P);
+  }
+  return SpeculativeBackedgeCount;
 }
 
 void PredicatedScalarEvolution::addPredicate(const SCEVPredicate &Pred) {

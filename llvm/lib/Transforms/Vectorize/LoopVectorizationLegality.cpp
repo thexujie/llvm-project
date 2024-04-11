@@ -1498,6 +1498,16 @@ bool LoopVectorizationLegality::canVectorize(bool UseVPlanNativePath) {
       return false;
   }
 
+  if (getLAI() && getLAI()->getSpeculativeEarlyExitingBlock() &&
+      (getReductionVars().size() || getFixedOrderRecurrences().size())) {
+    reportVectorizationFailure(
+        "Found reductions or recurrences in early-exit loop",
+        "vectorizer cannot handle early exit loops with reductions or "
+        "recurrences",
+        "CFGNotUnderstood", ORE, TheLoop);
+    return false;
+  }
+
   LLVM_DEBUG(dbgs() << "LV: We can vectorize this loop"
                     << (LAI->getRuntimePointerChecking()->Need
                             ? " (with a runtime bound check)"

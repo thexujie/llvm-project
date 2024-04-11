@@ -892,9 +892,13 @@ public:
   /// Similar to getBackedgeTakenCount, except it will add a set of
   /// SCEV predicates to Predicates that are required to be true in order for
   /// the answer to be correct. Predicates can be checked with run-time
-  /// checks and can be used to perform loop versioning.
-  const SCEV *getPredicatedBackedgeTakenCount(const Loop *L,
-                                              SmallVector<const SCEVPredicate *, 4> &Predicates);
+  /// checks and can be used to perform loop versioning. If \p Speculative is
+  /// true, this will attempt to return the speculative backedge count for loops
+  /// with early exits. However, this is only possible if we can formulate an
+  /// exact expression for the backedge count from the latch block.
+  const SCEV *getPredicatedBackedgeTakenCount(
+      const Loop *L, SmallVector<const SCEVPredicate *, 4> &Predicates,
+      bool Speculative = false);
 
   /// When successful, this returns a SCEVConstant that is greater than or equal
   /// to (i.e. a "conservative over-approximation") of the value returend by
@@ -910,6 +914,12 @@ public:
   /// SCEVCouldNotCompute object.
   const SCEV *getSymbolicMaxBackedgeTakenCount(const Loop *L) {
     return getBackedgeTakenCount(L, SymbolicMaximum);
+  }
+
+  /// Return all the exiting blocks in with exact exit counts.
+  void getExactExitingBlocks(const Loop *L,
+                             SmallVector<BasicBlock *, 4> *Blocks) {
+    getBackedgeTakenInfo(L).getExactExitingBlocks(L, this, Blocks);
   }
 
   /// Return true if the backedge taken count is either the value returned by
@@ -1534,12 +1544,26 @@ private:
     const SCEV *getExact(const Loop *L, ScalarEvolution *SE,
                          SmallVector<const SCEVPredicate *, 4> *Predicates = nullptr) const;
 
+    /// Similar to the above, except we permit unknown exit counts from
+    /// non-latch exit blocks. Any such early exit blocks must dominate the
+    /// latch and so the returned expression represents the speculative, or
+    /// maximum possible, *backedge-taken* count of the loop. If there is no
+    /// exact exit count for the latch this function returns
+    /// SCEVCouldNotCompute.
+    const SCEV *getSpeculative(
+        const Loop *L, ScalarEvolution *SE,
+        SmallVector<const SCEVPredicate *, 4> *Predicates = nullptr) const;
+
     /// Return the number of times this loop exit may fall through to the back
     /// edge, or SCEVCouldNotCompute. The loop is guaranteed not to exit via
     /// this block before this number of iterations, but may exit via another
     /// block.
     const SCEV *getExact(const BasicBlock *ExitingBlock,
                          ScalarEvolution *SE) const;
+
+    /// Return all the exiting blocks in with exact exit counts.
+    void getExactExitingBlocks(const Loop *L, ScalarEvolution *SE,
+                               SmallVector<BasicBlock *, 4> *Blocks) const;
 
     /// Get the constant max backedge taken count for the loop.
     const SCEV *getConstantMax(ScalarEvolution *SE) const;
@@ -2316,6 +2340,9 @@ public:
   /// Get the (predicated) backedge count for the analyzed loop.
   const SCEV *getBackedgeTakenCount();
 
+  /// Get the (predicated) speculative backedge count for the analyzed loop.
+  const SCEV *getSpeculativeBackedgeTakenCount();
+
   /// Adds a new predicate.
   void addPredicate(const SCEVPredicate &Pred);
 
@@ -2384,6 +2411,9 @@ private:
 
   /// The backedge taken count.
   const SCEV *BackedgeCount = nullptr;
+
+  /// The speculative backedge taken count.
+  const SCEV *SpeculativeBackedgeCount = nullptr;
 };
 
 template <> struct DenseMapInfo<ScalarEvolution::FoldID> {

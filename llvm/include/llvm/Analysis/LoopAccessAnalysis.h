@@ -587,6 +587,9 @@ public:
   /// not legal to insert them.
   bool hasConvergentOp() const { return HasConvergentOp; }
 
+  /// Return true if the loop may fault due to memory accesses.
+  bool mayFault() const { return LoopMayFault; }
+
   const RuntimePointerChecking *getRuntimePointerChecking() const {
     return PtrRtChecking.get();
   }
@@ -607,6 +610,24 @@ public:
 
   unsigned getNumStores() const { return NumStores; }
   unsigned getNumLoads() const { return NumLoads;}
+
+  /// Returns the block that exits early from the loop, if there is one.
+  /// Otherwise returns nullptr.
+  BasicBlock *getSpeculativeEarlyExitingBlock() const {
+    return SpeculativeEarlyExitingBB;
+  }
+
+  /// Returns the successor of the block that exits early from the loop, if
+  /// there is one. Otherwise returns nullptr.
+  BasicBlock *getSpeculativeEarlyExitBlock() const {
+    return SpeculativeEarlyExitBB;
+  }
+
+  /// Returns all blocks with a countable exit, i.e. the exit-not-taken count
+  /// is known exactly at compile time.
+  const SmallVector<BasicBlock *, 4> &getCountableEarlyExitingBlocks() const {
+    return CountableEarlyExitBlocks;
+  }
 
   /// The diagnostics report generated for the analysis.  E.g. why we
   /// couldn't analyze the loop.
@@ -659,6 +680,10 @@ private:
   /// pass.
   bool canAnalyzeLoop();
 
+  /// Returns true if this is a supported early exit loop that we can analyze
+  /// in this pass.
+  bool isAnalyzableEarlyExitLoop();
+
   /// Save the analysis remark.
   ///
   /// LAA does not directly emits the remarks.  Instead it stores it which the
@@ -696,6 +721,17 @@ private:
   /// Cache the result of analyzeLoop.
   bool CanVecMem = false;
   bool HasConvergentOp = false;
+  bool LoopMayFault = false;
+
+  /// Keeps track of the early-exiting block, if present.
+  BasicBlock *SpeculativeEarlyExitingBB = nullptr;
+
+  /// Keeps track of the successor of the early-exiting block, if present.
+  BasicBlock *SpeculativeEarlyExitBB = nullptr;
+
+  /// Keeps track of all the early exits with known or countable exit-not-taken
+  /// counts.
+  SmallVector<BasicBlock *, 4> CountableEarlyExitBlocks;
 
   /// Indicator that there are non vectorizable stores to a uniform address.
   bool HasDependenceInvolvingLoopInvariantAddress = false;

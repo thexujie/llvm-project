@@ -2078,8 +2078,8 @@ Value *SCEVExpander::generateOverflowCheck(const SCEVAddRecExpr *AR,
 
   // FIXME: It is highly suspicious that we're ignoring the predicates here.
   SmallVector<const SCEVPredicate *, 4> Pred;
-  const SCEV *ExitCount =
-      SE.getPredicatedBackedgeTakenCount(AR->getLoop(), Pred);
+  const SCEV *ExitCount = SE.getPredicatedBackedgeTakenCount(
+      AR->getLoop(), Pred, UseSpeculativeBackedgeCount);
 
   assert(!isa<SCEVCouldNotCompute>(ExitCount) && "Invalid loop count");
 

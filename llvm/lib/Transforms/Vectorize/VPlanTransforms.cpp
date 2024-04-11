@@ -681,7 +681,9 @@ void VPlanTransforms::optimizeForVFAndUF(VPlan &Plan, ElementCount BestVF,
 
   Type *IdxTy =
       Plan.getCanonicalIV()->getStartValue()->getLiveInIRValue()->getType();
-  const SCEV *TripCount = createTripCountSCEV(IdxTy, PSE);
+  // FIXME: Need to know if trip count is speculative or not.
+  const SCEV *TripCount = createTripCountSCEV(
+      IdxTy, PSE, nullptr, Plan.getVectorLoopRegion()->getEarlyExit());
   ScalarEvolution &SE = *PSE.getSE();
   ElementCount NumElements = BestVF.multiplyCoefficientBy(BestUF);
   const SCEV *C = SE.getElementCount(TripCount->getType(), NumElements);
