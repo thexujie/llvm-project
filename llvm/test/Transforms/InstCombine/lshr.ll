@@ -193,7 +193,7 @@ define <2 x i8> @shl_add_commute_vec(<2 x i8> %x, <2 x i8> %py) {
 
 define i8 @shl_add2(i8 %x, i8 %y) {
 ; CHECK-LABEL: @shl_add2(
-; CHECK-NEXT:    [[TMP1:%.*]] = lshr i8 [[Y:%.*]], 2
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr exact i8 [[Y:%.*]], 2
 ; CHECK-NEXT:    [[TMP2:%.*]] = add i8 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    [[R:%.*]] = and i8 [[TMP2]], 63
 ; CHECK-NEXT:    ret i8 [[R]]
@@ -206,8 +206,8 @@ define i8 @shl_add2(i8 %x, i8 %y) {
 
 define i8 @double_lshr_exact(i8 %x, i8 %y) {
 ; CHECK-LABEL: @double_lshr_exact(
-; CHECK-NEXT:    [[TMP1:%.*]] = lshr exact i8 [[Y:%.*]], 2
-; CHECK-NEXT:    [[R:%.*]] = lshr exact i8 [[TMP1]], [[Y1:%.*]]
+; CHECK-NEXT:    [[L:%.*]] = lshr exact i8 [[X:%.*]], 2
+; CHECK-NEXT:    [[R:%.*]] = lshr exact i8 [[L]], [[Y:%.*]]
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
   %l = lshr exact i8 %x, 2
@@ -228,8 +228,8 @@ define i8 @double_lshr_no_exact(i8 %x, i8 %y) {
 
 define i8 @double_lshr_no_exact2(i8 %x, i8 %y) {
 ; CHECK-LABEL: @double_lshr_no_exact2(
-; CHECK-NEXT:    [[TMP1:%.*]] = lshr exact i8 [[Y:%.*]], 2
-; CHECK-NEXT:    [[R:%.*]] = lshr i8 [[TMP1]], [[Y1:%.*]]
+; CHECK-NEXT:    [[L:%.*]] = lshr exact i8 [[X:%.*]], 2
+; CHECK-NEXT:    [[R:%.*]] = lshr i8 [[L]], [[Y:%.*]]
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
   %l = lshr exact i8 %x, 2
@@ -237,10 +237,11 @@ define i8 @double_lshr_no_exact2(i8 %x, i8 %y) {
   ret i8 %r
 }
 
+; FIXME: Needs exact, but getShiftedValue doesn't include this
 define i8 @double_lshr_exact2(i8 %x) {
 ; CHECK-LABEL: @double_lshr_exact2(
-; CHECK-NEXT:    [[R:%.*]] = lshr i8 [[X:%.*]], 5
-; CHECK-NEXT:    ret i8 [[R]]
+; CHECK-NEXT:    [[L:%.*]] = lshr i8 [[X:%.*]], 5
+; CHECK-NEXT:    ret i8 [[L]]
 ;
   %l = lshr exact i8 %x, 2
   %r = lshr exact i8 %l, 3
@@ -250,7 +251,7 @@ define i8 @double_lshr_exact2(i8 %x) {
 define <2 x i8> @shl_add_commute_vec2(<2 x i8> %x, <2 x i8> %py) {
 ; CHECK-LABEL: @shl_add_commute_vec2(
 ; CHECK-NEXT:    [[Y:%.*]] = mul <2 x i8> [[PY:%.*]], [[PY]]
-; CHECK-NEXT:    [[TMP1:%.*]] = lshr <2 x i8> [[Y]], <i8 3, i8 3>
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr exact <2 x i8> [[Y]], <i8 3, i8 3>
 ; CHECK-NEXT:    [[TMP2:%.*]] = add <2 x i8> [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    [[R:%.*]] = and <2 x i8> [[TMP2]], <i8 31, i8 31>
 ; CHECK-NEXT:    ret <2 x i8> [[R]]
