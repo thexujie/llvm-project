@@ -110,6 +110,7 @@ Changes to the RISC-V Backend
 * The experimental Ssqosid extension is supported.
 * Zacas is no longer experimental.
 * Added the CSR names from the Resumable Non-Maskable Interrupts (Smrnmi) extension.
+* B (the collection of the Zba, Zbb, Zbs extensions) is supported.
 
 Changes to the WebAssembly Backend
 ----------------------------------
