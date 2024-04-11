@@ -213,6 +213,8 @@ class AArch64FunctionInfo final : public MachineFunctionInfo {
   // on function entry to record the initial pstate of a function.
   Register PStateSMReg = MCRegister::NoRegister;
 
+  // The stack slots where VG values are stored to.
+  int64_t VGIdx = std::numeric_limits<int>::max();
   int64_t StreamingVGIdx = std::numeric_limits<int>::max();
 
 public:
@@ -225,6 +227,9 @@ public:
 
   Register getPStateSMReg() const { return PStateSMReg; };
   void setPStateSMReg(Register Reg) { PStateSMReg = Reg; };
+
+  int64_t getVGIdx() const { return VGIdx; };
+  void setVGIdx(unsigned Idx) { VGIdx = Idx; };
 
   int64_t getStreamingVGIdx() const { return StreamingVGIdx; };
   void setStreamingVGIdx(unsigned Idx) { StreamingVGIdx = Idx; };
