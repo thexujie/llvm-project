@@ -204,6 +204,14 @@
 // CHECK-B-EXT: __riscv_zbs 1000000{{$}}
 
 // RUN: %clang --target=riscv32-unknown-linux-gnu \
+// RUN:   -march=rv32i_zba_zbb_zbs -E -dM %s \
+// RUN:   -o - | FileCheck --check-prefix=CHECK-COMBINE-INTO-B %s
+// RUN: %clang --target=riscv64-unknown-linux-gnu \
+// RUN:   -march=rv64i_zba_zbb_zbs -E -dM %s \
+// RUN:   -o - | FileCheck --check-prefix=CHECK-COMBINE-INTO-B %s
+// CHECK-COMBINE-INTO-B: __riscv_b 1000000{{$}}
+
+// RUN: %clang --target=riscv32-unknown-linux-gnu \
 // RUN:   -march=rv32ic -E -dM %s \
 // RUN:   -o - | FileCheck --check-prefix=CHECK-C-EXT %s
 // RUN: %clang --target=riscv64-unknown-linux-gnu \

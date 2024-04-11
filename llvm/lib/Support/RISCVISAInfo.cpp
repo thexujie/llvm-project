@@ -1294,7 +1294,9 @@ struct CombinedExtsEntry {
   ArrayRef<const char *> RequiredExts;
 };
 
+// clang-format off
 static constexpr CombinedExtsEntry CombineIntoExts[] = {
+    {{"b"}, {ImpliedExtsB}},
     {{"zk"}, {ImpliedExtsZk}},
     {{"zkn"}, {ImpliedExtsZkn}},
     {{"zks"}, {ImpliedExtsZks}},
@@ -1305,6 +1307,7 @@ static constexpr CombinedExtsEntry CombineIntoExts[] = {
     {{"zvksc"}, {ImpliedExtsZvksc}},
     {{"zvksg"}, {ImpliedExtsZvksg}},
 };
+// clang-format on
 
 void RISCVISAInfo::updateCombination() {
   bool IsNewCombine = false;
