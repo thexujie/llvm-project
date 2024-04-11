@@ -2818,7 +2818,7 @@ void CodeGenFunction::EmitRISCVMultiVersionResolver(
 
   if (getContext().getTargetInfo().getTriple().getOS() !=
       llvm::Triple::OSType::Linux) {
-    CGM.getDiags().Report(diag::err_os_unsupport_riscv_hwprobe);
+    CGM.getDiags().Report(diag::err_os_unsupport_riscv_target_clones);
     return;
   }
 
