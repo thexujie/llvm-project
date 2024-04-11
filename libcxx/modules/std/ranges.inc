@@ -159,7 +159,7 @@ export namespace std {
 
     namespace views {
       using std::ranges::views::as_rvalue;
-    }  // namespace views
+    } // namespace views
 #endif // _LIBCPP_STD_VER >= 23
 
     // [range.filter], filter view
@@ -216,7 +216,7 @@ export namespace std {
 
     namespace views {
       using std::ranges::views::join_with;
-    }  // namespace views
+    } // namespace views
 #endif // _LIBCPP_STD_VER >= 23 && defined(_LIBCPP_ENABLE_EXPERIMENTAL)
 
     using std::ranges::lazy_split_view;

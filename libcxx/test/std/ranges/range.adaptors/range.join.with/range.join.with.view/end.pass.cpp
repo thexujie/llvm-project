@@ -63,8 +63,8 @@ constexpr void test_end() {
   constexpr ViewProperties v_props{.simple = v_models_simple_range, .common = v_models_common_range};
   using UnderlyingV = std::conditional_t<inner_range_is_reference, std::vector<InnerRange>, RvalueVector<InnerRange>>;
   using V           = std::conditional_t<v_models_forward_range,
-                               BasicView<UnderlyingV, v_props, forward_iterator>,
-                               BasicView<UnderlyingV, v_props, DefaultCtorInputIter>>;
+                                         BasicView<UnderlyingV, v_props, forward_iterator>,
+                                         BasicView<UnderlyingV, v_props, DefaultCtorInputIter>>;
 
   using UnderlyingPattern = std::vector<int>;
   using Pattern = BasicView<UnderlyingPattern, ViewProperties{.simple = pattern_models_simple_range}, forward_iterator>;
