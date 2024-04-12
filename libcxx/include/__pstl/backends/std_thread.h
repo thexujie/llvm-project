@@ -25,8 +25,8 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __pstl {
 
 //
-// This partial backend implementation is for testing purposes only and not meant for production use. This will be replaced
-// by a proper implementation once the PSTL implementation is somewhat stable.
+// This partial backend implementation is for testing purposes only and not meant for production use. This will be
+// replaced by a proper implementation once the PSTL implementation is somewhat stable.
 //
 // This is intended to be used on top of the "default backend".
 //
