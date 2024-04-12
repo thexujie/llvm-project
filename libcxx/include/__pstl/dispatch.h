@@ -27,12 +27,17 @@ struct __is_implemented<_Algorithm,
                         _ExecutionPolicy,
                         __enable_if_t<sizeof(_Algorithm<_Backend, _ExecutionPolicy>)>> : true_type {};
 
+// Helpful to provide better error messages. This will show the algorithm and the execution policy
+// in the compiler diagnostic.
+template <template <class, class> class _Algorithm, class _ExecutionPolicy>
+constexpr bool __cant_find_backend_for = false;
+
 template <template <class, class> class _Algorithm, class _BackendConfiguration, class _ExecutionPolicy>
 struct __find_first_implemented;
 
 template <template <class, class> class _Algorithm, class _ExecutionPolicy>
 struct __find_first_implemented<_Algorithm, __backend_configuration<>, _ExecutionPolicy> {
-  static_assert(sizeof(_ExecutionPolicy) == 0,
+  static_assert(__cant_find_backend_for<_Algorithm, _ExecutionPolicy>,
                 "Could not find a PSTL backend for the given algorithm and execution policy");
 };
 
