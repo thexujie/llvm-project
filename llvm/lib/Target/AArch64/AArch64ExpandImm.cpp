@@ -509,6 +509,16 @@ static inline void expandMOVImmSimple(uint64_t Imm, unsigned BitSize,
     Imm = ~Imm;
 
   unsigned Opc = (BitSize == 32 ? AArch64::MOVKWi : AArch64::MOVKXi);
+  Shift += 16;
+  Imm16 = (Imm >> Shift) & Mask;
+  if (Imm16 != (isNeg ? Mask : 0))
+    Insn.push_back(
+        {Opc, Imm16, AArch64_AM::getShifterImm(AArch64_AM::LSL, Shift)});
+  if (Imm != 0 && (Imm >> 32) == (Imm & UINT_MAX)) {
+    Insn.push_back({BitSize == 32 ? AArch64::ORRWrs : AArch64::ORRXrs, 0, 32});
+    return;
+  }
+
   while (Shift < LastShift) {
     Shift += 16;
     Imm16 = (Imm >> Shift) & Mask;
