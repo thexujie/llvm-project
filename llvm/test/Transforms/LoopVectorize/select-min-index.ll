@@ -159,8 +159,8 @@ define i64 @test_not_vectorize_select_no_min_reduction(ptr %src, i64 %n) {
 ; CHECK-VF4IC2-NEXT:    [[TMP2:%.*]] = getelementptr i64, ptr [[SRC]], i64 [[TMP0]]
 ; CHECK-VF4IC2-NEXT:    [[TMP3:%.*]] = getelementptr i64, ptr [[SRC]], i64 [[TMP1]]
 ; CHECK-VF4IC2-NEXT:    [[TMP4:%.*]] = getelementptr i64, ptr [[TMP2]], i32 0
-; CHECK-VF4IC2-NEXT:    [[WIDE_LOAD:%.*]] = load <4 x i64>, ptr [[TMP4]], align 4
 ; CHECK-VF4IC2-NEXT:    [[TMP5:%.*]] = getelementptr i64, ptr [[TMP2]], i32 4
+; CHECK-VF4IC2-NEXT:    [[WIDE_LOAD:%.*]] = load <4 x i64>, ptr [[TMP4]], align 4
 ; CHECK-VF4IC2-NEXT:    [[WIDE_LOAD3:%.*]] = load <4 x i64>, ptr [[TMP5]], align 4
 ; CHECK-VF4IC2-NEXT:    [[TMP6:%.*]] = add <4 x i64> [[WIDE_LOAD]], <i64 1, i64 1, i64 1, i64 1>
 ; CHECK-VF4IC2-NEXT:    [[TMP7]] = add <4 x i64> [[WIDE_LOAD3]], <i64 1, i64 1, i64 1, i64 1>
