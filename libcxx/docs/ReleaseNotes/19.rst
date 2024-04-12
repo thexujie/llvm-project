@@ -47,6 +47,8 @@ Implemented Papers
 - P3142R0 - Printing Blank Lines with ``println`` (as DR against C++23)
 - P2302R4 - ``std::ranges::contains``
 - P1659R3 - ``std::ranges::starts_with`` and ``std::ranges::ends_with``
+- P2711R1 - Making multi-param constructors of ``views`` ``explicit``
+- P2770R0 - Stashing stashing ``iterators`` for proper flattening
 
 Improvements and New Features
 -----------------------------
