@@ -33,7 +33,6 @@
 #include <__pstl/cpu_algos/stable_sort.h>
 #include <__pstl/cpu_algos/transform.h>
 #include <__pstl/cpu_algos/transform_reduce.h>
-#include <__pstl/defaults.h>
 #include <__utility/empty.h>
 #include <__utility/exception_guard.h>
 #include <__utility/move.h>
@@ -44,8 +43,6 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __pstl {
-
-struct __libdispatch_backend_tag {};
 
 // ::dispatch_apply is marked as __attribute__((nothrow)) because it doesn't let exceptions propagate, and neither do
 // we.

@@ -17,7 +17,6 @@
 #include <__config>
 #include <__numeric/transform_reduce.h>
 #include <__pstl/backend_fwd.h>
-#include <__pstl/defaults.h>
 #include <__utility/empty.h>
 #include <__utility/forward.h>
 #include <__utility/move.h>
@@ -25,9 +24,17 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __pstl {
 
-struct __serial_backend_tag {};
+//
+// This partial PSTL backend runs everything serially.
+//
+// TODO: Right now, the serial backend must be used with another backend
+//       like the "default backend" because it doesn't implement all the
+//       necessary PSTL operations. It would be better to dispatch all
+//       algorithms to their serial counterpart directly, since this can
+//       often be more efficient than the "default backend"'s implementation
+//       if we end up running serially anyways.
+//
 
-// Mandatory implementations of the computational basis
 template <class _ExecutionPolicy>
 struct __find_if<__serial_backend_tag, _ExecutionPolicy> {
   template <class _Policy, class _ForwardIterator, class _Pred>

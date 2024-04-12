@@ -20,15 +20,16 @@
 #include <__pstl/cpu_algos/stable_sort.h>
 #include <__pstl/cpu_algos/transform.h>
 #include <__pstl/cpu_algos/transform_reduce.h>
-#include <__pstl/defaults.h>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __pstl {
 
-// This backend implementation is for testing purposes only and not meant for production use. This will be replaced
+//
+// This partial backend implementation is for testing purposes only and not meant for production use. This will be replaced
 // by a proper implementation once the PSTL implementation is somewhat stable.
-
-struct __std_thread_backend_tag {};
+//
+// This is intended to be used on top of the "default backend".
+//
 
 template <>
 struct __cpu_traits<__std_thread_backend_tag> {
