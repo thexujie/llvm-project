@@ -18,20 +18,20 @@ define amdgpu_kernel void @k0() {
 ; CHECK:       Malloc:
 ; CHECK-NEXT:    [[TMP20:%.*]] = call ptr addrspace(4) @llvm.amdgcn.implicitarg.ptr()
 ; CHECK-NEXT:    [[TMP21:%.*]] = getelementptr inbounds ptr addrspace(4), ptr addrspace(4) [[TMP20]], i32 15
-; CHECK-NEXT:    [[TMP22:%.*]] = load i64, ptr addrspace(4) [[TMP21]], align 8
 ; CHECK-NEXT:    store i64 0, ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, align 8
-; CHECK-NEXT:    store i64 [[TMP22]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE:%.*]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 1), align 8
-; CHECK-NEXT:    [[TMP23:%.*]] = add i64 0, [[TMP22]]
-; CHECK-NEXT:    [[TMP13:%.*]] = add i64 [[TMP23]], 0
-; CHECK-NEXT:    [[TMP14:%.*]] = udiv i64 [[TMP13]], 1
-; CHECK-NEXT:    [[TMP26:%.*]] = mul i64 [[TMP14]], 1
-; CHECK-NEXT:    [[TMP15:%.*]] = load i64, ptr addrspace(4) [[TMP21]], align 8
-; CHECK-NEXT:    store i64 [[TMP26]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 0), align 8
-; CHECK-NEXT:    store i64 [[TMP15]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 1), align 8
-; CHECK-NEXT:    [[TMP16:%.*]] = add i64 [[TMP26]], [[TMP15]]
+; CHECK-NEXT:    [[TMP16:%.*]] = load i64, ptr addrspace(4) [[TMP21]], align 8
 ; CHECK-NEXT:    [[TMP17:%.*]] = add i64 [[TMP16]], 0
 ; CHECK-NEXT:    [[TMP18:%.*]] = udiv i64 [[TMP17]], 1
-; CHECK-NEXT:    [[TMP19:%.*]] = mul i64 [[TMP18]], 1
+; CHECK-NEXT:    [[TMP22:%.*]] = mul i64 [[TMP18]], 1
+; CHECK-NEXT:    store i64 [[TMP22]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE:%.*]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 1), align 8
+; CHECK-NEXT:    [[TMP23:%.*]] = add i64 0, [[TMP22]]
+; CHECK-NEXT:    store i64 [[TMP23]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 0), align 8
+; CHECK-NEXT:    [[TMP13:%.*]] = load i64, ptr addrspace(4) [[TMP21]], align 8
+; CHECK-NEXT:    [[TMP14:%.*]] = add i64 [[TMP13]], 0
+; CHECK-NEXT:    [[TMP24:%.*]] = udiv i64 [[TMP14]], 1
+; CHECK-NEXT:    [[TMP15:%.*]] = mul i64 [[TMP24]], 1
+; CHECK-NEXT:    store i64 [[TMP15]], ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_K0_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 1), align 8
+; CHECK-NEXT:    [[TMP19:%.*]] = add i64 [[TMP23]], [[TMP15]]
 ; CHECK-NEXT:    [[TMP6:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP19]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP6]], ptr addrspace(3) @llvm.amdgcn.sw.lds.k0, align 8
 ; CHECK-NEXT:    br label [[TMP7]]

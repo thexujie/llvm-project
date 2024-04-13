@@ -31,10 +31,13 @@ define amdgpu_kernel void @my_kernel() {
 ; CHECK-NEXT:    [[TMP5:%.*]] = icmp eq i32 [[TMP4]], 0
 ; CHECK-NEXT:    br i1 [[TMP5]], label [[MALLOC:%.*]], label [[TMP7:%.*]]
 ; CHECK:       Malloc:
-; CHECK-NEXT:    [[TMP6:%.*]] = call ptr addrspace(1) @malloc(i64 4096)
+; CHECK-NEXT:    [[TMP11:%.*]] = load i64, ptr addrspace(1) @llvm.amdgcn.sw.lds.my_kernel.md, align 8
+; CHECK-NEXT:    [[TMP12:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_MY_KERNEL_MD_TYPE:%.*]], ptr addrspace(1) @llvm.amdgcn.sw.lds.my_kernel.md, i32 0, i32 0, i32 1), align 8
+; CHECK-NEXT:    [[TMP13:%.*]] = add i64 [[TMP11]], [[TMP12]]
+; CHECK-NEXT:    [[TMP6:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP13]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP6]], ptr addrspace(3) @llvm.amdgcn.sw.lds.my_kernel, align 8
 ; CHECK-NEXT:    br label [[TMP7]]
-; CHECK:       7:
+; CHECK:       10:
 ; CHECK-NEXT:    [[XYZCOND:%.*]] = phi i1 [ false, [[WID:%.*]] ], [ true, [[MALLOC]] ]
 ; CHECK-NEXT:    call void @llvm.amdgcn.s.barrier()
 ; CHECK-NEXT:    [[TMP8:%.*]] = load i32, ptr addrspace(1) @llvm.amdgcn.sw.lds.my_kernel.md, align 4
