@@ -752,10 +752,6 @@ module std_private_algorithm_pstl_for_each                               [system
   header "__algorithm/pstl_for_each.h"
   export *
 }
-module std_private_algorithm_pstl_frontend_dispatch                      [system] {
-  header "__algorithm/pstl_frontend_dispatch.h"
-  export std_private_utility_forward
-}
 module std_private_algorithm_pstl_generate                               [system] { header "__algorithm/pstl_generate.h" }
 module std_private_algorithm_pstl_is_partitioned                         [system] { header "__algorithm/pstl_is_partitioned.h" }
 module std_private_algorithm_pstl_merge                                  [system] { header "__algorithm/pstl_merge.h" }

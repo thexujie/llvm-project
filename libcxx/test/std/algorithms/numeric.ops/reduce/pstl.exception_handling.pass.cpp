@@ -38,6 +38,7 @@ int main(int, char**) {
       int a[2]{};
       (void)std::reduce(policy, std::begin(a), std::end(a), 1, [](int, int) -> int { throw 1; });
     });
+
     EXPECT_STD_TERMINATE([&] {
       try {
         int a[] = {1, 2};
