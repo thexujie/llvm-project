@@ -1632,6 +1632,26 @@ static void computeKnownBitsFromOperator(const Operator *I,
       case Intrinsic::vector_reduce_smin:
         computeKnownBits(I->getOperand(0), Known, Depth + 1, Q);
         break;
+      case Intrinsic::vector_reduce_mul:
+      case Intrinsic::vector_reduce_add:
+        // We compute the common bits for all elements then apply the reduce op
+        // NumEle times. This is mostly useful for known high zeros.
+        if (auto *VecTy =
+                dyn_cast<FixedVectorType>(I->getOperand(0)->getType())) {
+          computeKnownBits(I->getOperand(0), Known, Depth + 1, Q);
+          KnownBits SingleKnown = Known;
+          for (unsigned i = 1, e = VecTy->getNumElements(); i < e; ++i) {
+            if (Known.isUnknown())
+              break;
+            if (II->getIntrinsicID() == Intrinsic::vector_reduce_add)
+              Known = KnownBits::computeForAddSub(
+                  /*Add=*/true, /*NSW=*/false, /*NUW=*/false, SingleKnown,
+                  Known);
+            else
+              Known = KnownBits::mul(SingleKnown, Known);
+          }
+        }
+        break;
       case Intrinsic::umin:
         computeKnownBits(I->getOperand(0), Known, Depth + 1, Q);
         computeKnownBits(I->getOperand(1), Known2, Depth + 1, Q);
@@ -2907,6 +2927,41 @@ static bool isKnownNonZeroFromOperator(const Operator *I,
       case Intrinsic::vector_reduce_smax:
       case Intrinsic::vector_reduce_smin:
         return isKnownNonZero(II->getArgOperand(0), Depth, Q);
+        // If we know the reduction doesn't overflow and all elements are
+        // non-zero, the reduction is non-zero.
+      case Intrinsic::vector_reduce_mul:
+      case Intrinsic::vector_reduce_add:
+        if (computeKnownBits(I, Depth + 1, Q).isNonZero())
+          return true;
+
+        if (auto *VecTy =
+                dyn_cast<FixedVectorType>(I->getOperand(0)->getType())) {
+          bool Overflow;
+          if (II->getIntrinsicID() == Intrinsic::vector_reduce_add) {
+            APInt NumEle(BitWidth, VecTy->getNumElements());
+            // If we can't store num ele in bitwidth, the result is either
+            // known-zero or we won't get anything useful.
+            if (NumEle.getZExtValue() != VecTy->getNumElements())
+              break;
+            APInt MaxVal =
+                computeKnownBits(II->getArgOperand(0), Depth, Q).getMaxValue();
+            MaxVal = MaxVal.umul_ov(NumEle, Overflow);
+          } else {
+            APInt MaxVal =
+                computeKnownBits(II->getArgOperand(0), Depth, Q).getMaxValue();
+            APInt SingleVal = MaxVal;
+            for (unsigned i = 1, e = VecTy->getNumElements(); i < e; ++i) {
+              MaxVal = MaxVal.umul_ov(SingleVal, Overflow);
+              if (Overflow)
+                break;
+            }
+          }
+
+          if (Overflow)
+            break;
+          return isKnownNonZero(II->getArgOperand(0), Depth, Q);
+        }
+        break;
       case Intrinsic::umax:
       case Intrinsic::uadd_sat:
         return isKnownNonZero(II->getArgOperand(1), DemandedElts, Depth, Q) ||
