@@ -16,13 +16,13 @@
 //    allocated. At the prologue of the kernel, a single work-item from the
 //    work-group, does a "malloc" and stores the pointer of the allocation in
 //    new LDS global that will be created for the kernel. This will be called
-//    "malloc LDS global" in this pass.
+//    "SW LDS" in this pass.
 //    Each LDS access corresponds to an offset in the allocated memory.
 //    All static LDS accesses will be allocated first and then dynamic LDS
 //    will occupy the device global memory.
 //    To store the offsets corresponding to all LDS accesses, another global
-//    variable is created which will be called "metadata global" in this pass.
-//    - Malloc LDS Global:
+//    variable is created which will be called "SW LDS metadata" in this pass.
+//    - SW LDS Global:
 //        It is LDS global of ptr type with name
 //        "llvm.amdgcn.sw.lds.<kernel-name>".
 //    - Metadata Global:
@@ -53,7 +53,7 @@
 //    - Base table:
 //        Base table will have single row, with elements of the row
 //        placed as per kernel ID. Each element in the row corresponds
-//        to addresss of "malloc LDS global" variable created for
+//        to addresss of "SW LDS" variable created for
 //        that kernel.
 //    - Offset table:
 //        Offset table will have multiple rows and columns.
@@ -64,9 +64,9 @@
 //        Each element in the row correspond to the address of
 //        the replacement of LDS global done by that particular kernel.
 //    A LDS variable in non-kernel will be replaced based on the information
-//    from base and offset tables. Based on kernel-id query, address of "malloc
-//    LDS global" for that corresponding kernel is obtained from base table.
-//    The Offset into the base "malloc LDS global" is obtained from
+//    from base and offset tables. Based on kernel-id query, address of "SW
+//    LDS" for that corresponding kernel is obtained from base table.
+//    The Offset into the base "SW LDS" is obtained from
 //    corresponding element in offset table. With this information, replacement
 //    value is obtained.
 //===----------------------------------------------------------------------===//
@@ -112,8 +112,8 @@ struct LDSAccessTypeInfo {
 // to replace a LDS global uses with corresponding offset
 // in to device global memory.
 struct KernelLDSParameters {
-  GlobalVariable *MallocLDSGlobal{nullptr};
-  GlobalVariable *MallocMetadataGlobal{nullptr};
+  GlobalVariable *SwLDS{nullptr};
+  GlobalVariable *SwLDSMetadata{nullptr};
   LDSAccessTypeInfo DirectAccess;
   LDSAccessTypeInfo IndirectAccess;
   DenseMap<GlobalVariable *, SmallVector<uint32_t, 3>>
@@ -142,8 +142,8 @@ public:
   getOrderedIndirectLDSAccessingKernels(SetVector<Function *> &&Kernels);
   SetVector<GlobalVariable *>
   getOrderedNonKernelAllLDSGlobals(SetVector<GlobalVariable *> &&Variables);
-  void populateMallocLDSGlobal(Function *Func);
-  void populateMallocMetadataGlobal(Function *Func);
+  void populateSwLDSGlobal(Function *Func);
+  void populateSwMetadataGlobal(Function *Func);
   void populateLDSToReplacementIndicesMap(Function *Func);
   void replaceKernelLDSAccesses(Function *Func);
   void lowerKernelLDSAccesses(Function *Func, DomTreeUpdater &DTU);
@@ -229,19 +229,19 @@ void AMDGPUSwLowerLDS::getUsesOfLDSByNonKernels(
   }
 }
 
-void AMDGPUSwLowerLDS::populateMallocLDSGlobal(Function *Func) {
+void AMDGPUSwLowerLDS::populateSwLDSGlobal(Function *Func) {
   // Create new LDS global required for each kernel to store
   // device global memory pointer.
   auto &LDSParams = KernelToLDSParametersMap[Func];
   // create new global pointer variable
-  LDSParams.MallocLDSGlobal = new GlobalVariable(
+  LDSParams.SwLDS = new GlobalVariable(
       M, IRB.getPtrTy(), false, GlobalValue::InternalLinkage,
       PoisonValue::get(IRB.getPtrTy()), "llvm.amdgcn.sw.lds." + Func->getName(),
       nullptr, GlobalValue::NotThreadLocal, AMDGPUAS::LOCAL_ADDRESS, false);
   return;
 }
 
-void AMDGPUSwLowerLDS::populateMallocMetadataGlobal(Function *Func) {
+void AMDGPUSwLowerLDS::populateSwMetadataGlobal(Function *Func) {
   // Create new metadata global for every kernel and initialize the
   // start offsets and sizes corresponding to each LDS accesses.
   auto &LDSParams = KernelToLDSParametersMap[Func];
@@ -276,8 +276,8 @@ void AMDGPUSwLowerLDS::populateMallocMetadataGlobal(Function *Func) {
   StructType *LDSItemTy =
       StructType::create(Ctx, {Int32Ty, Int32Ty}, MDItemOS.str());
 
-  auto buildInitializerForMallocMDGlobal = [&](SetVector<GlobalVariable *>
-                                                   &LDSGlobals) {
+  auto buildInitializerForSwLDSMD = [&](SetVector<GlobalVariable *>
+                                            &LDSGlobals) {
     for (auto &GV : LDSGlobals) {
       Type *Ty = GV->getValueType();
       const uint64_t SizeInBytes = DL.getTypeAllocSize(Ty);
@@ -294,10 +294,10 @@ void AMDGPUSwLowerLDS::populateMallocMetadataGlobal(Function *Func) {
     }
   };
 
-  buildInitializerForMallocMDGlobal(LDSParams.DirectAccess.StaticLDSGlobals);
-  buildInitializerForMallocMDGlobal(LDSParams.IndirectAccess.StaticLDSGlobals);
-  buildInitializerForMallocMDGlobal(LDSParams.DirectAccess.DynamicLDSGlobals);
-  buildInitializerForMallocMDGlobal(LDSParams.IndirectAccess.DynamicLDSGlobals);
+  buildInitializerForSwLDSMD(LDSParams.DirectAccess.StaticLDSGlobals);
+  buildInitializerForSwLDSMD(LDSParams.IndirectAccess.StaticLDSGlobals);
+  buildInitializerForSwLDSMD(LDSParams.DirectAccess.DynamicLDSGlobals);
+  buildInitializerForSwLDSMD(LDSParams.IndirectAccess.DynamicLDSGlobals);
 
   SmallString<128> MDTypeStr;
   raw_svector_ostream MDTypeOS(MDTypeStr);
@@ -308,18 +308,18 @@ void AMDGPUSwLowerLDS::populateMallocMetadataGlobal(Function *Func) {
   SmallString<128> MDStr;
   raw_svector_ostream MDOS(MDStr);
   MDOS << "llvm.amdgcn.sw.lds." << Func->getName().str() << ".md";
-  LDSParams.MallocMetadataGlobal = new GlobalVariable(
+  LDSParams.SwLDSMetadata = new GlobalVariable(
       M, MetadataStructType, false, GlobalValue::InternalLinkage,
       PoisonValue::get(MetadataStructType), MDOS.str(), nullptr,
       GlobalValue::NotThreadLocal, AMDGPUAS::GLOBAL_ADDRESS, false);
   Constant *data = ConstantStruct::get(MetadataStructType, Initializers);
-  LDSParams.MallocMetadataGlobal->setInitializer(data);
-  assert(LDSParams.MallocLDSGlobal);
-  // Set the alignment to MaxAlignment for MallocLDSGlobal.
-  LDSParams.MallocLDSGlobal->setAlignment(MaxAlignment);
+  LDSParams.SwLDSMetadata->setInitializer(data);
+  assert(LDSParams.SwLDS);
+  // Set the alignment to MaxAlignment for SwLDS.
+  LDSParams.SwLDS->setAlignment(MaxAlignment);
   GlobalValue::SanitizerMetadata MD;
   MD.NoAddress = true;
-  LDSParams.MallocMetadataGlobal->setSanitizerMetadata(MD);
+  LDSParams.SwLDSMetadata->setSanitizerMetadata(MD);
   return;
 }
 
@@ -360,12 +360,12 @@ static void replacesUsesOfGlobalInFunction(Function *Func, GlobalVariable *GV,
 
 void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
   auto &LDSParams = KernelToLDSParametersMap[Func];
-  GlobalVariable *MallocLDSGlobal = LDSParams.MallocLDSGlobal;
-  assert(MallocLDSGlobal);
-  GlobalVariable *MallocMetadataGlobal = LDSParams.MallocMetadataGlobal;
-  assert(MallocMetadataGlobal);
-  StructType *MallocMetadataStructType =
-      cast<StructType>(MallocMetadataGlobal->getValueType());
+  GlobalVariable *SwLDS = LDSParams.SwLDS;
+  assert(SwLDS);
+  GlobalVariable *SwLDSMetadata = LDSParams.SwLDSMetadata;
+  assert(SwLDSMetadata);
+  StructType *SwLDSMetadataStructType =
+      cast<StructType>(SwLDSMetadata->getValueType());
   Type *Int32Ty = IRB.getInt32Ty();
 
   // Replace all uses of LDS global in this Function with a Replacement.
@@ -387,10 +387,10 @@ void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
                             ConstantInt::get(Int32Ty, Idx1),
                             ConstantInt::get(Int32Ty, Idx2)};
       Constant *GEP = ConstantExpr::getGetElementPtr(
-          MallocMetadataStructType, MallocMetadataGlobal, GEPIdx, true);
+          SwLDSMetadataStructType, SwLDSMetadata, GEPIdx, true);
       Value *Load = IRB.CreateLoad(Int32Ty, GEP);
       Value *BasePlusOffset =
-          IRB.CreateInBoundsGEP(GV->getType(), MallocLDSGlobal, {Load});
+          IRB.CreateInBoundsGEP(GV->getType(), SwLDS, {Load});
       replacesUsesOfGlobalInFunction(Func, GV, BasePlusOffset);
     }
   };
@@ -424,11 +424,11 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
   auto *const XYZOr = IRB.CreateOr(XYOr, WIdz);
   auto *const WIdzCond = IRB.CreateICmpEQ(XYZOr, IRB.getInt32(0));
 
-  GlobalVariable *MallocLDSGlobal = LDSParams.MallocLDSGlobal;
-  GlobalVariable *MallocMetadataGlobal = LDSParams.MallocMetadataGlobal;
-  assert(MallocLDSGlobal && MallocMetadataGlobal);
+  GlobalVariable *SwLDS = LDSParams.SwLDS;
+  GlobalVariable *SwLDSMetadata = LDSParams.SwLDSMetadata;
+  assert(SwLDS && SwLDSMetadata);
   StructType *MetadataStructType =
-      cast<StructType>(MallocMetadataGlobal->getValueType());
+      cast<StructType>(SwLDSMetadata->getValueType());
 
   // All work items will branch to PrevEntryBlock except {0,0,0} index
   // work item which will branch to malloc block.
@@ -450,11 +450,11 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
 
   if (NumStaticLDS) {
     auto *GEPForEndStaticLDSOffset = IRB.CreateInBoundsGEP(
-        MetadataStructType, MallocMetadataGlobal,
+        MetadataStructType, SwLDSMetadata,
         {IRB.getInt32(0), IRB.getInt32(NumStaticLDS - 1), IRB.getInt32(0)});
 
     auto *GEPForEndStaticLDSSize = IRB.CreateInBoundsGEP(
-        MetadataStructType, MallocMetadataGlobal,
+        MetadataStructType, SwLDSMetadata,
         {IRB.getInt32(0), IRB.getInt32(NumStaticLDS - 1), IRB.getInt32(1)});
 
     Value *EndStaticLDSOffset =
@@ -466,7 +466,7 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
     CurrMallocSize = IRB.getInt64(MallocSize);
 
   if (NumDynLDS) {
-    unsigned MaxAlignment = MallocLDSGlobal->getAlignment();
+    unsigned MaxAlignment = SwLDS->getAlignment();
     Value *MaxAlignValue = IRB.getInt64(MaxAlignment);
     Value *MaxAlignValueMinusOne = IRB.getInt64(MaxAlignment - 1);
 
@@ -482,14 +482,14 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
 
             // Update the Offset metadata.
             auto *GEPForOffset = IRB.CreateInBoundsGEP(
-                MetadataStructType, MallocMetadataGlobal,
+                MetadataStructType, SwLDSMetadata,
                 {IRB.getInt32(0), IRB.getInt32(Indices[1]), IRB.getInt32(0)});
             IRB.CreateStore(CurrMallocSize, GEPForOffset);
 
             // Get size from hidden dyn_lds_size argument of kernel
             // Update the Aligned Size metadata.
             auto *GEPForSize = IRB.CreateInBoundsGEP(
-                MetadataStructType, MallocMetadataGlobal,
+                MetadataStructType, SwLDSMetadata,
                 {IRB.getInt32(0), IRB.getInt32(Indices[1]), IRB.getInt32(1)});
             Value *CurrDynLDSSize =
                 IRB.CreateLoad(IRB.getInt64Ty(), HiddenDynLDSSize);
@@ -510,13 +510,13 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
 
   // Create a call to malloc function which does device global memory allocation
   // with size equals to all LDS global accesses size  in this kernel.
-  FunctionCallee AMDGPUMallocReturn = M.getOrInsertFunction(
+  FunctionCallee AMDGPUMallocFunc = M.getOrInsertFunction(
       StringRef("malloc"),
       FunctionType::get(IRB.getPtrTy(1), {IRB.getInt64Ty()}, false));
-  Value *MCI = IRB.CreateCall(AMDGPUMallocReturn, {CurrMallocSize});
+  Value *MCI = IRB.CreateCall(AMDGPUMallocFunc, {CurrMallocSize});
 
   // create store of malloc to new global
-  IRB.CreateStore(MCI, MallocLDSGlobal);
+  IRB.CreateStore(MCI, SwLDS);
 
   // Create branch to PrevEntryBlock
   IRB.CreateBr(PrevEntryBlock);
@@ -558,7 +558,7 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
       StringRef("free"),
       FunctionType::get(IRB.getVoidTy(), {IRB.getPtrTy()}, false));
 
-  Value *MallocPtr = IRB.CreateLoad(IRB.getPtrTy(), MallocLDSGlobal);
+  Value *MallocPtr = IRB.CreateLoad(IRB.getPtrTy(), SwLDS);
   IRB.CreateCall(AMDGPUFreeReturn, {MallocPtr});
   IRB.CreateBr(EndBlock);
 
@@ -579,10 +579,10 @@ Constant *AMDGPUSwLowerLDS::getAddressesOfVariablesInKernel(
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   auto &LDSParams = KernelToLDSParametersMap[Func];
 
-  GlobalVariable *MallocMetadataGlobal = LDSParams.MallocMetadataGlobal;
-  assert(MallocMetadataGlobal);
-  StructType *MallocMetadataStructType =
-      cast<StructType>(MallocMetadataGlobal->getValueType());
+  GlobalVariable *SwLDSMetadata = LDSParams.SwLDSMetadata;
+  assert(SwLDSMetadata);
+  StructType *SwLDSMetadataStructType =
+      cast<StructType>(SwLDSMetadata->getValueType());
   ArrayType *KernelOffsetsType = ArrayType::get(Int32Ty, Variables.size());
 
   SmallVector<Constant *> Elements;
@@ -597,7 +597,7 @@ Constant *AMDGPUSwLowerLDS::getAddressesOfVariablesInKernel(
                             ConstantInt::get(Int32Ty, Idx1),
                             ConstantInt::get(Int32Ty, Idx2)};
       Constant *GEP = ConstantExpr::getGetElementPtr(
-          MallocMetadataStructType, MallocMetadataGlobal, GEPIdx, true);
+          SwLDSMetadataStructType, SwLDSMetadata, GEPIdx, true);
       auto elt = ConstantExpr::getPtrToInt(GEP, Int32Ty);
       Elements.push_back(elt);
     } else
@@ -610,7 +610,7 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSBaseTable(
     NonKernelLDSParameters &NKLDSParams) {
   // Base table will have single row, with elements of the row
   // placed as per kernel ID. Each element in the row corresponds
-  // to addresss of malloc LDS global variable of the kernel.
+  // to addresss of "SW LDS" global of the kernel.
   auto &Kernels = NKLDSParams.OrderedKernels;
   LLVMContext &Ctx = M.getContext();
   Type *Int32Ty = Type::getInt32Ty(Ctx);
@@ -620,11 +620,11 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSBaseTable(
   for (size_t i = 0; i < NumberKernels; i++) {
     Function *Func = Kernels[i];
     auto &LDSParams = KernelToLDSParametersMap[Func];
-    GlobalVariable *MallocLDSGlobal = LDSParams.MallocLDSGlobal;
-    assert(MallocLDSGlobal);
+    GlobalVariable *SwLDS = LDSParams.SwLDS;
+    assert(SwLDS);
     Constant *GEPIdx[] = {ConstantInt::get(Int32Ty, 0)};
-    Constant *GEP = ConstantExpr::getGetElementPtr(
-        MallocLDSGlobal->getType(), MallocLDSGlobal, GEPIdx, true);
+    Constant *GEP =
+        ConstantExpr::getGetElementPtr(SwLDS->getType(), SwLDS, GEPIdx, true);
     auto Elt = ConstantExpr::getPtrToInt(GEP, Int32Ty);
     overallConstantExprElts[i] = Elt;
   }
@@ -753,7 +753,6 @@ bool AMDGPUSwLowerLDS::run() {
     for (auto &K : LDSAccesses) {
       Function *F = K.first;
       assert(isKernelLDS(F));
-      assert(!K.second.empty());
 
       if (!KernelToLDSParametersMap.contains(F)) {
         KernelLDSParameters KernelLDSParams;
@@ -796,8 +795,8 @@ bool AMDGPUSwLowerLDS::run() {
       removeFnAttrFromReachable(CG, Func, "amdgpu-no-workitem-id-y");
       removeFnAttrFromReachable(CG, Func, "amdgpu-no-workitem-id-z");
       reorderStaticDynamicIndirectLDSSet(LDSParams);
-      populateMallocLDSGlobal(Func);
-      populateMallocMetadataGlobal(Func);
+      populateSwLDSGlobal(Func);
+      populateSwMetadataGlobal(Func);
       populateLDSToReplacementIndicesMap(Func);
       DomTreeUpdater DTU(DTCallback(*Func),
                          DomTreeUpdater::UpdateStrategy::Lazy);
