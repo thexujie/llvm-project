@@ -59,6 +59,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <stack>
+#include <queue>
 
 namespace llvm {
 
@@ -3145,6 +3147,7 @@ public:
   /// \p DI is the deinterleave intrinsic.
   /// \p LI is the accompanying load instruction
   virtual bool lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
+                                                std::queue<std::pair<unsigned, Value*>>& LeafNodes,
                                                 LoadInst *LI) const {
     return false;
   }
@@ -3156,6 +3159,7 @@ public:
   /// \p II is the interleave intrinsic.
   /// \p SI is the accompanying store instruction
   virtual bool lowerInterleaveIntrinsicToStore(IntrinsicInst *II,
+                                               std::queue<Value*>& LeafNodes,
                                                StoreInst *SI) const {
     return false;
   }
