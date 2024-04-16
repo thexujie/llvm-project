@@ -2839,6 +2839,17 @@ let TargetPrefix = "aarch64" in {
   def int_aarch64_sme_writeq_horiz : SME_VectorToTile_Intrinsic;
   def int_aarch64_sme_writeq_vert  : SME_VectorToTile_Intrinsic;
 
+
+  def int_aarch64_sme_readz_x2
+      : DefaultAttrsIntrinsic<[llvm_anyvector_ty, LLVMMatchType<0>],
+          [llvm_i32_ty],
+          [IntrNoMem, IntrHasSideEffects]>;
+
+  def int_aarch64_sme_readz_x4
+      : DefaultAttrsIntrinsic<[llvm_anyvector_ty, LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>],
+          [llvm_i32_ty],
+          [IntrNoMem, IntrHasSideEffects]>;
+
   def int_aarch64_sme_zero : DefaultAttrsIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]>;
 
   class SME_OuterProduct_Intrinsic
