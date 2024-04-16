@@ -1001,7 +1001,7 @@ InstructionCost RISCVTTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst,
         (!ST->hasVInstructionsF16() || ((DstEltSize >> 1) > SrcEltSize))) {
       // pre-widening to f32 and then convert f32 to integer
       VectorType *VecF32Ty =
-          VectorType::get(Type::getDoubleTy(Dst->getContext()),
+          VectorType::get(Type::getFloatTy(Dst->getContext()),
                           cast<VectorType>(Dst)->getElementCount());
       std::pair<InstructionCost, MVT> VecF32LT =
           getTypeLegalizationCost(VecF32Ty);
@@ -1048,7 +1048,7 @@ InstructionCost RISCVTTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst,
         (!ST->hasVInstructionsF16() || ((SrcEltSize >> 1) > DstEltSize))) {
       // convert to f32 and then f32 to f16
       VectorType *VecF32Ty =
-          VectorType::get(Type::getDoubleTy(Dst->getContext()),
+          VectorType::get(Type::getFloatTy(Dst->getContext()),
                           cast<VectorType>(Dst)->getElementCount());
       std::pair<InstructionCost, MVT> VecF32LT =
           getTypeLegalizationCost(VecF32Ty);
