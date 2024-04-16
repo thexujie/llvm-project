@@ -1673,7 +1673,7 @@ void CGOpenMPRuntimeGPU::emitReduction(
     return;
   }
 
-  // Source location for theident struct
+  // Source location for the ident struct
   llvm::Value *RTLoc = emitUpdateLocation(CGF, Loc);
 
   using InsertPointTy = llvm::OpenMPIRBuilder::InsertPointTy;

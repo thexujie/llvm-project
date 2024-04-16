@@ -3190,7 +3190,7 @@ std::string OpenMPIRBuilder::getReductionFuncName(StringRef Name) const {
 
 Function *OpenMPIRBuilder::createReductionFunction(
     StringRef ReducerName, ArrayRef<ReductionInfo> ReductionInfos,
-    ReductionGenCBKind ReductionGenCBTy, AttributeList FuncAttrs) {
+    ReductionGenCBKind ReductionGenCBKind, AttributeList FuncAttrs) {
   auto *FuncTy = FunctionType::get(Builder.getVoidTy(),
                                    {Builder.getPtrTy(), Builder.getPtrTy()},
                                    /* IsVarArg */ false);
@@ -3247,7 +3247,7 @@ Function *OpenMPIRBuilder::createReductionFunction(
     Value *LHSPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
         LHSI8Ptr, RI.Variable->getType(), LHSI8Ptr->getName() + ".ascast");
 
-    if (ReductionGenCBTy == ReductionGenCBKind::Clang) {
+    if (ReductionGenCBKind == ReductionGenCBKind::Clang) {
       LHSPtrs.emplace_back(LHSPtr);
       RHSPtrs.emplace_back(RHSPtr);
     } else {
@@ -3261,7 +3261,7 @@ Function *OpenMPIRBuilder::createReductionFunction(
     }
   }
 
-  if (ReductionGenCBTy == ReductionGenCBKind::Clang)
+  if (ReductionGenCBKind == ReductionGenCBKind::Clang)
     for (auto En : enumerate(ReductionInfos)) {
       unsigned Index = En.index();
       const ReductionInfo &RI = En.value();
@@ -3311,7 +3311,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
     const LocationDescription &Loc, InsertPointTy AllocaIP,
     InsertPointTy CodeGenIP, ArrayRef<ReductionInfo> ReductionInfos,
     bool IsNoWait, bool IsTeamsReduction, bool HasDistribute,
-    ReductionGenCBKind ReductionGenCBTy, std::optional<omp::GV> GridValue,
+    ReductionGenCBKind ReductionGenCBKind, std::optional<omp::GV> GridValue,
     unsigned ReductionBufNum, Value *SrcLocInfo) {
   if (!updateToLocation(Loc))
     return InsertPointTy();
@@ -3344,7 +3344,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
     CodeGenIP = Builder.saveIP();
     ReductionFunc = createReductionFunction(
         Builder.GetInsertBlock()->getParent()->getName(), ReductionInfos,
-        ReductionGenCBTy, FuncAttrs);
+        ReductionGenCBKind, FuncAttrs);
     Builder.restoreIP(CodeGenIP);
   }
 
@@ -3470,7 +3470,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
     Value *RHS =
         Builder.CreatePointerBitCastOrAddrSpaceCast(RI.PrivateVariable, PtrTy);
 
-    if (ReductionGenCBTy == ReductionGenCBKind::Clang) {
+    if (ReductionGenCBKind == ReductionGenCBKind::Clang) {
       Value *LHSPtr, *RHSPtr;
       Builder.restoreIP(RI.ReductionGenClang(Builder.saveIP(), En.index(),
                                              &LHSPtr, &RHSPtr, CurFunc));
@@ -3486,9 +3486,7 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
                ReductionFunc;
       });
     } else {
-      // LHS = Builder.CreateLoad(LHS);
-      // LHS = Builder.CreateLoad(LHS);
-      // Builder.restoreIP(RI.ReductionGen(Builder.saveIP(), LHS, RHS));
+      assert(false && "Unhandled ReductionGenCBKind");
     }
   }
   emitBlock(ExitBB, CurFunc);
