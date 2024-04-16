@@ -101,7 +101,7 @@ public:
   std::optional<bool> IsGPU;
 
   /// Flag for specifying if LLVMUsed information should be emitted.
-  std::optional<bool> EmitLLVMUsed;
+  std::optional<bool> EmitLLVMUsedMetaInfo;
 
   /// Flag for specifying if offloading is mandatory.
   std::optional<bool> OpenMPOffloadMandatory;
@@ -176,7 +176,7 @@ public:
 
   void setIsTargetDevice(bool Value) { IsTargetDevice = Value; }
   void setIsGPU(bool Value) { IsGPU = Value; }
-  void setEmitLLVMUsed(bool Value = true) { EmitLLVMUsed = Value; }
+  void setEmitLLVMUsed(bool Value = true) { EmitLLVMUsedMetaInfo = Value; }
   void setOpenMPOffloadMandatory(bool Value) { OpenMPOffloadMandatory = Value; }
   void setFirstSeparator(StringRef FS) { FirstSeparator = FS; }
   void setSeparator(StringRef S) { Separator = S; }

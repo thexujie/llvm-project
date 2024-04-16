@@ -145,8 +145,6 @@ static bool isValidWorkshareLoopScheduleType(OMPScheduleType SchedType) {
 }
 #endif
 
-Function *GLOBAL_ReductionFunc = nullptr;
-
 static const omp::GV &getGridValue(const Triple &T, Function *Kernel) {
   if (T.isAMDGPU()) {
     StringRef Features =
@@ -795,7 +793,7 @@ void OpenMPIRBuilder::finalize(Function *Fn) {
   if (!OffloadInfoManager.empty())
     createOffloadEntriesAndInfoMetadata(ErrorReportFn);
 
-  if (Config.EmitLLVMUsed) {
+  if (Config.EmitLLVMUsedMetaInfo.value_or(false)) {
     std::vector<WeakTrackingVH> LLVMCompilerUsed = {
         M.getGlobalVariable("__openmp_nvptx_data_transfer_temporary_storage")};
     emitUsed("llvm.compiler.used", LLVMCompilerUsed);
@@ -3338,15 +3336,11 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductionsGPU(
   FuncAttrs = FuncAttrs.addFnAttributes(Ctx, AttrBldr);
 
   Function *ReductionFunc = nullptr;
-  if (GLOBAL_ReductionFunc) {
-    ReductionFunc = GLOBAL_ReductionFunc;
-  } else {
-    CodeGenIP = Builder.saveIP();
-    ReductionFunc = createReductionFunction(
-        Builder.GetInsertBlock()->getParent()->getName(), ReductionInfos,
-        ReductionGenCBKind, FuncAttrs);
-    Builder.restoreIP(CodeGenIP);
-  }
+  CodeGenIP = Builder.saveIP();
+  ReductionFunc =
+      createReductionFunction(Builder.GetInsertBlock()->getParent()->getName(),
+                              ReductionInfos, ReductionGenCBKind, FuncAttrs);
+  Builder.restoreIP(CodeGenIP);
 
   // Set the grid value in the config needed for lowering later on
   if (GridValue.has_value())
