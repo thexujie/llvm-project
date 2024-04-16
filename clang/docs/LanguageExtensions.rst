@@ -3958,6 +3958,50 @@ Note that the `size` argument must be a compile time constant.
 
 Note that this intrinsic cannot yet be called in a ``constexpr`` context.
 
+``__is_bitwise_cloneable``
+-------------------------
+
+A type trait is used to check whether a type can be safely copied by memcpy.
+
+**Syntax**:
+
+.. code-block:: c++
+
+  bool __is_bitwise_cloneable(Type)
+
+** Example of Use**:
+
+.. code-block:: c++
+
+  // Return a cloned object of the given default instance.
+  Foo* Clone(const Foo* default_instance, char* buffer, unsigned size) {
+    if constexpr __is_bitwise_cloneable(decltype(*default_instance)) {
+      // Fast path via memcopy, without calling class constructor.
+      memcpy(buffer, default_instance, size);
+      // Explicitly start the lifetime of the cloned object.
+      return __builtin_start_object_lifetime(reinterpret_cast<Foo*>(buffer));
+    }
+    // Fallback the operator new, which invoke the class constructor.
+    return new(buffer) Foo(*default_instance);
+  }
+
+**Description**:
+
+It is common for library owners to perform memcpy/memmove on types that aren't
+trivally copyable for performance reason. However, according to the C++ standard,
+it is undefined bheavior to mempcy non-trivially-copyable types, even though
+it may work in pratice. This builtin is designed to bridge that gap.
+
+Objects of bitwise cloneable types can be bitwise copied by memcpy/memmove. The
+Clang compiler warrants that this behavior is well defined, and won't be
+broken by compiler optimizations.
+
+After the copy, the lifetime of the new object isn't started yet (unless the
+type is trivially copyable). Users must explicitly start its lifetime by the
+`__builtin_start_object_lifetime` mechanism to avoid undefined behavior.
+
+This builtin can be used in constant expressions.
+
 Atomic Min/Max builtins with memory ordering
 --------------------------------------------
 

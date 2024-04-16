@@ -2718,22 +2718,29 @@ bool QualType::isTriviallyCopyableType(const ASTContext &Context) const {
                                      /*IsCopyConstructible=*/false);
 }
 
-bool QualType::isBitwiseCopyableType(const ASTContext & Context) const {
+bool QualType::isBitwiseCloneableType(const ASTContext & Context) const {
   QualType CanonicalType = getCanonicalType();
   if (CanonicalType->isIncompleteType() || CanonicalType->isDependentType())
     return false;
-  // Trivially copyable types are bitwise copyable, e.g. scalar types.
+  // Trivially copyable types are bitwise clonable, e.g. scalar types.
   if (CanonicalType.isTriviallyCopyableType(Context))
     return true;
 
   if (CanonicalType->isArrayType())
     return Context.getBaseElementType(CanonicalType)
-        .isBitwiseCopyableType(Context);
+        .isBitwiseCloneableType(Context);
 
   if (const auto *RD = CanonicalType->getAsCXXRecordDecl()) {
+    for (auto Base : RD->bases())
+      if (!Base.getType().isBitwiseCloneableType(Context))
+        return false;
+    for (auto VBase : RD->vbases())
+      if (!VBase.getType().isBitwiseCloneableType(Context))
+        return false;
+
     for (auto *const Field : RD->fields()) {
       QualType T = Context.getBaseElementType(Field->getType());
-      if (!T.isBitwiseCopyableType(Context))
+      if (!T.isBitwiseCloneableType(Context))
         return false;
     }
     return true;
