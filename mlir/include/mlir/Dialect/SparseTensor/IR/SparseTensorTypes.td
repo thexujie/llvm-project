@@ -72,4 +72,72 @@ def SparseTensorStorageSpecifier
     : Type<CPred<"::llvm::isa<::mlir::sparse_tensor::StorageSpecifierType>($_self)">, "metadata",
           "::mlir::sparse_tensor::StorageSpecifierType">;
 
+//===----------------------------------------------------------------------===//
+// Sparse Tensor Iteration Types.
+//===----------------------------------------------------------------------===//
+
+def SparseTensor_Iterator : SparseTensor_Type<"Iterator"> {
+  let mnemonic = "iterator";
+
+  let parameters = (ins
+     SparseTensorEncodingAttr : $encoding,
+     "Level" : $loLvl,
+     "Level" : $hiLvl
+  );
+
+  let extraClassDeclaration = [{
+     unsigned getSpaceDim() const {
+       return getHiLvl() - getLoLvl();
+     }
+     ArrayRef<LevelType> getLvlTypes() const {
+       return getEncoding().getLvlTypes().slice(getLoLvl(), getSpaceDim());
+     }
+     bool isUnique() {
+       // As long as the last level is unique, the entire iterator is unqiue.
+       return !getLvlTypes().back().isa<LevelPropNonDefault::Nonunique>();
+     }
+     ::mlir::sparse_tensor::IterSpaceType getIterSpaceType() const;
+  }];
+
+  let assemblyFormat="`<` $encoding `,` `lvls` `=` custom<LevelRange>($loLvl, $hiLvl) `>`";
+}
+
+
+def SparseTensor_IterSpace : SparseTensor_Type<"IterSpace"> {
+  let mnemonic = "iter_space";
+
+  let parameters = (ins
+     SparseTensorEncodingAttr : $encoding,
+     "Level" : $loLvl,
+     "Level" : $hiLvl
+  );
+
+  let extraClassDeclaration = [{
+     unsigned getSpaceDim() const {
+       return getHiLvl() - getLoLvl();
+     }
+     ArrayRef<LevelType> getLvlTypes() const {
+       return getEncoding().getLvlTypes().slice(getLoLvl(), getSpaceDim());
+     }
+     ::mlir::sparse_tensor::IteratorType getIteratorType() const;
+  }];
+
+  let assemblyFormat="`<` $encoding `,` `lvls` `=` custom<LevelRange>($loLvl, $hiLvl) `>`";
+}
+
+def IsSparseSparseIterSpaceTypePred
+    : CPred<"::llvm::isa<::mlir::sparse_tensor::IterSpaceType>($_self)">;
+
+def IsSparseSparseIteratorTypePred
+    : CPred<"::llvm::isa<::mlir::sparse_tensor::IteratorType>($_self)">;
+
+def AnySparseIterSpace
+    : Type<IsSparseSparseIterSpaceTypePred, "sparse iteration space",
+          "::mlir::sparse_tensor::IterSpaceType">;
+
+def AnySparseIterator
+    : Type<IsSparseSparseIteratorTypePred, "sparse iterator",
+          "::mlir::sparse_tensor::IteratorType">;
+
+
 #endif // SPARSETENSOR_TYPES

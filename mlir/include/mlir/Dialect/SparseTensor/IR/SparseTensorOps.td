@@ -15,6 +15,8 @@ include "mlir/Dialect/SparseTensor/IR/SparseTensorTypes.td"
 include "mlir/Dialect/SparseTensor/IR/SparseTensorInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/LoopLikeInterface.td"
 
 //===----------------------------------------------------------------------===//
 // Base class.
@@ -258,7 +260,7 @@ def SparseTensor_ReinterpretMapOp : SparseTensor_Op<"reinterpret_map", [NoMemory
 }
 
 def SparseTensor_ToPositionsOp : SparseTensor_Op<"positions",
-      [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
+      [Pure, AlwaysSpeculatable, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
     Arguments<(ins AnySparseTensor:$tensor, LevelAttr:$level)>,
     Results<(outs AnyNon0RankedMemRef:$result)> {
   let summary = "Extracts the `level`-th positions array of the `tensor`";
@@ -280,12 +282,12 @@ def SparseTensor_ToPositionsOp : SparseTensor_Op<"positions",
        : tensor<64x64xf64, #CSR> to memref<?xindex>
     ```
   }];
-  let assemblyFormat = "$tensor attr-dict `:` type($tensor) `to` type($result)";
+  let assemblyFormat = "$tensor attr-dict `:` type($tensor) `to` type($result)"  ;
   let hasVerifier = 1;
 }
 
 def SparseTensor_ToCoordinatesOp : SparseTensor_Op<"coordinates",
-      [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
+      [Pure, AlwaysSpeculatable, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
     Arguments<(ins AnySparseTensor:$tensor, LevelAttr:$level)>,
     Results<(outs AnyNon0RankedMemRef:$result)> {
   let summary = "Extracts the `level`-th coordinates array of the `tensor`";
@@ -312,7 +314,7 @@ def SparseTensor_ToCoordinatesOp : SparseTensor_Op<"coordinates",
 }
 
 def SparseTensor_ToCoordinatesBufferOp : SparseTensor_Op<"coordinates_buffer",
-      [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
+      [Pure, AlwaysSpeculatable, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
     Arguments<(ins AnySparseTensor:$tensor)>,
     Results<(outs AnyNon0RankedMemRef:$result)> {
   let summary = "Extracts the linear coordinates array from a tensor";
@@ -335,8 +337,7 @@ def SparseTensor_ToCoordinatesBufferOp : SparseTensor_Op<"coordinates_buffer",
     Example:
 
     ```mlir
-    %1 = sparse_tensor.coordinates_buffer %0
-       : tensor<64x64xf64, #COO> to memref<?xindex>
+    %1 = sparse_tensor.coordinates_buffer %0 : tensor<64x64xf64, #COO>
     ```
   }];
   let assemblyFormat = "$tensor attr-dict `:` type($tensor) `to` type($result)";
@@ -344,7 +345,7 @@ def SparseTensor_ToCoordinatesBufferOp : SparseTensor_Op<"coordinates_buffer",
 }
 
 def SparseTensor_ToValuesOp : SparseTensor_Op<"values",
-      [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
+      [Pure, AlwaysSpeculatable, DeclareOpInterfaceMethods<InferTypeOpInterface>]>,
     Arguments<(ins AnySparseTensor:$tensor)>,
     Results<(outs AnyNon0RankedMemRef:$result)> {
   let summary = "Extracts numerical values array from a tensor";
@@ -362,7 +363,7 @@ def SparseTensor_ToValuesOp : SparseTensor_Op<"values",
     Example:
 
     ```mlir
-    %1 = sparse_tensor.values %0 : tensor<64x64xf64, #CSR> to memref<?xf64>
+    %1 = sparse_tensor.values %0 : tensor<64x64xf64, #CSR>
     ```
   }];
   let assemblyFormat = "$tensor attr-dict `:` type($tensor) `to` type($result)";
@@ -1277,7 +1278,7 @@ def SparseTensor_SelectOp : SparseTensor_Op<"select", [Pure, SameOperandsAndResu
 
 def SparseTensor_YieldOp : SparseTensor_Op<"yield", [Pure, Terminator,
     ParentOneOf<["BinaryOp", "UnaryOp", "ReduceOp", "SelectOp",
-                 "ForeachOp"]>]>,
+                 "ForeachOp", "IterateOp"]>]>,
     Arguments<(ins Variadic<AnyType>:$results)> {
   let summary = "Yield from sparse_tensor set-like operations";
   let description = [{
@@ -1428,6 +1429,80 @@ def SparseTensor_ForeachOp : SparseTensor_Op<"foreach",
                        "    `:` type($tensor) (`,` type($initArgs)^)?"
                        "  (`->` type($results)^)?  `do` $region";
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// Sparse Tensor Iteration Operations.
+//===----------------------------------------------------------------------===//
+
+def ExtractIterSpaceOp : SparseTensor_Op<"iteration.extract_space",
+    [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+
+  let arguments = (ins AnySparseTensor:$tensor,
+                       Optional<AnySparseIterator>:$parentIter,
+                       LevelAttr:$loLvl, LevelAttr:$hiLvl);
+
+  let results = (outs AnySparseIterSpace:$resultSpace);
+
+  let extraClassDeclaration = [{
+    std::pair<Level, Level> getLvlRange() {
+      return std::make_pair(getLoLvl(), getHiLvl());
+    }
+    unsigned getSpaceDim() {
+      return getHiLvl() - getLoLvl();
+    }
+    ArrayRef<::mlir::sparse_tensor::LevelType> getSpaceLvlTypes() {
+      return getResultSpace().getType().getLvlTypes();
+    }
+  }];
+
+  let hasVerifier = 1;
+  let assemblyFormat = "$tensor (`at` $parentIter^)? `lvls` `=` custom<LevelRange>($loLvl, $hiLvl) "
+                       " attr-dict `:` type($tensor) (`,` type($parentIter)^)?";
+}
+
+// def CoordinateOp : SparseTensor_Op<"iteration.coordinate",
+//     [Pure, DeclareOpInterfaceMethods<SparseCollapsableOpInterface>]> {
+//   let arguments = (ins AnySparseIterator:$iterator);
+//   let results = (outs Variadic<Index>:$crds);
+//   let extraClassDeclaration = [{ }];
+//   // let hasVerifier = 1;
+//   let assemblyFormat = " $iterator attr-dict `:` type($iterator) `->` type($crds)";
+// }
+
+def IterateOp : SparseTensor_Op<"iterate",
+    [RecursiveMemoryEffects, RecursivelySpeculatable,
+     DeclareOpInterfaceMethods<LoopLikeOpInterface,
+      ["getInitsMutable", "getLoopResults", "getRegionIterArgs",
+       "getYieldedValuesMutable"]>,
+     DeclareOpInterfaceMethods<RegionBranchOpInterface,
+      ["getEntrySuccessorOperands"]>,
+     SingleBlockImplicitTerminator<"sparse_tensor::YieldOp">]> {
+
+  let arguments = (ins AnySparseIterSpace:$iterSpace,
+                       Variadic<AnyType>:$initArgs,
+                       LevelSetAttr:$crdUsedLvls);
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$region);
+
+  let extraClassDeclaration = [{
+    unsigned getSpaceDim() {
+      return getIterSpace().getType().getSpaceDim();
+    }
+    BlockArgument getIterator() {
+      return getRegion().getArguments().front();
+    }
+    Block::BlockArgListType getCrds() {
+      return getRegion().getArguments().slice(1, getCrdUsedLvls().count());
+    }
+    unsigned getNumRegionIterArgs() {
+      return getRegion().getArguments().size() - 1 - getCrdUsedLvls().count();
+    }
+  }];
+
+  let hasVerifier = 1;
+  let hasRegionVerifier = 1;
+  let hasCustomAssemblyFormat = 1;
 }
 
 //===----------------------------------------------------------------------===//
