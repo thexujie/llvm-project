@@ -4826,7 +4826,7 @@ llvm::CallInst *CodeGenFunction::EmitRuntimeCall(llvm::FunctionCallee callee,
   call->setCallingConv(getRuntimeCC());
 
   if (getTarget().getTriple().isSPIRVLogical() && call->isConvergent())
-    return dyn_cast<llvm::CallInst>(addControlledConvergenceToken(call));
+    return addControlledConvergenceToken(call);
   return call;
 }
 
