@@ -260,8 +260,18 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    [[TMP31:%.*]] = add i64 [[TMP26]], [[TMP30]]
 ; CHECK-NEXT:    [[TMP32:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP31]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP32]], ptr addrspace(3) @llvm.amdgcn.sw.lds.k0, align 8
+; CHECK-NEXT:    [[TMP87:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 2), align 8
+; CHECK-NEXT:    [[TMP88:%.*]] = getelementptr inbounds i8, ptr addrspace(1) [[TMP32]], i64 [[TMP87]]
+; CHECK-NEXT:    [[TMP89:%.*]] = ptrtoint ptr addrspace(1) [[TMP88]] to i64
+; CHECK-NEXT:    [[TMP90:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 1, i32 3), align 8
+; CHECK-NEXT:    call void @__asan_poison_region(i64 [[TMP89]], i64 [[TMP90]])
+; CHECK-NEXT:    [[TMP91:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 2), align 8
+; CHECK-NEXT:    [[TMP92:%.*]] = getelementptr inbounds i8, ptr addrspace(1) [[TMP32]], i64 [[TMP91]]
+; CHECK-NEXT:    [[TMP93:%.*]] = ptrtoint ptr addrspace(1) [[TMP92]] to i64
+; CHECK-NEXT:    [[TMP94:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 3), align 8
+; CHECK-NEXT:    call void @__asan_poison_region(i64 [[TMP93]], i64 [[TMP94]])
 ; CHECK-NEXT:    br label [[TMP33]]
-; CHECK:       33:
+; CHECK:       41:
 ; CHECK-NEXT:    [[XYZCOND:%.*]] = phi i1 [ false, [[WID:%.*]] ], [ true, [[TMP21]] ]
 ; CHECK-NEXT:    call void @llvm.amdgcn.s.barrier()
 ; CHECK-NEXT:    [[TMP34:%.*]] = load i32, ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, align 4
@@ -284,13 +294,13 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    br i1 [[TMP49]], label [[ASAN_REPORT1:%.*]], label [[TMP52:%.*]], !prof [[PROF0]]
 ; CHECK:       asan.report1:
 ; CHECK-NEXT:    br i1 [[TMP47]], label [[TMP50:%.*]], label [[TMP51:%.*]]
-; CHECK:       50:
+; CHECK:       58:
 ; CHECK-NEXT:    call void @__asan_report_store1(i64 [[TMP38]]) #[[ATTR6]]
 ; CHECK-NEXT:    call void @llvm.amdgcn.unreachable()
 ; CHECK-NEXT:    br label [[TMP51]]
-; CHECK:       51:
+; CHECK:       59:
 ; CHECK-NEXT:    br label [[TMP52]]
-; CHECK:       52:
+; CHECK:       60:
 ; CHECK-NEXT:    store i8 7, ptr addrspace(3) [[TMP35]], align 1
 ; CHECK-NEXT:    [[TMP53:%.*]] = ptrtoint ptr addrspace(3) [[TMP37]] to i64
 ; CHECK-NEXT:    [[TMP54:%.*]] = add i64 [[TMP53]], 3
@@ -310,13 +320,13 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    br i1 [[TMP67]], label [[ASAN_REPORT2:%.*]], label [[TMP70:%.*]], !prof [[PROF0]]
 ; CHECK:       asan.report2:
 ; CHECK-NEXT:    br i1 [[TMP65]], label [[TMP68:%.*]], label [[TMP69:%.*]]
-; CHECK:       68:
+; CHECK:       76:
 ; CHECK-NEXT:    call void @__asan_report_store_n(i64 [[TMP56]], i64 4) #[[ATTR6]]
 ; CHECK-NEXT:    call void @llvm.amdgcn.unreachable()
 ; CHECK-NEXT:    br label [[TMP69]]
-; CHECK:       69:
+; CHECK:       77:
 ; CHECK-NEXT:    br label [[TMP70]]
-; CHECK:       70:
+; CHECK:       78:
 ; CHECK-NEXT:    [[TMP71:%.*]] = ptrtoint ptr addrspace(3) [[TMP55]] to i64
 ; CHECK-NEXT:    [[TMP72:%.*]] = lshr i64 [[TMP71]], 3
 ; CHECK-NEXT:    [[TMP73:%.*]] = add i64 [[TMP72]], 2147450880
@@ -332,13 +342,13 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    br i1 [[TMP82]], label [[ASAN_REPORT3:%.*]], label [[TMP85:%.*]], !prof [[PROF0]]
 ; CHECK:       asan.report3:
 ; CHECK-NEXT:    br i1 [[TMP80]], label [[TMP83:%.*]], label [[TMP84:%.*]]
-; CHECK:       83:
+; CHECK:       91:
 ; CHECK-NEXT:    call void @__asan_report_store_n(i64 [[TMP71]], i64 4) #[[ATTR6]]
 ; CHECK-NEXT:    call void @llvm.amdgcn.unreachable()
 ; CHECK-NEXT:    br label [[TMP84]]
-; CHECK:       84:
+; CHECK:       92:
 ; CHECK-NEXT:    br label [[TMP85]]
-; CHECK:       85:
+; CHECK:       93:
 ; CHECK-NEXT:    store i32 8, ptr addrspace(3) [[TMP37]], align 2
 ; CHECK-NEXT:    br label [[CONDFREE:%.*]]
 ; CHECK:       CondFree:

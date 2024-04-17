@@ -490,8 +490,13 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    [[TMP31:%.*]] = add i64 [[TMP26]], [[TMP30]]
 ; CHECK-NEXT:    [[TMP32:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP31]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP32]], ptr addrspace(3) @llvm.amdgcn.sw.lds.k0, align 8
+; CHECK-NEXT:    [[TMP52:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 2), align 8
+; CHECK-NEXT:    [[TMP53:%.*]] = getelementptr inbounds i8, ptr addrspace(1) [[TMP32]], i64 [[TMP52]]
+; CHECK-NEXT:    [[TMP54:%.*]] = ptrtoint ptr addrspace(1) [[TMP53]] to i64
+; CHECK-NEXT:    [[TMP55:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP0]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, i32 0, i32 0, i32 3), align 8
+; CHECK-NEXT:    call void @__asan_poison_region(i64 [[TMP54]], i64 [[TMP55]])
 ; CHECK-NEXT:    br label [[TMP33]]
-; CHECK:       33:
+; CHECK:       37:
 ; CHECK-NEXT:    [[XYZCOND:%.*]] = phi i1 [ false, [[WID:%.*]] ], [ true, [[TMP21]] ]
 ; CHECK-NEXT:    call void @llvm.amdgcn.s.barrier()
 ; CHECK-NEXT:    [[TMP34:%.*]] = load i32, ptr addrspace(1) @llvm.amdgcn.sw.lds.k0.md, align 4
@@ -512,13 +517,13 @@ define amdgpu_kernel void @k0() sanitize_address !llvm.amdgcn.lds.kernel.id !0 {
 ; CHECK-NEXT:    br i1 [[TMP47]], label [[ASAN_REPORT1:%.*]], label [[TMP50:%.*]], !prof [[PROF0]]
 ; CHECK:       asan.report1:
 ; CHECK-NEXT:    br i1 [[TMP45]], label [[TMP48:%.*]], label [[TMP49:%.*]]
-; CHECK:       48:
+; CHECK:       52:
 ; CHECK-NEXT:    call void @__asan_report_store1(i64 [[TMP36]]) #[[ATTR6]]
 ; CHECK-NEXT:    call void @llvm.amdgcn.unreachable()
 ; CHECK-NEXT:    br label [[TMP49]]
-; CHECK:       49:
+; CHECK:       53:
 ; CHECK-NEXT:    br label [[TMP50]]
-; CHECK:       50:
+; CHECK:       54:
 ; CHECK-NEXT:    store i8 7, ptr addrspace(3) [[TMP35]], align 1
 ; CHECK-NEXT:    br label [[CONDFREE:%.*]]
 ; CHECK:       CondFree:
@@ -644,8 +649,18 @@ define amdgpu_kernel void @k1() sanitize_address !llvm.amdgcn.lds.kernel.id !1 {
 ; CHECK-NEXT:    [[TMP36:%.*]] = add i64 [[TMP31]], [[TMP35]]
 ; CHECK-NEXT:    [[TMP37:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP36]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP37]], ptr addrspace(3) @llvm.amdgcn.sw.lds.k1, align 8
+; CHECK-NEXT:    [[TMP59:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP2]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k1.md, i32 0, i32 1, i32 2), align 8
+; CHECK-NEXT:    [[TMP60:%.*]] = getelementptr inbounds i8, ptr addrspace(1) [[TMP37]], i64 [[TMP59]]
+; CHECK-NEXT:    [[TMP61:%.*]] = ptrtoint ptr addrspace(1) [[TMP60]] to i64
+; CHECK-NEXT:    [[TMP62:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP2]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k1.md, i32 0, i32 1, i32 3), align 8
+; CHECK-NEXT:    call void @__asan_poison_region(i64 [[TMP61]], i64 [[TMP62]])
+; CHECK-NEXT:    [[TMP63:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP2]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k1.md, i32 0, i32 0, i32 2), align 8
+; CHECK-NEXT:    [[TMP64:%.*]] = getelementptr inbounds i8, ptr addrspace(1) [[TMP37]], i64 [[TMP63]]
+; CHECK-NEXT:    [[TMP65:%.*]] = ptrtoint ptr addrspace(1) [[TMP64]] to i64
+; CHECK-NEXT:    [[TMP66:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[TMP2]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k1.md, i32 0, i32 0, i32 3), align 8
+; CHECK-NEXT:    call void @__asan_poison_region(i64 [[TMP65]], i64 [[TMP66]])
 ; CHECK-NEXT:    br label [[TMP38]]
-; CHECK:       38:
+; CHECK:       46:
 ; CHECK-NEXT:    [[XYZCOND:%.*]] = phi i1 [ false, [[WID:%.*]] ], [ true, [[TMP21]] ]
 ; CHECK-NEXT:    call void @llvm.amdgcn.s.barrier()
 ; CHECK-NEXT:    [[TMP39:%.*]] = load i32, ptr addrspace(1) getelementptr inbounds ([[TMP2]], ptr addrspace(1) @llvm.amdgcn.sw.lds.k1.md, i32 0, i32 3, i32 0), align 4
@@ -669,13 +684,13 @@ define amdgpu_kernel void @k1() sanitize_address !llvm.amdgcn.lds.kernel.id !1 {
 ; CHECK-NEXT:    br i1 [[TMP54]], label [[ASAN_REPORT1:%.*]], label [[TMP57:%.*]], !prof [[PROF0]]
 ; CHECK:       asan.report1:
 ; CHECK-NEXT:    br i1 [[TMP52]], label [[TMP55:%.*]], label [[TMP56:%.*]]
-; CHECK:       55:
+; CHECK:       63:
 ; CHECK-NEXT:    call void @__asan_report_store1(i64 [[TMP43]]) #[[ATTR6]]
 ; CHECK-NEXT:    call void @llvm.amdgcn.unreachable()
 ; CHECK-NEXT:    br label [[TMP56]]
-; CHECK:       56:
+; CHECK:       64:
 ; CHECK-NEXT:    br label [[TMP57]]
-; CHECK:       57:
+; CHECK:       65:
 ; CHECK-NEXT:    store i8 3, ptr addrspace(3) [[TMP40]], align 4
 ; CHECK-NEXT:    br label [[CONDFREE:%.*]]
 ; CHECK:       CondFree:

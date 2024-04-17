@@ -1396,9 +1396,77 @@ static void UpdateSwLDSMetadataWithRedzoneInfo(Function &F, int Scale) {
   return;
 }
 
+static void poisonRedzonesForSwLDS(Function& F) {
+  Module *M = F.getParent();
+  GlobalVariable *SwLDSGlobal = getKernelSwLDSGlobal(*M, F);
+  GlobalVariable *SwLDSMetadataGlobal = getKernelSwLDSMetadataGlobal(*M, F);
+  
+  if (!SwLDSGlobal || !SwLDSMetadataGlobal) return;
+
+  LLVMContext &Ctx = M->getContext();
+  Type *Int64Ty = Type::getInt64Ty(Ctx);
+  Type *VoidTy = Type::getVoidTy(Ctx);
+  FunctionCallee AsanPoisonRegion = M->getOrInsertFunction(
+                          StringRef("__asan_poison_region"),
+                          FunctionType::get(VoidTy,
+                          {Int64Ty, Int64Ty}, false));
+  Constant *MdInit = SwLDSMetadataGlobal->getInitializer();
+
+  for (User *U : SwLDSGlobal->users()) {  
+    StoreInst *SI = dyn_cast<StoreInst>(U);
+    if (!SI) continue;
+    
+    // Check if the value being stored is the result of a malloc  
+    CallInst *CI = dyn_cast<CallInst>(SI->getValueOperand());
+    if (!CI) continue;
+    
+    Function *F = CI->getCalledFunction();  
+    if (!F && !(F->getName() == "malloc"))
+      continue;
+
+    StructType *MDStructType =
+      cast<StructType>(SwLDSMetadataGlobal->getValueType());
+    assert(MDStructType);
+    unsigned NumStructs = MDStructType->getNumElements();
+    Value* StoreMallocPointer = SI->getValueOperand();
+
+    for (unsigned i = 0; i < NumStructs; i++) {
+      ConstantStruct *member = dyn_cast<ConstantStruct>(MdInit->getAggregateElement(i));
+      if (!member) continue;
+
+      ConstantInt *GlobalSize =
+          cast<ConstantInt>(member->getAggregateElement(1U));
+      unsigned GlobalSizeValue = GlobalSize->getZExtValue();
+      
+      if (!GlobalSizeValue) continue;
+      IRBuilder<> IRB(SI);
+      IRB.SetInsertPoint(SI->getNextNode());
+
+      auto *GEPForOffset = IRB.CreateInBoundsGEP(
+                  MDStructType, SwLDSMetadataGlobal,
+                {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(2)});
+
+      auto *GEPForSize = IRB.CreateInBoundsGEP(
+                  MDStructType, SwLDSMetadataGlobal,
+                {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(3)});
+
+      Value *RedzoneOffset =
+                IRB.CreateLoad(IRB.getInt64Ty(), GEPForOffset);
+      Value* RedzoneAddrOffset = IRB.CreateInBoundsGEP(
+                  IRB.getInt8Ty(), StoreMallocPointer, {RedzoneOffset});
+      Value* RedzoneAddress = IRB.CreatePtrToInt(RedzoneAddrOffset, IRB.getInt64Ty());
+      Value *Redzonesize = IRB.CreateLoad(IRB.getInt64Ty(), GEPForSize);   
+      IRB.CreateCall(AsanPoisonRegion, {RedzoneAddress, Redzonesize});
+    }
+  }
+  return;
+}
+
 static void preProcessAMDGPULDSAccesses(Module &M, int Scale) {
-  for (Function &F : M)
+  for (Function &F : M) {
     UpdateSwLDSMetadataWithRedzoneInfo(F, Scale);
+    poisonRedzonesForSwLDS(F);
+  }
   return;
 }
 
