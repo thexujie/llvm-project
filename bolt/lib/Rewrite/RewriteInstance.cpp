@@ -813,14 +813,8 @@ void RewriteInstance::discoverFileObjects() {
 
   // For local symbols we want to keep track of associated FILE symbol name for
   // disambiguation by combined name.
-  StringRef FileSymbolName;
   bool SeenFileName = false;
-  struct SymbolRefHash {
-    size_t operator()(SymbolRef const &S) const {
-      return std::hash<decltype(DataRefImpl::p)>{}(S.getRawDataRefImpl().p);
-    }
-  };
-  std::unordered_map<SymbolRef, StringRef, SymbolRefHash> SymbolToFileName;
+  std::vector<std::pair<DataRefImpl, StringRef>> FileSymbols;
   for (const ELFSymbolRef &Symbol : InputFile->symbols()) {
     Expected<StringRef> NameOrError = Symbol.getName();
     if (NameOrError && NameOrError->starts_with("__asan_init")) {
@@ -846,13 +840,10 @@ void RewriteInstance::discoverFileObjects() {
       // and this uncertainty is causing havoc in function name matching.
       if (Name == "ld-temp.o")
         continue;
-      FileSymbolName = Name;
+      FileSymbols.emplace_back(Symbol.getRawDataRefImpl(), Name);
       SeenFileName = true;
       continue;
     }
-    if (!FileSymbolName.empty() &&
-        !(cantFail(Symbol.getFlags()) & SymbolRef::SF_Global))
-      SymbolToFileName[Symbol] = FileSymbolName;
   }
 
   // Sort symbols in the file by value. Ignore symbols from non-allocatable
@@ -1027,14 +1018,18 @@ void RewriteInstance::discoverFileObjects() {
       // The <id> field is used for disambiguation of local symbols since there
       // could be identical function names coming from identical file names
       // (e.g. from different directories).
-      std::string AltPrefix;
-      auto SFI = SymbolToFileName.find(Symbol);
-      if (SymbolType == SymbolRef::ST_Function && SFI != SymbolToFileName.end())
-        AltPrefix = Name + "/" + std::string(SFI->second);
+      auto CompareSymsByIdx = [](const std::pair<DataRefImpl, StringRef> &A,
+                                 const std::pair<DataRefImpl, StringRef> &B) {
+        return A.first.d.b < B.first.d.b;
+      };
+      DataRefImpl SymDataRef = Symbol.getRawDataRefImpl();
+      auto SFI = llvm::upper_bound(FileSymbols,
+                                   std::make_pair(SymDataRef, StringRef()),
+                                   CompareSymsByIdx);
+      if (SymbolType == SymbolRef::ST_Function && SFI != FileSymbols.begin())
+        AlternativeName = NR.uniquify(Name + "/" + SFI[-1].second.str());
 
       UniqueName = NR.uniquify(Name);
-      if (!AltPrefix.empty())
-        AlternativeName = NR.uniquify(AltPrefix);
     }
 
     uint64_t SymbolSize = ELFSymbolRef(Symbol).getSize();
