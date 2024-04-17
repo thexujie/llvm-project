@@ -15,11 +15,10 @@ define <2 x half> @vfmin_v2f16_vv(<2 x half> %a, <2 x half> %b) {
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 2, e16, mf4, ta, ma
 ; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
-; ZVFH-NEXT:    vmfeq.vv v10, v9, v9
-; ZVFH-NEXT:    vmerge.vvm v11, v8, v9, v0
-; ZVFH-NEXT:    vmv1r.v v0, v10
+; ZVFH-NEXT:    vmerge.vvm v10, v8, v9, v0
+; ZVFH-NEXT:    vmfeq.vv v0, v9, v9
 ; ZVFH-NEXT:    vmerge.vvm v8, v9, v8, v0
-; ZVFH-NEXT:    vfmin.vv v8, v8, v11
+; ZVFH-NEXT:    vfmin.vv v8, v8, v10
 ; ZVFH-NEXT:    ret
 ;
 ; ZVFHMIN-LABEL: vfmin_v2f16_vv:
@@ -29,11 +28,10 @@ define <2 x half> @vfmin_v2f16_vv(<2 x half> %a, <2 x half> %b) {
 ; ZVFHMIN-NEXT:    vfwcvt.f.f.v v9, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, mf2, ta, ma
 ; ZVFHMIN-NEXT:    vmfeq.vv v0, v9, v9
-; ZVFHMIN-NEXT:    vmfeq.vv v8, v10, v10
-; ZVFHMIN-NEXT:    vmerge.vvm v11, v9, v10, v0
-; ZVFHMIN-NEXT:    vmv1r.v v0, v8
-; ZVFHMIN-NEXT:    vmerge.vvm v8, v10, v9, v0
-; ZVFHMIN-NEXT:    vfmin.vv v9, v8, v11
+; ZVFHMIN-NEXT:    vmerge.vvm v8, v9, v10, v0
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v10, v10
+; ZVFHMIN-NEXT:    vmerge.vvm v9, v10, v9, v0
+; ZVFHMIN-NEXT:    vfmin.vv v9, v9, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
 ; ZVFHMIN-NEXT:    vfncvt.f.f.w v8, v9
 ; ZVFHMIN-NEXT:    ret
@@ -48,11 +46,10 @@ define <4 x half> @vfmin_v4f16_vv(<4 x half> %a, <4 x half> %b) {
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 4, e16, mf2, ta, ma
 ; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
-; ZVFH-NEXT:    vmfeq.vv v10, v9, v9
-; ZVFH-NEXT:    vmerge.vvm v11, v8, v9, v0
-; ZVFH-NEXT:    vmv1r.v v0, v10
+; ZVFH-NEXT:    vmerge.vvm v10, v8, v9, v0
+; ZVFH-NEXT:    vmfeq.vv v0, v9, v9
 ; ZVFH-NEXT:    vmerge.vvm v8, v9, v8, v0
-; ZVFH-NEXT:    vfmin.vv v8, v8, v11
+; ZVFH-NEXT:    vfmin.vv v8, v8, v10
 ; ZVFH-NEXT:    ret
 ;
 ; ZVFHMIN-LABEL: vfmin_v4f16_vv:
@@ -62,11 +59,10 @@ define <4 x half> @vfmin_v4f16_vv(<4 x half> %a, <4 x half> %b) {
 ; ZVFHMIN-NEXT:    vfwcvt.f.f.v v9, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, m1, ta, ma
 ; ZVFHMIN-NEXT:    vmfeq.vv v0, v9, v9
-; ZVFHMIN-NEXT:    vmfeq.vv v8, v10, v10
-; ZVFHMIN-NEXT:    vmerge.vvm v11, v9, v10, v0
-; ZVFHMIN-NEXT:    vmv.v.v v0, v8
-; ZVFHMIN-NEXT:    vmerge.vvm v8, v10, v9, v0
-; ZVFHMIN-NEXT:    vfmin.vv v9, v8, v11
+; ZVFHMIN-NEXT:    vmerge.vvm v8, v9, v10, v0
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v10, v10
+; ZVFHMIN-NEXT:    vmerge.vvm v9, v10, v9, v0
+; ZVFHMIN-NEXT:    vfmin.vv v9, v9, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf2, ta, ma
 ; ZVFHMIN-NEXT:    vfncvt.f.f.w v8, v9
 ; ZVFHMIN-NEXT:    ret
@@ -81,11 +77,10 @@ define <8 x half> @vfmin_v8f16_vv(<8 x half> %a, <8 x half> %b) {
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 8, e16, m1, ta, ma
 ; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
-; ZVFH-NEXT:    vmfeq.vv v10, v9, v9
-; ZVFH-NEXT:    vmerge.vvm v11, v8, v9, v0
-; ZVFH-NEXT:    vmv.v.v v0, v10
+; ZVFH-NEXT:    vmerge.vvm v10, v8, v9, v0
+; ZVFH-NEXT:    vmfeq.vv v0, v9, v9
 ; ZVFH-NEXT:    vmerge.vvm v8, v9, v8, v0
-; ZVFH-NEXT:    vfmin.vv v8, v8, v11
+; ZVFH-NEXT:    vfmin.vv v8, v8, v10
 ; ZVFH-NEXT:    ret
 ;
 ; ZVFHMIN-LABEL: vfmin_v8f16_vv:
@@ -95,9 +90,8 @@ define <8 x half> @vfmin_v8f16_vv(<8 x half> %a, <8 x half> %b) {
 ; ZVFHMIN-NEXT:    vfwcvt.f.f.v v12, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, m2, ta, ma
 ; ZVFHMIN-NEXT:    vmfeq.vv v0, v12, v12
-; ZVFHMIN-NEXT:    vmfeq.vv v2, v10, v10
 ; ZVFHMIN-NEXT:    vmerge.vvm v8, v12, v10, v0
-; ZVFHMIN-NEXT:    vmv1r.v v0, v2
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v10, v10
 ; ZVFHMIN-NEXT:    vmerge.vvm v10, v10, v12, v0
 ; ZVFHMIN-NEXT:    vfmin.vv v10, v10, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, m1, ta, ma
@@ -114,9 +108,8 @@ define <16 x half> @vfmin_v16f16_vv(<16 x half> %a, <16 x half> %b) {
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 16, e16, m2, ta, ma
 ; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
-; ZVFH-NEXT:    vmfeq.vv v2, v10, v10
 ; ZVFH-NEXT:    vmerge.vvm v12, v8, v10, v0
-; ZVFH-NEXT:    vmv1r.v v0, v2
+; ZVFH-NEXT:    vmfeq.vv v0, v10, v10
 ; ZVFH-NEXT:    vmerge.vvm v8, v10, v8, v0
 ; ZVFH-NEXT:    vfmin.vv v8, v8, v12
 ; ZVFH-NEXT:    ret
@@ -128,9 +121,8 @@ define <16 x half> @vfmin_v16f16_vv(<16 x half> %a, <16 x half> %b) {
 ; ZVFHMIN-NEXT:    vfwcvt.f.f.v v16, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, m4, ta, ma
 ; ZVFHMIN-NEXT:    vmfeq.vv v0, v16, v16
-; ZVFHMIN-NEXT:    vmfeq.vv v4, v12, v12
 ; ZVFHMIN-NEXT:    vmerge.vvm v8, v16, v12, v0
-; ZVFHMIN-NEXT:    vmv1r.v v0, v4
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v12, v12
 ; ZVFHMIN-NEXT:    vmerge.vvm v12, v12, v16, v0
 ; ZVFHMIN-NEXT:    vfmin.vv v12, v12, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, m2, ta, ma
@@ -147,11 +139,10 @@ define <2 x float> @vfmin_v2f32_vv(<2 x float> %a, <2 x float> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 2, e32, mf2, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v10, v9, v9
-; CHECK-NEXT:    vmerge.vvm v11, v8, v9, v0
-; CHECK-NEXT:    vmv1r.v v0, v10
+; CHECK-NEXT:    vmerge.vvm v10, v8, v9, v0
+; CHECK-NEXT:    vmfeq.vv v0, v9, v9
 ; CHECK-NEXT:    vmerge.vvm v8, v9, v8, v0
-; CHECK-NEXT:    vfmin.vv v8, v8, v11
+; CHECK-NEXT:    vfmin.vv v8, v8, v10
 ; CHECK-NEXT:    ret
   %v = call <2 x float> @llvm.minimum.v2f32(<2 x float> %a, <2 x float> %b)
   ret <2 x float> %v
@@ -164,11 +155,10 @@ define <4 x float> @vfmin_v4f32_vv(<4 x float> %a, <4 x float> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 4, e32, m1, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v10, v9, v9
-; CHECK-NEXT:    vmerge.vvm v11, v8, v9, v0
-; CHECK-NEXT:    vmv.v.v v0, v10
+; CHECK-NEXT:    vmerge.vvm v10, v8, v9, v0
+; CHECK-NEXT:    vmfeq.vv v0, v9, v9
 ; CHECK-NEXT:    vmerge.vvm v8, v9, v8, v0
-; CHECK-NEXT:    vfmin.vv v8, v8, v11
+; CHECK-NEXT:    vfmin.vv v8, v8, v10
 ; CHECK-NEXT:    ret
   %v = call <4 x float> @llvm.minimum.v4f32(<4 x float> %a, <4 x float> %b)
   ret <4 x float> %v
@@ -181,9 +171,8 @@ define <8 x float> @vfmin_v8f32_vv(<8 x float> %a, <8 x float> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 8, e32, m2, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v2, v10, v10
 ; CHECK-NEXT:    vmerge.vvm v12, v8, v10, v0
-; CHECK-NEXT:    vmv1r.v v0, v2
+; CHECK-NEXT:    vmfeq.vv v0, v10, v10
 ; CHECK-NEXT:    vmerge.vvm v8, v10, v8, v0
 ; CHECK-NEXT:    vfmin.vv v8, v8, v12
 ; CHECK-NEXT:    ret
@@ -198,9 +187,8 @@ define <16 x float> @vfmin_v16f32_vv(<16 x float> %a, <16 x float> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 16, e32, m4, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v4, v12, v12
 ; CHECK-NEXT:    vmerge.vvm v16, v8, v12, v0
-; CHECK-NEXT:    vmv1r.v v0, v4
+; CHECK-NEXT:    vmfeq.vv v0, v12, v12
 ; CHECK-NEXT:    vmerge.vvm v8, v12, v8, v0
 ; CHECK-NEXT:    vfmin.vv v8, v8, v16
 ; CHECK-NEXT:    ret
@@ -215,11 +203,10 @@ define <2 x double> @vfmin_v2f64_vv(<2 x double> %a, <2 x double> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 2, e64, m1, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v10, v9, v9
-; CHECK-NEXT:    vmerge.vvm v11, v8, v9, v0
-; CHECK-NEXT:    vmv.v.v v0, v10
+; CHECK-NEXT:    vmerge.vvm v10, v8, v9, v0
+; CHECK-NEXT:    vmfeq.vv v0, v9, v9
 ; CHECK-NEXT:    vmerge.vvm v8, v9, v8, v0
-; CHECK-NEXT:    vfmin.vv v8, v8, v11
+; CHECK-NEXT:    vfmin.vv v8, v8, v10
 ; CHECK-NEXT:    ret
   %v = call <2 x double> @llvm.minimum.v2f64(<2 x double> %a, <2 x double> %b)
   ret <2 x double> %v
@@ -232,9 +219,8 @@ define <4 x double> @vfmin_v4f64_vv(<4 x double> %a, <4 x double> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 4, e64, m2, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v2, v10, v10
 ; CHECK-NEXT:    vmerge.vvm v12, v8, v10, v0
-; CHECK-NEXT:    vmv1r.v v0, v2
+; CHECK-NEXT:    vmfeq.vv v0, v10, v10
 ; CHECK-NEXT:    vmerge.vvm v8, v10, v8, v0
 ; CHECK-NEXT:    vfmin.vv v8, v8, v12
 ; CHECK-NEXT:    ret
@@ -249,9 +235,8 @@ define <8 x double> @vfmin_v8f64_vv(<8 x double> %a, <8 x double> %b) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetivli zero, 8, e64, m4, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v4, v12, v12
 ; CHECK-NEXT:    vmerge.vvm v16, v8, v12, v0
-; CHECK-NEXT:    vmv1r.v v0, v4
+; CHECK-NEXT:    vmfeq.vv v0, v12, v12
 ; CHECK-NEXT:    vmerge.vvm v8, v12, v8, v0
 ; CHECK-NEXT:    vfmin.vv v8, v8, v16
 ; CHECK-NEXT:    ret
@@ -264,23 +249,12 @@ declare <16 x double> @llvm.minimum.v16f64(<16 x double>, <16 x double>)
 define <16 x double> @vfmin_v16f64_vv(<16 x double> %a, <16 x double> %b) nounwind {
 ; CHECK-LABEL: vfmin_v16f64_vv:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    addi sp, sp, -16
-; CHECK-NEXT:    csrr a0, vlenb
-; CHECK-NEXT:    slli a0, a0, 1
-; CHECK-NEXT:    sub sp, sp, a0
 ; CHECK-NEXT:    vsetivli zero, 16, e64, m8, ta, ma
 ; CHECK-NEXT:    vmfeq.vv v0, v8, v8
-; CHECK-NEXT:    vmfeq.vv v24, v16, v16
-; CHECK-NEXT:    addi a0, sp, 16
-; CHECK-NEXT:    vs1r.v v24, (a0) # Unknown-size Folded Spill
 ; CHECK-NEXT:    vmerge.vvm v24, v8, v16, v0
-; CHECK-NEXT:    vl1r.v v0, (a0) # Unknown-size Folded Reload
+; CHECK-NEXT:    vmfeq.vv v0, v16, v16
 ; CHECK-NEXT:    vmerge.vvm v8, v16, v8, v0
 ; CHECK-NEXT:    vfmin.vv v8, v8, v24
-; CHECK-NEXT:    csrr a0, vlenb
-; CHECK-NEXT:    slli a0, a0, 1
-; CHECK-NEXT:    add sp, sp, a0
-; CHECK-NEXT:    addi sp, sp, 16
 ; CHECK-NEXT:    ret
   %v = call <16 x double> @llvm.minimum.v16f64(<16 x double> %a, <16 x double> %b)
   ret <16 x double> %v
@@ -312,13 +286,12 @@ define <2 x half> @vfmin_v2f16_vv_nnana(<2 x half> %a, <2 x half> %b) {
 ; ZVFH-LABEL: vfmin_v2f16_vv_nnana:
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 2, e16, mf4, ta, ma
-; ZVFH-NEXT:    vfadd.vv v10, v8, v8
+; ZVFH-NEXT:    vfadd.vv v8, v8, v8
 ; ZVFH-NEXT:    vmfeq.vv v0, v9, v9
-; ZVFH-NEXT:    vmfeq.vv v8, v10, v10
-; ZVFH-NEXT:    vmerge.vvm v11, v9, v10, v0
-; ZVFH-NEXT:    vmv1r.v v0, v8
-; ZVFH-NEXT:    vmerge.vvm v8, v10, v9, v0
-; ZVFH-NEXT:    vfmin.vv v8, v11, v8
+; ZVFH-NEXT:    vmerge.vvm v10, v9, v8, v0
+; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
+; ZVFH-NEXT:    vmerge.vvm v8, v8, v9, v0
+; ZVFH-NEXT:    vfmin.vv v8, v10, v8
 ; ZVFH-NEXT:    ret
 ;
 ; ZVFHMIN-LABEL: vfmin_v2f16_vv_nnana:
@@ -329,16 +302,15 @@ define <2 x half> @vfmin_v2f16_vv_nnana(<2 x half> %a, <2 x half> %b) {
 ; ZVFHMIN-NEXT:    vfadd.vv v8, v10, v10
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
 ; ZVFHMIN-NEXT:    vfncvt.f.f.w v10, v8
-; ZVFHMIN-NEXT:    vfwcvt.f.f.v v11, v9
+; ZVFHMIN-NEXT:    vfwcvt.f.f.v v8, v9
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, mf2, ta, ma
-; ZVFHMIN-NEXT:    vmfeq.vv v0, v11, v11
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v8, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
 ; ZVFHMIN-NEXT:    vfwcvt.f.f.v v9, v10
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, mf2, ta, ma
-; ZVFHMIN-NEXT:    vmfeq.vv v8, v9, v9
-; ZVFHMIN-NEXT:    vmerge.vvm v10, v11, v9, v0
-; ZVFHMIN-NEXT:    vmv1r.v v0, v8
-; ZVFHMIN-NEXT:    vmerge.vvm v8, v9, v11, v0
+; ZVFHMIN-NEXT:    vmerge.vvm v10, v8, v9, v0
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v9, v9
+; ZVFHMIN-NEXT:    vmerge.vvm v8, v9, v8, v0
 ; ZVFHMIN-NEXT:    vfmin.vv v9, v10, v8
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
 ; ZVFHMIN-NEXT:    vfncvt.f.f.w v8, v9
@@ -353,13 +325,12 @@ define <2 x half> @vfmin_v2f16_vv_nnanb(<2 x half> %a, <2 x half> %b) {
 ; ZVFH-LABEL: vfmin_v2f16_vv_nnanb:
 ; ZVFH:       # %bb.0:
 ; ZVFH-NEXT:    vsetivli zero, 2, e16, mf4, ta, ma
-; ZVFH-NEXT:    vfadd.vv v10, v9, v9
+; ZVFH-NEXT:    vfadd.vv v9, v9, v9
 ; ZVFH-NEXT:    vmfeq.vv v0, v8, v8
-; ZVFH-NEXT:    vmfeq.vv v9, v10, v10
-; ZVFH-NEXT:    vmerge.vvm v11, v8, v10, v0
-; ZVFH-NEXT:    vmv1r.v v0, v9
-; ZVFH-NEXT:    vmerge.vvm v8, v10, v8, v0
-; ZVFH-NEXT:    vfmin.vv v8, v8, v11
+; ZVFH-NEXT:    vmerge.vvm v10, v8, v9, v0
+; ZVFH-NEXT:    vmfeq.vv v0, v9, v9
+; ZVFH-NEXT:    vmerge.vvm v8, v9, v8, v0
+; ZVFH-NEXT:    vfmin.vv v8, v8, v10
 ; ZVFH-NEXT:    ret
 ;
 ; ZVFHMIN-LABEL: vfmin_v2f16_vv_nnanb:
@@ -374,12 +345,11 @@ define <2 x half> @vfmin_v2f16_vv_nnanb(<2 x half> %a, <2 x half> %b) {
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, mf2, ta, ma
 ; ZVFHMIN-NEXT:    vmfeq.vv v0, v9, v9
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
-; ZVFHMIN-NEXT:    vfwcvt.f.f.v v11, v10
+; ZVFHMIN-NEXT:    vfwcvt.f.f.v v8, v10
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e32, mf2, ta, ma
-; ZVFHMIN-NEXT:    vmfeq.vv v8, v11, v11
-; ZVFHMIN-NEXT:    vmerge.vvm v10, v9, v11, v0
-; ZVFHMIN-NEXT:    vmv1r.v v0, v8
-; ZVFHMIN-NEXT:    vmerge.vvm v8, v11, v9, v0
+; ZVFHMIN-NEXT:    vmerge.vvm v10, v9, v8, v0
+; ZVFHMIN-NEXT:    vmfeq.vv v0, v8, v8
+; ZVFHMIN-NEXT:    vmerge.vvm v8, v8, v9, v0
 ; ZVFHMIN-NEXT:    vfmin.vv v9, v8, v10
 ; ZVFHMIN-NEXT:    vsetvli zero, zero, e16, mf4, ta, ma
 ; ZVFHMIN-NEXT:    vfncvt.f.f.w v8, v9
