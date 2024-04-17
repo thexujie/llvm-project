@@ -185,7 +185,7 @@ define private void @store_A() {
 ; CHECK-NEXT:    [[TMP6:%.*]] = load i32, ptr addrspace(4) [[TMP5]], align 4
 ; CHECK-NEXT:    [[TMP7:%.*]] = inttoptr i32 [[TMP6]] to ptr addrspace(3)
 ; CHECK-NEXT:    [[TMP8:%.*]] = load i32, ptr addrspace(3) [[TMP7]], align 4
-; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds ptr addrspace(3), ptr addrspace(3) [[TMP4]], i32 [[TMP8]]
+; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds i8, ptr addrspace(3) [[TMP4]], i32 [[TMP8]]
 ; CHECK-NEXT:    [[TMP10:%.*]] = addrspacecast ptr addrspace(3) [[TMP9]] to ptr
 ; CHECK-NEXT:    store ptr [[TMP10]], ptr null, align 8
 ; CHECK-NEXT:    ret void
@@ -204,7 +204,7 @@ define private ptr @get_B_ptr() {
 ; CHECK-NEXT:    [[TMP6:%.*]] = load i32, ptr addrspace(4) [[TMP5]], align 4
 ; CHECK-NEXT:    [[TMP7:%.*]] = inttoptr i32 [[TMP6]] to ptr addrspace(3)
 ; CHECK-NEXT:    [[TMP8:%.*]] = load i32, ptr addrspace(3) [[TMP7]], align 4
-; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds ptr addrspace(3), ptr addrspace(3) [[TMP4]], i32 [[TMP8]]
+; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds i8, ptr addrspace(3) [[TMP4]], i32 [[TMP8]]
 ; CHECK-NEXT:    [[TMP10:%.*]] = addrspacecast ptr addrspace(3) [[TMP9]] to ptr
 ; CHECK-NEXT:    ret ptr [[TMP10]]
 ;

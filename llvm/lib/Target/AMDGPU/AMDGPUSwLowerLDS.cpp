@@ -390,7 +390,7 @@ void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
           SwLDSMetadataStructType, SwLDSMetadata, GEPIdx, true);
       Value *Load = IRB.CreateLoad(Int32Ty, GEP);
       Value *BasePlusOffset =
-          IRB.CreateInBoundsGEP(GV->getType(), SwLDS, {Load});
+          IRB.CreateInBoundsGEP(IRB.getInt8Ty(), SwLDS, {Load});
       replacesUsesOfGlobalInFunction(Func, GV, BasePlusOffset);
     }
   };
@@ -704,7 +704,7 @@ void AMDGPUSwLowerLDS::lowerNonKernelLDSAccesses(
     OffsetLoad = IRB.CreateIntToPtr(OffsetLoad, GV->getType());
     OffsetLoad = IRB.CreateLoad(IRB.getInt32Ty(), OffsetLoad);
     Value *BasePlusOffset =
-        IRB.CreateInBoundsGEP(GV->getType(), BasePtr, {OffsetLoad});
+        IRB.CreateInBoundsGEP(IRB.getInt8Ty(), BasePtr, {OffsetLoad});
     replacesUsesOfGlobalInFunction(Func, GV, BasePlusOffset);
   }
   return;

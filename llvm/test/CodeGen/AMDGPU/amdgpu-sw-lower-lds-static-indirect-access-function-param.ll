@@ -41,7 +41,7 @@ define amdgpu_kernel void @my_kernel() {
 ; CHECK-NEXT:    [[XYZCOND:%.*]] = phi i1 [ false, [[WID:%.*]] ], [ true, [[MALLOC]] ]
 ; CHECK-NEXT:    call void @llvm.amdgcn.s.barrier()
 ; CHECK-NEXT:    [[TMP8:%.*]] = load i32, ptr addrspace(1) @llvm.amdgcn.sw.lds.my_kernel.md, align 4
-; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds ptr addrspace(3), ptr addrspace(3) @llvm.amdgcn.sw.lds.my_kernel, i32 [[TMP8]]
+; CHECK-NEXT:    [[TMP9:%.*]] = getelementptr inbounds i8, ptr addrspace(3) @llvm.amdgcn.sw.lds.my_kernel, i32 [[TMP8]]
 ; CHECK-NEXT:    [[LDS_PTR:%.*]] = getelementptr [1024 x i32], ptr addrspace(3) [[TMP9]], i32 0, i32 0
 ; CHECK-NEXT:    call void @my_function(ptr addrspace(3) [[LDS_PTR]])
 ; CHECK-NEXT:    br label [[CONDFREE:%.*]]
