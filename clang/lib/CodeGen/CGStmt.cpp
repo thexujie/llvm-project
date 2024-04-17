@@ -915,7 +915,7 @@ void CodeGenFunction::EmitWhileStmt(const WhileStmt &S,
   JumpDest LoopHeader = getJumpDestInCurrentScope("while.cond");
   EmitBlock(LoopHeader.getBlock());
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.push_back(emitConvergenceLoopToken(
         LoopHeader.getBlock(), ConvergenceTokenStack.back()));
 
@@ -1022,7 +1022,7 @@ void CodeGenFunction::EmitWhileStmt(const WhileStmt &S,
   if (llvm::EnableSingleByteCoverage)
     incrementProfileCounter(&S);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.pop_back();
 }
 
@@ -1044,7 +1044,7 @@ void CodeGenFunction::EmitDoStmt(const DoStmt &S,
   else
     EmitBlockWithFallThrough(LoopBody, &S);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.push_back(
         emitConvergenceLoopToken(LoopBody, ConvergenceTokenStack.back()));
 
@@ -1103,7 +1103,7 @@ void CodeGenFunction::EmitDoStmt(const DoStmt &S,
   if (llvm::EnableSingleByteCoverage)
     incrementProfileCounter(&S);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.pop_back();
 }
 
@@ -1124,7 +1124,7 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
   llvm::BasicBlock *CondBlock = CondDest.getBlock();
   EmitBlock(CondBlock);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.push_back(
         emitConvergenceLoopToken(CondBlock, ConvergenceTokenStack.back()));
 
@@ -1242,7 +1242,7 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S,
   if (llvm::EnableSingleByteCoverage)
     incrementProfileCounter(&S);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.pop_back();
 }
 
@@ -1266,7 +1266,7 @@ CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
   llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
   EmitBlock(CondBlock);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.push_back(
         emitConvergenceLoopToken(CondBlock, ConvergenceTokenStack.back()));
 
@@ -1339,7 +1339,7 @@ CodeGenFunction::EmitCXXForRangeStmt(const CXXForRangeStmt &S,
   if (llvm::EnableSingleByteCoverage)
     incrementProfileCounter(&S);
 
-  if (getTarget().getTriple().isSPIRVLogical())
+  if (CGM.shouldEmitConvergenceTokens())
     ConvergenceTokenStack.pop_back();
 }
 
