@@ -94,8 +94,10 @@ public:
 
   ValueRange getLvlBuffers() const override { return {}; }
 
-  ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange, Value p,
-                        Value max) const override {
+  ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange batchPrefix,
+                        ValueRange parentPos) const override {
+    assert(parentPos.size() == 1 && "Dense level can not be non-unique.");
+    Value p = parentPos.front();
     Value posLo = MULI(p, lvlSize);
     return {posLo, lvlSize};
   }
@@ -112,9 +114,9 @@ public:
 
   ValueRange getLvlBuffers() const override { return {}; }
 
-  ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange, Value p,
-                        Value max) const override {
-    assert(max == nullptr && "Dense level can not be non-unique.");
+  ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange,
+                        ValueRange parentPos) const override {
+    assert(parentPos.size() == 1 && "Dense level can not be non-unique.");
     // No need to linearize the position for non-annotated tensors.
     return {C_IDX(0), lvlSize};
   }
@@ -127,9 +129,11 @@ public:
       : SparseLevel(tid, lvl, lt, lvlSize, {posBuffer, crdBuffer}) {}
 
   ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange batchPrefix,
-                        Value p, Value max) const override {
-    assert(max == nullptr &&
+                        ValueRange parentPos) const override {
+
+    assert(parentPos.size() == 1 &&
            "compressed level must be the first non-unique level.");
+    Value p = parentPos.front();
 
     SmallVector<Value> memCrd(batchPrefix);
     memCrd.push_back(p);
@@ -147,11 +151,11 @@ public:
       : SparseLevel(tid, lvl, lt, lvlSize, {posBuffer, crdBuffer}) {}
 
   ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange batchPrefix,
-                        Value p, Value max) const override {
-    assert(max == nullptr &&
+                        ValueRange parentPos) const override {
+    assert(parentPos.size() == 1 &&
            "loose-compressed level must be the first non-unique level.");
     SmallVector<Value> memCrd(batchPrefix);
-
+    Value p = parentPos.front();
     p = MULI(p, C_IDX(2));
     memCrd.push_back(p);
     Value pLo = genIndexLoad(b, l, getPosBuf(), memCrd);
@@ -168,13 +172,23 @@ public:
       : SparseLevel(tid, lvl, lt, lvlSize, {crdBuffer}) {}
 
   ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange batchPrefix,
-                        Value p, Value segHi) const override {
+                        ValueRange parentPos) const override {
+    assert(parentPos.size() == 1 || parentPos.size() == 2);
+    Value p = parentPos.front();
+    Value segHi = parentPos.size() == 2 ? parentPos.back() : nullptr;
+
     if (segHi == nullptr)
       return {p, ADDI(p, C_IDX(1))};
-
     // Use the segHi as the loop upper bound.
     return {p, segHi};
   }
+
+  ValuePair
+  collapseRangeBetween(OpBuilder &b, Location l, ValueRange batchPrefix,
+                       std::pair<Value, Value> parentRange) const override {
+    // Singleton level keeps the same range after collapsing.
+    return parentRange;
+  };
 };
 
 class NOutOfMLevel : public SparseLevel</*hasPosBuf=*/false> {
@@ -184,11 +198,12 @@ public:
       : SparseLevel(tid, lvl, lt, lvlSize, {crdBuffer}) {}
 
   ValuePair peekRangeAt(OpBuilder &b, Location l, ValueRange batchPrefix,
-                        Value p, Value max) const override {
-    assert(max == nullptr && isUnique() && "n:m level can not be non-unique.");
+                        ValueRange parentPos) const override {
+    assert(parentPos.size() == 1 && isUnique() &&
+           "n:m level can not be non-unique.");
     // Each n:m blk has exactly n specified elements.
     auto n = getN(lt);
-    Value posLo = MULI(p, C_IDX(n));
+    Value posLo = MULI(parentPos.front(), C_IDX(n));
     return {posLo, ADDI(posLo, C_IDX(n))};
   }
 };
@@ -316,23 +331,21 @@ public:
       posHi = vs.back();
   };
 
-  ValuePair getCurPosition() const override { return {getItPos(), nullptr}; }
-
   void genInitImpl(OpBuilder &b, Location l,
                    const SparseIterator *parent) override {
 
     if (isBatchIterator() && batchCrds.size() <= stl.lvl)
       batchCrds.resize(stl.lvl + 1, nullptr);
 
-    Value pos = C_IDX(0);
-    Value hi = nullptr;
+    Value c0 = C_IDX(0);
+    ValueRange pPos = c0;
     // If the parent iterator is a batch iterator, we also start from 0 (but
     // on a different batch).
     if (parent && !parent->isBatchIterator())
-      std::tie(pos, hi) = parent->getCurPosition();
+      pPos = parent->getCurPosition();
 
     ValueRange batchPrefix = parent ? parent->getBatchCrds() : ValueRange{};
-    std::tie(posLo, posHi) = stl.peekRangeAt(b, l, batchPrefix, pos, hi);
+    std::tie(posLo, posHi) = stl.peekRangeAt(b, l, batchPrefix, pPos);
     // Seek to the lowest position.
     seek(posLo);
   }
@@ -406,21 +419,19 @@ public:
     return {b.getIndexType(), b.getIndexType()};
   }
 
-  ValuePair getCurPosition() const override { return {getPos(), getSegHi()}; }
-
   void genInitImpl(OpBuilder &b, Location l,
                    const SparseIterator *parent) override {
+    Value c0 = C_IDX(0);
+    ValueRange pPos = c0;
 
-    Value pos = C_IDX(0);
-    Value hi = nullptr;
     // If the parent iterator is a batch iterator, we also start from 0 (but
     // on a different batch).
     if (parent && !parent->isBatchIterator())
-      std::tie(pos, hi) = parent->getCurPosition();
+      pPos = parent->getCurPosition();
 
     Value posLo;
     ValueRange batchPrefix = parent ? parent->getBatchCrds() : ValueRange{};
-    std::tie(posLo, posHi) = stl.peekRangeAt(b, l, batchPrefix, pos, hi);
+    std::tie(posLo, posHi) = stl.peekRangeAt(b, l, batchPrefix, pPos);
 
     seek({posLo, genSegmentHigh(b, l, posLo)});
   }
@@ -505,7 +516,7 @@ public:
 
   SmallVector<Value> serialize() const override { return wrap->serialize(); };
   void deserialize(ValueRange vs) override { wrap->deserialize(vs); };
-  ValuePair getCurPosition() const override { return wrap->getCurPosition(); }
+  ValueRange getCurPosition() const override { return wrap->getCurPosition(); }
 
   void genInitImpl(OpBuilder &b, Location l,
                    const SparseIterator *parent) override {
@@ -756,9 +767,8 @@ public:
   Value upperBound(OpBuilder &b, Location l) const override {
     return subSect.subSectSz;
   }
-  std::pair<Value, Value> getCurPosition() const override {
-    return wrap->getCurPosition();
-  };
+
+  ValueRange getCurPosition() const override { return wrap->getCurPosition(); };
 
   Value getNxLvlTupleId(OpBuilder &b, Location l) const {
     if (randomAccessible()) {
@@ -1329,8 +1339,83 @@ ValueRange NonEmptySubSectIterator::forwardImpl(OpBuilder &b, Location l) {
 }
 
 //===----------------------------------------------------------------------===//
+// SparseIterationSpace Implementation
+//===----------------------------------------------------------------------===//
+
+mlir::sparse_tensor::SparseIterationSpace::SparseIterationSpace(
+    Location l, OpBuilder &b, Value t, unsigned tid,
+    std::pair<Level, Level> lvlRange, ValueRange parentPos)
+    : lvls() {
+  auto [lvlLo, lvlHi] = lvlRange;
+
+  Value c0 = C_IDX(0);
+  if (parentPos.empty())
+    parentPos = c0;
+
+  for (Level lvl = lvlLo; lvl < lvlHi; lvl++)
+    lvls.emplace_back(makeSparseTensorLevel(b, l, t, tid, lvl));
+
+  bound = lvls.front()->peekRangeAt(b, l, /*batchPrefix=*/{}, parentPos);
+  for (auto &lvl : getLvlRef().drop_front())
+    bound = lvl->collapseRangeBetween(b, l, /*batchPrefix=*/{}, bound);
+}
+
+SparseIterationSpace mlir::sparse_tensor::SparseIterationSpace::fromValues(
+    IterSpaceType dstTp, ValueRange values, unsigned int tid) {
+  // Reconstruct every sparse tensor level.
+  SparseIterationSpace space;
+  for (auto [i, lt] : llvm::enumerate(dstTp.getLvlTypes())) {
+    unsigned bufferCnt = 0;
+    if (lt.isWithPosLT())
+      bufferCnt++;
+    if (lt.isWithCrdLT())
+      bufferCnt++;
+    // Sparse tensor buffers.
+    ValueRange buffers = values.take_front(bufferCnt);
+    values = values.drop_front(bufferCnt);
+
+    // Level size.
+    Value sz = values.front();
+    values = values.drop_front();
+    space.lvls.push_back(
+        makeSparseTensorLevel(lt, sz, buffers, tid, i + dstTp.getLoLvl()));
+  }
+  // Two bounds.
+  space.bound = std::make_pair(values[0], values[1]);
+  values = values.drop_front(2);
+
+  // Must have consumed all values.
+  assert(values.empty());
+  return space;
+}
+
+//===----------------------------------------------------------------------===//
 // SparseIterator factory functions.
 //===----------------------------------------------------------------------===//
+
+/// Helper function to create a TensorLevel object from given `tensor`.
+std::unique_ptr<SparseTensorLevel>
+sparse_tensor::makeSparseTensorLevel(LevelType lt, Value sz, ValueRange b,
+                                     unsigned t, Level l) {
+  assert(lt.getNumBuffer() == b.size());
+  switch (lt.getLvlFmt()) {
+  case LevelFormat::Dense:
+    return std::make_unique<DenseLevel>(t, l, sz);
+  case LevelFormat::Batch:
+    return std::make_unique<BatchLevel>(t, l, sz);
+  case LevelFormat::Compressed:
+    return std::make_unique<CompressedLevel>(t, l, lt, sz, b[0], b[1]);
+  case LevelFormat::LooseCompressed:
+    return std::make_unique<LooseCompressedLevel>(t, l, lt, sz, b[0], b[1]);
+  case LevelFormat::Singleton:
+    return std::make_unique<SingletonLevel>(t, l, lt, sz, b[0]);
+  case LevelFormat::NOutOfM:
+    return std::make_unique<NOutOfMLevel>(t, l, lt, sz, b[0]);
+  case LevelFormat::Undef:
+    llvm_unreachable("undefined level format");
+  }
+  llvm_unreachable("unrecognizable level format");
+}
 
 std::unique_ptr<SparseTensorLevel>
 sparse_tensor::makeSparseTensorLevel(OpBuilder &b, Location l, Value t,
@@ -1341,33 +1426,16 @@ sparse_tensor::makeSparseTensorLevel(OpBuilder &b, Location l, Value t,
   Value sz = stt.hasEncoding() ? b.create<LvlOp>(l, t, lvl).getResult()
                                : b.create<tensor::DimOp>(l, t, lvl).getResult();
 
-  switch (lt.getLvlFmt()) {
-  case LevelFormat::Dense:
-    return std::make_unique<DenseLevel>(tid, lvl, sz);
-  case LevelFormat::Batch:
-    return std::make_unique<BatchLevel>(tid, lvl, sz);
-  case LevelFormat::Compressed: {
+  SmallVector<Value, 2> buffers;
+  if (lt.isWithPosLT()) {
     Value pos = b.create<ToPositionsOp>(l, t, lvl);
-    Value crd = b.create<ToCoordinatesOp>(l, t, lvl);
-    return std::make_unique<CompressedLevel>(tid, lvl, lt, sz, pos, crd);
+    buffers.push_back(pos);
   }
-  case LevelFormat::LooseCompressed: {
-    Value pos = b.create<ToPositionsOp>(l, t, lvl);
-    Value crd = b.create<ToCoordinatesOp>(l, t, lvl);
-    return std::make_unique<LooseCompressedLevel>(tid, lvl, lt, sz, pos, crd);
+  if (lt.isWithCrdLT()) {
+    Value pos = b.create<ToCoordinatesOp>(l, t, lvl);
+    buffers.push_back(pos);
   }
-  case LevelFormat::Singleton: {
-    Value crd = b.create<ToCoordinatesOp>(l, t, lvl);
-    return std::make_unique<SingletonLevel>(tid, lvl, lt, sz, crd);
-  }
-  case LevelFormat::NOutOfM: {
-    Value crd = b.create<ToCoordinatesOp>(l, t, lvl);
-    return std::make_unique<NOutOfMLevel>(tid, lvl, lt, sz, crd);
-  }
-  case LevelFormat::Undef:
-    llvm_unreachable("undefined level format");
-  }
-  llvm_unreachable("unrecognizable level format");
+  return makeSparseTensorLevel(lt, sz, buffers, tid, lvl);
 }
 
 std::pair<std::unique_ptr<SparseTensorLevel>, std::unique_ptr<SparseIterator>>
