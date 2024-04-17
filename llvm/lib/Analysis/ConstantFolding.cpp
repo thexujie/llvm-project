@@ -1512,6 +1512,8 @@ bool llvm::canConstantFoldCallTo(const CallBase *Call, const Function *F) {
   case Intrinsic::usub_with_overflow:
   case Intrinsic::smul_with_overflow:
   case Intrinsic::umul_with_overflow:
+  case Intrinsic::sshl_sat:
+  case Intrinsic::ushl_sat:      
   case Intrinsic::sadd_sat:
   case Intrinsic::uadd_sat:
   case Intrinsic::ssub_sat:
@@ -2818,6 +2820,20 @@ static Constant *ConstantFoldIntrinsicCall2(Intrinsic::ID IntrinsicID, Type *Ty,
       };
       return ConstantStruct::get(cast<StructType>(Ty), Ops);
     }
+    case Intrinsic::sshl_sat:
+    case Intrinsic::ushl_sat:
+      // This is the same as for binary ops - poison propagates.
+      // TODO: Poison handling should be consolidated.
+      if (isa<PoisonValue>(Operands[0]) || isa<PoisonValue>(Operands[1]))
+        return PoisonValue::get(Ty);
+      if (!C0 && !C1)
+        return UndefValue::get(Ty);
+      if (!C0 || !C1)
+        return Constant::getNullValue(Ty);
+      if (IntrinsicID == Intrinsic::ushl_sat)
+        return ConstantInt::get(Ty, C0->ushl_sat(*C1));
+      else
+        return ConstantInt::get(Ty, C0->sshl_sat(*C1));
     case Intrinsic::uadd_sat:
     case Intrinsic::sadd_sat:
       // This is the same as for binary ops - poison propagates.

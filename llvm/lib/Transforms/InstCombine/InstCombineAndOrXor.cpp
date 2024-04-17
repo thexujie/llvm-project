@@ -2275,6 +2275,9 @@ Instruction *InstCombinerImpl::visitAnd(BinaryOperator &I) {
   if (Instruction *Phi = foldBinopWithPhiOperands(I))
     return Phi;
 
+  if (Value *R = foldOpOfXWithXEqC(&I, SQ.getWithInstruction(&I)))
+    return replaceInstUsesWith(I, R);
+
   // See if we can simplify any instructions used by the instruction whose sole
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
@@ -3444,6 +3447,9 @@ Instruction *InstCombinerImpl::visitOr(BinaryOperator &I) {
   if (Instruction *Phi = foldBinopWithPhiOperands(I))
     return Phi;
 
+  if (Value *R = foldOpOfXWithXEqC(&I, SQ.getWithInstruction(&I)))
+    return replaceInstUsesWith(I, R);
+
   // See if we can simplify any instructions used by the instruction whose sole
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
@@ -4578,6 +4584,9 @@ Instruction *InstCombinerImpl::visitXor(BinaryOperator &I) {
 
   if (Instruction *NewXor = foldXorToXor(I, Builder))
     return NewXor;
+
+  if (Value *R = foldOpOfXWithXEqC(&I, SQ.getWithInstruction(&I)))
+    return replaceInstUsesWith(I, R);
 
   // (A&B)^(A&C) -> A&(B^C) etc
   if (Value *V = foldUsingDistributiveLaws(I))

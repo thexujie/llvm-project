@@ -1020,6 +1020,9 @@ Instruction *InstCombinerImpl::visitShl(BinaryOperator &I) {
   if (Instruction *V = dropRedundantMaskingOfLeftShiftInput(&I, Q, Builder))
     return V;
 
+  if (Value *R = foldOpOfXWithXEqC(&I, Q))
+    return replaceInstUsesWith(I, R);
+
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   Type *Ty = I.getType();
   unsigned BitWidth = Ty->getScalarSizeInBits();
@@ -1255,6 +1258,9 @@ Instruction *InstCombinerImpl::visitLShr(BinaryOperator &I) {
 
   if (Instruction *R = commonShiftTransforms(I))
     return R;
+
+  if (Value *R = foldOpOfXWithXEqC(&I, SQ.getWithInstruction(&I)))
+    return replaceInstUsesWith(I, R);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   Type *Ty = I.getType();
@@ -1590,6 +1596,9 @@ Instruction *InstCombinerImpl::visitAShr(BinaryOperator &I) {
 
   if (Instruction *R = commonShiftTransforms(I))
     return R;
+
+  if (Value *R = foldOpOfXWithXEqC(&I, SQ.getWithInstruction(&I)))
+    return replaceInstUsesWith(I, R);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   Type *Ty = I.getType();
