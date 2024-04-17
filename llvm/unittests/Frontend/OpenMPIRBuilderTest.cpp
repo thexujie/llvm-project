@@ -4981,10 +4981,10 @@ TEST_F(OpenMPIRBuilderTest, CreateReductions) {
 
   OpenMPIRBuilder::ReductionInfo ReductionInfos[] = {
       {SumType, SumReduced, SumPrivatized,
-       /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKind::Scalar, sumReduction,
+       /*EvaluationKind=*/OpenMPIRBuilder::EvalKind::Scalar, sumReduction,
        /*ReductionGenClang=*/nullptr, sumAtomicReduction},
       {XorType, XorReduced, XorPrivatized,
-       /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKind::Scalar, xorReduction,
+       /*EvaluationKind=*/OpenMPIRBuilder::EvalKind::Scalar, xorReduction,
        /*ReductionGenClang=*/nullptr, xorAtomicReduction}};
   OMPBuilder.Config.setIsGPU(false);
   OMPBuilder.createReductions(BodyIP, BodyAllocaIP, ReductionInfos);
@@ -5238,13 +5238,13 @@ TEST_F(OpenMPIRBuilderTest, CreateTwoReductions) {
   OMPBuilder.createReductions(
       FirstBodyIP, FirstBodyAllocaIP,
       {{SumType, SumReduced, SumPrivatized,
-        /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKind::Scalar,
-        sumReduction, /*ReductionGenClang=*/nullptr, sumAtomicReduction}});
+        /*EvaluationKind=*/OpenMPIRBuilder::EvalKind::Scalar, sumReduction,
+        /*ReductionGenClang=*/nullptr, sumAtomicReduction}});
   OMPBuilder.createReductions(
       SecondBodyIP, SecondBodyAllocaIP,
       {{XorType, XorReduced, XorPrivatized,
-        /*EvaluationKind=*/OpenMPIRBuilder::EvaluationKind::Scalar,
-        xorReduction, /*ReductionGenClang=*/nullptr, xorAtomicReduction}});
+        /*EvaluationKind=*/OpenMPIRBuilder::EvalKind::Scalar, xorReduction,
+        /*ReductionGenClang=*/nullptr, xorAtomicReduction}});
 
   Builder.restoreIP(AfterIP);
   Builder.CreateRetVoid();
