@@ -128,8 +128,7 @@ define i8 @fold_umax_zext_eq_9(i8 %x) {
 define i8 @fold_sshl_sat_sext_eq_3_rhs(i8 %x) {
 ; CHECK-LABEL: @fold_sshl_sat_sext_eq_3_rhs(
 ; CHECK-NEXT:    [[X_EQ:%.*]] = icmp eq i8 [[X:%.*]], 3
-; CHECK-NEXT:    [[X_EQ_EXT:%.*]] = sext i1 [[X_EQ]] to i8
-; CHECK-NEXT:    [[R:%.*]] = call i8 @llvm.sshl.sat.i8(i8 [[X]], i8 [[X_EQ_EXT]])
+; CHECK-NEXT:    [[R:%.*]] = select i1 [[X_EQ]], i8 127, i8 [[X]]
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
   %x_eq = icmp eq i8 %x, 3
@@ -141,8 +140,7 @@ define i8 @fold_sshl_sat_sext_eq_3_rhs(i8 %x) {
 define i8 @fold_ushl_sat_zext_eq_3_lhs(i8 %x) {
 ; CHECK-LABEL: @fold_ushl_sat_zext_eq_3_lhs(
 ; CHECK-NEXT:    [[X_EQ:%.*]] = icmp eq i8 [[X:%.*]], 3
-; CHECK-NEXT:    [[X_EQ_EXT:%.*]] = zext i1 [[X_EQ]] to i8
-; CHECK-NEXT:    [[R:%.*]] = call i8 @llvm.ushl.sat.i8(i8 [[X_EQ_EXT]], i8 [[X]])
+; CHECK-NEXT:    [[R:%.*]] = select i1 [[X_EQ]], i8 8, i8 0
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
   %x_eq = icmp eq i8 %x, 3

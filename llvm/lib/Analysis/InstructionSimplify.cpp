@@ -6534,6 +6534,22 @@ Value *llvm::simplifyBinaryIntrinsic(Intrinsic::ID IID, Type *ReturnType,
     if (Q.isUndefValue(Op0) || Q.isUndefValue(Op1))
       return Constant::getNullValue(ReturnType);
     break;
+  case Intrinsic::ushl_sat:
+    // ushl_sat(0, X) -> 0
+    // ushl_sat(UINT_MAX, X) -> UINT_MAX
+    // ushl_sat(X, 0) -> X
+    if (match(Op0, m_Zero()) || match(Op0, m_AllOnes()) || match(Op1, m_Zero()))
+      return Op0;
+    break;
+  case Intrinsic::sshl_sat:
+    // sshl_sat(0, X) -> 0
+    // sshl_sat(INT_MAX, X) -> INT_MAX
+    // sshl_sat(INT_MIN, X) -> INT_MIN
+    // sshl_sat(X, 0) -> X
+    if (match(Op0, m_Zero()) || match(Op0, m_MaxSignedValue()) ||
+        match(Op0, m_SignMask()) || match(Op1, m_Zero()))
+      return Op0;
+    break;
   case Intrinsic::uadd_sat:
     // sat(MAX + X) -> MAX
     // sat(X + MAX) -> MAX
