@@ -33,7 +33,7 @@ define <2 x i8> @expandload_v2i8(ptr %base, <2 x i8> %src0, <2 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB1_3: # %cond.load
 ; CHECK-NEXT:    lbu a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 2, e8, m1, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e8, m1, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 1
 ; CHECK-NEXT:    andi a1, a1, 2
@@ -69,7 +69,7 @@ define <4 x i8> @expandload_v4i8(ptr %base, <4 x i8> %src0, <4 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB2_5: # %cond.load
 ; CHECK-NEXT:    lbu a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 4, e8, m1, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e8, m1, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 1
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -133,7 +133,7 @@ define <8 x i8> @expandload_v8i8(ptr %base, <8 x i8> %src0, <8 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB3_9: # %cond.load
 ; CHECK-NEXT:    lbu a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 8, e8, m1, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e8, m1, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 1
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -227,7 +227,7 @@ define <2 x i16> @expandload_v2i16(ptr %base, <2 x i16> %src0, <2 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB5_3: # %cond.load
 ; CHECK-NEXT:    lh a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 2, e16, m2, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e16, m2, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 2
 ; CHECK-NEXT:    andi a1, a1, 2
@@ -263,7 +263,7 @@ define <4 x i16> @expandload_v4i16(ptr %base, <4 x i16> %src0, <4 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB6_5: # %cond.load
 ; CHECK-NEXT:    lh a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 4, e16, m2, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e16, m2, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 2
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -327,7 +327,7 @@ define <8 x i16> @expandload_v8i16(ptr %base, <8 x i16> %src0, <8 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB7_9: # %cond.load
 ; CHECK-NEXT:    lh a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 8, e16, m2, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e16, m2, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 2
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -421,7 +421,7 @@ define <2 x i32> @expandload_v2i32(ptr %base, <2 x i32> %src0, <2 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB9_3: # %cond.load
 ; CHECK-NEXT:    lw a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 2, e32, m4, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e32, m4, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 4
 ; CHECK-NEXT:    andi a1, a1, 2
@@ -457,7 +457,7 @@ define <4 x i32> @expandload_v4i32(ptr %base, <4 x i32> %src0, <4 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB10_5: # %cond.load
 ; CHECK-NEXT:    lw a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 4, e32, m4, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e32, m4, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 4
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -521,7 +521,7 @@ define <8 x i32> @expandload_v8i32(ptr %base, <8 x i32> %src0, <8 x i1> %mask) {
 ; CHECK-NEXT:    ret
 ; CHECK-NEXT:  .LBB11_9: # %cond.load
 ; CHECK-NEXT:    lw a2, 0(a0)
-; CHECK-NEXT:    vsetivli zero, 8, e32, m4, tu, ma
+; CHECK-NEXT:    vsetvli zero, zero, e32, m4, tu, ma
 ; CHECK-NEXT:    vmv.s.x v8, a2
 ; CHECK-NEXT:    addi a0, a0, 4
 ; CHECK-NEXT:    andi a2, a1, 2
@@ -664,7 +664,7 @@ define <2 x i64> @expandload_v2i64(ptr %base, <2 x i64> %src0, <2 x i1> %mask) {
 ; RV64-NEXT:    ret
 ; RV64-NEXT:  .LBB13_3: # %cond.load
 ; RV64-NEXT:    ld a2, 0(a0)
-; RV64-NEXT:    vsetivli zero, 2, e64, m8, tu, ma
+; RV64-NEXT:    vsetvli zero, zero, e64, m8, tu, ma
 ; RV64-NEXT:    vmv.s.x v8, a2
 ; RV64-NEXT:    addi a0, a0, 8
 ; RV64-NEXT:    andi a1, a1, 2
@@ -758,7 +758,7 @@ define <4 x i64> @expandload_v4i64(ptr %base, <4 x i64> %src0, <4 x i1> %mask) {
 ; RV64-NEXT:    ret
 ; RV64-NEXT:  .LBB14_5: # %cond.load
 ; RV64-NEXT:    ld a2, 0(a0)
-; RV64-NEXT:    vsetivli zero, 4, e64, m8, tu, ma
+; RV64-NEXT:    vsetvli zero, zero, e64, m8, tu, ma
 ; RV64-NEXT:    vmv.s.x v8, a2
 ; RV64-NEXT:    addi a0, a0, 8
 ; RV64-NEXT:    andi a2, a1, 2
@@ -936,7 +936,7 @@ define <8 x i64> @expandload_v8i64(ptr %base, <8 x i64> %src0, <8 x i1> %mask) {
 ; RV64-NEXT:    ret
 ; RV64-NEXT:  .LBB15_9: # %cond.load
 ; RV64-NEXT:    ld a2, 0(a0)
-; RV64-NEXT:    vsetivli zero, 8, e64, m8, tu, ma
+; RV64-NEXT:    vsetvli zero, zero, e64, m8, tu, ma
 ; RV64-NEXT:    vmv.s.x v8, a2
 ; RV64-NEXT:    addi a0, a0, 8
 ; RV64-NEXT:    andi a2, a1, 2
