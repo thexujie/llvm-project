@@ -1,7 +1,6 @@
 add_header_library(
   threads_utils
   HDRS
-    CndVar.h
     Futex.h
   DEPENDS
     libc.include.sys_syscall
@@ -21,6 +20,7 @@ add_entrypoint_object(
   DEPENDS
     .threads_utils
     libc.include.threads
+    libc.src.__support.threads.CndVar
 )
 
 add_entrypoint_object(
@@ -32,6 +32,7 @@ add_entrypoint_object(
   DEPENDS
     .threads_utils
     libc.include.threads
+    libc.src.__support.threads.CndVar
 )
 
 add_entrypoint_object(
@@ -44,6 +45,7 @@ add_entrypoint_object(
     .threads_utils
     libc.include.threads
     libc.src.__support.threads.mutex
+    libc.src.__support.threads.CndVar
 )
 
 add_entrypoint_object(
@@ -55,6 +57,7 @@ add_entrypoint_object(
   DEPENDS
     .threads_utils
     libc.include.threads
+    libc.src.__support.threads.CndVar
 )
 
 add_entrypoint_object(
@@ -66,4 +69,5 @@ add_entrypoint_object(
   DEPENDS
     .threads_utils
     libc.include.threads
+    libc.src.__support.threads.CndVar
 )

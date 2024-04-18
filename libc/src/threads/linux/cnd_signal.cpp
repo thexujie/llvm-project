@@ -6,16 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CndVar.h"
-
-#include "src/threads/cnd_signal.h"
 #include "src/__support/common.h"
+#include "src/__support/threads/CndVar.h"
+#include "src/threads/cnd_signal.h"
 
 namespace LIBC_NAMESPACE {
 
 LLVM_LIBC_FUNCTION(int, cnd_signal, (cnd_t * cond)) {
   CndVar *cndvar = reinterpret_cast<CndVar *>(cond);
-  return cndvar->notify_one();
+  return cndvar->notify_one() ? thrd_error : thrd_success;
 }
 
 } // namespace LIBC_NAMESPACE

@@ -55,3 +55,11 @@ add_object_library(
     libc.src.__support.CPP.limits
     libc.src.__support.OSUtil.osutil
 )
+
+add_object_library(
+  CndVar
+  SRCS
+    CndVar.cpp
+  HDRS
+    ../CndVar.h
+)
