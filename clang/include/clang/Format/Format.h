@@ -2348,6 +2348,41 @@ struct FormatStyle {
   /// \version 7
   BreakInheritanceListStyle BreakInheritanceList;
 
+  /// Different ways to Break Between Stream Operators.
+  enum BreakStreamOperatorStyle : int8_t {
+    /// Break using ColumnLimit rules.
+    /// \code
+    ///   os << "aaaaa" << "bbbbb" << "\n";
+    /// \endcode
+    BCOS_Normal,
+    /// Break between adjacent strings.
+    /// \code
+    ///   os << "aaaaa"
+    ///      << "bbbbb"
+    ///      << "\n";
+    /// \endcode
+    BCOS_BetweenStrings,
+    /// Break between adjacent strings that end with \n.
+    /// \code
+    ///   os << "aaaaa\n"
+    ///      << "bbbbb" << "ccccc\n"
+    ///      << "\n";
+    /// \endcode
+    BCOS_BetweenNewlineStrings,
+    /// Break between adjacent stream operations.
+    /// \code
+    ///   os << "aaaaa\n"
+    ///      << "bbbbb"
+    ///      << "ccccc\n"
+    ///      << "\n";
+    /// \endcode
+    BCOS_Always
+  };
+
+  /// Break Between Stream Operators.
+  /// \version 19
+  BreakStreamOperatorStyle BreakStreamOperator;
+
   /// The template declaration breaking style to use.
   /// \version 19
   BreakTemplateDeclarationsStyle BreakTemplateDeclarations;
@@ -4951,6 +4986,7 @@ struct FormatStyle {
            BreakBeforeConceptDeclarations == R.BreakBeforeConceptDeclarations &&
            BreakBeforeInlineASMColon == R.BreakBeforeInlineASMColon &&
            BreakBeforeTernaryOperators == R.BreakBeforeTernaryOperators &&
+           BreakStreamOperator == R.BreakStreamOperator &&
            BreakConstructorInitializers == R.BreakConstructorInitializers &&
            BreakFunctionDefinitionParameters ==
                R.BreakFunctionDefinitionParameters &&

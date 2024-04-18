@@ -3359,6 +3359,50 @@ the configuration (without a prefix: ``Auto``).
 
 
 
+.. _BreakStreamOperator:
+
+**BreakStreamOperator** (``BreakStreamOperatorStyle``) :versionbadge:`clang-format 19` :ref:`¶ <BreakStreamOperator>`
+  Break Between Stream Operators.
+
+  Possible values:
+
+  * ``BCOS_Normal`` (in configuration: ``Normal``)
+    Break using ColumnLimit rules.
+
+    .. code-block:: c++
+
+      os << "aaaaa" << "bbbbb" << "\n";
+
+  * ``BCOS_BetweenStrings`` (in configuration: ``BetweenStrings``)
+    Break between adjacent strings.
+
+    .. code-block:: c++
+
+      os << "aaaaa"
+         << "bbbbb"
+         << "\n";
+
+  * ``BCOS_BetweenNewlineStrings`` (in configuration: ``BetweenNewlineStrings``)
+    Break between adjacent strings that end with \n.
+
+    .. code-block:: c++
+
+      os << "aaaaa\n"
+         << "bbbbb" << "ccccc\n"
+         << "\n";
+
+  * ``BCOS_Always`` (in configuration: ``Always``)
+    Break between adjacent stream operations.
+
+    .. code-block:: c++
+
+      os << "aaaaa\n"
+         << "bbbbb"
+         << "ccccc\n"
+         << "\n";
+
+
+
 .. _BreakStringLiterals:
 
 **BreakStringLiterals** (``Boolean``) :versionbadge:`clang-format 3.9` :ref:`¶ <BreakStringLiterals>`

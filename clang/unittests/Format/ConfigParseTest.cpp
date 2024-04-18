@@ -420,6 +420,16 @@ TEST(ConfigParseTest, ParsesConfiguration) {
   CHECK_PARSE("BreakBeforeInheritanceComma: true", BreakInheritanceList,
               FormatStyle::BILS_BeforeComma);
 
+  Style.BreakStreamOperator = FormatStyle::BCOS_BetweenStrings;
+  CHECK_PARSE("BreakStreamOperator: BetweenNewlineStrings", BreakStreamOperator,
+              FormatStyle::BCOS_BetweenNewlineStrings);
+  CHECK_PARSE("BreakStreamOperator: Normal", BreakStreamOperator,
+              FormatStyle::BCOS_Normal);
+  CHECK_PARSE("BreakStreamOperator: BetweenStrings", BreakStreamOperator,
+              FormatStyle::BCOS_BetweenStrings);
+  CHECK_PARSE("BreakStreamOperator: Always", BreakStreamOperator,
+              FormatStyle::BCOS_Always);
+
   Style.PackConstructorInitializers = FormatStyle::PCIS_BinPack;
   CHECK_PARSE("PackConstructorInitializers: Never", PackConstructorInitializers,
               FormatStyle::PCIS_Never);
