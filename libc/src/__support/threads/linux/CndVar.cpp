@@ -6,7 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "src/__support/OSUtil/syscall.h" // syscall_impl
 #include "src/__support/threads/CndVar.h"
+#include "src/__support/threads/linux/futex_word.h" // FutexWordType
+#include "src/__support/threads/mutex.h" // Mutex, MutexLock
+
+#include <sys/syscall.h> // For syscall numbers.
 
 namespace LIBC_NAMESPACE {
 

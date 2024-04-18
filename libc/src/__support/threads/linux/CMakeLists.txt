@@ -62,4 +62,9 @@ add_object_library(
     CndVar.cpp
   HDRS
     ../CndVar.h
+  DEPENDS
+    libc.include.sys_syscall
+    libc.src.__support.OSUtil.osutil
+    libc.src.__support.threads.linux.futex_word_type
+    libc.src.__support.threads.mutex
 )
