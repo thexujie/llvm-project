@@ -11,7 +11,11 @@
 #include "src/__support/threads/CndVar.h"
 #include "src/threads/cnd_init.h"
 
+#include <threads.h> // cnd_t, thrd_error, thrd_success
+
 namespace LIBC_NAMESPACE {
+
+static_assert(sizeof(CndVar) == sizeof(cnd_t));
 
 LLVM_LIBC_FUNCTION(int, cnd_init, (cnd_t * cond)) {
   CndVar *cndvar = reinterpret_cast<CndVar *>(cond);

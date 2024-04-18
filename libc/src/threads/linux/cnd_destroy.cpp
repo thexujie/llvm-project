@@ -10,7 +10,11 @@
 #include "src/__support/threads/CndVar.h"
 #include "src/threads/cnd_destroy.h"
 
+#include <threads.h> // cnd_t
+
 namespace LIBC_NAMESPACE {
+
+static_assert(sizeof(CndVar) == sizeof(cnd_t));
 
 LLVM_LIBC_FUNCTION(void, cnd_destroy, (cnd_t * cond)) {
   CndVar *cndvar = reinterpret_cast<CndVar *>(cond);
