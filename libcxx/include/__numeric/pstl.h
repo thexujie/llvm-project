@@ -15,7 +15,6 @@
 #include <__functional/operations.h>
 #include <__iterator/cpp17_iterator_concepts.h>
 #include <__iterator/iterator_traits.h>
-#include <__numeric/pstl_transform_reduce.h>
 #include <__numeric/transform_reduce.h>
 #include <__pstl/configuration.h>
 #include <__type_traits/is_execution_policy.h>

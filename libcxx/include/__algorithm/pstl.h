@@ -12,10 +12,7 @@
 #include <__algorithm/copy_n.h>
 #include <__algorithm/count.h>
 #include <__algorithm/for_each.h>
-#include <__algorithm/pstl_find.h>
-#include <__algorithm/pstl_for_each.h>
 #include <__algorithm/pstl_frontend_dispatch.h>
-#include <__algorithm/pstl_transform.h>
 #include <__atomic/atomic.h>
 #include <__config>
 #include <__functional/identity.h>
@@ -23,7 +20,7 @@
 #include <__iterator/concepts.h>
 #include <__iterator/cpp17_iterator_concepts.h>
 #include <__iterator/iterator_traits.h>
-#include <__numeric/pstl_transform_reduce.h>
+#include <__numeric/pstl.h>
 #include <__pstl/configuration.h>
 #include <__type_traits/enable_if.h>
 #include <__type_traits/is_constant_evaluated.h>
@@ -43,6 +40,31 @@ _LIBCPP_PUSH_MACROS
 #if !defined(_LIBCPP_HAS_NO_INCOMPLETE_PSTL) && _LIBCPP_STD_VER >= 17
 
 _LIBCPP_BEGIN_NAMESPACE_STD
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _Predicate,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardIterator>>
+__find_if(_ExecutionPolicy&&, _ForwardIterator&& __first, _ForwardIterator&& __last, _Predicate&& __pred) noexcept {
+  using _Backend = typename __select_backend<_RawPolicy>::type;
+  return std::__pstl_find_if<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__pred));
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _Predicate,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _ForwardIterator
+find_if(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "find_if requires ForwardIterators");
+  auto __res = std::__find_if(__policy, std::move(__first), std::move(__last), std::move(__pred));
+  if (!__res)
+    std::__throw_bad_alloc();
+  return *std::move(__res);
+}
 
 template <class>
 void __pstl_any_of(); // declaration needed for the frontend dispatch below
@@ -155,6 +177,113 @@ none_of(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator 
   if (!__res)
     std::__throw_bad_alloc();
   return *std::move(__res);
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _ForwardOutIterator,
+          class _UnaryOperation,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardOutIterator>>
+__transform(_ExecutionPolicy&&,
+            _ForwardIterator&& __first,
+            _ForwardIterator&& __last,
+            _ForwardOutIterator&& __result,
+            _UnaryOperation&& __op) noexcept {
+  using _Backend = typename __select_backend<_RawPolicy>::type;
+  return std::__pstl_transform<_RawPolicy>(
+      _Backend{}, std::move(__first), std::move(__last), std::move(__result), std::move(__op));
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _ForwardOutIterator,
+          class _UnaryOperation,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator transform(
+    _ExecutionPolicy&& __policy,
+    _ForwardIterator __first,
+    _ForwardIterator __last,
+    _ForwardOutIterator __result,
+    _UnaryOperation __op) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "transform requires ForwardIterators");
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardOutIterator, "transform requires an OutputIterator");
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(
+      _ForwardOutIterator, decltype(__op(*__first)), "transform requires an OutputIterator");
+  auto __res = std::__transform(__policy, std::move(__first), std::move(__last), std::move(__result), std::move(__op));
+  if (!__res)
+    std::__throw_bad_alloc();
+  return *std::move(__res);
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator1,
+          class _ForwardIterator2,
+          class _ForwardOutIterator,
+          class _BinaryOperation,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardOutIterator>>
+__transform(_ExecutionPolicy&&,
+            _ForwardIterator1&& __first1,
+            _ForwardIterator1&& __last1,
+            _ForwardIterator2&& __first2,
+            _ForwardOutIterator&& __result,
+            _BinaryOperation&& __op) noexcept {
+  using _Backend = typename __select_backend<_RawPolicy>::type;
+  return std::__pstl_transform<_RawPolicy>(
+      _Backend{}, std::move(__first1), std::move(__last1), std::move(__first2), std::move(__result), std::move(__op));
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator1,
+          class _ForwardIterator2,
+          class _ForwardOutIterator,
+          class _BinaryOperation,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator transform(
+    _ExecutionPolicy&& __policy,
+    _ForwardIterator1 __first1,
+    _ForwardIterator1 __last1,
+    _ForwardIterator2 __first2,
+    _ForwardOutIterator __result,
+    _BinaryOperation __op) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator1, "transform requires ForwardIterators");
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator2, "transform requires ForwardIterators");
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardOutIterator, "transform requires an OutputIterator");
+  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(
+      _ForwardOutIterator, decltype(__op(*__first1, *__first2)), "transform requires an OutputIterator");
+  auto __res = std::__transform(
+      __policy, std::move(__first1), std::move(__last1), std::move(__first2), std::move(__result), std::move(__op));
+  if (!__res)
+    std::__throw_bad_alloc();
+  return *std::move(__res);
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _Function,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__empty>
+__for_each(_ExecutionPolicy&&, _ForwardIterator&& __first, _ForwardIterator&& __last, _Function&& __func) noexcept {
+  using _Backend = typename __select_backend<_RawPolicy>::type;
+  return std::__pstl_for_each<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__func));
+}
+
+template <class _ExecutionPolicy,
+          class _ForwardIterator,
+          class _Function,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI void
+for_each(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator __last, _Function __func) {
+  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "for_each requires ForwardIterators");
+  if (!std::__for_each(__policy, std::move(__first), std::move(__last), std::move(__func)))
+    std::__throw_bad_alloc();
 }
 
 // TODO: Use the std::copy/move shenanigans to forward to std::memmove
@@ -544,31 +673,6 @@ fill_n(_ExecutionPolicy&& __policy, _ForwardIterator __first, _SizeT __n, const 
     std::__throw_bad_alloc();
 }
 
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _Predicate,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardIterator>>
-__find_if(_ExecutionPolicy&&, _ForwardIterator&& __first, _ForwardIterator&& __last, _Predicate&& __pred) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_find_if<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__pred));
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _Predicate,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI _ForwardIterator
-find_if(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator __last, _Predicate __pred) {
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "find_if requires ForwardIterators");
-  auto __res = std::__find_if(__policy, std::move(__first), std::move(__last), std::move(__pred));
-  if (!__res)
-    std::__throw_bad_alloc();
-  return *std::move(__res);
-}
-
 template <class>
 void __pstl_find_if_not();
 
@@ -642,29 +746,6 @@ find(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator __l
   if (!__res)
     std::__throw_bad_alloc();
   return *std::move(__res);
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _Function,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__empty>
-__for_each(_ExecutionPolicy&&, _ForwardIterator&& __first, _ForwardIterator&& __last, _Function&& __func) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_for_each<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__func));
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _Function,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI void
-for_each(_ExecutionPolicy&& __policy, _ForwardIterator __first, _ForwardIterator __last, _Function __func) {
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "for_each requires ForwardIterators");
-  if (!std::__for_each(__policy, std::move(__first), std::move(__last), std::move(__func)))
-    std::__throw_bad_alloc();
 }
 
 template <class>
@@ -1194,6 +1275,29 @@ _LIBCPP_HIDE_FROM_ABI _ForwardOutIterator rotate_copy(
   return *__res;
 }
 
+template <class _ExecutionPolicy,
+          class _RandomAccessIterator,
+          class _Comp                                         = less<>,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__empty> __stable_sort(
+    _ExecutionPolicy&&, _RandomAccessIterator&& __first, _RandomAccessIterator&& __last, _Comp&& __comp = {}) noexcept {
+  using _Backend = typename __select_backend<_RawPolicy>::type;
+  return std::__pstl_stable_sort<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__comp));
+}
+
+template <class _ExecutionPolicy,
+          class _RandomAccessIterator,
+          class _Comp                                         = less<>,
+          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
+          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
+_LIBCPP_HIDE_FROM_ABI void stable_sort(
+    _ExecutionPolicy&& __policy, _RandomAccessIterator __first, _RandomAccessIterator __last, _Comp __comp = {}) {
+  _LIBCPP_REQUIRE_CPP17_RANDOM_ACCESS_ITERATOR(_RandomAccessIterator, "stable_sort requires RandomAccessIterators");
+  if (!std::__stable_sort(__policy, std::move(__first), std::move(__last), std::move(__comp)))
+    std::__throw_bad_alloc();
+}
+
 template <class>
 void __pstl_sort();
 
@@ -1235,113 +1339,6 @@ _LIBCPP_HIDE_FROM_ABI void
 sort(_ExecutionPolicy&& __policy, _RandomAccessIterator __first, _RandomAccessIterator __last) {
   _LIBCPP_REQUIRE_CPP17_RANDOM_ACCESS_ITERATOR(_RandomAccessIterator, "sort requires RandomAccessIterators");
   std::sort(std::forward<_ExecutionPolicy>(__policy), std::move(__first), std::move(__last), less{});
-}
-
-template <class _ExecutionPolicy,
-          class _RandomAccessIterator,
-          class _Comp                                         = less<>,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__empty> __stable_sort(
-    _ExecutionPolicy&&, _RandomAccessIterator&& __first, _RandomAccessIterator&& __last, _Comp&& __comp = {}) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_stable_sort<_RawPolicy>(_Backend{}, std::move(__first), std::move(__last), std::move(__comp));
-}
-
-template <class _ExecutionPolicy,
-          class _RandomAccessIterator,
-          class _Comp                                         = less<>,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI void stable_sort(
-    _ExecutionPolicy&& __policy, _RandomAccessIterator __first, _RandomAccessIterator __last, _Comp __comp = {}) {
-  _LIBCPP_REQUIRE_CPP17_RANDOM_ACCESS_ITERATOR(_RandomAccessIterator, "stable_sort requires RandomAccessIterators");
-  if (!std::__stable_sort(__policy, std::move(__first), std::move(__last), std::move(__comp)))
-    std::__throw_bad_alloc();
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _ForwardOutIterator,
-          class _UnaryOperation,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-[[nodiscard]] _LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardOutIterator>>
-__transform(_ExecutionPolicy&&,
-            _ForwardIterator&& __first,
-            _ForwardIterator&& __last,
-            _ForwardOutIterator&& __result,
-            _UnaryOperation&& __op) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_transform<_RawPolicy>(
-      _Backend{}, std::move(__first), std::move(__last), std::move(__result), std::move(__op));
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator,
-          class _ForwardOutIterator,
-          class _UnaryOperation,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator transform(
-    _ExecutionPolicy&& __policy,
-    _ForwardIterator __first,
-    _ForwardIterator __last,
-    _ForwardOutIterator __result,
-    _UnaryOperation __op) {
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator, "transform requires ForwardIterators");
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardOutIterator, "transform requires an OutputIterator");
-  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(
-      _ForwardOutIterator, decltype(__op(*__first)), "transform requires an OutputIterator");
-  auto __res = std::__transform(__policy, std::move(__first), std::move(__last), std::move(__result), std::move(__op));
-  if (!__res)
-    std::__throw_bad_alloc();
-  return *std::move(__res);
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator1,
-          class _ForwardIterator2,
-          class _ForwardOutIterator,
-          class _BinaryOperation,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI optional<__remove_cvref_t<_ForwardOutIterator>>
-__transform(_ExecutionPolicy&&,
-            _ForwardIterator1&& __first1,
-            _ForwardIterator1&& __last1,
-            _ForwardIterator2&& __first2,
-            _ForwardOutIterator&& __result,
-            _BinaryOperation&& __op) noexcept {
-  using _Backend = typename __select_backend<_RawPolicy>::type;
-  return std::__pstl_transform<_RawPolicy>(
-      _Backend{}, std::move(__first1), std::move(__last1), std::move(__first2), std::move(__result), std::move(__op));
-}
-
-template <class _ExecutionPolicy,
-          class _ForwardIterator1,
-          class _ForwardIterator2,
-          class _ForwardOutIterator,
-          class _BinaryOperation,
-          class _RawPolicy                                    = __remove_cvref_t<_ExecutionPolicy>,
-          enable_if_t<is_execution_policy_v<_RawPolicy>, int> = 0>
-_LIBCPP_HIDE_FROM_ABI _ForwardOutIterator transform(
-    _ExecutionPolicy&& __policy,
-    _ForwardIterator1 __first1,
-    _ForwardIterator1 __last1,
-    _ForwardIterator2 __first2,
-    _ForwardOutIterator __result,
-    _BinaryOperation __op) {
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator1, "transform requires ForwardIterators");
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardIterator2, "transform requires ForwardIterators");
-  _LIBCPP_REQUIRE_CPP17_FORWARD_ITERATOR(_ForwardOutIterator, "transform requires an OutputIterator");
-  _LIBCPP_REQUIRE_CPP17_OUTPUT_ITERATOR(
-      _ForwardOutIterator, decltype(__op(*__first1, *__first2)), "transform requires an OutputIterator");
-  auto __res = std::__transform(
-      __policy, std::move(__first1), std::move(__last1), std::move(__first2), std::move(__result), std::move(__op));
-  if (!__res)
-    std::__throw_bad_alloc();
-  return *std::move(__res);
 }
 
 _LIBCPP_END_NAMESPACE_STD
