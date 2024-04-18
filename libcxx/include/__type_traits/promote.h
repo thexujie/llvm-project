@@ -31,7 +31,7 @@ struct __numeric_type {
   static double __test(unsigned long);
   static double __test(long long);
   static double __test(unsigned long long);
-#ifndef _LIBCPP_HAS_NO_INT128
+#if _LIBCPP_HAS_INT128
   static double __test(__int128_t);
   static double __test(__uint128_t);
 #endif

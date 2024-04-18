@@ -67,7 +67,7 @@ template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<long, _CharT> : public __formatter_integer<_CharT> {};
 template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<long long, _CharT> : public __formatter_integer<_CharT> {};
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
 template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<__int128_t, _CharT> : public __formatter_integer<_CharT> {};
 #  endif
@@ -83,7 +83,7 @@ template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<unsigned long, _CharT> : public __formatter_integer<_CharT> {};
 template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<unsigned long long, _CharT> : public __formatter_integer<_CharT> {};
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
 template <__fmt_char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS formatter<__uint128_t, _CharT> : public __formatter_integer<_CharT> {};
 #  endif

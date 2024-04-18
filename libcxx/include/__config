@@ -533,6 +533,7 @@ _LIBCPP_HARDENING_MODE_DEBUG
 #    define _NOEXCEPT noexcept
 #    define _NOEXCEPT_(...) noexcept(__VA_ARGS__)
 #    define _LIBCPP_CONSTEXPR constexpr
+#    define _LIBCPP_HAS_NOEXCEPT 1
 
 #  else
 
@@ -540,7 +541,7 @@ _LIBCPP_HARDENING_MODE_DEBUG
 #    define _ALIGNAS_TYPE(x) __attribute__((__aligned__(_LIBCPP_ALIGNOF(x))))
 #    define _ALIGNAS(x) __attribute__((__aligned__(x)))
 #    define _LIBCPP_NORETURN __attribute__((__noreturn__))
-#    define _LIBCPP_HAS_NO_NOEXCEPT
+#    define _LIBCPP_HAS_NOEXCEPT 0
 #    define nullptr __nullptr
 #    define _NOEXCEPT throw()
 #    define _NOEXCEPT_(...)
@@ -554,7 +555,9 @@ typedef __char32_t char32_t;
 #  endif
 
 #  if !defined(__cpp_exceptions) || __cpp_exceptions < 199711L
-#    define _LIBCPP_HAS_NO_EXCEPTIONS
+#    define _LIBCPP_HAS_EXCEPTIONS 0
+#  else
+#    define _LIBCPP_HAS_EXCEPTIONS 1
 #  endif
 
 #  define _LIBCPP_PREFERRED_ALIGNOF(_Tp) __alignof(_Tp)
@@ -591,8 +594,10 @@ typedef __char32_t char32_t;
 #      define _LIBCPP_HAS_BLOCKS_RUNTIME
 #    endif
 
-#    if !__has_feature(address_sanitizer)
-#      define _LIBCPP_HAS_NO_ASAN
+#    if __has_feature(address_sanitizer)
+#      define _LIBCPP_HAS_ASAN 1
+#    else
+#      define _LIBCPP_HAS_ASAN 0
 #    endif
 
 #    define _LIBCPP_ALWAYS_INLINE __attribute__((__always_inline__))
@@ -601,8 +606,10 @@ typedef __char32_t char32_t;
 
 #  elif defined(_LIBCPP_COMPILER_GCC)
 
-#    if !defined(__SANITIZE_ADDRESS__)
-#      define _LIBCPP_HAS_NO_ASAN
+#    if defined(__SANITIZE_ADDRESS__)
+#      define _LIBCPP_HAS_ASAN 1
+#    else
+#      define _LIBCPP_HAS_ASAN 0
 #    endif
 
 #    define _LIBCPP_ALWAYS_INLINE __attribute__((__always_inline__))
@@ -727,7 +734,7 @@ typedef __char32_t char32_t;
 #    define _LIBCPP_HARDENING_SIG n // "none"
 #  endif
 
-#  ifdef _LIBCPP_HAS_NO_EXCEPTIONS
+#  if !_LIBCPP_HAS_EXCEPTIONS
 #    define _LIBCPP_EXCEPTIONS_SIG n
 #  else
 #    define _LIBCPP_EXCEPTIONS_SIG e
@@ -856,7 +863,9 @@ typedef __char32_t char32_t;
 #  endif
 
 #  if !defined(__SIZEOF_INT128__) || defined(_MSC_VER)
-#    define _LIBCPP_HAS_NO_INT128
+#    define _LIBCPP_HAS_INT128 0
+#  else
+#    define _LIBCPP_HAS_INT128 1
 #  endif
 
 #  ifdef _LIBCPP_CXX03_LANG
@@ -888,17 +897,21 @@ typedef __char32_t char32_t;
 // If we are getting operator new from the MSVC CRT, then allocation overloads
 // for align_val_t were added in 19.12, aka VS 2017 version 15.3.
 #  if defined(_LIBCPP_MSVCRT) && defined(_MSC_VER) && _MSC_VER < 1912
-#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#    define _LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION 0
 #  elif defined(_LIBCPP_ABI_VCRUNTIME) && !defined(__cpp_aligned_new)
 // We're deferring to Microsoft's STL to provide aligned new et al. We don't
 // have it unless the language feature test macro is defined.
-#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#    define _LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION 0
 #  elif defined(__MVS__)
-#    define _LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION
+#    define _LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION 0
+#  else
+#    define _LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION 1
 #  endif
 
-#  if defined(_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION) || (!defined(__cpp_aligned_new) || __cpp_aligned_new < 201606)
-#    define _LIBCPP_HAS_NO_ALIGNED_ALLOCATION
+#  if !_LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION || (!defined(__cpp_aligned_new) || __cpp_aligned_new < 201606)
+#    define _LIBCPP_HAS_ALIGNED_ALLOCATION 0
+#  else
+#    define _LIBCPP_HAS_ALIGNED_ALLOCATION 1
 #  endif
 
 // It is not yet possible to use aligned_alloc() on all Apple platforms since
@@ -906,11 +919,15 @@ typedef __char32_t char32_t;
 #  if defined(__APPLE__)
 #    if (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) &&                                                     \
          __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101500)
-#      define _LIBCPP_HAS_NO_C11_ALIGNED_ALLOC
+#      define _LIBCPP_HAS_C11_ALIGNED_ALLOC 0
+#    else
+#      define _LIBCPP_HAS_C11_ALIGNED_ALLOC 1
 #    endif
 #  elif defined(__ANDROID__) && __ANDROID_API__ < 28
 // Android only provides aligned_alloc when targeting API 28 or higher.
-#    define _LIBCPP_HAS_NO_C11_ALIGNED_ALLOC
+#    define _LIBCPP_HAS_C11_ALIGNED_ALLOC 0
+#  else
+#    define _LIBCPP_HAS_C11_ALIGNED_ALLOC 1
 #  endif
 
 #  if defined(__APPLE__) || defined(__FreeBSD__)
@@ -922,7 +939,9 @@ typedef __char32_t char32_t;
 #  endif
 
 #  if _LIBCPP_STD_VER <= 17 || !defined(__cpp_char8_t)
-#    define _LIBCPP_HAS_NO_CHAR8_T
+#    define _LIBCPP_HAS_CHAR8_T 0
+#  else
+#    define _LIBCPP_HAS_CHAR8_T 1
 #  endif
 
 // Deprecation macros.
@@ -989,7 +1008,7 @@ typedef __char32_t char32_t;
 #    define _LIBCPP_DEPRECATED_IN_CXX26
 #  endif
 
-#  if !defined(_LIBCPP_HAS_NO_CHAR8_T)
+#  if _LIBCPP_HAS_CHAR8_T
 #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T _LIBCPP_DEPRECATED
 #  else
 #    define _LIBCPP_DEPRECATED_WITH_CHAR8_T
@@ -1044,7 +1063,9 @@ typedef __char32_t char32_t;
 
 // Try to find out if RTTI is disabled.
 #  if !defined(__cpp_rtti) || __cpp_rtti < 199711L
-#    define _LIBCPP_HAS_NO_RTTI
+#    define _LIBCPP_HAS_RTTI 0
+#  else
+#    define _LIBCPP_HAS_RTTI 1
 #  endif
 
 #  ifndef _LIBCPP_WEAK
@@ -1153,8 +1174,9 @@ typedef __char32_t char32_t;
 
 #  if !defined(_LIBCPP_HAS_C_ATOMIC_IMP) && !defined(_LIBCPP_HAS_GCC_ATOMIC_IMP) &&                                    \
       !defined(_LIBCPP_HAS_EXTERNAL_ATOMIC_IMP)
-#    define _LIBCPP_HAS_NO_ATOMIC_HEADER
+#    define _LIBCPP_HAS_ATOMIC_HEADER 0
 #  else
+#    define _LIBCPP_HAS_ATOMIC_HEADER 1
 #    ifndef _LIBCPP_ATOMIC_FLAG_TYPE
 #      define _LIBCPP_ATOMIC_FLAG_TYPE bool
 #    endif
@@ -1271,7 +1293,7 @@ typedef __char32_t char32_t;
 // functions is gradually being added to existing C libraries. The conditions
 // below check for known C library versions and conditions under which these
 // functions are declared by the C library.
-#  define _LIBCPP_HAS_NO_C8RTOMB_MBRTOC8
+
 // GNU libc 2.36 and newer declare c8rtomb() and mbrtoc8() in C++ modes if
 // __cpp_char8_t is defined or if C2X extensions are enabled. Determining
 // the latter depends on internal GNU libc details that are not appropriate
@@ -1279,8 +1301,12 @@ typedef __char32_t char32_t;
 // defined are ignored.
 #  if defined(_LIBCPP_GLIBC_PREREQ)
 #    if _LIBCPP_GLIBC_PREREQ(2, 36) && defined(__cpp_char8_t)
-#      undef _LIBCPP_HAS_NO_C8RTOMB_MBRTOC8
+#      define _LIBCPP_HAS_C8RTOMB_MBRTOC8 1
+#    else
+#      define _LIBCPP_HAS_C8RTOMB_MBRTOC8 0
 #    endif
+#  else
+#    define _LIBCPP_HAS_C8RTOMB_MBRTOC8 0
 #  endif
 
 // There are a handful of public standard library types that are intended to

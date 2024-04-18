@@ -113,7 +113,7 @@ _LIBCPP_HIDE_FROM_ABI decltype(auto) __visit_format_arg(_Visitor&& __vis, basic_
   case __format::__arg_t::__long_long:
     return std::invoke(std::forward<_Visitor>(__vis), __arg.__value_.__long_long_);
   case __format::__arg_t::__i128:
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
     return std::invoke(std::forward<_Visitor>(__vis), __arg.__value_.__i128_);
 #  else
     __libcpp_unreachable();
@@ -123,7 +123,7 @@ _LIBCPP_HIDE_FROM_ABI decltype(auto) __visit_format_arg(_Visitor&& __vis, basic_
   case __format::__arg_t::__unsigned_long_long:
     return std::invoke(std::forward<_Visitor>(__vis), __arg.__value_.__unsigned_long_long_);
   case __format::__arg_t::__u128:
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
     return std::invoke(std::forward<_Visitor>(__vis), __arg.__value_.__u128_);
 #  else
     __libcpp_unreachable();
@@ -164,7 +164,7 @@ _LIBCPP_HIDE_FROM_ABI _Rp __visit_format_arg(_Visitor&& __vis, basic_format_arg<
   case __format::__arg_t::__long_long:
     return std::invoke_r<_Rp>(std::forward<_Visitor>(__vis), __arg.__value_.__long_long_);
   case __format::__arg_t::__i128:
-#    ifndef _LIBCPP_HAS_NO_INT128
+#    if _LIBCPP_HAS_INT128
     return std::invoke_r<_Rp>(std::forward<_Visitor>(__vis), __arg.__value_.__i128_);
 #    else
     __libcpp_unreachable();
@@ -174,7 +174,7 @@ _LIBCPP_HIDE_FROM_ABI _Rp __visit_format_arg(_Visitor&& __vis, basic_format_arg<
   case __format::__arg_t::__unsigned_long_long:
     return std::invoke_r<_Rp>(std::forward<_Visitor>(__vis), __arg.__value_.__unsigned_long_long_);
   case __format::__arg_t::__u128:
-#    ifndef _LIBCPP_HAS_NO_INT128
+#    if _LIBCPP_HAS_INT128
     return std::invoke_r<_Rp>(std::forward<_Visitor>(__vis), __arg.__value_.__u128_);
 #    else
     __libcpp_unreachable();
@@ -237,7 +237,7 @@ public:
     unsigned __unsigned_;
     long long __long_long_;
     unsigned long long __unsigned_long_long_;
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
     __int128_t __i128_;
     __uint128_t __u128_;
 #  endif
@@ -261,7 +261,7 @@ public:
   _LIBCPP_HIDE_FROM_ABI __basic_format_arg_value(long long __value) noexcept : __long_long_(__value) {}
   _LIBCPP_HIDE_FROM_ABI __basic_format_arg_value(unsigned long long __value) noexcept
       : __unsigned_long_long_(__value) {}
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
   _LIBCPP_HIDE_FROM_ABI __basic_format_arg_value(__int128_t __value) noexcept : __i128_(__value) {}
   _LIBCPP_HIDE_FROM_ABI __basic_format_arg_value(__uint128_t __value) noexcept : __u128_(__value) {}
 #  endif
@@ -291,7 +291,7 @@ public:
   template <class _Visitor>
   _LIBCPP_HIDE_FROM_ABI decltype(auto) visit(this basic_format_arg __arg, _Visitor&& __vis) {
     switch (__arg.__type_) {
-#    ifndef _LIBCPP_HAS_NO_INT128
+#    if _LIBCPP_HAS_INT128
     case __format::__arg_t::__i128: {
       typename __basic_format_arg_value<_Context>::__handle __h{__arg.__value_.__i128_};
       return std::invoke(std::forward<_Visitor>(__vis), typename basic_format_arg<_Context>::handle{__h});
@@ -312,7 +312,7 @@ public:
   template <class _Rp, class _Visitor>
   _LIBCPP_HIDE_FROM_ABI _Rp visit(this basic_format_arg __arg, _Visitor&& __vis) {
     switch (__arg.__type_) {
-#    ifndef _LIBCPP_HAS_NO_INT128
+#    if _LIBCPP_HAS_INT128
     case __format::__arg_t::__i128: {
       typename __basic_format_arg_value<_Context>::__handle __h{__arg.__value_.__i128_};
       return std::invoke_r<_Rp>(std::forward<_Visitor>(__vis), typename basic_format_arg<_Context>::handle{__h});
@@ -376,7 +376,7 @@ _LIBCPP_DEPRECATED_IN_CXX26
     _LIBCPP_HIDE_FROM_ABI decltype(auto)
     visit_format_arg(_Visitor&& __vis, basic_format_arg<_Context> __arg) {
   switch (__arg.__type_) {
-#  ifndef _LIBCPP_HAS_NO_INT128
+#  if _LIBCPP_HAS_INT128
   case __format::__arg_t::__i128: {
     typename __basic_format_arg_value<_Context>::__handle __h{__arg.__value_.__i128_};
     return std::invoke(std::forward<_Visitor>(__vis), typename basic_format_arg<_Context>::handle{__h});

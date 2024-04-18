@@ -295,7 +295,7 @@ struct __farray {
 
 _LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_AVAILABILITY_THROW_BAD_VARIANT_ACCESS void
 __throw_bad_variant_access() {
-#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+#  if _LIBCPP_HAS_EXCEPTIONS
   throw bad_variant_access();
 #  else
   _LIBCPP_VERBOSE_ABORT("bad_variant_access was thrown in -fno-exceptions mode");
@@ -1055,7 +1055,7 @@ public:
         std::swap(__lhs, __rhs);
       }
       __impl __tmp(std::move(*__rhs));
-#  ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+#  if _LIBCPP_HAS_EXCEPTIONS
       if constexpr (__all<is_nothrow_move_constructible_v<_Types>...>::value) {
         this->__generic_construct(*__rhs, std::move(*__lhs));
       } else {

@@ -233,7 +233,7 @@ storage-class-specifier const error_category& iostream_category() noexcept;
 // [ios.syn]
 #include <iosfwd>
 
-#if !defined(_LIBCPP_HAS_NO_ATOMIC_HEADER)
+#if _LIBCPP_HAS_ATOMIC_HEADER
 #  include <__atomic/atomic.h> // for __xindex_
 #endif
 
@@ -442,7 +442,7 @@ public:
 };
 
 _LIBCPP_NORETURN inline _LIBCPP_HIDE_FROM_ABI void __throw_failure(char const* __msg) {
-#ifndef _LIBCPP_HAS_NO_EXCEPTIONS
+#if _LIBCPP_HAS_EXCEPTIONS
   throw ios_base::failure(__msg);
 #else
   _LIBCPP_VERBOSE_ABORT("ios_base::failure was thrown in -fno-exceptions mode with message \"%s\"", __msg);
