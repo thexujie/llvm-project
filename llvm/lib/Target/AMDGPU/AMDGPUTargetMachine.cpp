@@ -677,11 +677,6 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(
 
         if (EarlyInlineAll && !EnableFunctionCalls)
           PM.addPass(AMDGPUAlwaysInlinePass());
-
-#if __has_feature(address_sanitizer)
-        EnableLowerModuleLDS = false;
-        PM.addPass(AMDGPUSwLowerLDSPass());
-#endif
       });
 
   PB.registerPeepholeEPCallback(
