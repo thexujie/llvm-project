@@ -6,10 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-
+#include "src/threads/cnd_init.h"
 #include "src/__support/common.h"
 #include "src/__support/threads/CndVar.h"
-#include "src/threads/cnd_init.h"
 
 #include <threads.h> // cnd_t, thrd_error, thrd_success
 
