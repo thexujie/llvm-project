@@ -276,23 +276,23 @@ void AMDGPUSwLowerLDS::populateSwMetadataGlobal(Function *Func) {
   StructType *LDSItemTy =
       StructType::create(Ctx, {Int32Ty, Int32Ty}, MDItemOS.str());
 
-  auto buildInitializerForSwLDSMD = [&](SetVector<GlobalVariable *>
-                                            &LDSGlobals) {
-    for (auto &GV : LDSGlobals) {
-      Type *Ty = GV->getValueType();
-      const uint64_t SizeInBytes = DL.getTypeAllocSize(Ty);
-      Items.push_back(LDSItemTy);
-      Constant *ItemStartOffset =
-          ConstantInt::get(Int32Ty, LDSParams.MallocSize);
-      uint64_t AlignedSize = alignTo(SizeInBytes, MaxAlignment);
-      Constant *AlignedSizeInBytesConst =
-          ConstantInt::get(Int32Ty, AlignedSize);
-      LDSParams.MallocSize += AlignedSize;
-      Constant *InitItem = ConstantStruct::get(
-          LDSItemTy, {ItemStartOffset, AlignedSizeInBytesConst});
-      Initializers.push_back(InitItem);
-    }
-  };
+  auto buildInitializerForSwLDSMD =
+      [&](SetVector<GlobalVariable *> &LDSGlobals) {
+        for (auto &GV : LDSGlobals) {
+          Type *Ty = GV->getValueType();
+          const uint64_t SizeInBytes = DL.getTypeAllocSize(Ty);
+          Items.push_back(LDSItemTy);
+          Constant *ItemStartOffset =
+              ConstantInt::get(Int32Ty, LDSParams.MallocSize);
+          uint64_t AlignedSize = alignTo(SizeInBytes, MaxAlignment);
+          Constant *AlignedSizeInBytesConst =
+              ConstantInt::get(Int32Ty, AlignedSize);
+          LDSParams.MallocSize += AlignedSize;
+          Constant *InitItem = ConstantStruct::get(
+              LDSItemTy, {ItemStartOffset, AlignedSizeInBytesConst});
+          Initializers.push_back(InitItem);
+        }
+      };
 
   buildInitializerForSwLDSMD(LDSParams.DirectAccess.StaticLDSGlobals);
   buildInitializerForSwLDSMD(LDSParams.IndirectAccess.StaticLDSGlobals);
