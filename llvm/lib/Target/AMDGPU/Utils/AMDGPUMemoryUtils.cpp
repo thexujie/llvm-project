@@ -245,49 +245,6 @@ void removeFnAttrFromReachable(CallGraph &CG, Function *KernelRoot,
                                StringRef FnAttr) {
   KernelRoot->removeFnAttr(FnAttr);
 
-  SmallVector<Function *> Tmp({CG[KernelRoot]->getFunction()});
-  if (!Tmp.back())
-    return;
-
-  SmallPtrSet<Function *, 8> Visited;
-  bool SeenUnknownCall = false;
-
-  do {
-    Function *F = Tmp.pop_back_val();
-
-    for (auto &N : *CG[F]) {
-      if (!N.second)
-        continue;
-
-      Function *Callee = N.second->getFunction();
-      if (!Callee) {
-        if (!SeenUnknownCall) {
-          SeenUnknownCall = true;
-
-          // If we see any indirect calls, assume nothing about potential
-          // targets.
-          // TODO: This could be refined to possible LDS global users.
-          for (auto &N : *CG.getExternalCallingNode()) {
-            Function *PotentialCallee = N.second->getFunction();
-            if (!isKernelLDS(PotentialCallee))
-              PotentialCallee->removeFnAttr(FnAttr);
-          }
-
-          continue;
-        }
-      }
-
-      Callee->removeFnAttr(FnAttr);
-      if (Visited.insert(Callee).second)
-        Tmp.push_back(Callee);
-    }
-  } while (!Tmp.empty());
-}
-
-void removeFnAttrFromReachable(CallGraph &CG, Function *KernelRoot,
-                               StringRef FnAttr) {
-  KernelRoot->removeFnAttr(FnAttr);
-
   SmallVector<Function *> WorkList({CG[KernelRoot]->getFunction()});
   SmallPtrSet<Function *, 8> Visited;
   bool SeenUnknownCall = false;
