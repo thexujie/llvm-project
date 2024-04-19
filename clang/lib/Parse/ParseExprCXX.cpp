@@ -3906,14 +3906,18 @@ ExprResult Parser::ParseTypeTrait() {
   BalancedDelimiterTracker Parens(*this, tok::l_paren);
   if (Parens.expectAndConsume())
     return ExprError();
-
+  TypeTrait TTKind = TypeTraitFromTokKind(Kind);
   SmallVector<ParsedType, 2> Args;
   do {
     // Parse the next type.
-    TypeResult Ty = ParseTypeName(/*SourceRange=*/nullptr,
-                                  getLangOpts().CPlusPlus
-                                      ? DeclaratorContext::TemplateTypeArg
-                                      : DeclaratorContext::TypeName);
+    TypeResult Ty = ParseTypeName(
+        /*SourceRange=*/nullptr,
+        getLangOpts().CPlusPlus
+            // For __is_deducible type trait, the first argument is a template
+            // specification type without template argument lists.
+            ? (TTKind == BTT_IsDeducible ? DeclaratorContext::TemplateArg
+                                         : DeclaratorContext::TemplateTypeArg)
+            : DeclaratorContext::TypeName);
     if (Ty.isInvalid()) {
       Parens.skipToEnd();
       return ExprError();
@@ -3937,7 +3941,7 @@ ExprResult Parser::ParseTypeTrait() {
 
   SourceLocation EndLoc = Parens.getCloseLocation();
 
-  return Actions.ActOnTypeTrait(TypeTraitFromTokKind(Kind), Loc, Args, EndLoc);
+  return Actions.ActOnTypeTrait(TTKind, Loc, Args, EndLoc);
 }
 
 /// ParseArrayTypeTrait - Parse the built-in array type-trait
