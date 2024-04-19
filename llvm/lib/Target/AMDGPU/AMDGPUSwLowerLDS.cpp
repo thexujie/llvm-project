@@ -575,8 +575,7 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
 
 Constant *AMDGPUSwLowerLDS::getAddressesOfVariablesInKernel(
     Function *Func, SetVector<GlobalVariable *> &Variables) {
-  LLVMContext &Ctx = M.getContext();
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
+  Type *Int32Ty = IRB.getInt32Ty();
   auto &LDSParams = KernelToLDSParametersMap[Func];
 
   GlobalVariable *SwLDSMetadata = LDSParams.SwLDSMetadata;
@@ -613,8 +612,7 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSBaseTable(
   // placed as per kernel ID. Each element in the row corresponds
   // to addresss of "SW LDS" global of the kernel.
   auto &Kernels = NKLDSParams.OrderedKernels;
-  LLVMContext &Ctx = M.getContext();
-  Type *Int32Ty = Type::getInt32Ty(Ctx);
+  Type *Int32Ty = IRB.getInt32Ty();
   const size_t NumberKernels = Kernels.size();
   ArrayType *AllKernelsOffsetsType = ArrayType::get(Int32Ty, NumberKernels);
   std::vector<Constant *> OverallConstantExprElts(NumberKernels);
@@ -650,12 +648,11 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSOffsetTable(
   auto &Kernels = NKLDSParams.OrderedKernels;
   assert(!Variables.empty());
   assert(!Kernels.empty());
-  LLVMContext &Ctx = M.getContext();
   const size_t NumberVariables = Variables.size();
   const size_t NumberKernels = Kernels.size();
 
   ArrayType *KernelOffsetsType =
-      ArrayType::get(Type::getInt32Ty(Ctx), NumberVariables);
+      ArrayType::get(IRB.getInt32Ty(), NumberVariables);
 
   ArrayType *AllKernelsOffsetsType =
       ArrayType::get(KernelOffsetsType, NumberKernels);
