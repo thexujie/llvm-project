@@ -185,7 +185,7 @@ bool AMDGPULateCodeGenPrepare::runOnFunction(Function &F) {
   // cases, vectors of illegal types will be scalarized and widened, with each
   // scalar living in its own physical register. The optimization converts the
   // vectors to equivalent vectors of legal type (which are convereted back
-  // before uses in subsequenmt blocks), to pack the bits into fewer physical
+  // before uses in subsequent blocks), to pack the bits into fewer physical
   // registers (used in CopyToReg/CopyFromReg pairs).
   LiveRegOptimizer LRO(Mod);
 
@@ -221,7 +221,7 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
   FromLRC.setNewType(getCompatibleType(FromLRC.getLiveRegDef()));
   for (auto IUser = I.user_begin(); IUser != I.user_end(); IUser++) {
 
-    if (auto UserInst = dyn_cast<Instruction>(*IUser)) {
+    if (Instruction *UserInst = dyn_cast<Instruction>(*IUser)) {
       if (UserInst->getParent() != I.getParent() || isa<PHINode>(UserInst)) {
         LLVM_DEBUG(dbgs() << *UserInst << "\n\tUses "
                           << *FromLRC.getOriginalType()
@@ -233,9 +233,9 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
         // only replace the PHI node once we have converted all the operands
         if (auto PhiInst = dyn_cast<PHINode>(UserInst)) {
           for (unsigned Idx = 0; Idx < PhiInst->getNumIncomingValues(); Idx++) {
-            auto IncVal = PhiInst->getIncomingValue(Idx);
+            Value *IncVal = PhiInst->getIncomingValue(Idx);
             if (&I == dyn_cast<Instruction>(IncVal)) {
-              auto IncBlock = PhiInst->getIncomingBlock(Idx);
+              BasicBlock *IncBlock = PhiInst->getIncomingBlock(Idx);
               auto PHIOps = find_if(
                   PHIUpdater,
                   [&UserInst](
@@ -322,17 +322,17 @@ bool LiveRegOptimizer::replacePHIs() {
 }
 
 Type *LiveRegOptimizer::getCompatibleType(Instruction *InstToConvert) {
-  auto OriginalType = InstToConvert->getType();
+  Type *OriginalType = InstToConvert->getType();
   assert(OriginalType->getScalarSizeInBits() <=
          ConvertToScalar->getScalarSizeInBits());
-  auto VTy = dyn_cast<VectorType>(OriginalType);
+  VectorType *VTy = dyn_cast<VectorType>(OriginalType);
   if (!VTy)
     return ConvertToScalar;
 
-  auto OriginalSize =
+  unsigned OriginalSize =
       VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue();
-  auto ConvertScalarSize = ConvertToScalar->getScalarSizeInBits();
-  auto ConvertEltCount =
+  unsigned ConvertScalarSize = ConvertToScalar->getScalarSizeInBits();
+  unsigned ConvertEltCount =
       (OriginalSize + ConvertScalarSize - 1) / ConvertScalarSize;
 
   if (OriginalSize <= ConvertScalarSize)
@@ -348,16 +348,16 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
     return;
   }
 
-  auto VTy = cast<VectorType>(LR.getOriginalType());
+  VectorType *VTy = cast<VectorType>(LR.getOriginalType());
 
-  auto NewTy = LR.getNewType();
+  Type *NewTy = LR.getNewType();
   assert(NewTy);
-  auto NewVTy = NewTy->isVectorTy() ? cast<VectorType>(NewTy) : nullptr;
+  VectorType *NewVTy = NewTy->isVectorTy() ? cast<VectorType>(NewTy) : nullptr;
 
-  auto V = static_cast<Value *>(LR.getLiveRegDef());
-  auto OriginalSize =
+  Value *V = static_cast<Value *>(LR.getLiveRegDef());
+  unsigned OriginalSize =
       VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue();
-  auto NewSize = NewTy->isVectorTy()
+  unsigned NewSize = NewTy->isVectorTy()
                      ? NewVTy->getScalarSizeInBits() *
                            NewVTy->getElementCount().getFixedValue()
                      : NewTy->getScalarSizeInBits();
@@ -375,7 +375,7 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
 
   // If there is a bitsize mismatch, we must use a wider vector
   assert(NewSize > OriginalSize);
-  auto ExpandedVecElementCount =
+  ElementCount ExpandedVecElementCount =
       llvm::ElementCount::getFixed(NewSize / VTy->getScalarSizeInBits());
 
   SmallVector<int, 8> ShuffleMask;
@@ -396,18 +396,18 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
 }
 
 void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
-  auto OTy = LRC.getOriginalType();
-  auto VTy =
+  Type *OTy = LRC.getOriginalType();
+  VectorType *VTy =
       OTy->isVectorTy() ? dyn_cast<VectorType>(LRC.getOriginalType()) : nullptr;
 
-  auto NewVTy = cast<VectorType>(LRC.getNewType());
+  VectorType *NewVTy = cast<VectorType>(LRC.getNewType());
 
-  auto V = static_cast<Value *>(LRC.getLiveRegDef());
-  auto OriginalSize =
+  Value *V = static_cast<Value *>(LRC.getLiveRegDef());
+  unsigned OriginalSize =
       OTy->isVectorTy()
           ? VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue()
           : OTy->getScalarSizeInBits();
-  auto NewSize =
+  unsigned NewSize =
       NewVTy->getScalarSizeInBits() * NewVTy->getElementCount().getFixedValue();
 
   auto &Builder = LRC.getConvertBuilder();
@@ -433,20 +433,20 @@ void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
   // If there is a bitsize mismatch, we have used a wider vector and must strip
   // the MSBs to convert back to the original type
   assert(OriginalSize > NewSize);
-  auto ExpandedVecElementCount = llvm::ElementCount::getFixed(
+  ElementCount ExpandedVecElementCount = llvm::ElementCount::getFixed(
       OriginalSize / NewVTy->getScalarSizeInBits());
-  auto ExpandedVT = VectorType::get(
+  VectorType *ExpandedVT = VectorType::get(
       Type::getIntNTy(Mod->getContext(), NewVTy->getScalarSizeInBits()),
       ExpandedVecElementCount);
-  auto Converted = dyn_cast<Instruction>(
+  Instruction *Converted = dyn_cast<Instruction>(
       Builder.CreateBitCast(LRC.getLiveRegDef(), ExpandedVT));
 
-  auto NarrowElementCount = NewVTy->getElementCount().getFixedValue();
+  unsigned NarrowElementCount = NewVTy->getElementCount().getFixedValue();
   SmallVector<int, 8> ShuffleMask;
   for (uint64_t I = 0; I < NarrowElementCount; I++)
     ShuffleMask.push_back(I);
 
-  auto NarrowVec = dyn_cast<Instruction>(
+  Instruction *NarrowVec = dyn_cast<Instruction>(
       Builder.CreateShuffleVector(Converted, ShuffleMask));
   LRC.setConverted(dyn_cast<Instruction>(NarrowVec));
   LLVM_DEBUG(dbgs() << "\tProduced for user: " << **LRC.getConverted() << "\n");
@@ -457,7 +457,7 @@ bool LiveRegOptimizer::shouldReplaceUses(const Instruction &I) {
   // Vectors of illegal types are copied across blocks in an efficient manner.
   // They are scalarized and widened to legal scalars. In such cases, we can do
   // better by using legal vector types
-  auto IType = I.getType();
+  Type *IType = I.getType();
   return IType->isVectorTy() && IType->getScalarSizeInBits() < 16 &&
          !I.getType()->getScalarType()->isPointerTy();
 }
@@ -471,7 +471,7 @@ bool AMDGPULateCodeGenPrepare::canWidenScalarExtLoad(LoadInst &LI) const {
   // Skip non-simple loads.
   if (!LI.isSimple())
     return false;
-  auto *Ty = LI.getType();
+  Type *Ty = LI.getType();
   // Skip aggregate types.
   if (Ty->isAggregateType())
     return false;
