@@ -72,8 +72,8 @@ set(files
   __algorithm/partition_point.h
   __algorithm/pop_heap.h
   __algorithm/prev_permutation.h
-  __algorithm/pstl_frontend_dispatch.h
   __algorithm/pstl.h
+  __algorithm/pstl_frontend_dispatch.h
   __algorithm/push_heap.h
   __algorithm/ranges_adjacent_find.h
   __algorithm/ranges_all_of.h

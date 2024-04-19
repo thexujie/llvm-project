@@ -11,7 +11,10 @@
 
 #include <__algorithm/copy_n.h>
 #include <__algorithm/count.h>
+#include <__algorithm/equal.h>
+#include <__algorithm/fill_n.h>
 #include <__algorithm/for_each.h>
+#include <__algorithm/for_each_n.h>
 #include <__algorithm/pstl_frontend_dispatch.h>
 #include <__atomic/atomic.h>
 #include <__config>
@@ -27,6 +30,7 @@
 #include <__type_traits/is_execution_policy.h>
 #include <__type_traits/is_trivially_copyable.h>
 #include <__type_traits/remove_cvref.h>
+#include <__utility/empty.h>
 #include <__utility/move.h>
 #include <optional>
 
