@@ -64,6 +64,9 @@ extern llvm::cl::opt<bool> UseNewDbgInfoFormat;
 
 namespace llvm {
 
+// Used for debug counter of adding a pass to the pipeline
+bool shouldAddNewPMPass();
+
 // Forward declare the analysis manager template.
 template <typename IRUnitT, typename... ExtraArgTs> class AnalysisManager;
 
@@ -247,6 +250,8 @@ public:
 
   // FIXME: Revert to enable_if style when gcc >= 11.1
   template <typename PassT> LLVM_ATTRIBUTE_MINSIZE void addPass(PassT &&Pass) {
+    if (!shouldAddNewPMPass())
+      return;
     using PassModelT =
         detail::PassModel<IRUnitT, PassT, AnalysisManagerT, ExtraArgTs...>;
     if constexpr (!std::is_same_v<PassT, PassManager>) {
