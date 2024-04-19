@@ -2,6 +2,95 @@
 ; RUN: llc -O0 -mtriple=riscv32 -mattr=+m -mattr=+xcvalu -verify-machineinstrs < %s \
 ; RUN:   | FileCheck %s
 
+declare i32 @llvm.abs.i32(i32, i1)
+declare i32 @llvm.smin.i32(i32, i32)
+declare i32 @llvm.smax.i32(i32, i32)
+declare i32 @llvm.umin.i32(i32, i32)
+declare i32 @llvm.umax.i32(i32, i32)
+
+define i32 @abs(i32 %a) {
+; CHECK-LABEL: abs:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.abs a0, a0
+; CHECK-NEXT:    ret
+  %1 = call i32 @llvm.abs.i32(i32 %a, i1 false)
+  ret i32 %1
+}
+
+define i1 @slet(i32 %a, i32 %b) {
+; CHECK-LABEL: slet:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.slet a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = icmp sle i32 %a, %b
+  ret i1 %1
+}
+
+define i1 @sletu(i32 %a, i32 %b) {
+; CHECK-LABEL: sletu:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.sletu a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = icmp ule i32 %a, %b
+  ret i1 %1
+}
+
+define i32 @smin(i32 %a, i32 %b) {
+; CHECK-LABEL: smin:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.min a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = call i32 @llvm.smin.i32(i32 %a, i32 %b)
+  ret i32 %1
+}
+
+define i32 @umin(i32 %a, i32 %b) {
+; CHECK-LABEL: umin:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.minu a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = call i32 @llvm.umin.i32(i32 %a, i32 %b)
+  ret i32 %1
+}
+
+define i32 @smax(i32 %a, i32 %b) {
+; CHECK-LABEL: smax:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.max a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = call i32 @llvm.smax.i32(i32 %a, i32 %b)
+  ret i32 %1
+}
+
+define i32 @umax(i32 %a, i32 %b) {
+; CHECK-LABEL: umax:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    cv.maxu a0, a0, a1
+; CHECK-NEXT:    ret
+  %1 = call i32 @llvm.umax.i32(i32 %a, i32 %b)
+  ret i32 %1
+}
+
+define i32 @exths(i16 %a) {
+; CHECK-LABEL: exths:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    # kill: def $x11 killed $x10
+; CHECK-NEXT:    cv.exths a0, a0
+; CHECK-NEXT:    ret
+  %1 = sext i16 %a to i32
+  ret i32 %1
+}
+
+define i32 @exthz(i16 %a) {
+; CHECK-LABEL: exthz:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    # kill: def $x11 killed $x10
+; CHECK-NEXT:    cv.exthz a0, a0
+; CHECK-NEXT:    ret
+  %1 = zext i16 %a to i32
+  ret i32 %1
+}
+
 declare i32 @llvm.riscv.cv.alu.clip(i32, i32)
 
 define i32 @test.cv.alu.clip.case.a(i32 %a) {

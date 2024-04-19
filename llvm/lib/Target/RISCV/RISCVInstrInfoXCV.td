@@ -738,6 +738,7 @@ multiclass PatCoreVAluGprGprImm<Intrinsic intr> {
 }
 
 let Predicates = [HasVendorXCValu, IsRV32], AddedComplexity = 1 in {
+  def : PatGpr<abs, CV_ABS>;
   def : PatGprGpr<setle, CV_SLET>;
   def : PatGprGpr<setule, CV_SLETU>;
   def : PatGprGpr<smin, CV_MIN>;
@@ -747,6 +748,7 @@ let Predicates = [HasVendorXCValu, IsRV32], AddedComplexity = 1 in {
 
   def : Pat<(sext_inreg (XLenVT GPR:$rs1), i16), (CV_EXTHS GPR:$rs1)>;
   def : Pat<(sext_inreg (XLenVT GPR:$rs1), i8), (CV_EXTBS GPR:$rs1)>;
+  def : Pat<(and (XLenVT GPR:$rs1), 0xffff), (CV_EXTHZ GPR:$rs1)>;
 
   defm CLIP   : PatCoreVAluGprImm<int_riscv_cv_alu_clip>;
   defm CLIPU  : PatCoreVAluGprImm<int_riscv_cv_alu_clipu>;
