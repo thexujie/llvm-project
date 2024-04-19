@@ -81,7 +81,7 @@ public:
   bool visitLoadInst(LoadInst &LI);
 };
 
-class LiveRegConversion {
+class ConversionCandidateInfo {
 private:
   // The instruction which defined the original virtual register used across
   // blocks
@@ -115,12 +115,13 @@ public:
   // register
   bool hasConverted() { return Converted != nullptr; }
 
-  LiveRegConversion(Instruction *LiveRegDef, BasicBlock *InsertBlock,
-                    BasicBlock::iterator InsertPt)
+  ConversionCandidateInfo(Instruction *LiveRegDef, BasicBlock *InsertBlock,
+                          BasicBlock::iterator InsertPt)
       : LiveRegDef(LiveRegDef), OriginalType(LiveRegDef->getType()),
         ConvertBuilder(InsertBlock, InsertPt) {}
-  LiveRegConversion(Instruction *LiveRegDef, Type *NewType,
-                    BasicBlock *InsertBlock, BasicBlock::iterator InsertPt)
+  ConversionCandidateInfo(Instruction *LiveRegDef, Type *NewType,
+                          BasicBlock *InsertBlock,
+                          BasicBlock::iterator InsertPt)
       : LiveRegDef(LiveRegDef), OriginalType(LiveRegDef->getType()),
         NewType(NewType), ConvertBuilder(InsertBlock, InsertPt) {}
 };
@@ -140,10 +141,10 @@ public:
   // Should the def of the instruction be converted if it is live across blocks
   bool shouldReplaceUses(const Instruction &I);
   // Convert the virtual register to the compatible vector of legal type
-  void convertToOptType(LiveRegConversion &LR);
+  void convertToOptType(ConversionCandidateInfo &LR);
   // Convert the virtual register back to the original type, stripping away
   // the MSBs in cases where there was an imperfect fit (e.g. v2i32 -> v7i8)
-  void convertFromOptType(LiveRegConversion &LR);
+  void convertFromOptType(ConversionCandidateInfo &LR);
   // Get a vector of desired scalar type that is compatible with the original
   // vector. In cases where there is no bitsize equivalent using a legal vector
   // type, we pad the MSBs (e.g. v7i8 -> v2i32)
@@ -213,21 +214,21 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
     Instruction *Converted;
     SmallVector<Instruction *, 4> Users;
   };
-  DenseMap<BasicBlock *, ConvertUseInfo> UseConvertTracker;
+  DenseMap<BasicBlock *, ConvertUseInfo> InsertedConversionMap;
 
-  LiveRegConversion FromLRC(
+  ConversionCandidateInfo FromCCI(
       &I, I.getParent(),
       static_cast<BasicBlock::iterator>(std::next(I.getIterator())));
-  FromLRC.setNewType(getCompatibleType(FromLRC.getLiveRegDef()));
+  FromCCI.setNewType(getCompatibleType(FromCCI.getLiveRegDef()));
   for (auto IUser = I.user_begin(); IUser != I.user_end(); IUser++) {
 
     if (Instruction *UserInst = dyn_cast<Instruction>(*IUser)) {
       if (UserInst->getParent() != I.getParent() || isa<PHINode>(UserInst)) {
         LLVM_DEBUG(dbgs() << *UserInst << "\n\tUses "
-                          << *FromLRC.getOriginalType()
+                          << *FromCCI.getOriginalType()
                           << " from previous block. Needs conversion\n");
-        convertToOptType(FromLRC);
-        if (!FromLRC.hasConverted())
+        convertToOptType(FromCCI);
+        if (!FromCCI.hasConverted())
           continue;
         // If it is a PHI node, just create and collect the new operand. We can
         // only replace the PHI node once we have converted all the operands
@@ -246,9 +247,9 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
 
               if (PHIOps == PHIUpdater.end())
                 PHIUpdater.push_back(
-                    {UserInst, {{FromLRC.getConverted(), IncBlock}}});
+                    {UserInst, {{FromCCI.getConverted(), IncBlock}}});
               else
-                PHIOps->second.push_back({FromLRC.getConverted(), IncBlock});
+                PHIOps->second.push_back({FromCCI.getConverted(), IncBlock});
 
               break;
             }
@@ -258,27 +259,28 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
 
         // Do not create multiple conversion sequences if there are multiple
         // uses in the same block
-        if (UseConvertTracker.contains(UserInst->getParent())) {
-          UseConvertTracker[UserInst->getParent()].Users.push_back(UserInst);
+        if (InsertedConversionMap.contains(UserInst->getParent())) {
+          InsertedConversionMap[UserInst->getParent()].Users.push_back(
+              UserInst);
           LLVM_DEBUG(dbgs() << "\tUser already has access to converted def\n");
           continue;
         }
 
-        LiveRegConversion ToLRC(FromLRC.getConverted(), I.getType(),
-                                UserInst->getParent(),
-                                static_cast<BasicBlock::iterator>(
-                                    UserInst->getParent()->getFirstNonPHIIt()));
-        convertFromOptType(ToLRC);
-        assert(ToLRC.hasConverted());
-        UseConvertTracker[UserInst->getParent()] = {ToLRC.getConverted(),
-                                                    {UserInst}};
+        ConversionCandidateInfo ToCCI(
+            FromCCI.getConverted(), I.getType(), UserInst->getParent(),
+            static_cast<BasicBlock::iterator>(
+                UserInst->getParent()->getFirstNonPHIIt()));
+        convertFromOptType(ToCCI);
+        assert(ToCCI.hasConverted());
+        InsertedConversionMap[UserInst->getParent()] = {ToCCI.getConverted(),
+                                                        {UserInst}};
       }
     }
   }
 
   // Replace uses of with in a separate loop that is not dependent upon the
   // state of the uses
-  for (auto &Entry : UseConvertTracker) {
+  for (auto &Entry : InsertedConversionMap) {
     for (auto &UserInst : Entry.second.Users) {
       LLVM_DEBUG(dbgs() << *UserInst
                         << "\n\tNow uses: " << *Entry.second.Converted << "\n");
@@ -306,13 +308,13 @@ bool LiveRegOptimizer::replacePHIs() {
                           << "  For: " << IncVals.second->getName() << "\n");
       }
       LLVM_DEBUG(dbgs() << "Sucessfully replaced with " << *NPHI << "\n");
-      LiveRegConversion ToLRC(NPHI, ThePHINode->getType(),
-                              ThePHINode->getParent(),
-                              static_cast<BasicBlock::iterator>(
-                                  ThePHINode->getParent()->getFirstNonPHIIt()));
-      convertFromOptType(ToLRC);
-      assert(ToLRC.hasConverted());
-      Ele.first->replaceAllUsesWith(ToLRC.getConverted());
+      ConversionCandidateInfo ToCCI(
+          NPHI, ThePHINode->getType(), ThePHINode->getParent(),
+          static_cast<BasicBlock::iterator>(
+              ThePHINode->getParent()->getFirstNonPHIIt()));
+      convertFromOptType(ToCCI);
+      assert(ToCCI.hasConverted());
+      Ele.first->replaceAllUsesWith(ToCCI.getConverted());
       // The old PHI is no longer used
       ThePHINode->eraseFromParent();
       MadeChange = true;
@@ -341,7 +343,7 @@ Type *LiveRegOptimizer::getCompatibleType(Instruction *InstToConvert) {
                          llvm::ElementCount::getFixed(ConvertEltCount));
 }
 
-void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
+void LiveRegOptimizer::convertToOptType(ConversionCandidateInfo &LR) {
   if (LR.hasConverted()) {
     LLVM_DEBUG(dbgs() << "\tAlready has converted def\n");
     return;
@@ -386,7 +388,7 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
   return;
 }
 
-void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
+void LiveRegOptimizer::convertFromOptType(ConversionCandidateInfo &LRC) {
   Type *OTy = LRC.getOriginalType();
   VectorType *NewVTy = cast<VectorType>(LRC.getNewType());
 
