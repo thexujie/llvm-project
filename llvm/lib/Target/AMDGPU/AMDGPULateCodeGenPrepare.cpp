@@ -92,7 +92,7 @@ private:
   Type *NewType;
   // The instruction sequence that converts the virtual register, to be used
   // instead of the original
-  std::optional<Instruction *> Converted;
+  Instruction *Converted = nullptr;
   // The builder used to build the conversion instruction
   IRBuilder<> ConvertBuilder;
 
@@ -107,13 +107,13 @@ public:
   void setNewType(Type *NewType) { this->NewType = NewType; }
   // The instruction that conerts the virtual register, to be used instead of
   // the original
-  std::optional<Instruction *> &getConverted() { return Converted; }
+  Instruction *getConverted() { return Converted; }
   void setConverted(Instruction *Converted) { this->Converted = Converted; }
   // The builder used to build the conversion instruction
   IRBuilder<> &getConvertBuilder() { return ConvertBuilder; }
   // Do we have a instruction sequence which convert the original virtual
   // register
-  bool hasConverted() { return Converted.has_value(); }
+  bool hasConverted() { return Converted != nullptr; }
 
   LiveRegConversion(Instruction *LiveRegDef, BasicBlock *InsertBlock,
                     BasicBlock::iterator InsertPt)
@@ -246,9 +246,9 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
 
               if (PHIOps == PHIUpdater.end())
                 PHIUpdater.push_back(
-                    {UserInst, {{*FromLRC.getConverted(), IncBlock}}});
+                    {UserInst, {{FromLRC.getConverted(), IncBlock}}});
               else
-                PHIOps->second.push_back({*FromLRC.getConverted(), IncBlock});
+                PHIOps->second.push_back({FromLRC.getConverted(), IncBlock});
 
               break;
             }
@@ -264,13 +264,13 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
           continue;
         }
 
-        LiveRegConversion ToLRC(*FromLRC.getConverted(), I.getType(),
+        LiveRegConversion ToLRC(FromLRC.getConverted(), I.getType(),
                                 UserInst->getParent(),
                                 static_cast<BasicBlock::iterator>(
                                     UserInst->getParent()->getFirstNonPHIIt()));
         convertFromOptType(ToLRC);
         assert(ToLRC.hasConverted());
-        UseConvertTracker[UserInst->getParent()] = {*ToLRC.getConverted(),
+        UseConvertTracker[UserInst->getParent()] = {ToLRC.getConverted(),
                                                     {UserInst}};
       }
     }
@@ -312,7 +312,7 @@ bool LiveRegOptimizer::replacePHIs() {
                                   ThePHINode->getParent()->getFirstNonPHIIt()));
       convertFromOptType(ToLRC);
       assert(ToLRC.hasConverted());
-      Ele.first->replaceAllUsesWith(*ToLRC.getConverted());
+      Ele.first->replaceAllUsesWith(ToLRC.getConverted());
       // The old PHI is no longer used
       ThePHINode->eraseFromParent();
       MadeChange = true;
@@ -368,8 +368,8 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
   // desired type
   if (OriginalSize == NewSize) {
     LR.setConverted(dyn_cast<Instruction>(Builder.CreateBitCast(V, NewTy)));
-    LLVM_DEBUG(dbgs() << "\tConverted def to "
-                      << *(*LR.getConverted())->getType() << "\n");
+    LLVM_DEBUG(dbgs() << "\tConverted def to " << *LR.getConverted()->getType()
+                      << "\n");
     return;
   }
 
@@ -390,7 +390,7 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
       dyn_cast<Instruction>(Builder.CreateShuffleVector(V, ShuffleMask));
   LR.setConverted(
       dyn_cast<Instruction>(Builder.CreateBitCast(ExpandedVec, NewTy)));
-  LLVM_DEBUG(dbgs() << "\tConverted def to " << *(*LR.getConverted())->getType()
+  LLVM_DEBUG(dbgs() << "\tConverted def to " << *LR.getConverted()->getType()
                     << "\n");
   return;
 }
@@ -415,7 +415,7 @@ void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
   // If there is a bitsize match, we simply convert back to the original type
   if (OriginalSize == NewSize) {
     LRC.setConverted(dyn_cast<Instruction>(Builder.CreateBitCast(V, NewVTy)));
-    LLVM_DEBUG(dbgs() << "\tProduced for user: " << **LRC.getConverted()
+    LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted()
                       << "\n");
     return;
   }
@@ -425,7 +425,7 @@ void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
         LRC.getLiveRegDef(), IntegerType::get(Mod->getContext(), NewSize)));
     auto Original = dyn_cast<Instruction>(Builder.CreateBitCast(Trunc, NewVTy));
     LRC.setConverted(dyn_cast<Instruction>(Original));
-    LLVM_DEBUG(dbgs() << "\tProduced for user: " << **LRC.getConverted()
+    LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted()
                       << "\n");
     return;
   }
@@ -449,7 +449,7 @@ void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
   Instruction *NarrowVec = dyn_cast<Instruction>(
       Builder.CreateShuffleVector(Converted, ShuffleMask));
   LRC.setConverted(dyn_cast<Instruction>(NarrowVec));
-  LLVM_DEBUG(dbgs() << "\tProduced for user: " << **LRC.getConverted() << "\n");
+  LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted() << "\n");
   return;
 }
 
