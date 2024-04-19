@@ -94,6 +94,39 @@ static lldb::addr_t ReadFlags(NativeRegisterContext &regsiter_context) {
                                                  LLDB_INVALID_ADDRESS);
 }
 
+static int GetSoftwareWatchpointSize(const ArchSpec &arch,
+                                     lldb::addr_t next_flags) {
+  if (arch.GetMachine() == llvm::Triple::arm) {
+    if (next_flags & 0x20)
+      // Thumb mode
+      return 2;
+    else
+      // Arm mode
+      return 4;
+  }
+  if (arch.IsMIPS() || arch.GetTriple().isPPC64() ||
+      arch.GetTriple().isRISCV() || arch.GetTriple().isLoongArch())
+    return 4;
+  return 0;
+}
+
+static Status SetSoftwareBreakPointOnPC(const ArchSpec &arch, lldb::addr_t pc,
+                                        lldb::addr_t next_flags,
+                                        NativeProcessProtocol &process) {
+  int size_hint = GetSoftwareWatchpointSize(arch, next_flags);
+  Status error;
+  error = process.SetBreakpoint(pc, size_hint, /*hardware=*/false);
+
+  // If setting the breakpoint fails because pc is out of the address
+  // space, ignore it and let the debugee segfault.
+  if (error.GetError() == EIO || error.GetError() == EFAULT) {
+    return Status();
+  } else if (error.Fail())
+    return error;
+
+  return Status();
+}
+
 Status NativeProcessSoftwareSingleStep::SetupSoftwareSingleStepping(
     NativeThreadProtocol &thread) {
   Status error;
@@ -115,8 +148,23 @@ Status NativeProcessSoftwareSingleStep::SetupSoftwareSingleStepping(
   emulator_up->SetWriteMemCallback(&WriteMemoryCallback);
   emulator_up->SetWriteRegCallback(&WriteRegisterCallback);
 
-  if (!emulator_up->ReadInstruction())
-    return Status("Read instruction failed!");
+  if (!emulator_up->ReadInstruction()) {
+    // try to get at least the size of next instruction to set breakpoint.
+    auto instrSizeOpt = emulator_up->GetLastInstrSize();
+    if (!instrSizeOpt)
+      return Status("Read instruction failed!");
+    bool success = false;
+    auto pc = emulator_up->ReadRegisterUnsigned(eRegisterKindGeneric,
+                                                LLDB_REGNUM_GENERIC_PC,
+                                                LLDB_INVALID_ADDRESS, &success);
+    if (!success)
+      return Status("Reading pc failed!");
+    lldb::addr_t next_pc = pc + *instrSizeOpt;
+    auto Result =
+        SetSoftwareBreakPointOnPC(arch, next_pc, /* next_flags */ 0x0, process);
+    m_threads_stepping_with_breakpoint.insert({thread.GetID(), next_pc});
+    return Result;
+  }
 
   bool emulation_result =
       emulator_up->EvaluateInstruction(eEmulateInstructionOptionAutoAdvancePC);
@@ -157,29 +205,7 @@ Status NativeProcessSoftwareSingleStep::SetupSoftwareSingleStepping(
     // modifying the PC but we don't  know how.
     return Status("Instruction emulation failed unexpectedly.");
   }
-
-  int size_hint = 0;
-  if (arch.GetMachine() == llvm::Triple::arm) {
-    if (next_flags & 0x20) {
-      // Thumb mode
-      size_hint = 2;
-    } else {
-      // Arm mode
-      size_hint = 4;
-    }
-  } else if (arch.IsMIPS() || arch.GetTriple().isPPC64() ||
-             arch.GetTriple().isRISCV() || arch.GetTriple().isLoongArch())
-    size_hint = 4;
-  error = process.SetBreakpoint(next_pc, size_hint, /*hardware=*/false);
-
-  // If setting the breakpoint fails because next_pc is out of the address
-  // space, ignore it and let the debugee segfault.
-  if (error.GetError() == EIO || error.GetError() == EFAULT) {
-    return Status();
-  } else if (error.Fail())
-    return error;
-
+  auto Result = SetSoftwareBreakPointOnPC(arch, next_pc, next_flags, process);
   m_threads_stepping_with_breakpoint.insert({thread.GetID(), next_pc});
-
-  return Status();
+  return Result;
 }
