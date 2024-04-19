@@ -194,10 +194,6 @@ bool AMDGPULateCodeGenPrepare::runOnFunction(Function &F) {
   for (auto &BB : F)
     for (Instruction &I : llvm::make_early_inc_range(BB)) {
       Changed |= visit(I);
-      // GlobalISel should directly use the values, and do not need to emit
-      // CopyTo/CopyFrom Regs across blocks
-      if (TM.Options.EnableGlobalISel)
-        continue;
       if (!LRO.shouldReplaceUses(I))
         continue;
       Changed |= LRO.replaceUses(I);
