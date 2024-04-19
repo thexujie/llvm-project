@@ -107,7 +107,6 @@ public:
   Module *Mod = nullptr;
   const DataLayout *DL = nullptr;
   bool HasUnsafeFPMath = false;
-  bool UsesGlobalISel = false;
   bool HasFP32DenormalFlush = false;
   bool FlowChanged = false;
   mutable Function *SqrtF32 = nullptr;
@@ -361,7 +360,6 @@ bool AMDGPUCodeGenPrepareImpl::run(Function &F) {
       Next = std::next(I);
 
       MadeChange |= visit(*I);
-      I->getType();
 
       if (Next != E) { // Control flow changed
         BasicBlock *NextInstBB = Next->getParent();
@@ -373,7 +371,6 @@ bool AMDGPUCodeGenPrepareImpl::run(Function &F) {
       }
     }
   }
-
   return MadeChange;
 }
 
@@ -2278,7 +2275,6 @@ bool AMDGPUCodeGenPrepare::runOnFunction(Function &F) {
   Impl.ST = &TM.getSubtarget<GCNSubtarget>(F);
   Impl.AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   Impl.UA = &getAnalysis<UniformityInfoWrapperPass>().getUniformityInfo();
-  Impl.UsesGlobalISel = TM.Options.EnableGlobalISel;
   auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>();
   Impl.DT = DTWP ? &DTWP->getDomTree() : nullptr;
   Impl.HasUnsafeFPMath = hasUnsafeFPMath(F);
@@ -2301,7 +2297,6 @@ PreservedAnalyses AMDGPUCodeGenPreparePass::run(Function &F,
   Impl.DT = FAM.getCachedResult<DominatorTreeAnalysis>(F);
   Impl.HasUnsafeFPMath = hasUnsafeFPMath(F);
   SIModeRegisterDefaults Mode(F, *Impl.ST);
-  Impl.UsesGlobalISel = TM.Options.EnableGlobalISel;
   Impl.HasFP32DenormalFlush =
       Mode.FP32Denormals == DenormalMode::getPreserveSign();
   PreservedAnalyses PA = PreservedAnalyses::none();
