@@ -427,9 +427,8 @@ void LiveRegOptimizer::convertFromOptType(ConversionCandidateInfo &LRC) {
       Builder.CreateBitCast(LRC.getLiveRegDef(), ExpandedVT));
 
   unsigned NarrowElementCount = NewVTy->getElementCount().getFixedValue();
-  SmallVector<int, 8> ShuffleMask;
-  for (uint64_t I = 0; I < NarrowElementCount; I++)
-    ShuffleMask.push_back(I);
+  SmallVector<int, 8> ShuffleMask(NarrowElementCount);
+  std::iota(ShuffleMask.begin(), ShuffleMask.end(), 0);
 
   Instruction *NarrowVec = dyn_cast<Instruction>(
       Builder.CreateShuffleVector(Converted, ShuffleMask));
