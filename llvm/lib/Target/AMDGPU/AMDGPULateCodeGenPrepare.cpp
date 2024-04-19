@@ -329,8 +329,7 @@ Type *LiveRegOptimizer::getCompatibleType(Instruction *InstToConvert) {
   if (!VTy)
     return ConvertToScalar;
 
-  unsigned OriginalSize =
-      VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue();
+  unsigned OriginalSize = VTy->getPrimitiveSizeInBits();
   unsigned ConvertScalarSize = ConvertToScalar->getScalarSizeInBits();
   unsigned ConvertEltCount =
       (OriginalSize + ConvertScalarSize - 1) / ConvertScalarSize;
@@ -349,21 +348,13 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
   }
 
   VectorType *VTy = cast<VectorType>(LR.getOriginalType());
-
   Type *NewTy = LR.getNewType();
-  assert(NewTy);
-  VectorType *NewVTy = NewTy->isVectorTy() ? cast<VectorType>(NewTy) : nullptr;
 
-  Value *V = static_cast<Value *>(LR.getLiveRegDef());
-  unsigned OriginalSize =
-      VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue();
-  unsigned NewSize = NewTy->isVectorTy()
-                     ? NewVTy->getScalarSizeInBits() *
-                           NewVTy->getElementCount().getFixedValue()
-                     : NewTy->getScalarSizeInBits();
+  unsigned OriginalSize = VTy->getPrimitiveSizeInBits();
+  unsigned NewSize = NewTy->getPrimitiveSizeInBits();
 
   auto &Builder = LR.getConvertBuilder();
-
+  Value *V = static_cast<Value *>(LR.getLiveRegDef());
   // If there is a bitsize match, we can fit the old vector into a new vector of
   // desired type
   if (OriginalSize == NewSize) {
@@ -397,21 +388,13 @@ void LiveRegOptimizer::convertToOptType(LiveRegConversion &LR) {
 
 void LiveRegOptimizer::convertFromOptType(LiveRegConversion &LRC) {
   Type *OTy = LRC.getOriginalType();
-  VectorType *VTy =
-      OTy->isVectorTy() ? dyn_cast<VectorType>(LRC.getOriginalType()) : nullptr;
-
   VectorType *NewVTy = cast<VectorType>(LRC.getNewType());
 
-  Value *V = static_cast<Value *>(LRC.getLiveRegDef());
-  unsigned OriginalSize =
-      OTy->isVectorTy()
-          ? VTy->getScalarSizeInBits() * VTy->getElementCount().getFixedValue()
-          : OTy->getScalarSizeInBits();
-  unsigned NewSize =
-      NewVTy->getScalarSizeInBits() * NewVTy->getElementCount().getFixedValue();
+  unsigned OriginalSize = OTy->getPrimitiveSizeInBits();
+  unsigned NewSize = NewVTy->getPrimitiveSizeInBits();
 
   auto &Builder = LRC.getConvertBuilder();
-
+  Value *V = static_cast<Value *>(LRC.getLiveRegDef());
   // If there is a bitsize match, we simply convert back to the original type
   if (OriginalSize == NewSize) {
     LRC.setConverted(dyn_cast<Instruction>(Builder.CreateBitCast(V, NewVTy)));
