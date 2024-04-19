@@ -112,14 +112,14 @@ struct LDSAccessTypeInfo {
 // to replace a LDS global uses with corresponding offset
 // in to device global memory.
 struct KernelLDSParameters {
-  GlobalVariable *SwLDS{nullptr};
-  GlobalVariable *SwLDSMetadata{nullptr};
+  GlobalVariable *SwLDS = nullptr;
+  GlobalVariable *SwLDSMetadata = nullptr;
   LDSAccessTypeInfo DirectAccess;
   LDSAccessTypeInfo IndirectAccess;
   DenseMap<GlobalVariable *, SmallVector<uint32_t, 3>>
       LDSToReplacementIndicesMap;
-  int32_t KernelId{-1};
-  uint32_t MallocSize{0};
+  int32_t KernelId = -1;
+  uint32_t MallocSize = 0;
 };
 
 // Struct to store infor for creation of offset table
@@ -133,11 +133,11 @@ struct NonKernelLDSParameters {
 
 class AMDGPUSwLowerLDS {
 public:
-  AMDGPUSwLowerLDS(Module &mod, DomTreeCallback Callback)
-      : M(mod), IRB(M.getContext()), DTCallback(Callback) {}
+  AMDGPUSwLowerLDS(Module &Mod, DomTreeCallback Callback)
+      : M(Mod), IRB(M.getContext()), DTCallback(Callback) {}
   bool run();
-  void getUsesOfLDSByNonKernels(CallGraph const &CG,
-                                FunctionVariableMap &functions);
+  void getUsesOfLDSByNonKernels(const CallGraph &CG,
+                                FunctionVariableMap &Functions);
   SetVector<Function *>
   getOrderedIndirectLDSAccessingKernels(SetVector<Function *> &&Kernels);
   SetVector<GlobalVariable *>
@@ -166,23 +166,22 @@ private:
 template <typename T> SetVector<T> sortByName(std::vector<T> &&V) {
   // Sort the vector of globals or Functions based on their name.
   // Returns a SetVector of globals/Functions.
-  llvm::sort(V.begin(), V.end(), [](const auto *L, const auto *R) {
+  sort(V, [](const auto *L, const auto *R) {
     return L->getName() < R->getName();
   });
-  return {std::move(SetVector<T>(V.begin(), V.end()))};
+  return {SetVector<T>(V.begin(), V.end())};
 }
 
 SetVector<GlobalVariable *> AMDGPUSwLowerLDS::getOrderedNonKernelAllLDSGlobals(
     SetVector<GlobalVariable *> &&Variables) {
   // Sort all the non-kernel LDS accesses based on their name.
-  SetVector<GlobalVariable *> Ordered = sortByName(
+  return sortByName(
       std::vector<GlobalVariable *>(Variables.begin(), Variables.end()));
-  return std::move(Ordered);
 }
 
 SetVector<Function *> AMDGPUSwLowerLDS::getOrderedIndirectLDSAccessingKernels(
     SetVector<Function *> &&Kernels) {
-  // Sort the non-kernels accessing LDS based on theor name.
+  // Sort the non-kernels accessing LDS based on their name.
   // Also assign a kernel ID metadata based on the sorted order.
   LLVMContext &Ctx = M.getContext();
   if (Kernels.size() > UINT32_MAX) {
@@ -205,13 +204,12 @@ SetVector<Function *> AMDGPUSwLowerLDS::getOrderedIndirectLDSAccessingKernels(
 }
 
 void AMDGPUSwLowerLDS::getUsesOfLDSByNonKernels(
-    CallGraph const &CG, FunctionVariableMap &functions) {
+    const CallGraph &CG, FunctionVariableMap &functions) {
   // Get uses from the current function, excluding uses by called functions
   // Two output variables to avoid walking the globals list twice
   for (auto &GV : M.globals()) {
-    if (!AMDGPU::isLDSVariableToLower(GV)) {
+    if (!AMDGPU::isLDSVariableToLower(GV))
       continue;
-    }
 
     if (GV.isAbsoluteSymbolRef()) {
       report_fatal_error(
@@ -221,9 +219,8 @@ void AMDGPUSwLowerLDS::getUsesOfLDSByNonKernels(
     for (User *V : GV.users()) {
       if (auto *I = dyn_cast<Instruction>(V)) {
         Function *F = I->getFunction();
-        if (!isKernelLDS(F)) {
+        if (!isKernelLDS(F))
           functions[F].insert(&GV);
-        }
       }
     }
   }
@@ -355,7 +352,6 @@ static void replacesUsesOfGlobalInFunction(Function *Func, GlobalVariable *GV,
     return false;
   };
   GV->replaceUsesWithIf(Replacement, ReplaceUsesLambda);
-  return;
 }
 
 void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
@@ -368,15 +364,17 @@ void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
       cast<StructType>(SwLDSMetadata->getValueType());
   Type *Int32Ty = IRB.getInt32Ty();
 
+  auto &IndirectAccess = LDSParams.IndirectAccess;
+  auto &DirectAccess = LDSParams.DirectAccess;
   // Replace all uses of LDS global in this Function with a Replacement.
   auto ReplaceLDSGlobalUses = [&](SetVector<GlobalVariable *> &LDSGlobals) {
     for (auto &GV : LDSGlobals) {
       // Do not generate instructions if LDS access is in non-kernel
       // i.e indirect-access.
-      if ((LDSParams.IndirectAccess.StaticLDSGlobals.contains(GV) ||
-           LDSParams.IndirectAccess.DynamicLDSGlobals.contains(GV)) &&
-          (!LDSParams.DirectAccess.StaticLDSGlobals.contains(GV) &&
-           !LDSParams.DirectAccess.DynamicLDSGlobals.contains(GV)))
+      if ((IndirectAccess.StaticLDSGlobals.contains(GV) ||
+           IndirectAccess.DynamicLDSGlobals.contains(GV)) &&
+          (!DirectAccess.StaticLDSGlobals.contains(GV) &&
+           !DirectAccess.DynamicLDSGlobals.contains(GV)))
         continue;
       auto &Indices = LDSParams.LDSToReplacementIndicesMap[GV];
       assert(Indices.size() == 3);
@@ -391,18 +389,21 @@ void AMDGPUSwLowerLDS::replaceKernelLDSAccesses(Function *Func) {
       Value *Load = IRB.CreateLoad(Int32Ty, GEP);
       Value *BasePlusOffset =
           IRB.CreateInBoundsGEP(IRB.getInt8Ty(), SwLDS, {Load});
+      LLVM_DEBUG(dbgs() << "Sw LDS Lowering, Replacing LDS "
+                        << GV->getName().str());
       replacesUsesOfGlobalInFunction(Func, GV, BasePlusOffset);
     }
   };
-  ReplaceLDSGlobalUses(LDSParams.DirectAccess.StaticLDSGlobals);
-  ReplaceLDSGlobalUses(LDSParams.IndirectAccess.StaticLDSGlobals);
-  ReplaceLDSGlobalUses(LDSParams.DirectAccess.DynamicLDSGlobals);
-  ReplaceLDSGlobalUses(LDSParams.IndirectAccess.DynamicLDSGlobals);
-  return;
+  ReplaceLDSGlobalUses(DirectAccess.StaticLDSGlobals);
+  ReplaceLDSGlobalUses(IndirectAccess.StaticLDSGlobals);
+  ReplaceLDSGlobalUses(DirectAccess.DynamicLDSGlobals);
+  ReplaceLDSGlobalUses(IndirectAccess.DynamicLDSGlobals);
 }
 
 void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
                                               DomTreeUpdater &DTU) {
+  LLVM_DEBUG(dbgs() << "Sw Lowering Kernel LDS for : "
+                    << Func->getName().str());
   auto &LDSParams = KernelToLDSParametersMap[Func];
   auto &Ctx = M.getContext();
   auto *PrevEntryBlock = &Func->getEntryBlock();
@@ -570,7 +571,6 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
                     {DominatorTree::Insert, MallocBlock, PrevEntryBlock},
                     {DominatorTree::Insert, CondFreeBlock, FreeBlock},
                     {DominatorTree::Insert, FreeBlock, EndBlock}});
-  return;
 }
 
 Constant *AMDGPUSwLowerLDS::getAddressesOfVariablesInKernel(
@@ -581,27 +581,28 @@ Constant *AMDGPUSwLowerLDS::getAddressesOfVariablesInKernel(
 
   GlobalVariable *SwLDSMetadata = LDSParams.SwLDSMetadata;
   assert(SwLDSMetadata);
-  StructType *SwLDSMetadataStructType =
+  auto *SwLDSMetadataStructType =
       cast<StructType>(SwLDSMetadata->getValueType());
   ArrayType *KernelOffsetsType = ArrayType::get(Int32Ty, Variables.size());
 
   SmallVector<Constant *> Elements;
   for (size_t i = 0; i < Variables.size(); i++) {
     GlobalVariable *GV = Variables[i];
-    if (LDSParams.LDSToReplacementIndicesMap.contains(GV)) {
-      auto &Indices = LDSParams.LDSToReplacementIndicesMap[GV];
-      uint32_t Idx0 = Indices[0];
-      uint32_t Idx1 = Indices[1];
-      uint32_t Idx2 = Indices[2];
-      Constant *GEPIdx[] = {ConstantInt::get(Int32Ty, Idx0),
-                            ConstantInt::get(Int32Ty, Idx1),
-                            ConstantInt::get(Int32Ty, Idx2)};
-      Constant *GEP = ConstantExpr::getGetElementPtr(
-          SwLDSMetadataStructType, SwLDSMetadata, GEPIdx, true);
-      auto elt = ConstantExpr::getPtrToInt(GEP, Int32Ty);
-      Elements.push_back(elt);
-    } else
+    if (!LDSParams.LDSToReplacementIndicesMap.contains(GV)) {
       Elements.push_back(PoisonValue::get(Int32Ty));
+      continue;
+    }
+    auto &Indices = LDSParams.LDSToReplacementIndicesMap[GV];
+    uint32_t Idx0 = Indices[0];
+    uint32_t Idx1 = Indices[1];
+    uint32_t Idx2 = Indices[2];
+    Constant *GEPIdx[] = {ConstantInt::get(Int32Ty, Idx0),
+                          ConstantInt::get(Int32Ty, Idx1),
+                          ConstantInt::get(Int32Ty, Idx2)};
+    Constant *GEP = ConstantExpr::getGetElementPtr(SwLDSMetadataStructType,
+                                                   SwLDSMetadata, GEPIdx, true);
+    auto elt = ConstantExpr::getPtrToInt(GEP, Int32Ty);
+    Elements.push_back(elt);
   }
   return ConstantArray::get(KernelOffsetsType, Elements);
 }
@@ -616,7 +617,7 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSBaseTable(
   Type *Int32Ty = Type::getInt32Ty(Ctx);
   const size_t NumberKernels = Kernels.size();
   ArrayType *AllKernelsOffsetsType = ArrayType::get(Int32Ty, NumberKernels);
-  std::vector<Constant *> overallConstantExprElts(NumberKernels);
+  std::vector<Constant *> OverallConstantExprElts(NumberKernels);
   for (size_t i = 0; i < NumberKernels; i++) {
     Function *Func = Kernels[i];
     auto &LDSParams = KernelToLDSParametersMap[Func];
@@ -626,10 +627,10 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSBaseTable(
     Constant *GEP =
         ConstantExpr::getGetElementPtr(SwLDS->getType(), SwLDS, GEPIdx, true);
     auto Elt = ConstantExpr::getPtrToInt(GEP, Int32Ty);
-    overallConstantExprElts[i] = Elt;
+    OverallConstantExprElts[i] = Elt;
   }
   Constant *init =
-      ConstantArray::get(AllKernelsOffsetsType, overallConstantExprElts);
+      ConstantArray::get(AllKernelsOffsetsType, OverallConstantExprElts);
   NKLDSParams.LDSBaseTable = new GlobalVariable(
       M, AllKernelsOffsetsType, true, GlobalValue::InternalLinkage, init,
       "llvm.amdgcn.sw.lds.base.table", nullptr, GlobalValue::NotThreadLocal,
@@ -665,13 +666,12 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSOffsetTable(
     overallConstantExprElts[i] =
         getAddressesOfVariablesInKernel(Func, Variables);
   }
-  Constant *init =
+  Constant *Init =
       ConstantArray::get(AllKernelsOffsetsType, overallConstantExprElts);
   NKLDSParams.LDSOffsetTable = new GlobalVariable(
-      M, AllKernelsOffsetsType, true, GlobalValue::InternalLinkage, init,
+      M, AllKernelsOffsetsType, true, GlobalValue::InternalLinkage, Init,
       "llvm.amdgcn.sw.lds.offset.table", nullptr, GlobalValue::NotThreadLocal,
       AMDGPUAS::CONSTANT_ADDRESS);
-  return;
 }
 
 void AMDGPUSwLowerLDS::lowerNonKernelLDSAccesses(
@@ -679,6 +679,8 @@ void AMDGPUSwLowerLDS::lowerNonKernelLDSAccesses(
     NonKernelLDSParameters &NKLDSParams) {
   // Replace LDS access in non-kernel with replacement queried from
   // Base table and offset from offset table.
+  LLVM_DEBUG(dbgs() << "Sw LDS lowering, lower non-kernel access for : "
+                    << Func->getName().str());
   auto *EntryBlock = &Func->getEntryBlock();
   IRB.SetInsertPoint(EntryBlock, EntryBlock->begin());
   Function *Decl =
@@ -705,31 +707,29 @@ void AMDGPUSwLowerLDS::lowerNonKernelLDSAccesses(
     OffsetLoad = IRB.CreateLoad(IRB.getInt32Ty(), OffsetLoad);
     Value *BasePlusOffset =
         IRB.CreateInBoundsGEP(IRB.getInt8Ty(), BasePtr, {OffsetLoad});
+    LLVM_DEBUG(dbgs() << "Sw LDS Lowering, Replace non-kernel LDS for "
+                      << GV->getName().str());
     replacesUsesOfGlobalInFunction(Func, GV, BasePlusOffset);
   }
-  return;
 }
 
 static void reorderStaticDynamicIndirectLDSSet(KernelLDSParameters &LDSParams) {
   // Sort Static, dynamic LDS globals which are either
   // direct or indirect access on basis of name.
-  LDSParams.DirectAccess.StaticLDSGlobals =
-      sortByName(std::vector<GlobalVariable *>(
-          LDSParams.DirectAccess.StaticLDSGlobals.begin(),
-          LDSParams.DirectAccess.StaticLDSGlobals.end()));
-  LDSParams.DirectAccess.DynamicLDSGlobals =
-      sortByName(std::vector<GlobalVariable *>(
-          LDSParams.DirectAccess.DynamicLDSGlobals.begin(),
-          LDSParams.DirectAccess.DynamicLDSGlobals.end()));
-  LDSParams.IndirectAccess.StaticLDSGlobals =
-      sortByName(std::vector<GlobalVariable *>(
-          LDSParams.IndirectAccess.StaticLDSGlobals.begin(),
-          LDSParams.IndirectAccess.StaticLDSGlobals.end()));
-  LDSParams.IndirectAccess.DynamicLDSGlobals =
-      sortByName(std::vector<GlobalVariable *>(
-          LDSParams.IndirectAccess.DynamicLDSGlobals.begin(),
-          LDSParams.IndirectAccess.DynamicLDSGlobals.end()));
-  return;
+  auto &DirectAccess = LDSParams.DirectAccess;
+  auto &IndirectAccess = LDSParams.IndirectAccess;
+  LDSParams.DirectAccess.StaticLDSGlobals = sortByName(
+      std::vector<GlobalVariable *>(DirectAccess.StaticLDSGlobals.begin(),
+                                    DirectAccess.StaticLDSGlobals.end()));
+  LDSParams.DirectAccess.DynamicLDSGlobals = sortByName(
+      std::vector<GlobalVariable *>(DirectAccess.DynamicLDSGlobals.begin(),
+                                    DirectAccess.DynamicLDSGlobals.end()));
+  LDSParams.IndirectAccess.StaticLDSGlobals = sortByName(
+      std::vector<GlobalVariable *>(IndirectAccess.StaticLDSGlobals.begin(),
+                                    IndirectAccess.StaticLDSGlobals.end()));
+  LDSParams.IndirectAccess.DynamicLDSGlobals = sortByName(
+      std::vector<GlobalVariable *>(IndirectAccess.DynamicLDSGlobals.begin(),
+                                    IndirectAccess.DynamicLDSGlobals.end()));
 }
 
 bool AMDGPUSwLowerLDS::run() {
