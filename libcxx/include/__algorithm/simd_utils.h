@@ -13,6 +13,7 @@
 #include <__bit/bit_cast.h>
 #include <__bit/countr.h>
 #include <__config>
+#include <__iterator/aliasing_iterator.h> // FIXME: Why does the modules build require this?
 #include <__type_traits/is_arithmetic.h>
 #include <__type_traits/is_same.h>
 #include <__utility/integer_sequence.h>
@@ -42,6 +43,34 @@ _LIBCPP_PUSH_MACROS
 #if _LIBCPP_HAS_ALGORITHM_VECTOR_UTILS
 
 _LIBCPP_BEGIN_NAMESPACE_STD
+
+template <class _Tp>
+inline constexpr bool __can_map_to_integer_v =
+    sizeof(_Tp) == alignof(_Tp) && (sizeof(_Tp) == 1 || sizeof(_Tp) == 2 || sizeof(_Tp) == 4 || sizeof(_Tp) == 8);
+
+template <size_t _TypeSize>
+struct __get_as_integer_type_impl;
+
+template <>
+struct __get_as_integer_type_impl<1> {
+  using type = uint8_t;
+};
+
+template <>
+struct __get_as_integer_type_impl<2> {
+  using type = uint16_t;
+};
+template <>
+struct __get_as_integer_type_impl<4> {
+  using type = uint32_t;
+};
+template <>
+struct __get_as_integer_type_impl<8> {
+  using type = uint64_t;
+};
+
+template <class _Tp>
+using __get_as_integer_type_t = typename __get_as_integer_type_impl<sizeof(_Tp)>::type;
 
 // This isn't specialized for 64 byte vectors on purpose. They have the potential to significantly reduce performance
 // in mixed simd/non-simd workloads and don't provide any performance improvement for currently vectorized algorithms
@@ -80,10 +109,10 @@ template <class _VecT>
 using __simd_vector_underlying_type_t = decltype(std::__simd_vector_underlying_type_impl(_VecT{}));
 
 // This isn't inlined without always_inline when loading chars.
-template <class _VecT, class _Tp>
-_LIBCPP_NODISCARD _LIBCPP_ALWAYS_INLINE _LIBCPP_HIDE_FROM_ABI _VecT __load_vector(const _Tp* __ptr) noexcept {
+template <class _VecT, class _Iter>
+_LIBCPP_NODISCARD _LIBCPP_ALWAYS_INLINE _LIBCPP_HIDE_FROM_ABI _VecT __load_vector(_Iter __iter) noexcept {
   return [=]<size_t... _Indices>(index_sequence<_Indices...>) _LIBCPP_ALWAYS_INLINE noexcept {
-    return _VecT{__ptr[_Indices]...};
+    return _VecT{__iter[_Indices]...};
   }(make_index_sequence<__simd_vector_size_v<_VecT>>{});
 }
 

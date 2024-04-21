@@ -439,6 +439,7 @@
   { include: [ "<__ios/fpos.h>", "private", "<ios>", "public" ] },
   { include: [ "<__iterator/access.h>", "private", "<iterator>", "public" ] },
   { include: [ "<__iterator/advance.h>", "private", "<iterator>", "public" ] },
+  { include: [ "<__iterator/aliasing_iterator.h>", "private", "<iterator>", "public" ] },
   { include: [ "<__iterator/back_insert_iterator.h>", "private", "<iterator>", "public" ] },
   { include: [ "<__iterator/bounded_iter.h>", "private", "<iterator>", "public" ] },
   { include: [ "<__iterator/common_iterator.h>", "private", "<iterator>", "public" ] },
