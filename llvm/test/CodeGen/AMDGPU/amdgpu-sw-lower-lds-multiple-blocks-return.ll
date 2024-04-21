@@ -19,7 +19,7 @@ define amdgpu_kernel void @test_kernel() {
 ; CHECK-NEXT:    br i1 [[TMP5]], label [[MALLOC:%.*]], label [[TMP7:%.*]]
 ; CHECK:       Malloc:
 ; CHECK-NEXT:    [[TMP15:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_TEST_KERNEL_MD_TYPE:%.*]], ptr addrspace(1) @llvm.amdgcn.sw.lds.test_kernel.md, i32 0, i32 1, i32 0), align 8
-; CHECK-NEXT:    [[TMP16:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_TEST_KERNEL_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.test_kernel.md, i32 0, i32 1, i32 1), align 8
+; CHECK-NEXT:    [[TMP16:%.*]] = load i64, ptr addrspace(1) getelementptr inbounds ([[LLVM_AMDGCN_SW_LDS_TEST_KERNEL_MD_TYPE]], ptr addrspace(1) @llvm.amdgcn.sw.lds.test_kernel.md, i32 0, i32 1, i32 2), align 8
 ; CHECK-NEXT:    [[TMP17:%.*]] = add i64 [[TMP15]], [[TMP16]]
 ; CHECK-NEXT:    [[TMP6:%.*]] = call ptr addrspace(1) @malloc(i64 [[TMP17]])
 ; CHECK-NEXT:    store ptr addrspace(1) [[TMP6]], ptr addrspace(3) @llvm.amdgcn.sw.lds.test_kernel, align 8

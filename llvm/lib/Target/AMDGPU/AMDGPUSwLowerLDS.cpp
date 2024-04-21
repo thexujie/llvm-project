@@ -28,12 +28,12 @@
 //    - Metadata Global:
 //        It is of struct type, with n members. n equals the number of LDS
 //        globals accessed by the kernel(direct and indirect). Each member of
-//        struct is another struct of type {i32, i32}. First member corresponds
-//        to offset, second member corresponds to aligned size of LDS global
-//        being replaced. It will have name
-//        "llvm.amdgcn.sw.lds.<kernel-name>.md". This global will have an
-//        intializer with static LDS related offsets and sizes initialized. But
-//        for dynamic LDS related entries, offsets will be intialized to
+//        struct is another struct of type {i32, i32, i32}. First member
+//        corresponds to offset, second member corresponds to size of LDS global
+//        being replaced and third represents the total aligned size. It will
+//        have name "llvm.amdgcn.sw.lds.<kernel-name>.md". This global will have
+//        an intializer with static LDS related offsets and sizes initialized.
+//        But for dynamic LDS related entries, offsets will be intialized to
 //        previous static LDS allocation end offset. Sizes for them will be zero
 //        initially. These dynamic LDS offset and size values will be updated
 //        with in the kernel, since kernel can read the dynamic LDS size
@@ -118,8 +118,6 @@ struct KernelLDSParameters {
   LDSAccessTypeInfo IndirectAccess;
   DenseMap<GlobalVariable *, SmallVector<uint32_t, 3>>
       LDSToReplacementIndicesMap;
-  int32_t KernelId = -1;
-  uint32_t MallocSize = 0;
 };
 
 // Struct to store infor for creation of offset table
@@ -198,7 +196,6 @@ SetVector<Function *> AMDGPUSwLowerLDS::getOrderedIndirectLDSAccessingKernels(
     Func->setMetadata("llvm.amdgcn.lds.kernel.id",
                       MDNode::get(Ctx, AttrMDArgs));
     auto &LDSParams = KernelToLDSParametersMap[Func];
-    LDSParams.KernelId = i;
   }
   return std::move(OrderedKernels);
 }
@@ -271,22 +268,23 @@ void AMDGPUSwLowerLDS::populateSwMetadataGlobal(Function *Func) {
   MDItemOS << "llvm.amdgcn.sw.lds." << Func->getName().str() << ".md.item";
 
   StructType *LDSItemTy =
-      StructType::create(Ctx, {Int32Ty, Int32Ty}, MDItemOS.str());
-
+      StructType::create(Ctx, {Int32Ty, Int32Ty, Int32Ty}, MDItemOS.str());
+  uint32_t MallocSize = 0;
   auto buildInitializerForSwLDSMD =
       [&](SetVector<GlobalVariable *> &LDSGlobals) {
         for (auto &GV : LDSGlobals) {
           Type *Ty = GV->getValueType();
           const uint64_t SizeInBytes = DL.getTypeAllocSize(Ty);
           Items.push_back(LDSItemTy);
-          Constant *ItemStartOffset =
-              ConstantInt::get(Int32Ty, LDSParams.MallocSize);
+          Constant *ItemStartOffset = ConstantInt::get(Int32Ty, MallocSize);
+          Constant *SizeInBytesConst = ConstantInt::get(Int32Ty, SizeInBytes);
           uint64_t AlignedSize = alignTo(SizeInBytes, MaxAlignment);
           Constant *AlignedSizeInBytesConst =
               ConstantInt::get(Int32Ty, AlignedSize);
-          LDSParams.MallocSize += AlignedSize;
-          Constant *InitItem = ConstantStruct::get(
-              LDSItemTy, {ItemStartOffset, AlignedSizeInBytesConst});
+          MallocSize += AlignedSize;
+          Constant *InitItem =
+              ConstantStruct::get(LDSItemTy, {ItemStartOffset, SizeInBytesConst,
+                                              AlignedSizeInBytesConst});
           Initializers.push_back(InitItem);
         }
       };
@@ -441,7 +439,7 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
   // If Dynamic LDS globals are accessed by the kernel,
   // Get the size of dyn lds from hidden dyn_lds_size kernel arg.
   // Update the corresponding metadata global entries for this dyn lds global.
-  uint32_t MallocSize = LDSParams.MallocSize;
+  uint32_t MallocSize = 0;
   Value *CurrMallocSize;
 
   unsigned NumStaticLDS = LDSParams.DirectAccess.StaticLDSGlobals.size() +
@@ -456,7 +454,7 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
 
     auto *GEPForEndStaticLDSSize = IRB.CreateInBoundsGEP(
         MetadataStructType, SwLDSMetadata,
-        {IRB.getInt32(0), IRB.getInt32(NumStaticLDS - 1), IRB.getInt32(1)});
+        {IRB.getInt32(0), IRB.getInt32(NumStaticLDS - 1), IRB.getInt32(2)});
 
     Value *EndStaticLDSOffset =
         IRB.CreateLoad(IRB.getInt64Ty(), GEPForEndStaticLDSOffset);
@@ -488,18 +486,23 @@ void AMDGPUSwLowerLDS::lowerKernelLDSAccesses(Function *Func,
             IRB.CreateStore(CurrMallocSize, GEPForOffset);
 
             // Get size from hidden dyn_lds_size argument of kernel
-            // Update the Aligned Size metadata.
+            // Update the size and Aligned Size metadata.
             auto *GEPForSize = IRB.CreateInBoundsGEP(
                 MetadataStructType, SwLDSMetadata,
                 {IRB.getInt32(0), IRB.getInt32(Indices[1]), IRB.getInt32(1)});
             Value *CurrDynLDSSize =
                 IRB.CreateLoad(IRB.getInt64Ty(), HiddenDynLDSSize);
+            IRB.CreateStore(CurrDynLDSSize, GEPForSize);
+
+            auto *GEPForAlignedSize = IRB.CreateInBoundsGEP(
+                MetadataStructType, SwLDSMetadata,
+                {IRB.getInt32(0), IRB.getInt32(Indices[1]), IRB.getInt32(2)});
             Value *AlignedDynLDSSize =
                 IRB.CreateAdd(CurrDynLDSSize, MaxAlignValueMinusOne);
             AlignedDynLDSSize =
                 IRB.CreateUDiv(AlignedDynLDSSize, MaxAlignValue);
             AlignedDynLDSSize = IRB.CreateMul(AlignedDynLDSSize, MaxAlignValue);
-            IRB.CreateStore(AlignedDynLDSSize, GEPForSize);
+            IRB.CreateStore(AlignedDynLDSSize, GEPForAlignedSize);
 
             // Update the Current Malloc Size
             CurrMallocSize = IRB.CreateAdd(CurrMallocSize, AlignedDynLDSSize);
@@ -656,7 +659,6 @@ void AMDGPUSwLowerLDS::buildNonKernelLDSOffsetTable(
 
   ArrayType *AllKernelsOffsetsType =
       ArrayType::get(KernelOffsetsType, NumberKernels);
-  // Constant *Missing = PoisonValue::get(KernelOffsetsType);
   std::vector<Constant *> overallConstantExprElts(NumberKernels);
   for (size_t i = 0; i < NumberKernels; i++) {
     Function *Func = Kernels[i];
