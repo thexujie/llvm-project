@@ -14,9 +14,8 @@ body:             |
     ; CHECK-NEXT: [[COPY1:%[0-9]+]]:gpr64 = COPY $x1
     ; CHECK-NEXT: [[COPY2:%[0-9]+]]:gpr64 = COPY $x0
     ; CHECK-NEXT: [[MADDXrrr:%[0-9]+]]:gpr64 = MADDXrrr [[COPY1]], [[COPY2]], $xzr
-    ; CHECK-NEXT: [[UBFMXri:%[0-9]+]]:gpr64 = UBFMXri killed [[MADDXrrr]], 56, 63
-    ; CHECK-NEXT: [[ANDXri:%[0-9]+]]:gpr64common = ANDXri killed [[UBFMXri]], 8069
-    ; CHECK-NEXT: [[LDRWroX:%[0-9]+]]:gpr32 = LDRWroX [[COPY]], killed [[ANDXri]], 0, 0
+    ; CHECK-NEXT: [[UBFMXri:%[0-9]+]]:gpr64 = UBFMXri killed [[MADDXrrr]], 58, 63
+    ; CHECK-NEXT: [[LDRWroX:%[0-9]+]]:gpr32 = LDRWroX [[COPY]], killed [[UBFMXri]], 0, 1
     ; CHECK-NEXT: $w0 = COPY [[LDRWroX]]
     ; CHECK-NEXT: RET_ReallyLR implicit $w0
     %2:gpr64common = COPY $x2
@@ -42,9 +41,8 @@ body:             |
     ; CHECK-NEXT: [[COPY1:%[0-9]+]]:gpr64 = COPY $x1
     ; CHECK-NEXT: [[COPY2:%[0-9]+]]:gpr64 = COPY $x0
     ; CHECK-NEXT: [[MADDXrrr:%[0-9]+]]:gpr64 = MADDXrrr [[COPY1]], [[COPY2]], $xzr
-    ; CHECK-NEXT: [[UBFMXri:%[0-9]+]]:gpr64 = UBFMXri killed [[MADDXrrr]], 63, 62
-    ; CHECK-NEXT: [[ANDXri:%[0-9]+]]:gpr64common = ANDXri killed [[UBFMXri]], 8125
-    ; CHECK-NEXT: [[LDRWroX:%[0-9]+]]:gpr32 = LDRWroX [[COPY]], killed [[ANDXri]], 0, 0
+    ; CHECK-NEXT: [[UBFMXri:%[0-9]+]]:gpr64 = UBFMXri killed [[MADDXrrr]], 1, 63
+    ; CHECK-NEXT: [[LDRWroX:%[0-9]+]]:gpr32 = LDRWroX [[COPY]], killed [[UBFMXri]], 0, 1
     ; CHECK-NEXT: $w0 = COPY [[LDRWroX]]
     ; CHECK-NEXT: RET_ReallyLR implicit $w0
     %2:gpr64common = COPY $x2
