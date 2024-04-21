@@ -1300,8 +1300,8 @@ static void UpdateSwLDSMetadataWithRedzoneInfo(Function &F, int Scale) {
   std::vector<Constant *> Initializers;
   uint32_t MallocSize = 0;
   //{GV.start, Align(GV.size + Redzone.size), Redzone.start, Redzone.size}
-  StructType *LDSItemTy =
-      StructType::create(Ctx, {Int32Ty, Int32Ty, Int32Ty, Int32Ty}, "");
+  StructType *LDSItemTy = StructType::create(
+      Ctx, {Int32Ty, Int32Ty, Int32Ty, Int32Ty, Int32Ty}, "");
   for (unsigned i = 0; i < NumStructs; i++) {
     Items.push_back(LDSItemTy);
     ConstantStruct *member =
@@ -1313,6 +1313,8 @@ static void UpdateSwLDSMetadataWithRedzoneInfo(Function &F, int Scale) {
       unsigned GlobalSizeValue = GlobalSize->getZExtValue();
       Constant *NewItemStartOffset = ConstantInt::get(Int32Ty, MallocSize);
       if (GlobalSizeValue) {
+        Constant *NewItemGlobalSizeConst =
+            ConstantInt::get(Int32Ty, GlobalSizeValue);
         const uint64_t RightRedzoneSize =
             getRedzoneSizeForGlobal(Scale, GlobalSizeValue);
         MallocSize += GlobalSizeValue;
@@ -1327,21 +1329,21 @@ static void UpdateSwLDSMetadataWithRedzoneInfo(Function &F, int Scale) {
         Constant *NewItemAlignGlobalPlusRedzoneSizeConst =
             ConstantInt::get(Int32Ty, NewItemAlignGlobalPlusRedzoneSize);
         NewInitItem = ConstantStruct::get(
-            LDSItemTy,
-            {NewItemStartOffset, NewItemAlignGlobalPlusRedzoneSizeConst,
-             NewItemRedzoneStartOffset, NewItemRedzoneSize});
+            LDSItemTy, {NewItemStartOffset, NewItemGlobalSizeConst,
+                        NewItemAlignGlobalPlusRedzoneSizeConst,
+                        NewItemRedzoneStartOffset, NewItemRedzoneSize});
         MallocSize = alignTo(MallocSize, LDSAlign);
       } else {
         Constant *CurrMallocSize = ConstantInt::get(Int32Ty, MallocSize);
         Constant *zero = ConstantInt::get(Int32Ty, 0);
-        NewInitItem =
-            ConstantStruct::get(LDSItemTy, {CurrMallocSize, zero, zero, zero});
+        NewInitItem = ConstantStruct::get(
+            LDSItemTy, {CurrMallocSize, zero, zero, zero, zero});
       }
     } else {
       Constant *CurrMallocSize = ConstantInt::get(Int32Ty, MallocSize);
       Constant *zero = ConstantInt::get(Int32Ty, 0);
-      NewInitItem =
-          ConstantStruct::get(LDSItemTy, {CurrMallocSize, zero, zero, zero});
+      NewInitItem = ConstantStruct::get(
+          LDSItemTy, {CurrMallocSize, zero, zero, zero, zero});
     }
     Initializers.push_back(NewInitItem);
   }
@@ -1443,12 +1445,12 @@ static void poisonRedzonesForSwLDS(Function& F) {
       IRB.SetInsertPoint(SI->getNextNode());
 
       auto *GEPForOffset = IRB.CreateInBoundsGEP(
-                  MDStructType, SwLDSMetadataGlobal,
-                {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(2)});
+          MDStructType, SwLDSMetadataGlobal,
+          {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(3)});
 
       auto *GEPForSize = IRB.CreateInBoundsGEP(
-                  MDStructType, SwLDSMetadataGlobal,
-                {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(3)});
+          MDStructType, SwLDSMetadataGlobal,
+          {IRB.getInt32(0), IRB.getInt32(i), IRB.getInt32(4)});
 
       Value *RedzoneOffset =
                 IRB.CreateLoad(IRB.getInt64Ty(), GEPForOffset);
