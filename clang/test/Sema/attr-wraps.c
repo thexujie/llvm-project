@@ -2,8 +2,7 @@
 // expected-no-diagnostics
 typedef int __attribute__((wraps)) wrapping_int;
 
-void foo(void) {
+int foo(void) {
   const wrapping_int A = 1;
-  int D = 2147483647 + A;
-  (void)D;
+  return 2147483647 + A;
 }
