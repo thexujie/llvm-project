@@ -4078,7 +4078,7 @@ protected:
     return HasFPFeatures * sizeof(FPOptionsOverride);
   }
 
-  /// Do one of the subexpressions have the wraps attribute?
+  /// Does one of the subexpressions have the wraps attribute?
   bool hasWrappingOperand(const ASTContext &Ctx) const;
 };
 

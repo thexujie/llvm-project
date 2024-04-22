@@ -4456,11 +4456,7 @@ void Sema::AddAlignValueAttr(Decl *D, const AttributeCommonInfo &CI, Expr *E) {
 }
 
 static void handleWrapsAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  S.AddWrapsAttr(D, AL);
-}
-
-void Sema::AddWrapsAttr(Decl *D, const AttributeCommonInfo &CI) {
-  D->addAttr(::new (Context) WrapsAttr(Context, CI));
+  D->addAttr(::new (S.Context) WrapsAttr(S.Context, AL));
 }
 
 static void handleAlignedAttr(Sema &S, Decl *D, const ParsedAttr &AL) {

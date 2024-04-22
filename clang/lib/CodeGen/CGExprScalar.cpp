@@ -158,7 +158,7 @@ struct BinOpInfo {
   }
 
   /// Does the BinaryOperator have the wraps attribute?
-  /// If so, we can ellide overflow sanitizer checks.
+  /// If so, we can elide overflow sanitizer checks.
   bool hasWrappingOperand() const { return E->getType().hasWrapsAttr(); }
 };
 
@@ -739,12 +739,8 @@ public:
 
   // Binary Operators.
   Value *EmitMul(const BinOpInfo &Ops) {
-    if ((Ops.Ty->isSignedIntegerOrEnumerationType() ||
-         Ops.Ty->isUnsignedIntegerType()) &&
-        Ops.hasWrappingOperand())
-      return Builder.CreateMul(Ops.LHS, Ops.RHS, "mul");
-
-    if (Ops.Ty->isSignedIntegerOrEnumerationType()) {
+    if (Ops.Ty->isSignedIntegerOrEnumerationType() &&
+        !Ops.hasWrappingOperand()) {
       switch (CGF.getLangOpts().getSignedOverflowBehavior()) {
       case LangOptions::SOB_Defined:
         if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow))
@@ -780,7 +776,8 @@ public:
 
     if (Ops.Ty->isUnsignedIntegerType() &&
         CGF.SanOpts.has(SanitizerKind::UnsignedIntegerOverflow) &&
-        !CanElideOverflowCheck(CGF.getContext(), Ops))
+        !CanElideOverflowCheck(CGF.getContext(), Ops) &&
+        !Ops.hasWrappingOperand())
       return EmitOverflowCheckedBinOp(Ops);
 
     if (Ops.LHS->getType()->isFPOrFPVectorTy()) {
@@ -2840,8 +2837,8 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
   } else if (type->isIntegerType()) {
     QualType promotedType;
     bool canPerformLossyDemotionCheck = false;
-    BinOpInfo Ops = (createBinOpInfoFromIncDec(
-        E, value, isInc, E->getFPFeaturesInEffect(CGF.getLangOpts())));
+    BinOpInfo Ops = createBinOpInfoFromIncDec(
+        E, value, isInc, E->getFPFeaturesInEffect(CGF.getLangOpts()));
 
     if (CGF.getContext().isPromotableIntegerType(type)) {
       promotedType = CGF.getContext().getPromotedIntegerType(type);
@@ -4109,12 +4106,7 @@ Value *ScalarExprEmitter::EmitAdd(const BinOpInfo &op) {
       op.RHS->getType()->isPointerTy())
     return emitPointerArithmetic(CGF, op, CodeGenFunction::NotSubtraction);
 
-  if ((op.Ty->isSignedIntegerOrEnumerationType() ||
-       op.Ty->isUnsignedIntegerType()) &&
-      op.hasWrappingOperand())
-    return Builder.CreateAdd(op.LHS, op.RHS, "add");
-
-  if (op.Ty->isSignedIntegerOrEnumerationType()) {
+  if (op.Ty->isSignedIntegerOrEnumerationType() && !op.hasWrappingOperand()) {
     switch (CGF.getLangOpts().getSignedOverflowBehavior()) {
     case LangOptions::SOB_Defined:
       if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow))
@@ -4147,7 +4139,7 @@ Value *ScalarExprEmitter::EmitAdd(const BinOpInfo &op) {
 
   if (op.Ty->isUnsignedIntegerType() &&
       CGF.SanOpts.has(SanitizerKind::UnsignedIntegerOverflow) &&
-      !CanElideOverflowCheck(CGF.getContext(), op))
+      !CanElideOverflowCheck(CGF.getContext(), op) && !op.hasWrappingOperand())
     return EmitOverflowCheckedBinOp(op);
 
   if (op.LHS->getType()->isFPOrFPVectorTy()) {
@@ -4270,11 +4262,7 @@ Value *ScalarExprEmitter::EmitFixedPointBinOp(const BinOpInfo &op) {
 Value *ScalarExprEmitter::EmitSub(const BinOpInfo &op) {
   // The LHS is always a pointer if either side is.
   if (!op.LHS->getType()->isPointerTy()) {
-    if ((op.Ty->isSignedIntegerOrEnumerationType() ||
-         op.Ty->isUnsignedIntegerType()) &&
-        op.hasWrappingOperand())
-      return Builder.CreateSub(op.LHS, op.RHS, "sub");
-    if (op.Ty->isSignedIntegerOrEnumerationType()) {
+    if (op.Ty->isSignedIntegerOrEnumerationType() && !op.hasWrappingOperand()) {
       switch (CGF.getLangOpts().getSignedOverflowBehavior()) {
       case LangOptions::SOB_Defined:
         if (!CGF.SanOpts.has(SanitizerKind::SignedIntegerOverflow))
@@ -4307,7 +4295,8 @@ Value *ScalarExprEmitter::EmitSub(const BinOpInfo &op) {
 
     if (op.Ty->isUnsignedIntegerType() &&
         CGF.SanOpts.has(SanitizerKind::UnsignedIntegerOverflow) &&
-        !CanElideOverflowCheck(CGF.getContext(), op))
+        !CanElideOverflowCheck(CGF.getContext(), op) &&
+        !op.hasWrappingOperand())
       return EmitOverflowCheckedBinOp(op);
 
     if (op.LHS->getType()->isFPOrFPVectorTy()) {
