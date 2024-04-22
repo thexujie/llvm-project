@@ -2419,11 +2419,11 @@ bool LoopAccessInfo::isAnalyzableEarlyExitLoop() {
   if (ExitingBlocks.size() < 2)
     return false;
 
-  SmallVector<BasicBlock *, 4> ExactExitingBlocks;
-  PSE->getSE()->getExactExitingBlocks(TheLoop, &ExactExitingBlocks);
+  SmallVector<BasicBlock *, 4> CountableExitingBBs;
+  PSE->getSE()->getCountableExitingBlocks(TheLoop, &CountableExitingBBs);
 
   // We only support one speculative early exit.
-  if ((ExitingBlocks.size() - ExactExitingBlocks.size()) > 1)
+  if ((ExitingBlocks.size() - CountableExitingBBs.size()) > 1)
     return false;
 
   // There could be multiple exiting blocks with an exact exit-not-taken
@@ -2431,13 +2431,7 @@ bool LoopAccessInfo::isAnalyzableEarlyExitLoop() {
   // unknown count.
   BasicBlock *TmpBB = nullptr;
   for (BasicBlock *BB1 : ExitingBlocks) {
-    bool Found = false;
-    for (BasicBlock *BB2 : ExactExitingBlocks)
-      if (BB1 == BB2) {
-        Found = true;
-        break;
-      }
-    if (!Found) {
+    if (!is_contained(CountableExitingBBs, BB1)) {
       TmpBB = BB1;
       break;
     }
@@ -2468,7 +2462,7 @@ bool LoopAccessInfo::isAnalyzableEarlyExitLoop() {
     }
   assert(SpeculativeEarlyExitBB &&
          "Expected to find speculative early exit block");
-  CountableEarlyExitBlocks = std::move(ExactExitingBlocks);
+  CountableEarlyExitingBlocks = std::move(CountableExitingBBs);
 
   return true;
 }
@@ -2626,9 +2620,11 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
       if (I.mayWriteToMemory()) {
         auto *St = dyn_cast<StoreInst>(&I);
         if (SpeculativeEarlyExitingBB) {
-          recordAnalysis("CantVectorizeInstruction", St)
-              << "cannot vectorize stores in early exit loop";
-          LLVM_DEBUG(dbgs() << "LAA: Found a store in early exit loop.\n");
+          recordAnalysis("CantVectorizeInstruction", &I)
+              << "cannot vectorize instructions that write to memory in early "
+              << "exit loop";
+          LLVM_DEBUG(dbgs() << "LAA: Found an instruction that writes to "
+                            << "memory in early exit loop.\n");
           HasComplexWorkInEarlyExitLoop = true;
           continue;
         }
@@ -2784,7 +2780,6 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
   Accesses.buildDependenceSets();
 
   if (SpeculativeEarlyExitingBB) {
-    assert(!Stores.size() && "Did not expect stores in an early exit loop!");
     LoopMayFault = Accesses.mayFault();
     CanVecMem = true;
     return;

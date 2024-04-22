@@ -917,9 +917,9 @@ public:
   }
 
   /// Return all the exiting blocks in with exact exit counts.
-  void getExactExitingBlocks(const Loop *L,
-                             SmallVector<BasicBlock *, 4> *Blocks) {
-    getBackedgeTakenInfo(L).getExactExitingBlocks(L, this, Blocks);
+  void getCountableExitingBlocks(const Loop *L,
+                                 SmallVector<BasicBlock *, 4> *Blocks) {
+    getBackedgeTakenInfo(L).getCountableExitingBlocks(L, this, Blocks);
   }
 
   /// Return true if the backedge taken count is either the value returned by
@@ -1562,8 +1562,8 @@ private:
                          ScalarEvolution *SE) const;
 
     /// Return all the exiting blocks in with exact exit counts.
-    void getExactExitingBlocks(const Loop *L, ScalarEvolution *SE,
-                               SmallVector<BasicBlock *, 4> *Blocks) const;
+    void getCountableExitingBlocks(const Loop *L, ScalarEvolution *SE,
+                                   SmallVector<BasicBlock *, 4> *Blocks) const;
 
     /// Get the constant max backedge taken count for the loop.
     const SCEV *getConstantMax(ScalarEvolution *SE) const;

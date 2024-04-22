@@ -8602,7 +8602,7 @@ ScalarEvolution::BackedgeTakenInfo::getExact(const Loop *L, ScalarEvolution *SE,
   return SE->getUMinFromMismatchedTypes(Ops, /* Sequential */ true);
 }
 
-void ScalarEvolution::BackedgeTakenInfo::getExactExitingBlocks(
+void ScalarEvolution::BackedgeTakenInfo::getCountableExitingBlocks(
     const Loop *L, ScalarEvolution *SE,
     SmallVector<BasicBlock *, 4> *Blocks) const {
   // All exiting blocks we have collected must dominate the only backedge.
@@ -8625,10 +8625,7 @@ const SCEV *ScalarEvolution::BackedgeTakenInfo::getSpeculative(
     SmallVector<const SCEVPredicate *, 4> *Preds) const {
   // All exiting blocks we have collected must dominate the only backedge.
   const BasicBlock *Latch = L->getLoopLatch();
-  if (!Latch)
-    return SE->getCouldNotCompute();
-
-  if (!hasAnyInfo())
+  if (!Latch || !hasAnyInfo())
     return SE->getCouldNotCompute();
 
   // All exiting blocks we have gathered dominate loop's latch, so speculative
