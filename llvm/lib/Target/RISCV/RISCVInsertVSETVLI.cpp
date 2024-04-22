@@ -1541,6 +1541,8 @@ void RISCVInsertVSETVLI::convertToX0X0(MachineBasicBlock &MBB) {
         MI.getOperand(0).setIsDead(true);
         MI.getOperand(1).ChangeToRegister(RISCV::X0, /*isDef*/ false);
         MI.getOperand(1).setIsKill(true);
+        MI.addOperand(MachineOperand::CreateReg(RISCV::VL, /*isDef*/ false,
+                                                /*isImp*/ true));
         Info = MIInfo; // transferAfter can't handle x0,x0
         continue;
       }
