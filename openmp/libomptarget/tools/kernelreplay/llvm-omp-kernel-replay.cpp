@@ -23,6 +23,9 @@
 
 using namespace llvm;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wglobal-constructors"
+
 cl::OptionCategory ReplayOptions("llvm-omp-kernel-replay Options");
 
 // InputFilename - The filename to read the json description of the kernel.
@@ -51,6 +54,8 @@ static cl::opt<unsigned> NumThreadsOpt("num-threads",
 
 static cl::opt<int32_t> DeviceIdOpt("device-id", cl::desc("Set the device id."),
                                     cl::init(-1), cl::cat(ReplayOptions));
+
+#pragma GCC diagnostic pop
 
 int main(int argc, char **argv) {
   cl::HideUnrelatedOptions(ReplayOptions);
