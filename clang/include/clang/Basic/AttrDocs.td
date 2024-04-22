@@ -8076,6 +8076,7 @@ This example shows some basic usage of ``__attribute__((wraps))`` on a type
 definition when building with ``-fsanitize=signed-integer-overflow``
 
 .. code-block:: c
+
   typedef int __attribute__((wraps)) wrapping_int;
 
   void foo() {
@@ -8084,7 +8085,6 @@ definition when building with ``-fsanitize=signed-integer-overflow``
   }
 
   int main() { foo(); }
-}
 
 In the following example, we use ``__attribute__((wraps))`` on a variable to
 disable overflow instrumentation for arithmetic expressions it appears in. We
@@ -8092,9 +8092,10 @@ do so with a popular overflow-checking pattern which we might not want to trip
 sanitizers (like ``-fsanitize=unsigned-integer-overflow``).
 
 .. code-block:: c
+
   void foo(int offset) {
     unsigned int A __attribute__((wraps)) = UINT_MAX;
- 
+
     // to check for overflow using this pattern, we may perform a real overflow
     // thus triggering sanitizers to step in. Since A is "wrapping", we can be
     // sure there are no sanitizer warnings.
@@ -8104,10 +8105,8 @@ sanitizers (like ``-fsanitize=unsigned-integer-overflow``).
       return;
     }
 
-    // now, handle non-overflow case
-    // ...
+    // now, handle non-overflow case ...
   }
-}
 
 The above example demonstrates some of the power and elegance this attribute
 provides. We can use code patterns we are already familiar with (like ``if (x +
@@ -8123,5 +8122,6 @@ When using this attribute without ``-fwrapv`` and without any sanitizers, it
 still has an impact on the definedness of arithmetic expressions containing
 wrapping components. Since the behavior of said expressions is now technically
 defined, the compiler will forgo some eager optimizations that are used on
-expressions containing UB.}];
+expressions containing UB.
+}];
 }
