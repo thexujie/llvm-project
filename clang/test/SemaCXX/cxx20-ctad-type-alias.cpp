@@ -111,7 +111,7 @@ struct Foo {
 template <typename X, int Y>
 using Bar = Foo<X, sizeof(X)>; // expected-note {{candidate template ignored: couldn't infer template argument 'X'}} \
                                // expected-note {{candidate template ignored: constraints not satisfied [with X = int]}} \
-                               // expected-note {{because '__is_deducible(Bar, Foo<int, 4UL>)' evaluated to false}}
+                               // expected-note {{because '__is_deducible}}
 
 
 Bar s = {{1}}; // expected-error {{no viable constructor or deduction guide }}

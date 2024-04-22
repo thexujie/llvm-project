@@ -3356,8 +3356,7 @@ Sema::DeduceTemplateArgumentsFromType(TemplateDecl *TD, QualType FromType,
                 ->getUnderlyingType()
                 .getCanonicalType();
   } else {
-    // FIXME: emit a diagnostic, we only only support alias and class templates.
-    return TemplateDeductionResult::Invalid;
+    assert(false && "Expected a class or alias template");
   }
 
   // Unevaluated SFINAE context.

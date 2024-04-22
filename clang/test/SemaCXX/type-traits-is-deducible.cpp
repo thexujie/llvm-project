@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c++20 -verify %s 
-// expected-no-diagnostics
 
 template<typename T>
 struct Foo {};
@@ -45,3 +44,12 @@ template <class T, T N>
 using AArrary = int[N];
 static_assert (__is_deducible(AArrary, int[42]));
 static_assert (!__is_deducible(AArrary, double[42]));
+
+// error cases
+bool e1 = __is_deducible(int, int); // expected-error {{'int' is not a class or alias template; __is_deducible only supports class or alias templates}}
+template<typename T> T func();
+bool e2 = __is_deducible(func, int); // expected-error {{type name requires a specifier or qualifier}} \
+                                        expected-error {{type-id cannot have a name}}
+template<typename T> T var = 1;
+bool e3 = __is_deducible(var, int); // expected-error {{type name requires a specifier or qualifier}} \
+                                       expected-error {{type-id cannot have a name}}
