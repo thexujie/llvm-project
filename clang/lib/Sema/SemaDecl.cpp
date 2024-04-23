@@ -2282,7 +2282,8 @@ void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
 
     // Remove this name from our lexical scope, and warn on it if we haven't
     // already.
-    IdResolver.RemoveDecl(D);
+    if (!PP.isIncrementalProcessingEnabled())
+      IdResolver.RemoveDecl(D);
     auto ShadowI = ShadowingDecls.find(D);
     if (ShadowI != ShadowingDecls.end()) {
       if (const auto *FD = dyn_cast<FieldDecl>(ShadowI->second)) {
