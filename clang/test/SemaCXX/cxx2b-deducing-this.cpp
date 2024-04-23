@@ -838,3 +838,33 @@ int h() {
   }();
 }
 }
+
+namespace GH85992 {
+struct S {
+  int (S::*x)(this int); // expected-error {{an explicit object parameter is not allowed here}}
+  int (*y)(this int); // expected-error {{an explicit object parameter is not allowed here}}
+  int (***z)(this int); // expected-error {{an explicit object parameter is not allowed here}}
+
+  int f(this S);
+  int ((g))(this S);
+  friend int h(this S); // expected-error {{an explicit object parameter cannot appear in a non-member function}}
+  int h(int x, int (*)(this S)); // expected-error {{an explicit object parameter is not allowed here}}
+
+  struct T {
+    int f(this T);
+  };
+
+  friend int T::f(this T);
+};
+
+using T = int (*)(this int); // expected-error {{an explicit object parameter is not allowed here}}
+using U = int (S::*)(this int); // expected-error {{an explicit object parameter is not allowed here}}
+int h(this int); // expected-error {{an explicit object parameter cannot appear in a non-member function}}
+
+int S::f(this S) { return 1; }
+
+namespace a {
+void f();
+};
+void a::f(this auto) {} // expected-error {{an explicit object parameter cannot appear in a non-member function}}
+}
