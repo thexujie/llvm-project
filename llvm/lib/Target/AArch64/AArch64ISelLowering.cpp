@@ -790,7 +790,7 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::FROUND,      V8Narrow, Legal);
     setOperationAction(ISD::FROUNDEVEN,  V8Narrow, Legal);
     setOperationAction(ISD::FRINT,       V8Narrow, Legal);
-    setOperationAction(ISD::FSQRT,       V8Narrow, Expand);
+    setOperationAction(ISD::FSQRT, V8Narrow, Expand);
     setOperationAction(ISD::FSUB,        V8Narrow, Legal);
     setOperationAction(ISD::FTRUNC,      V8Narrow, Legal);
     setOperationAction(ISD::SETCC,       V8Narrow, Expand);
@@ -1147,8 +1147,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
 
     for (auto Op :
          {ISD::FP_TO_SINT, ISD::FP_TO_UINT, ISD::SINT_TO_FP, ISD::UINT_TO_FP,
-          ISD::FP_ROUND, ISD::FP_TO_SINT_SAT, ISD::FP_TO_UINT_SAT, ISD::MUL,
-          ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT,
+          ISD::FP_ROUND, ISD::FP_TO_SINT_SAT, ISD::FP_TO_UINT_SAT, ISD::LRINT,
+          ISD::LLRINT, ISD::MUL, ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT,
           ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP, ISD::STRICT_FP_ROUND})
       setOperationAction(Op, MVT::v1i64, Expand);
 
@@ -1355,6 +1355,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::SINT_TO_FP, VT, Custom);
       setOperationAction(ISD::FP_TO_UINT, VT, Custom);
       setOperationAction(ISD::FP_TO_SINT, VT, Custom);
+      setOperationAction(ISD::LRINT, VT, Custom);
+      setOperationAction(ISD::LLRINT, VT, Custom);
       setOperationAction(ISD::MGATHER, VT, Custom);
       setOperationAction(ISD::MSCATTER, VT, Custom);
       setOperationAction(ISD::MLOAD, VT, Custom);
@@ -1420,6 +1422,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
     for (auto VT : {MVT::nxv8i8, MVT::nxv4i16, MVT::nxv2i32}) {
       setOperationAction(ISD::EXTRACT_SUBVECTOR, VT, Custom);
       setOperationAction(ISD::INSERT_SUBVECTOR, VT, Custom);
+      setOperationAction(ISD::LRINT, VT, Custom);
+      setOperationAction(ISD::LLRINT, VT, Custom);
     }
 
     // Legalize unpacked bitcasts to REINTERPRET_CAST.
@@ -1522,6 +1526,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
       setOperationAction(ISD::FFLOOR, VT, Custom);
       setOperationAction(ISD::FNEARBYINT, VT, Custom);
       setOperationAction(ISD::FRINT, VT, Custom);
+      setOperationAction(ISD::LRINT, VT, Custom);
+      setOperationAction(ISD::LLRINT, VT, Custom);
       setOperationAction(ISD::FROUND, VT, Custom);
       setOperationAction(ISD::FROUNDEVEN, VT, Custom);
       setOperationAction(ISD::FTRUNC, VT, Custom);
@@ -1785,9 +1791,9 @@ void AArch64TargetLowering::addTypeForNEON(MVT VT) {
   setOperationAction(ISD::SREM, VT, Expand);
   setOperationAction(ISD::FREM, VT, Expand);
 
-  for (unsigned Opcode :
-       {ISD::FP_TO_SINT, ISD::FP_TO_UINT, ISD::FP_TO_SINT_SAT,
-        ISD::FP_TO_UINT_SAT, ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT})
+  for (unsigned Opcode : {ISD::FP_TO_SINT, ISD::FP_TO_UINT, ISD::FP_TO_SINT_SAT,
+                          ISD::FP_TO_UINT_SAT, ISD::LRINT, ISD::LLRINT,
+                          ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT})
     setOperationAction(Opcode, VT, Custom);
 
   if (!VT.isFloatingPoint())
@@ -1947,6 +1953,8 @@ void AArch64TargetLowering::addTypeForFixedLengthSVE(MVT VT,
   setOperationAction(ISD::FP_TO_SINT, VT, Custom);
   setOperationAction(ISD::FP_TO_UINT, VT, Custom);
   setOperationAction(ISD::FRINT, VT, Custom);
+  setOperationAction(ISD::LRINT, VT, Custom);
+  setOperationAction(ISD::LLRINT, VT, Custom);
   setOperationAction(ISD::FROUND, VT, Custom);
   setOperationAction(ISD::FROUNDEVEN, VT, Custom);
   setOperationAction(ISD::FSQRT, VT, Custom);
@@ -4371,6 +4379,54 @@ SDValue AArch64TargetLowering::LowerFP_TO_INT_SAT(SDValue Op,
   return DAG.getNode(ISD::TRUNCATE, DL, DstVT, Sat);
 }
 
+SDValue AArch64TargetLowering::LowerVectorXRINT(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  EVT VT = Op.getValueType();
+  SDValue Src = Op.getOperand(0);
+  SDLoc DL(Op);
+
+  assert(VT.isVector() && "Expected vector type");
+
+  EVT ContainerVT = VT;
+  EVT SrcVT = Src.getValueType();
+  EVT CastVT =
+      ContainerVT.changeVectorElementType(SrcVT.getVectorElementType());
+
+  if (VT.isFixedLengthVector()) {
+    ContainerVT = getContainerForFixedLengthVector(DAG, VT);
+    CastVT = ContainerVT.changeVectorElementType(SrcVT.getVectorElementType());
+    Src = convertToScalableVector(DAG, CastVT, Src);
+  }
+
+  // First, round the floating-point value into a floating-point register with
+  // the current rounding mode.
+  SDValue FOp = DAG.getNode(ISD::FRINT, DL, CastVT, Src);
+
+  // In the case of vector filled with f32, ftrunc will convert it to an i32,
+  // but a vector filled with i32 isn't legal. So, FP_EXTEND the f32 into the
+  // required size.
+  size_t SrcSz = SrcVT.getScalarSizeInBits();
+  size_t ContainerSz = ContainerVT.getScalarSizeInBits();
+  if (ContainerSz > SrcSz) {
+    EVT WidenedVT = MVT::getVectorVT(MVT::getFloatingPointVT(ContainerSz),
+                                     ContainerVT.getVectorElementCount());
+    FOp = DAG.getNode(ISD::FP_EXTEND, DL, WidenedVT, FOp.getOperand(0));
+  }
+
+  // Finally, truncate the rounded floating point to an integer, rounding to
+  // zero.
+  SDValue Pred = getPredicateForVector(DAG, DL, ContainerVT);
+  SDValue Undef = DAG.getUNDEF(ContainerVT);
+  SDValue Truncated =
+      DAG.getNode(AArch64ISD::FCVTZS_MERGE_PASSTHRU, DL, ContainerVT,
+                  {Pred, FOp.getOperand(0), Undef}, FOp->getFlags());
+
+  if (!VT.isFixedLengthVector())
+    return Truncated;
+
+  return convertFromScalableVector(DAG, VT, Truncated);
+}
+
 SDValue AArch64TargetLowering::LowerVectorINT_TO_FP(SDValue Op,
                                                     SelectionDAG &DAG) const {
   // Warning: We maintain cost tables in AArch64TargetTransformInfo.cpp.
@@ -6613,10 +6669,13 @@ SDValue AArch64TargetLowering::LowerOperation(SDValue Op,
     return LowerVECTOR_DEINTERLEAVE(Op, DAG);
   case ISD::VECTOR_INTERLEAVE:
     return LowerVECTOR_INTERLEAVE(Op, DAG);
-  case ISD::LROUND:
-  case ISD::LLROUND:
   case ISD::LRINT:
-  case ISD::LLRINT: {
+  case ISD::LLRINT:
+    if (Op.getValueType().isVector())
+      return LowerVectorXRINT(Op, DAG);
+    [[fallthrough]];
+  case ISD::LROUND:
+  case ISD::LLROUND: {
     assert((Op.getOperand(0).getValueType() == MVT::f16 ||
             Op.getOperand(0).getValueType() == MVT::bf16) &&
            "Expected custom lowering of rounding operations only for f16");
