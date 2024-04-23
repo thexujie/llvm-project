@@ -3505,6 +3505,9 @@ bool Sema::ParseSVEImmChecks(
 }
 
 static ArmStreamingType getArmStreamingFnType(const FunctionDecl *FD) {
+  const QualType QT = FD->getType();
+  if (QT.isNull())
+    return ArmNonStreaming;
   if (FD->hasAttr<ArmLocallyStreamingAttr>())
     return ArmStreaming;
   if (const Type *Ty = FD->getType().getTypePtrOrNull()) {
@@ -7978,8 +7981,11 @@ void Sema::checkCall(NamedDecl *FDecl, const FunctionProtoType *Proto,
     // If the callee has an AArch64 SME attribute to indicate that it is an
     // __arm_streaming function, then the caller requires SME to be available.
     FunctionProtoType::ExtProtoInfo ExtInfo = Proto->getExtProtoInfo();
-    if (ExtInfo.AArch64SMEAttributes & FunctionType::SME_PStateSMEnabledMask) {
-      if (auto *CallerFD = dyn_cast<FunctionDecl>(CurContext)) {
+    auto *CallerFD = dyn_cast<FunctionDecl>(CurContext);
+    bool IsCalleeStreaming =
+        ExtInfo.AArch64SMEAttributes & FunctionType::SME_PStateSMEnabledMask;
+    if (IsCalleeStreaming) {
+      if (CallerFD) {
         llvm::StringMap<bool> CallerFeatureMap;
         Context.getFunctionFeatureMap(CallerFeatureMap, CallerFD);
         if (!CallerFeatureMap.contains("sme"))
@@ -7989,18 +7995,28 @@ void Sema::checkCall(NamedDecl *FDecl, const FunctionProtoType *Proto,
       }
     }
 
-    // If the call requires a streaming-mode change and has scalable vector
-    // arguments or return values, then warn the user that the streaming and
-    // non-streaming vector lengths may be different.
-    const auto *CallerFD = dyn_cast<FunctionDecl>(CurContext);
-    if (CallerFD && (!FD || !FD->getBuiltinID()) && AnyScalableArgsOrRet) {
-      bool IsCalleeStreaming =
-          ExtInfo.AArch64SMEAttributes & FunctionType::SME_PStateSMEnabledMask;
+    if (CallerFD && (!FD || !FD->getBuiltinID())) {
       bool IsCalleeStreamingCompatible =
           ExtInfo.AArch64SMEAttributes &
           FunctionType::SME_PStateSMCompatibleMask;
       ArmStreamingType CallerFnType = getArmStreamingFnType(CallerFD);
-      if (!IsCalleeStreamingCompatible &&
+
+      // SME functions may require SVE to be available for unwinding, as the
+      // value of VG needs to be preserved across streaming-mode changes.
+      if (!Context.getTargetInfo().hasFeature("sve")) {
+        if (CallerFD->hasAttr<ArmLocallyStreamingAttr>())
+          Diag(Loc, diag::warn_sme_locally_streaming_no_sve);
+
+        if ((CallerFnType == ArmStreaming ||
+             CallerFnType == ArmStreamingCompatible) &&
+            (!IsCalleeStreaming && !IsCalleeStreamingCompatible))
+          Diag(Loc, diag::warn_sme_streaming_mode_change_no_sve);
+      }
+
+      // If the call requires a streaming-mode change and has scalable vector
+      // arguments or return values, then warn the user that the streaming and
+      // non-streaming vector lengths may be different.
+      if (AnyScalableArgsOrRet && !IsCalleeStreamingCompatible &&
           (CallerFnType == ArmStreamingCompatible ||
            ((CallerFnType == ArmStreaming) ^ IsCalleeStreaming)))
         Diag(Loc, diag::warn_sme_streaming_pass_return_vl_to_non_streaming);

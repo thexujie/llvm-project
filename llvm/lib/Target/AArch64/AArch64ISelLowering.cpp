@@ -2410,6 +2410,7 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case AArch64ISD::FIRST_NUMBER:
     break;
     MAKE_CASE(AArch64ISD::COALESCER_BARRIER)
+    MAKE_CASE(AArch64ISD::VG_UNWIND)
     MAKE_CASE(AArch64ISD::SMSTART)
     MAKE_CASE(AArch64ISD::SMSTOP)
     MAKE_CASE(AArch64ISD::RESTORE_ZA)
@@ -8287,6 +8288,14 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   SDValue InGlue;
   if (RequiresSMChange) {
+
+    if (Subtarget->hasSVE()) {
+      Chain = DAG.getNode(
+          AArch64ISD::VG_UNWIND, DL, DAG.getVTList(MVT::Other, MVT::Glue),
+          {Chain, DAG.getTargetConstant(/*Save*/ 1, DL, MVT::i64)});
+      InGlue = Chain.getValue(1);
+    }
+
     SDValue NewChain = changeStreamingMode(
         DAG, DL, CalleeAttrs.hasStreamingInterface(), Chain, InGlue,
         getSMCondition(CallerAttrs, CalleeAttrs), PStateSM);
@@ -8443,9 +8452,16 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   if (RequiresSMChange) {
     assert(PStateSM && "Expected a PStateSM to be set");
+
     Result = changeStreamingMode(
         DAG, DL, !CalleeAttrs.hasStreamingInterface(), Result, InGlue,
         getSMCondition(CallerAttrs, CalleeAttrs), PStateSM);
+    InGlue = Result.getValue(1);
+
+    if (Subtarget->hasSVE())
+      Result = DAG.getNode(
+          AArch64ISD::VG_UNWIND, DL, DAG.getVTList(MVT::Other, MVT::Glue),
+          {Result, DAG.getTargetConstant(/*Restore*/ 0, DL, MVT::i64), InGlue});
   }
 
   if (CallerAttrs.requiresEnablingZAAfterCall(CalleeAttrs))

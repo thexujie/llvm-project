@@ -321,7 +321,7 @@ bool AArch64FrameLowering::homogeneousPrologEpilog(
     return false;
 
   auto *AFI = MF.getInfo<AArch64FunctionInfo>();
-  if (AFI->hasSwiftAsyncContext())
+  if (AFI->hasSwiftAsyncContext() || AFI->requiresVGSpill(MF))
     return false;
 
   // If there are an odd number of GPRs before LR and FP in the CSRs list,
@@ -550,6 +550,10 @@ void AArch64FrameLowering::emitCalleeSavedGPRLocations(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI) const {
   MachineFunction &MF = *MBB.getParent();
   MachineFrameInfo &MFI = MF.getFrameInfo();
+  AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
+  SMEAttrs Attrs(MF.getFunction());
+  bool LocallyStreaming =
+      Attrs.hasStreamingBody() && !Attrs.hasStreamingInterface();
 
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   if (CSI.empty())
@@ -561,14 +565,22 @@ void AArch64FrameLowering::emitCalleeSavedGPRLocations(
   DebugLoc DL = MBB.findDebugLoc(MBBI);
 
   for (const auto &Info : CSI) {
-    if (MFI.getStackID(Info.getFrameIdx()) == TargetStackID::ScalableVector)
+    unsigned FrameIdx = Info.getFrameIdx();
+    if (MFI.getStackID(FrameIdx) == TargetStackID::ScalableVector)
       continue;
 
     assert(!Info.isSpilledToReg() && "Spilling to registers not implemented");
-    unsigned DwarfReg = TRI.getDwarfRegNum(Info.getReg(), true);
+    int64_t DwarfReg = TRI.getDwarfRegNum(Info.getReg(), true);
+    int64_t Offset = MFI.getObjectOffset(FrameIdx) - getOffsetOfLocalArea();
 
-    int64_t Offset =
-        MFI.getObjectOffset(Info.getFrameIdx()) - getOffsetOfLocalArea();
+    // The location of VG will be emitted before each streaming-mode change in
+    // the function. Only locally-streaming functions require emitting the
+    // non-streaming VG location here.
+    if ((LocallyStreaming && FrameIdx == AFI->getStreamingVGIdx()) ||
+        (!LocallyStreaming &&
+         DwarfReg == TRI.getDwarfRegNum(AArch64::VG, true)))
+      continue;
+
     unsigned CFIIndex = MF.addFrameInst(
         MCCFIInstruction::createOffset(nullptr, DwarfReg, Offset));
     BuildMI(MBB, MBBI, DL, TII.get(TargetOpcode::CFI_INSTRUCTION))
@@ -689,6 +701,9 @@ static void emitCalleeSavedRestores(MachineBasicBlock &MBB,
     unsigned Reg = Info.getReg();
     if (SVE &&
         !static_cast<const AArch64RegisterInfo &>(TRI).regNeedsCFI(Reg, Reg))
+      continue;
+
+    if (!Info.isRestored())
       continue;
 
     unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createRestore(
@@ -1344,6 +1359,22 @@ static MachineBasicBlock::iterator convertCalleeSaveRestoreToSPPrePostIncDec(
     MachineInstr::MIFlag FrameFlag = MachineInstr::FrameSetup,
     int CFAOffset = 0) {
   unsigned NewOpc;
+
+  // If the function contains streaming mode changes, we expect instructions
+  // to calculate the value of VG before spilling. For locally-streaming
+  // functions, we need to do this for both the streaming and non-streaming
+  // vector length. Move past these instructions if necessary.
+  unsigned Opc = MBBI->getOpcode();
+  if (Opc == AArch64::CNTD_XPiI || Opc == AArch64::RDSVLI_XI) {
+    MachineFunction &MF = *MBB.getParent();
+    AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
+    assert(AFI->requiresVGSpill(MF) &&
+           "Unexpected callee-save save/restore opcode!");
+    ++MBBI;
+    if (MBBI->getOpcode() == AArch64::UBFMXri)
+      ++MBBI;
+  }
+
   switch (MBBI->getOpcode()) {
   default:
     llvm_unreachable("Unexpected callee-save save/restore opcode!");
@@ -1835,6 +1866,14 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
   // pointer bump above.
   while (MBBI != End && MBBI->getFlag(MachineInstr::FrameSetup) &&
          !IsSVECalleeSave(MBBI)) {
+    unsigned Opc = MBBI->getOpcode();
+    // Move past instructions generated to calculate VG
+    if (Opc == AArch64::CNTD_XPiI || Opc == AArch64::RDSVLI_XI) {
+      assert(AFI->requiresVGSpill(MF) && "Unexpected opcode!");
+      ++MBBI;
+      if (MBBI->getOpcode() == AArch64::UBFMXri)
+        ++MBBI;
+    }
     if (CombineSPBump)
       fixupCalleeSaveRestoreStackOffset(*MBBI, AFI->getLocalStackSize(),
                                         NeedsWinCFI, &HasWinCFI);
@@ -2756,7 +2795,7 @@ struct RegPairInfo {
   unsigned Reg2 = AArch64::NoRegister;
   int FrameIdx;
   int Offset;
-  enum RegType { GPR, FPR64, FPR128, PPR, ZPR } Type;
+  enum RegType { GPR, FPR64, FPR128, PPR, ZPR, VG } Type;
 
   RegPairInfo() = default;
 
@@ -2768,6 +2807,7 @@ struct RegPairInfo {
       return 2;
     case GPR:
     case FPR64:
+    case VG:
       return 8;
     case ZPR:
     case FPR128:
@@ -2833,6 +2873,8 @@ static void computeCalleeSaveRegisterPairs(
       RPI.Type = RegPairInfo::ZPR;
     else if (AArch64::PPRRegClass.contains(RPI.Reg1))
       RPI.Type = RegPairInfo::PPR;
+    else if (RPI.Reg1 == AArch64::VG)
+      RPI.Type = RegPairInfo::VG;
     else
       llvm_unreachable("Unsupported register class.");
 
@@ -2860,6 +2902,7 @@ static void computeCalleeSaveRegisterPairs(
         break;
       case RegPairInfo::PPR:
       case RegPairInfo::ZPR:
+      case RegPairInfo::VG:
         break;
       }
     }
@@ -2981,6 +3024,7 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
     ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
   bool NeedsWinCFI = needsWinCFI(MF);
   DebugLoc DL;
   SmallVector<RegPairInfo, 8> RegPairs;
@@ -3047,7 +3091,42 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
        Size = 2;
        Alignment = Align(2);
        break;
+    case RegPairInfo::VG:
+      StrOpc = AArch64::STRXui;
+      Size = 8;
+      Alignment = Align(8);
+      break;
     }
+
+    if (Reg1 == AArch64::VG) {
+      // Find an available register to store value of VG to.
+      Reg1 = findScratchNonCalleeSaveRegister(&MBB);
+      assert(Reg1 != AArch64::NoRegister);
+      SMEAttrs Attrs(MF.getFunction());
+
+      if (Attrs.hasStreamingBody() && !Attrs.hasStreamingInterface() &&
+          AFI->getStreamingVGIdx() == std::numeric_limits<int>::max()) {
+        // For locally-streaming functions, we need to store both the streaming
+        // & non-streaming VG. Spill the streaming value first.
+        BuildMI(MBB, MI, DL, TII.get(AArch64::RDSVLI_XI), Reg1)
+            .addImm(1)
+            .setMIFlag(MachineInstr::FrameSetup);
+        BuildMI(MBB, MI, DL, TII.get(AArch64::UBFMXri), Reg1)
+            .addReg(Reg1)
+            .addImm(3)
+            .addImm(63)
+            .setMIFlag(MachineInstr::FrameSetup);
+
+        AFI->setStreamingVGIdx(RPI.FrameIdx);
+      } else {
+        BuildMI(MBB, MI, DL, TII.get(AArch64::CNTD_XPiI), Reg1)
+            .addImm(31)
+            .addImm(1)
+            .setMIFlag(MachineInstr::FrameSetup);
+        AFI->setVGIdx(RPI.FrameIdx);
+      }
+    }
+
     LLVM_DEBUG(dbgs() << "CSR spill: (" << printReg(Reg1, TRI);
                if (RPI.isPaired()) dbgs() << ", " << printReg(Reg2, TRI);
                dbgs() << ") -> fi#(" << RPI.FrameIdx;
@@ -3091,7 +3170,6 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
     MachineFrameInfo &MFI = MF.getFrameInfo();
     if (RPI.Type == RegPairInfo::ZPR || RPI.Type == RegPairInfo::PPR)
       MFI.setStackID(RPI.FrameIdx, TargetStackID::ScalableVector);
-
   }
   return true;
 }
@@ -3171,6 +3249,8 @@ bool AArch64FrameLowering::restoreCalleeSavedRegisters(
        Size = 2;
        Alignment = Align(2);
        break;
+    case RegPairInfo::VG:
+      continue;
     }
     LLVM_DEBUG(dbgs() << "CSR restore: (" << printReg(Reg1, TRI);
                if (RPI.isPaired()) dbgs() << ", " << printReg(Reg2, TRI);
@@ -3313,6 +3393,19 @@ void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
       CSStackSize += RegSize;
   }
 
+  // Increase the callee-saved stack size if the function has streaming mode
+  // changes, as we will need to spill the value of the VG register.
+  // For locally streaming functions, we spill both the streaming and
+  // non-streaming VG value.
+  const Function &F = MF.getFunction();
+  SMEAttrs Attrs(F);
+  if (AFI->requiresVGSpill(MF)) {
+    if (Attrs.hasStreamingBody() && !Attrs.hasStreamingInterface())
+      CSStackSize += 16;
+    else
+      CSStackSize += 8;
+  }
+
   // Save number of saved regs, so we can easily update CSStackSize later.
   unsigned NumSavedRegs = SavedRegs.count();
 
@@ -3447,6 +3540,33 @@ bool AArch64FrameLowering::assignCalleeSavedSpillSlots(
     AFI->setSwiftAsyncContextFrameIdx(FrameIdx);
     if ((unsigned)FrameIdx < MinCSFrameIndex) MinCSFrameIndex = FrameIdx;
     if ((unsigned)FrameIdx > MaxCSFrameIndex) MaxCSFrameIndex = FrameIdx;
+  }
+
+  // Insert VG into the list of CSRs, immediately before LR if saved.
+  if (AFI->requiresVGSpill(MF)) {
+    std::vector<CalleeSavedInfo> VGSaves;
+    SMEAttrs Attrs(MF.getFunction());
+
+    auto VGInfo = CalleeSavedInfo(AArch64::VG);
+    VGInfo.setRestored(false);
+    VGSaves.push_back(VGInfo);
+
+    // Add VG again if the function is locally-streaming, as we will spill two
+    // values.
+    if (Attrs.hasStreamingBody() && !Attrs.hasStreamingInterface())
+      VGSaves.push_back(VGInfo);
+
+    bool InsertBeforeLR = false;
+
+    for (unsigned I = 0; I < CSI.size(); I++)
+      if (CSI[I].getReg() == AArch64::LR) {
+        InsertBeforeLR = true;
+        CSI.insert(CSI.begin() + I, VGSaves.begin(), VGSaves.end());
+        break;
+      }
+
+    if (!InsertBeforeLR)
+      CSI.insert(CSI.end(), VGSaves.begin(), VGSaves.end());
   }
 
   for (auto &CS : CSI) {
