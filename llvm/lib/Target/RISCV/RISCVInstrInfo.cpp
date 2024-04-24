@@ -424,9 +424,11 @@ void RISCVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
   if (RISCV::GPRRegClass.contains(DstReg, SrcReg)) {
-    BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
-        .addReg(SrcReg, getKillRegState(KillSrc))
-        .addImm(0);
+    auto MI = BuildMI(MBB, MBBI, DL, get(RISCV::ADDI), DstReg)
+                  .addReg(SrcReg, getKillRegState(KillSrc))
+                  .addImm(0);
+    MI->getOperand(0).setIsRenamable(MBBI->getOperand(0).isRenamable());
+    MI->getOperand(1).setIsRenamable(MBBI->getOperand(1).isRenamable());
     return;
   }
 
