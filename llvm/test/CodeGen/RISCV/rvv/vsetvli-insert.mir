@@ -446,7 +446,7 @@ body:             |
     ; CHECK-NEXT: %pt:vrm2 = IMPLICIT_DEF
     ; CHECK-NEXT: dead $x0 = PseudoVSETIVLI 4, 217 /* e64, m2, ta, ma */, implicit-def $vl, implicit-def $vtype
     ; CHECK-NEXT: [[PseudoVID_V_M2_:%[0-9]+]]:vrm2 = PseudoVID_V_M2 %pt, 4, 6 /* e64 */, 3 /* ta, ma */, implicit $vl, implicit $vtype
-    ; CHECK-NEXT: dead $x0 = PseudoVSETVLIX0 killed $x0, 198 /* e8, mf4, ta, ma */, implicit-def $vl, implicit-def $vtype, implicit $vl
+    ; CHECK-NEXT: dead $x0 = PseudoVSETVLIX0 killed $x0, 198 /* e8, mf4, ta, ma */, implicit-def $vl, implicit-def $vtype
     ; CHECK-NEXT: [[PseudoVMV_V_I_MF4_:%[0-9]+]]:vr = PseudoVMV_V_I_MF4 $noreg, 0, 4, 3 /* e8 */, 0 /* tu, mu */, implicit $vl, implicit $vtype
     ; CHECK-NEXT: PseudoRET
     %pt:vrm2 = IMPLICIT_DEF
@@ -473,7 +473,7 @@ body:             |
   ; CHECK-NEXT: bb.1:
   ; CHECK-NEXT:   successors: %bb.2(0x80000000)
   ; CHECK-NEXT: {{  $}}
-  ; CHECK-NEXT:   dead $x0 = PseudoVSETVLIX0 killed $x0, 216 /* e64, m1, ta, ma */, implicit-def $vl, implicit-def $vtype, implicit $vl
+  ; CHECK-NEXT:   dead $x0 = PseudoVSETVLIX0 killed $x0, 216 /* e64, m1, ta, ma */, implicit-def $vl, implicit-def $vtype
   ; CHECK-NEXT:   [[PseudoVMV_V_I_M1_:%[0-9]+]]:vr = PseudoVMV_V_I_M1 $noreg, 1, 2, 6 /* e64 */, 0 /* tu, mu */, implicit $vl, implicit $vtype
   ; CHECK-NEXT: {{  $}}
   ; CHECK-NEXT: bb.2:
@@ -487,7 +487,7 @@ body:             |
   ; CHECK-NEXT:   PseudoCALL $noreg, csr_ilp32_lp64
   ; CHECK-NEXT: {{  $}}
   ; CHECK-NEXT: bb.4:
-  ; CHECK-NEXT:   $x0 = PseudoVSETIVLI 2, 215 /* e32, mf2, ta, ma */, implicit-def $vl, implicit-def $vtype
+  ; CHECK-NEXT:   dead $x0 = PseudoVSETIVLI 2, 215 /* e32, mf2, ta, ma */, implicit-def $vl, implicit-def $vtype
   ; CHECK-NEXT:   [[PseudoVMV_X_S:%[0-9]+]]:gpr = PseudoVMV_X_S $noreg, 5 /* e32 */, implicit $vtype
   ; CHECK-NEXT:   [[PseudoVMV_V_I_MF2_1:%[0-9]+]]:vr = PseudoVMV_V_I_MF2 $noreg, 1, 2, 5 /* e32 */, 0 /* tu, mu */, implicit $vl, implicit $vtype
   ; CHECK-NEXT:   PseudoRET
