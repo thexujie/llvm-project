@@ -94,12 +94,37 @@ namespace GH82104 {
 template <typename, typename...> int Zero = 0;
 
 template <typename T, typename...U>
-using T14 = decltype([]<int V = 0>() { return Zero<T, U...>; }());
+using T14 = decltype([]<int V = 0>(auto Param) {
+  return Zero<T, U...> + V + (int)sizeof(Param);
+}("hello"));
 
 template <typename T> using T15 = T14<T, T>;
 
 static_assert(__is_same(T15<char>, int));
 
 } // namespace GH82104
+
+namespace GH89853 {
+template <typename = void>
+static constexpr auto innocuous = []<int m> { return m; };
+
+template <auto Pred = innocuous<>>
+using broken = decltype(Pred.template operator()<42>());
+
+broken<> *boom;
+
+template <auto Pred =
+              []<const char c> {
+                (void)static_cast<char>(c);
+              }>
+using broken2 = decltype(Pred.template operator()<42>());
+
+broken2<> *boom2;
+
+template <auto Pred = []<const char m> { return m; }>
+using broken3 = decltype(Pred.template operator()<42>());
+
+broken3<> *boom3;
+}
 
 } // namespace lambda_calls
