@@ -444,6 +444,7 @@ enum NodeType : unsigned {
   // SME
   RDSVL,
   REVD_MERGE_PASSTHRU,
+  EXPAND_ZA_BUFFER,
 
   // Asserts that a function argument (i32) is zero-extended to i8 by
   // the caller
