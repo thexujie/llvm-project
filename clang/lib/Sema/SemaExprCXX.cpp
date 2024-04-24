@@ -6125,9 +6125,7 @@ static bool EvaluateBinaryTypeTrait(Sema &Self, TypeTrait BTT, const TypeSourceI
                  TSTToBeDeduced->getTemplateName().getAsTemplateDecl(), RhsT,
                  Info) == TemplateDeductionResult::Success;
     }
-    Self.Diag(Lhs->getTypeLoc().getBeginLoc(),
-              diag::err_deducible_non_class_or_alias_types)
-        << LhsT << Lhs->getTypeLoc().getSourceRange();
+    assert("Expect to see DeducedTemplateSpecializationType!");
     return false;
   }
     default: llvm_unreachable("not a BTT");

@@ -26,8 +26,13 @@ enum TypeTrait {
 #include "clang/Basic/TokenKinds.def"
   ,
 #define TYPE_TRAIT_2(Spelling, Name, Key) BTT_##Name,
+  // IsDeducible is only used internally by clang for CTAD implementation and
+  // is not exposed to users.
+  TYPE_TRAIT_2(/**/, IsDeducible, KEYCXX)
 #include "clang/Basic/TokenKinds.def"
-  BTT_Last = UTT_Last // BTT_Last == last BTT_XX in the enum.
+  // +1 for the IsDeducible enumerator.
+  BTT_Last = UTT_Last + 1 // BTT_Last == last BTT_XX in the enum.
+
 #define TYPE_TRAIT_2(Spelling, Name, Key) +1
 #include "clang/Basic/TokenKinds.def"
   ,

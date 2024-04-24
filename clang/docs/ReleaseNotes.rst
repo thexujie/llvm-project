@@ -168,10 +168,6 @@ C++20 Feature Support
   to update the ``__cpp_concepts`` macro to `202002L`. This enables
   ``<expected>`` from libstdc++ to work correctly with Clang.
 
-- Implemented the `__is_deducible` builtin to check if the template arguments of
-  a class/alias template can be deduced from a specific type,
-  [over.match.class.deduct]p4.
-
 C++23 Feature Support
 ^^^^^^^^^^^^^^^^^^^^^
 

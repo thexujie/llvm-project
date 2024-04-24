@@ -19,6 +19,9 @@ static constexpr const char *TypeTraitNames[] = {
 #define TYPE_TRAIT_1(Spelling, Name, Key) #Name,
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_2(Spelling, Name, Key) #Name,
+    // IsDeducible is only used internally by clang for CTAD implementation and
+    // is not exposed to users.
+    TYPE_TRAIT_2(/**/, IsDeducible, KEYCXX)
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_N(Spelling, Name, Key) #Name,
 #include "clang/Basic/TokenKinds.def"
@@ -28,6 +31,9 @@ static constexpr const char *TypeTraitSpellings[] = {
 #define TYPE_TRAIT_1(Spelling, Name, Key) #Spelling,
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_2(Spelling, Name, Key) #Spelling,
+    // __is_deducible is only used internally by clang for CTAD implementation
+    // and is not exposed to users.
+    TYPE_TRAIT_2(__is_deducible, /**/, KEYCXX)
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_N(Spelling, Name, Key) #Spelling,
 #include "clang/Basic/TokenKinds.def"
@@ -59,6 +65,9 @@ static constexpr const unsigned TypeTraitArities[] = {
 #define TYPE_TRAIT_1(Spelling, Name, Key) 1,
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_2(Spelling, Name, Key) 2,
+    // IsDeducible is only used internally by clang for CTAD implementation and
+    // is not exposed to users.
+    TYPE_TRAIT_2(/**/, IsDeducible, KEYCXX)
 #include "clang/Basic/TokenKinds.def"
 #define TYPE_TRAIT_N(Spelling, Name, Key) 0,
 #include "clang/Basic/TokenKinds.def"
