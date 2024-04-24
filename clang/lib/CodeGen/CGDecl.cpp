@@ -2088,8 +2088,10 @@ void CodeGenFunction::EmitAutoVarCleanups(const AutoVarEmission &emission) {
       llvm::Constant *F = CGM.GetAddrOfFunction(FD);
       assert(F && "Could not find function!");
 
-      const CGFunctionInfo &Info = CGM.getTypes().arrangeFunctionDeclaration(FD);
-      EHStack.pushCleanup<CallCleanupFunction>(NormalAndEHCleanup, F, &Info, &D);
+      const CGFunctionInfo &Info =
+          CGM.getTypes().arrangeFunctionDeclaration(FD);
+      EHStack.pushCleanup<CallCleanupFunction>(NormalAndEHCleanup, F, &Info,
+                                               &D);
     }
   }
 

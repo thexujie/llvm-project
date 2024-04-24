@@ -2210,6 +2210,7 @@ class CapturedByOwnInitVisitor
     : public EvaluatedExprVisitor<CapturedByOwnInitVisitor> {
   typedef EvaluatedExprVisitor<CapturedByOwnInitVisitor> Inherited;
   VarDecl *const VD;
+
 public:
   const BlockExpr *FoundBE;
   CapturedByOwnInitVisitor(Sema &S, VarDecl *VD)
@@ -2226,7 +2227,7 @@ public:
     }
   }
 };
-}
+} // namespace
 
 static void checkCapturedByOwnInit(VarDecl *VD, Sema &S) {
   Expr *I = VD->getInit();

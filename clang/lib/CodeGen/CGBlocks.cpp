@@ -2257,7 +2257,7 @@ class CXXByrefHelpers final : public BlockByrefHelpers {
 public:
   CXXByrefHelpers(const BlockByrefInfo &info, QualType type,
                   const Expr *copyExpr)
-    : BlockByrefHelpers(info), VarType(type), CopyExpr(copyExpr) {}
+      : BlockByrefHelpers(info), VarType(type), CopyExpr(copyExpr) {}
 
   bool needsCopy() const override { return CopyExpr != nullptr; }
   void emitCopy(CodeGenFunction &CGF, Address destField,
@@ -2470,16 +2470,16 @@ CodeGenFunction::buildByrefHelpers(llvm::StructType &byrefType,
         CGM.getContext().getBlockVarCopyInit(&var).getCopyExpr();
     if (!copyExpr && record->hasTrivialDestructor()) return nullptr;
 
-    return ::buildByrefHelpers(
-        CGM, byrefInfo, CXXByrefHelpers(byrefInfo, type, copyExpr));
+    return ::buildByrefHelpers(CGM, byrefInfo,
+                               CXXByrefHelpers(byrefInfo, type, copyExpr));
   }
 
   // If type is a non-trivial C struct type that is non-trivial to
   // destructly move or destroy, build the copy and dispose helpers.
   if (type.isNonTrivialToPrimitiveDestructiveMove() == QualType::PCK_Struct ||
       type.isDestructedType() == QualType::DK_nontrivial_c_struct)
-    return ::buildByrefHelpers(
-        CGM, byrefInfo, NonTrivialCStructByrefHelpers(byrefInfo, type));
+    return ::buildByrefHelpers(CGM, byrefInfo,
+                               NonTrivialCStructByrefHelpers(byrefInfo, type));
 
   // Otherwise, if we don't have a retainable type, there's nothing to do.
   // that the runtime does extra copies.
@@ -2511,8 +2511,8 @@ CodeGenFunction::buildByrefHelpers(llvm::StructType &byrefType,
         return ::buildByrefHelpers(CGM, byrefInfo,
                                    ARCStrongBlockByrefHelpers(byrefInfo));
 
-      // Otherwise, we transfer ownership of the retain from the stack
-      // to the heap.
+        // Otherwise, we transfer ownership of the retain from the stack
+        // to the heap.
       } else {
         return ::buildByrefHelpers(CGM, byrefInfo,
                                    ARCStrongByrefHelpers(byrefInfo));
