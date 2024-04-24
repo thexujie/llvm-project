@@ -566,6 +566,7 @@ private:
   SDValue SoftenFloatRes_FSIN(SDNode *N);
   SDValue SoftenFloatRes_FSQRT(SDNode *N);
   SDValue SoftenFloatRes_FSUB(SDNode *N);
+  SDValue SoftenFloatRes_FTAN(SDNode *N);
   SDValue SoftenFloatRes_FTRUNC(SDNode *N);
   SDValue SoftenFloatRes_LOAD(SDNode *N);
   SDValue SoftenFloatRes_SELECT(SDNode *N);
@@ -645,6 +646,7 @@ private:
   void ExpandFloatRes_FSIN      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FSQRT     (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FSUB      (SDNode *N, SDValue &Lo, SDValue &Hi);
+  void ExpandFloatRes_FTAN      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FTRUNC    (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_LOAD      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_XINT_TO_FP(SDNode *N, SDValue &Lo, SDValue &Hi);
