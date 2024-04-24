@@ -398,6 +398,10 @@ public:
         shouldFoldTerminatingConditionAfterLSR();
   }
 
+  bool shouldDropLSRSolutionIfLessProfitable() const {
+    return TargetTransformInfoImplBase::shouldDropLSRSolutionIfLessProfitable();
+  }
+
   bool isProfitableLSRChainElement(Instruction *I) {
     return TargetTransformInfoImplBase::isProfitableLSRChainElement(I);
   }
