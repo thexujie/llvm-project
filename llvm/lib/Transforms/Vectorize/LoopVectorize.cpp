@@ -3616,15 +3616,12 @@ void InnerLoopVectorizer::fixVectorizedLoop(VPTransformState &State,
   State.Builder.SetInsertPoint(State.CFG.ExitBB,
                                State.CFG.ExitBB->getFirstNonPHIIt());
   for (const auto &KV : Plan.getLiveOuts())
-    if (OrigLoop->getUniqueExitBlock() ||
-        KV.second->getPhi()->getParent() != OrigEarlyExitBB)
-      KV.second->fixPhi(Plan, State);
+    KV.second->fixPhi(Plan, State);
 
   if (VectorEarlyExitBB) {
     State.Builder.SetInsertPoint(VectorEarlyExitBB->getTerminator());
     for (const auto &KV : Plan.getEarlyExitLiveOuts())
-      if (KV.second->getPhi()->getParent() == OrigEarlyExitBB)
-        KV.second->fixPhi(Plan, State);
+      KV.second->fixPhi(Plan, State);
   }
 
   for (Instruction *PI : PredicatedInstructions)
