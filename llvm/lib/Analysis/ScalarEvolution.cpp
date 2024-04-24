@@ -8279,10 +8279,14 @@ const SCEV *ScalarEvolution::getExitCount(const Loop *L,
 const SCEV *ScalarEvolution::getPredicatedBackedgeTakenCount(
     const Loop *L, SmallVector<const SCEVPredicate *, 4> &Preds,
     bool Speculative) {
-  if (Speculative)
-    return getPredicatedBackedgeTakenInfo(L).getSpeculative(L, this, &Preds);
-  else
-    return getPredicatedBackedgeTakenInfo(L).getExact(L, this, &Preds);
+  const BackedgeTakenInfo &BTI = getPredicatedBackedgeTakenInfo(L);
+  if (Speculative) {
+    const BasicBlock *Latch = L->getLoopLatch();
+    if (!Latch || !BTI.hasExact(Latch, this))
+      return getCouldNotCompute();
+    return BTI.getSymbolicMax(L, this, &Preds);
+  } else
+    return BTI.getExact(L, this, &Preds);
 }
 
 const SCEV *ScalarEvolution::getBackedgeTakenCount(const Loop *L,
@@ -8620,45 +8624,6 @@ void ScalarEvolution::BackedgeTakenInfo::getCountableExitingBlocks(
   return;
 }
 
-const SCEV *ScalarEvolution::BackedgeTakenInfo::getSpeculative(
-    const Loop *L, ScalarEvolution *SE,
-    SmallVector<const SCEVPredicate *, 4> *Preds) const {
-  // All exiting blocks we have collected must dominate the only backedge.
-  const BasicBlock *Latch = L->getLoopLatch();
-  if (!Latch || !hasAnyInfo())
-    return SE->getCouldNotCompute();
-
-  // All exiting blocks we have gathered dominate loop's latch, so speculative
-  // trip count is simply a minimum out of all these calculated exit counts.
-  SmallVector<const SCEV *, 2> Ops;
-  bool FoundLatch = false;
-  for (const auto &ENT : ExitNotTaken) {
-    const SCEV *BECount = ENT.ExactNotTaken;
-    if (BECount == SE->getCouldNotCompute())
-      continue;
-
-    assert(SE->DT.dominates(ENT.ExitingBlock, Latch) &&
-           "We should only have known counts for exiting blocks that dominate "
-           "latch!");
-    Ops.push_back(BECount);
-    if (Preds)
-      for (const auto *P : ENT.Predicates)
-        Preds->push_back(P);
-    assert((Preds || ENT.hasAlwaysTruePredicate()) &&
-           "Predicate should be always true!");
-    if (ENT.ExitingBlock == Latch)
-      FoundLatch = true;
-  }
-
-  if (!FoundLatch)
-    return SE->getCouldNotCompute();
-
-  // If an earlier exit exits on the first iteration (exit count zero), then
-  // a later poison exit count should not propagate into the result. This are
-  // exactly the semantics provided by umin_seq.
-  return SE->getUMinFromMismatchedTypes(Ops, /* Sequential */ true);
-}
-
 /// Get the exact not taken count for this loop exit.
 const SCEV *
 ScalarEvolution::BackedgeTakenInfo::getExact(const BasicBlock *ExitingBlock,
@@ -8668,6 +8633,15 @@ ScalarEvolution::BackedgeTakenInfo::getExact(const BasicBlock *ExitingBlock,
       return ENT.ExactNotTaken;
 
   return SE->getCouldNotCompute();
+}
+
+bool ScalarEvolution::BackedgeTakenInfo::hasExact(
+    const BasicBlock *ExitingBlock, ScalarEvolution *SE) const {
+  for (const auto &ENT : ExitNotTaken)
+    if (ENT.ExitingBlock == ExitingBlock)
+      return ENT.ExactNotTaken != SE->getCouldNotCompute();
+
+  return false;
 }
 
 const SCEV *ScalarEvolution::BackedgeTakenInfo::getConstantMax(
@@ -8704,12 +8678,41 @@ ScalarEvolution::BackedgeTakenInfo::getConstantMax(ScalarEvolution *SE) const {
   return getConstantMax();
 }
 
-const SCEV *
-ScalarEvolution::BackedgeTakenInfo::getSymbolicMax(const Loop *L,
-                                                   ScalarEvolution *SE) {
-  if (!SymbolicMax)
-    SymbolicMax = SE->computeSymbolicMaxBackedgeTakenCount(L);
-  return SymbolicMax;
+const SCEV *ScalarEvolution::BackedgeTakenInfo::getSymbolicMax(
+    const Loop *L, ScalarEvolution *SE,
+    SmallVector<const SCEVPredicate *, 4> *Preds) const {
+  // If any exits were not computable, the loop is not computable.
+  if (ExitNotTaken.empty())
+    return SE->getCouldNotCompute();
+
+  const BasicBlock *Latch = L->getLoopLatch();
+  // All exiting blocks we have collected must dominate the only backedge.
+  if (!Latch)
+    return SE->getCouldNotCompute();
+
+  // Form an expression for the maximum exit count possible for this loop. We
+  // merge the max and exact information to approximate a version of
+  // getConstantMaxBackedgeTakenCount which isn't restricted to just constants.
+  SmallVector<const SCEV *, 4> ExitCounts;
+  for (const auto &ENT : ExitNotTaken) {
+    const SCEV *ExitCount = ENT.SymbolicMaxNotTaken;
+    if (ExitCount == SE->getCouldNotCompute())
+      continue;
+
+    assert(SE->DT.dominates(ENT.ExitingBlock, Latch) &&
+           "We should only have known counts for exiting blocks that dominate "
+           "the latch!");
+    ExitCounts.push_back(ExitCount);
+    if (Preds)
+      for (const auto *P : ENT.Predicates)
+        Preds->push_back(P);
+    assert((Preds || ENT.hasAlwaysTruePredicate()) &&
+           "Predicate should be always true!");
+  }
+
+  if (ExitCounts.empty())
+    return SE->getCouldNotCompute();
+  return SE->getUMinFromMismatchedTypes(ExitCounts, /*Sequential*/ true);
 }
 
 bool ScalarEvolution::BackedgeTakenInfo::isConstantMaxOrZero(
@@ -15022,30 +15025,6 @@ bool ScalarEvolution::matchURem(const SCEV *Expr, const SCEV *&LHS,
            MatchURemWithDivisor(getNegativeSCEV(Mul->getOperand(1))) ||
            MatchURemWithDivisor(getNegativeSCEV(Mul->getOperand(0)));
   return false;
-}
-
-const SCEV *
-ScalarEvolution::computeSymbolicMaxBackedgeTakenCount(const Loop *L) {
-  SmallVector<BasicBlock*, 16> ExitingBlocks;
-  L->getExitingBlocks(ExitingBlocks);
-
-  // Form an expression for the maximum exit count possible for this loop. We
-  // merge the max and exact information to approximate a version of
-  // getConstantMaxBackedgeTakenCount which isn't restricted to just constants.
-  SmallVector<const SCEV*, 4> ExitCounts;
-  for (BasicBlock *ExitingBB : ExitingBlocks) {
-    const SCEV *ExitCount =
-        getExitCount(L, ExitingBB, ScalarEvolution::SymbolicMaximum);
-    if (!isa<SCEVCouldNotCompute>(ExitCount)) {
-      assert(DT.dominates(ExitingBB, L->getLoopLatch()) &&
-             "We should only have known counts for exiting blocks that "
-             "dominate latch!");
-      ExitCounts.push_back(ExitCount);
-    }
-  }
-  if (ExitCounts.empty())
-    return getCouldNotCompute();
-  return getUMinFromMismatchedTypes(ExitCounts, /*Sequential*/ true);
 }
 
 /// A rewriter to replace SCEV expressions in Map with the corresponding entry
