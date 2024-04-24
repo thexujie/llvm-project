@@ -166,10 +166,8 @@ bool isLambdaEnclosedByTypeAliasDecl(
   QualType Underlying =
       PrimaryTypeAliasDecl->getTemplatedDecl()->getUnderlyingType();
 
-  if (auto *DT = dyn_cast<DecltypeType>(Underlying.getTypePtr()))
-    return !Visitor(getPrimaryTemplateOfGenericLambda(LambdaCallOperator))
-                .TraverseStmt(DT->getUnderlyingExpr());
-  return false;
+  return !Visitor(getPrimaryTemplateOfGenericLambda(LambdaCallOperator))
+              .TraverseType(Underlying);
 }
 
 // Add template arguments from a variable template instantiation.
