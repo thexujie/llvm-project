@@ -15636,7 +15636,8 @@ static void AnalyzeAssignment(Sema &S, BinaryOperator *E) {
   // We want to recurse on the RHS as normal unless we're assigning to
   // a bitfield.
   if (FieldDecl *Bitfield = E->getLHS()->getSourceBitField()) {
-    if (AnalyzeBitFieldAssignment(S, Bitfield, E->getRHS(),
+    if (!E->hasWrappingOperand(S.Context) &&
+        AnalyzeBitFieldAssignment(S, Bitfield, E->getRHS(),
                                   E->getOperatorLoc())) {
       // Recurse, ignoring any implicit conversions on the RHS.
       return AnalyzeImplicitConversions(S, E->getRHS()->IgnoreParenImpCasts(),

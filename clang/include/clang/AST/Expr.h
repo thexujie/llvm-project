@@ -4061,6 +4061,9 @@ public:
     return getFPFeaturesInEffect(LO).getAllowFEnvAccess();
   }
 
+  /// Does one of the subexpressions have the wraps attribute?
+  bool hasWrappingOperand(const ASTContext &Ctx) const;
+
 protected:
   BinaryOperator(const ASTContext &Ctx, Expr *lhs, Expr *rhs, Opcode opc,
                  QualType ResTy, ExprValueKind VK, ExprObjectKind OK,
@@ -4077,9 +4080,6 @@ protected:
   static unsigned sizeOfTrailingObjects(bool HasFPFeatures) {
     return HasFPFeatures * sizeof(FPOptionsOverride);
   }
-
-  /// Does one of the subexpressions have the wraps attribute?
-  bool hasWrappingOperand(const ASTContext &Ctx) const;
 };
 
 /// CompoundAssignOperator - For compound assignments (e.g. +=), we keep
