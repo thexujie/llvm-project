@@ -160,4 +160,14 @@ void test2(void) {
 
   // DEFAULT,WRAPV,TRAPV,CATCH_UB,TRAPV_HANDLER: call { i32, i1 } @llvm.sadd.with.overflow.i32
   u = (int) u + w;
+
+  // persist wraps attribute through implicit integer promotion
+  // DEFAULT,WRAPV,TRAPV,CATCH_UB,TRAPV_HANDLER: store i8 127, ptr [[D1:%.*]]
+  // DEFAULT,WRAPV,TRAPV,CATCH_UB,TRAPV_HANDLER: mul{{.*}} = mul i32
+  // would look like mul{{.*}} = mul nsw i32
+  // if overflow behavior was not defined.
+  char __attribute__((wraps)) d;
+  d = 127;
+  w = d*d*d*d*d; // d is promoted to int, then calculation is made.
+                 // wraps prevents instrumentation even through promotion
 }
