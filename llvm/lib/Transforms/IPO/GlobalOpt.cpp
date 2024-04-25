@@ -199,9 +199,20 @@ CleanupPointerRootUsers(GlobalVariable *GV,
   // handle that case, we expect the program may create a singleton and never
   // destroy it.
 
-  bool Changed = false;
+  auto RemoveComputationChain = [&GetTLI](Instruction *I) {
+    do {
+      if (isAllocationFn(I, GetTLI))
+        break;
+      Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
+      if (!J)
+        break;
+      I->eraseFromParent();
+      I = J;
+    } while (true);
+    I->eraseFromParent();
+  };
 
-  // Collect all stores to GV.
+  // Collect all writes to GV.
   SmallVector<Instruction *, 8> Writes;
   SmallVector<User *> Worklist(GV->users());
   while (!Worklist.empty()) {
@@ -217,45 +228,29 @@ CleanupPointerRootUsers(GlobalVariable *GV,
     }
   }
 
-  auto RemoveComputationChain = [&GetTLI](Instruction *I) {
-    do {
-      if (isAllocationFn(I, GetTLI))
-        break;
-      Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
-      if (!J)
-        break;
-      I->eraseFromParent();
-      I = J;
-    } while (true);
-    I->eraseFromParent();
-  };
-
-  // Remove the store if it's value operand is a constant or a computation
-  // chain. If the value operand is a computation chain, determine if it is safe
-  // to remove it before removing the store. Remove both the store and the
-  // computation chain if it is safe to do so.
+  // For each write, try to remove it's operand if it is safe to do so.
   for (auto *Write : Writes) {
-    Value *V = Write;
-    if (auto *SI = dyn_cast<StoreInst>(V))
+    Value *V;
+    if (auto *SI = dyn_cast<StoreInst>(Write)) {
       V = SI->getValueOperand();
+    } else if (auto *MTI = dyn_cast<MemTransferInst>(Write)) {
+      V = MTI->getSource();
+    } else {
+      continue;
+    }
 
-    if (isa<Constant>(V)) {
-      Changed = true;
-      Write->eraseFromParent();
-    } else if (isa<Instruction>(V)) {
-      if (IsSafeComputationToRemove(V, GetTLI)) {
-        Changed = true;
-        Write->eraseFromParent();
-        RemoveComputationChain(cast<Instruction>(V));
-      } else {
-        Changed = true;
-        Write->eraseFromParent();
-      }
+    if (auto *Inst = dyn_cast<Instruction>(V)) {
+      if (IsSafeComputationToRemove(V, GetTLI))
+        RemoveComputationChain(Inst);
     }
   }
 
+  // Finally, remove the writes to GV.
+  for (auto *Write : Writes)
+    Write->eraseFromParent();
+
   GV->removeDeadConstantUsers();
-  return Changed;
+  return !Writes.empty();
 }
 
 /// We just marked GV constant.  Loop over all users of the global, cleaning up

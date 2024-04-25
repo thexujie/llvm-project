@@ -12,7 +12,7 @@ define void @test1a() {
 
 define void @test1b(ptr %p) {
 ; CHECK-LABEL: @test1b(
-; CHECK-NEXT: store
+; CHECK-NOT: store
 ; CHECK-NEXT: ret void
   store ptr %p, ptr @glbl
   ret void
