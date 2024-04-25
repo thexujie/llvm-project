@@ -1,5 +1,8 @@
 include(HandleLitArguments)
 add_subdirectory(tools)
+if(TARGET cxx-tidy)
+  list(APPEND LIBCXX_TEST_DEPS cxx-tidy)
+endif()
 
 # By default, libcxx and libcxxabi share a library directory.
 if (NOT LIBCXX_CXX_ABI_LIBRARY_PATH)
@@ -73,6 +76,7 @@ if (LIBCXX_INCLUDE_TESTS)
     ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg
     MAIN_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py")
 
+  MESSAGE("XXX ${LIBCXX_TEST_DEPS}")
   add_custom_target(cxx-test-depends
     DEPENDS cxx ${LIBCXX_TEST_DEPS}
     COMMENT "Builds dependencies required to run the test suite.")

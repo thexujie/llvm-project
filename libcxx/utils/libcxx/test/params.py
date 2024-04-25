@@ -126,6 +126,7 @@ def getSuitableClangTidy(cfg):
         )
         != 0
     ):
+        print("CLANG-TIDY: no plugin")
         return None
 
     version = "{__clang_major__}.{__clang_minor__}.{__clang_patchlevel__}".format(
@@ -135,8 +136,11 @@ def getSuitableClangTidy(cfg):
         cfg, version, "clang-tidy-{__clang_major__}".format(**compilerMacros(cfg))
     )
 
+    print(f"CLANG-TIDY: version={version} exe={exe}")
+
     if not exe:
         exe = testClangTidy(cfg, version, "clang-tidy")
+        print(f"CLANG-TIDY: new exe={exe}")
 
     return exe
 
