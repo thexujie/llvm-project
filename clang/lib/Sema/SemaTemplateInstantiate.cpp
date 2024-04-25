@@ -410,7 +410,8 @@ Response HandleRecordDecl(Sema &SemaRef, const CXXRecordDecl *Rec,
     // Retrieve the template arguments for a using alias declaration.
     // This is necessary for constraint checking, since we always keep
     // constraints relative to the primary template.
-    if (auto TypeAlias = getEnclosingTypeAliasTemplateDecl(SemaRef)) {
+    if (auto TypeAlias = getEnclosingTypeAliasTemplateDecl(SemaRef);
+        ForConstraintInstantiation && TypeAlias) {
       if (isLambdaEnclosedByTypeAliasDecl(Rec->getLambdaCallOperator(),
                                           TypeAlias.PrimaryTypeAliasDecl)) {
         Result.addOuterTemplateArguments(TypeAlias.Template,
