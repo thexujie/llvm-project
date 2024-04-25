@@ -104,7 +104,7 @@ public:
                                    mlir::StringAttr linkage, bool isConst,
                                    const Fortran::lower::SomeExpr &initExpr) {
     DenseGlobalBuilder globalBuilder;
-    std::visit(
+    Fortran::common::visit(
         Fortran::common::visitors{
             [&](const Fortran::evaluate::Expr<Fortran::evaluate::SomeLogical> &
                     x) { globalBuilder.tryConvertingToAttributes(builder, x); },
@@ -162,7 +162,7 @@ private:
   template <typename SomeCat>
   void tryConvertingToAttributes(fir::FirOpBuilder &builder,
                                  const Fortran::evaluate::Expr<SomeCat> &expr) {
-    std::visit(
+    Fortran::common::visit(
         [&](const auto &x) {
           using TR = Fortran::evaluate::ResultType<decltype(x)>;
           if (const auto *constant =
@@ -794,7 +794,7 @@ static fir::ExtendedValue
 genConstantValue(Fortran::lower::AbstractConverter &converter,
                  mlir::Location loc,
                  const Fortran::lower::SomeExpr &constantExpr) {
-  return std::visit(
+  return Fortran::common::visit(
       [&](const auto &x) -> fir::ExtendedValue {
         using T = std::decay_t<decltype(x)>;
         if constexpr (Fortran::common::HasMember<
@@ -803,7 +803,7 @@ genConstantValue(Fortran::lower::AbstractConverter &converter,
                         Fortran::common::TypeCategory::Derived) {
             return genConstantValue(converter, loc, x);
           } else {
-            return std::visit(
+            return Fortran::common::visit(
                 [&](const auto &preciseKind) {
                   return genConstantValue(converter, loc, preciseKind);
                 },

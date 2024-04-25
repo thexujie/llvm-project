@@ -91,7 +91,7 @@ void gatherFuncAndVarSyms(
 Fortran::semantics::Symbol *
 getOmpObjectSymbol(const Fortran::parser::OmpObject &ompObject) {
   Fortran::semantics::Symbol *sym = nullptr;
-  std::visit(
+  Fortran::common::visit(
       Fortran::common::visitors{
           [&](const Fortran::parser::Designator &designator) {
             if (auto *arrayEle =
