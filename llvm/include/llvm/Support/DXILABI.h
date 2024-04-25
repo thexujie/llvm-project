@@ -90,4 +90,9 @@ enum class ElementType : uint32_t {
 } // namespace dxil
 } // namespace llvm
 
+struct DXILShaderModel {
+  unsigned Major = 0;
+  unsigned Minor = 0;
+};
+
 #endif // LLVM_SUPPORT_DXILABI_H
