@@ -1688,7 +1688,8 @@ static unsigned SelectOpcodeFromVT(EVT VT, ArrayRef<unsigned> Opcodes) {
       return 0;
     break;
   case SelectTypeKind::FP:
-    if (EltVT != MVT::f16 && EltVT != MVT::f32 && EltVT != MVT::f64)
+    if (EltVT != MVT::bf16 && EltVT != MVT::f16 && EltVT != MVT::f32 &&
+        EltVT != MVT::f64)
       return 0;
     break;
   }
@@ -5480,10 +5481,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmax_single_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAX_VG2_2ZZ_H, AArch64::FMAX_VG2_2ZZ_S,
-               AArch64::FMAX_VG2_2ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, false,
+                                        AArch64::BFMAX_VG2_2ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAX_VG2_2ZZ_H, AArch64::FMAX_VG2_2ZZ_S,
+                    AArch64::FMAX_VG2_2ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_smax_single_x4:
@@ -5501,10 +5505,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmax_single_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAX_VG4_4ZZ_H, AArch64::FMAX_VG4_4ZZ_S,
-               AArch64::FMAX_VG4_4ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, false,
+                                        AArch64::BFMAX_VG4_4ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAX_VG4_4ZZ_H, AArch64::FMAX_VG4_4ZZ_S,
+                    AArch64::FMAX_VG4_4ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_smin_single_x2:
@@ -5522,10 +5529,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmin_single_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMIN_VG2_2ZZ_H, AArch64::FMIN_VG2_2ZZ_S,
-               AArch64::FMIN_VG2_2ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, false,
+                                        AArch64::BFMIN_VG2_2ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMIN_VG2_2ZZ_H, AArch64::FMIN_VG2_2ZZ_S,
+                    AArch64::FMIN_VG2_2ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_smin_single_x4:
@@ -5543,10 +5553,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmin_single_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMIN_VG4_4ZZ_H, AArch64::FMIN_VG4_4ZZ_S,
-               AArch64::FMIN_VG4_4ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, false,
+                                        AArch64::BFMIN_VG4_4ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMIN_VG4_4ZZ_H, AArch64::FMIN_VG4_4ZZ_S,
+                    AArch64::FMIN_VG4_4ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_smax_x2:
@@ -5564,10 +5577,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmax_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAX_VG2_2Z2Z_H, AArch64::FMAX_VG2_2Z2Z_S,
-               AArch64::FMAX_VG2_2Z2Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, true,
+                                        AArch64::BFMAX_VG2_2Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAX_VG2_2Z2Z_H, AArch64::FMAX_VG2_2Z2Z_S,
+                    AArch64::FMAX_VG2_2Z2Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_smax_x4:
@@ -5585,10 +5601,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmax_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAX_VG4_4Z4Z_H, AArch64::FMAX_VG4_4Z4Z_S,
-               AArch64::FMAX_VG4_4Z4Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, true,
+                                        AArch64::BFMAX_VG4_4Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAX_VG4_4Z4Z_H, AArch64::FMAX_VG4_4Z4Z_S,
+                    AArch64::FMAX_VG4_4Z4Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_smin_x2:
@@ -5606,10 +5625,13 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmin_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMIN_VG2_2Z2Z_H, AArch64::FMIN_VG2_2Z2Z_S,
-               AArch64::FMIN_VG2_2Z2Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, true,
+                                        AArch64::BFMIN_VG2_2Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMIN_VG2_2Z2Z_H, AArch64::FMIN_VG2_2Z2Z_S,
+                    AArch64::FMIN_VG2_2Z2Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_smin_x4:
@@ -5627,66 +5649,93 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmin_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMIN_VG4_4Z4Z_H, AArch64::FMIN_VG4_4Z4Z_S,
-               AArch64::FMIN_VG4_4Z4Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, true,
+                                        AArch64::BFMIN_VG4_4Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMIN_VG4_4Z4Z_H, AArch64::FMIN_VG4_4Z4Z_S,
+                    AArch64::FMIN_VG4_4Z4Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmaxnm_single_x2 :
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAXNM_VG2_2ZZ_H, AArch64::FMAXNM_VG2_2ZZ_S,
-               AArch64::FMAXNM_VG2_2ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, false,
+                                        AArch64::BFMAXNM_VG2_2ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAXNM_VG2_2ZZ_H, AArch64::FMAXNM_VG2_2ZZ_S,
+                    AArch64::FMAXNM_VG2_2ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmaxnm_single_x4 :
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAXNM_VG4_4ZZ_H, AArch64::FMAXNM_VG4_4ZZ_S,
-               AArch64::FMAXNM_VG4_4ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, false,
+                                        AArch64::BFMAXNM_VG4_4ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAXNM_VG4_4ZZ_H, AArch64::FMAXNM_VG4_4ZZ_S,
+                    AArch64::FMAXNM_VG4_4ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_fminnm_single_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMINNM_VG2_2ZZ_H, AArch64::FMINNM_VG2_2ZZ_S,
-               AArch64::FMINNM_VG2_2ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, false,
+                                        AArch64::BFMINNM_VG2_2ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMINNM_VG2_2ZZ_H, AArch64::FMINNM_VG2_2ZZ_S,
+                    AArch64::FMINNM_VG2_2ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, false, Op);
       return;
     case Intrinsic::aarch64_sve_fminnm_single_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMINNM_VG4_4ZZ_H, AArch64::FMINNM_VG4_4ZZ_S,
-               AArch64::FMINNM_VG4_4ZZ_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, false,
+                                        AArch64::BFMINNM_VG4_4ZZ_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMINNM_VG4_4ZZ_H, AArch64::FMINNM_VG4_4ZZ_S,
+                    AArch64::FMINNM_VG4_4ZZ_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, false, Op);
       return;
     case Intrinsic::aarch64_sve_fmaxnm_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAXNM_VG2_2Z2Z_H, AArch64::FMAXNM_VG2_2Z2Z_S,
-               AArch64::FMAXNM_VG2_2Z2Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, true,
+                                        AArch64::BFMAXNM_VG2_2Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAXNM_VG2_2Z2Z_H, AArch64::FMAXNM_VG2_2Z2Z_S,
+                    AArch64::FMAXNM_VG2_2Z2Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_fmaxnm_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMAXNM_VG4_4Z4Z_H, AArch64::FMAXNM_VG4_4Z4Z_S,
-               AArch64::FMAXNM_VG4_4Z4Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, true,
+                                        AArch64::BFMAXNM_VG4_4Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMAXNM_VG4_4Z4Z_H, AArch64::FMAXNM_VG4_4Z4Z_S,
+                    AArch64::FMAXNM_VG4_4Z4Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_fminnm_x2:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMINNM_VG2_2Z2Z_H, AArch64::FMINNM_VG2_2Z2Z_S,
-               AArch64::FMINNM_VG2_2Z2Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 2, true,
+                                        AArch64::BFMINNM_VG2_2Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMINNM_VG2_2Z2Z_H, AArch64::FMINNM_VG2_2Z2Z_S,
+                    AArch64::FMINNM_VG2_2Z2Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 2, true, Op);
       return;
     case Intrinsic::aarch64_sve_fminnm_x4:
-      if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
-              Node->getValueType(0),
-              {0, AArch64::FMINNM_VG4_4Z4Z_H, AArch64::FMINNM_VG4_4Z4Z_S,
-               AArch64::FMINNM_VG4_4Z4Z_D}))
+      if (Node->getValueType(0).getVectorElementType() == MVT::bf16)
+        SelectDestructiveMultiIntrinsic(Node, 4, true,
+                                        AArch64::BFMINNM_VG4_4Z2Z_H);
+      else if (auto Op = SelectOpcodeFromVT<SelectTypeKind::FP>(
+                   Node->getValueType(0),
+                   {0, AArch64::FMINNM_VG4_4Z4Z_H, AArch64::FMINNM_VG4_4Z4Z_S,
+                    AArch64::FMINNM_VG4_4Z4Z_D}))
         SelectDestructiveMultiIntrinsic(Node, 4, true, Op);
       return;
     case Intrinsic::aarch64_sve_fcvtzs_x2:
