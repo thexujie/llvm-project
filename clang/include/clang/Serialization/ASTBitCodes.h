@@ -694,6 +694,9 @@ enum ASTRecordTypes {
   /// Record code for lexical and visible block for delayed namespace in
   /// reduced BMI.
   DELAYED_NAMESPACE_LEXICAL_VISIBLE_RECORD = 68,
+
+  /// Record code for updated specialization
+  UPDATE_SPECIALIZATION = 69,
 };
 
 /// Record types used within a source manager block.
@@ -1450,6 +1453,9 @@ enum DeclCode {
 
   /// A HLSLBufferDecl record.
   DECL_HLSL_BUFFER,
+
+  // A decls specilization record.
+  DECL_SPECIALIZATIONS,
 
   /// An ImplicitConceptSpecializationDecl record.
   DECL_IMPLICIT_CONCEPT_SPECIALIZATION,
