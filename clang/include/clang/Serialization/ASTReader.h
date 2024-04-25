@@ -2013,7 +2013,7 @@ public:
 
   void LoadExternalSpecializations(const Decl *D, bool OnlyPartial) override;
 
-  void
+  bool
   LoadExternalSpecializations(const Decl *D,
                               ArrayRef<TemplateArgument> TemplateArgs) override;
 

@@ -696,7 +696,7 @@ enum ASTRecordTypes {
   DELAYED_NAMESPACE_LEXICAL_VISIBLE_RECORD = 68,
 
   /// Record code for updated specialization
-  UPDATE_SPECIALIZATION = 69,
+  CXX_ADDED_TEMPLATE_SPECIALIZATION = 69,
 };
 
 /// Record types used within a source manager block.
