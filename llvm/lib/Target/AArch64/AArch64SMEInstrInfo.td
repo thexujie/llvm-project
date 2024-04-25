@@ -32,12 +32,12 @@ def AArch64CoalescerBarrier
     : SDNode<"AArch64ISD::COALESCER_BARRIER", SDTypeProfile<1, 1, []>, [SDNPOptInGlue, SDNPOutGlue]>;
 
 
-def AArch64ExpandZABuffer : SDNode<"AArch64ISD::EXPAND_ZA_BUFFER", SDTypeProfile<0, 2,
-                              [SDTCisInt<0>, SDTCisPtrTy<1>]>,
+def AArch64ExpandZABuffer : SDNode<"AArch64ISD::EXPAND_ZA_BUFFER", SDTypeProfile<0, 1,
+                              [SDTCisInt<0>]>,
                               [SDNPHasChain, SDNPSideEffect, SDNPMayStore]>;
 
 let usesCustomInserter = 1, Defs = [SP], Uses = [SP] in {
-  def ExpandZABuffer : Pseudo<(outs), (ins GPR64:$size, GPR64:$fi), [(AArch64ExpandZABuffer GPR64:$size, GPR64:$fi)]>, Sched<[WriteI]> {}
+  def ExpandZABuffer : Pseudo<(outs), (ins GPR64:$size), [(AArch64ExpandZABuffer GPR64:$size)]>, Sched<[WriteI]> {}
 }
 
 //===----------------------------------------------------------------------===//
