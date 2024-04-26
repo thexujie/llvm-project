@@ -819,7 +819,6 @@ bool llvm::isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
   case TargetOpcode::G_FREM:
   case TargetOpcode::G_FSIN:
   case TargetOpcode::G_FCOS:
-  case TargetOpcode::G_FTAN:
   case TargetOpcode::G_FMA:
   case TargetOpcode::G_FMAD:
     if (SNaN)
@@ -1700,7 +1699,6 @@ bool llvm::isPreISelGenericFloatingPointOpcode(unsigned Opc) {
   case TargetOpcode::G_FREM:
   case TargetOpcode::G_FRINT:
   case TargetOpcode::G_FSIN:
-  case TargetOpcode::G_FTAN:
   case TargetOpcode::G_FSQRT:
   case TargetOpcode::G_FSUB:
   case TargetOpcode::G_INTRINSIC_ROUND:
