@@ -543,7 +543,7 @@ void RISCVPassConfig::addPreRegAlloc() {
   addPass(createRISCVPreRAExpandPseudoPass());
   if (TM->getOptLevel() != CodeGenOptLevel::None)
     addPass(createRISCVMergeBaseOffsetOptPass());
-  if (!EnableSplitRegAlloc || !EnableVSETVLIAfterRVVRegAlloc)
+  if (!EnableVSETVLIAfterRVVRegAlloc)
     addPass(createRISCVInsertVSETVLIPass());
   if (TM->getOptLevel() != CodeGenOptLevel::None &&
       EnableRISCVDeadRegisterElimination)
