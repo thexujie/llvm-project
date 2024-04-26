@@ -86,6 +86,7 @@ CHECK-NEXT:   warn_undef_interface_suggest
 CHECK-NEXT:   warn_undef_protocolref
 CHECK-NEXT:   warn_weak_identifier_undeclared
 CHECK-NEXT:   warn_weak_import
+CHECK-NEXT:   warn_wraps_attr_var_decl_type_not_integer
 
 The list of warnings in -Wpedantic should NEVER grow.
 
