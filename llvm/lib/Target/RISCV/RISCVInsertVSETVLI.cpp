@@ -1775,8 +1775,7 @@ bool RISCVCoalesceVSETVLI::coalesceVSETVLIs(MachineBasicBlock &MBB) {
   DemandedFields Used;
   Used.demandVL();
   Used.demandVTYPE();
-  SmallVector<MachineInstr*> ToDelete;
-  SmallVector<MachineInstr *> MIInBetween;
+  SmallVector<MachineInstr *> ToDelete;
   for (MachineInstr &MI : make_range(MBB.rbegin(), MBB.rend())) {
 
     if (!isVectorConfigInstr(MI)) {
@@ -1794,24 +1793,6 @@ bool RISCVCoalesceVSETVLI::coalesceVSETVLIs(MachineBasicBlock &MBB) {
       Used.demandVL();
 
     if (NextMI) {
-
-      // A tail undefined vmv.v.i/x or vfmv.v.f with VL=1 can be treated in the
-      // same semantically as vmv.s.x.
-      if (MIInBetween.size() == 1 && isScalarSplatInstr(*MIInBetween[0]) &&
-          MI.getOperand(1).isImm() && MI.getOperand(1).getImm() == 1 &&
-          isLMUL1OrSmaller(RISCVVType::getVLMUL(MI.getOperand(2).getImm())) &&
-          hasUndefinedMergeOp(*MIInBetween[0], *MRI, LIS)) {
-        Used.LMUL = false;
-        Used.SEWLMULRatio = false;
-        Used.VLAny = false;
-        if (isFloatScalarMoveOrScalarSplatInstr(*MIInBetween[0]) &&
-            !ST->hasVInstructionsF64())
-          Used.SEW = DemandedFields::SEWGreaterThanOrEqualAndLessThan64;
-        else
-          Used.SEW = DemandedFields::SEWGreaterThanOrEqual;
-        Used.TailPolicy = false;
-      }
-
       if (!Used.usedVL() && !Used.usedVTYPE()) {
         ToDelete.push_back(&MI);
         // Leave NextMI unchanged
@@ -1874,7 +1855,6 @@ bool RISCVCoalesceVSETVLI::coalesceVSETVLIs(MachineBasicBlock &MBB) {
     }
     NextMI = &MI;
     Used = getDemanded(MI, MRI, ST, LIS);
-    MIInBetween.clear();
   }
 
   NumCoalescedVSETVL += ToDelete.size();
