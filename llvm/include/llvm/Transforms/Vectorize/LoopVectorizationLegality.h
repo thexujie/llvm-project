@@ -374,6 +374,24 @@ public:
     return LAI->getDepChecker().getMaxSafeVectorWidthInBits();
   }
 
+  /// Returns true if the loop has a early exit with a exact backedge
+  /// count that is speculative.
+  bool hasSpeculativeEarlyExit() const {
+    return LAI && LAI->getSpeculativeEarlyExitingBlock();
+  }
+
+  /// Returns the early exiting block in a loop with a speculative backedge
+  /// count.
+  BasicBlock *getSpeculativeEarlyExitingBlock() const {
+    return LAI->getSpeculativeEarlyExitingBlock();
+  }
+
+  /// Returns the destination of an early exiting block in a loop with a
+  /// speculative backedge count.
+  BasicBlock *getSpeculativeEarlyExitBlock() const {
+    return LAI->getSpeculativeEarlyExitBlock();
+  }
+
   /// Returns true if vector representation of the instruction \p I
   /// requires mask.
   bool isMaskRequired(const Instruction *I) const {

@@ -181,6 +181,12 @@ static cl::opt<bool> EnableEpilogueVectorization(
     "enable-epilogue-vectorization", cl::init(true), cl::Hidden,
     cl::desc("Enable vectorization of epilogue loops."));
 
+static cl::opt<bool> AssumeNoMemFault(
+    "vectorizer-no-mem-fault", cl::init(false), cl::Hidden,
+    cl::desc("Assume vectorized loops will not have memory faults, which is "
+             "potentially unsafe but can be useful for testing vectorization "
+             "of early exit loops."));
+
 static cl::opt<unsigned> EpilogueVectorizationForceVF(
     "epilogue-vectorization-force-VF", cl::init(1), cl::Hidden,
     cl::desc("When epilogue vectorization is enabled, and a value greater than "
@@ -603,8 +609,12 @@ protected:
   /// Set up the values of the IVs correctly when exiting the vector loop.
   void fixupIVUsers(PHINode *OrigPhi, const InductionDescriptor &II,
                     Value *VectorTripCount, Value *EndValue,
-                    BasicBlock *MiddleBlock, BasicBlock *VectorHeader,
-                    VPlan &Plan, VPTransformState &State);
+                    BasicBlock *MiddleBlock, VPlan &Plan,
+                    VPTransformState &State);
+
+  void fixupEarlyExitIVUsers(PHINode *OrigPhi, const InductionDescriptor &II,
+                             BasicBlock *VectorEarlyExitBB, VPlan &Plan,
+                             VPTransformState &State);
 
   /// Create the exit value of first order recurrences in the middle block and
   /// update their users.
@@ -979,8 +989,10 @@ Value *getRuntimeVF(IRBuilderBase &B, Type *Ty, ElementCount VF) {
 }
 
 const SCEV *createTripCountSCEV(Type *IdxTy, PredicatedScalarEvolution &PSE,
-                                Loop *OrigLoop) {
-  const SCEV *BackedgeTakenCount = PSE.getBackedgeTakenCount();
+                                Loop *OrigLoop, bool IsSpeculative) {
+  const SCEV *BackedgeTakenCount = IsSpeculative
+                                       ? PSE.getSpeculativeBackedgeTakenCount()
+                                       : PSE.getBackedgeTakenCount();
   assert(!isa<SCEVCouldNotCompute>(BackedgeTakenCount) && "Invalid loop count");
 
   ScalarEvolution &SE = *PSE.getSE();
@@ -1466,10 +1478,24 @@ public:
   bool requiresScalarEpilogue(bool IsVectorizing) const {
     if (!isScalarEpilogueAllowed())
       return false;
-    // If we might exit from anywhere but the latch, must run the exiting
-    // iteration in scalar form.
-    if (TheLoop->getExitingBlock() != TheLoop->getLoopLatch())
+    // For normal loops with countable early exits, if we exit from anywhere
+    // but the latch we require a scalar epilogue.
+    if (!Legal->hasSpeculativeEarlyExit() &&
+        TheLoop->getExitingBlock() != TheLoop->getLoopLatch())
       return true;
+    // If this is a loop with a speculative early exit, then we may validly
+    // exit from a non-latch block and not require a scalar epilogue for the
+    // last iteration, since these exits are handled specially. However, since
+    // we could have both countable and speculative exits we must search all
+    // the exits.
+    if (Legal->hasSpeculativeEarlyExit()) {
+      const SmallVector<BasicBlock *, 4> &CountableExitingBlocks =
+          Legal->getLAI()->getCountableEarlyExitingBlocks();
+      if (CountableExitingBlocks.size() > 1 ||
+          (CountableExitingBlocks.size() == 1 &&
+           CountableExitingBlocks[0] != TheLoop->getLoopLatch()))
+        return true;
+    }
     return IsVectorizing && InterleaveInfo.requiresScalarEpilogue();
   }
 
@@ -1904,9 +1930,11 @@ class GeneratedRTChecks {
 public:
   GeneratedRTChecks(ScalarEvolution &SE, DominatorTree *DT, LoopInfo *LI,
                     TargetTransformInfo *TTI, const DataLayout &DL,
-                    bool AddBranchWeights)
-      : DT(DT), LI(LI), TTI(TTI), SCEVExp(SE, DL, "scev.check"),
-        MemCheckExp(SE, DL, "scev.check"), AddBranchWeights(AddBranchWeights) {}
+                    bool AddBranchWeights, bool LoophasSpeculativeEarlyExit)
+      : DT(DT), LI(LI), TTI(TTI),
+        SCEVExp(SE, DL, "scev.check", true, LoophasSpeculativeEarlyExit),
+        MemCheckExp(SE, DL, "scev.check", true, LoophasSpeculativeEarlyExit),
+        AddBranchWeights(AddBranchWeights) {}
 
   /// Generate runtime checks in SCEVCheckBlock and MemCheckBlock, so we can
   /// accurately estimate the cost of the runtime checks. The blocks are
@@ -2968,7 +2996,12 @@ void InnerLoopVectorizer::createVectorLoopSkeleton(StringRef Prefix) {
   LoopScalarBody = OrigLoop->getHeader();
   LoopVectorPreHeader = OrigLoop->getLoopPreheader();
   assert(LoopVectorPreHeader && "Invalid loop structure");
-  LoopExitBlock = OrigLoop->getUniqueExitBlock(); // may be nullptr
+
+  if (Cost->Legal->hasSpeculativeEarlyExit())
+    LoopExitBlock = OrigLoop->getLatchExitBlock();
+  else
+    LoopExitBlock = OrigLoop->getUniqueExitBlock();
+
   assert((LoopExitBlock || Cost->requiresScalarEpilogue(VF.isVector())) &&
          "multiple exit loop without required epilogue?");
 
@@ -3000,11 +3033,12 @@ void InnerLoopVectorizer::createVectorLoopSkeleton(StringRef Prefix) {
   // Update dominator for loop exit. During skeleton creation, only the vector
   // pre-header and the middle block are created. The vector loop is entirely
   // created during VPlan exection.
-  if (!Cost->requiresScalarEpilogue(VF.isVector()))
+  if (!Cost->requiresScalarEpilogue(VF.isVector())) {
     // If there is an epilogue which must run, there's no edge from the
     // middle block to exit blocks  and thus no need to update the immediate
     // dominator of the exit blocks.
     DT->changeImmediateDominator(LoopExitBlock, LoopMiddleBlock);
+  }
 }
 
 PHINode *InnerLoopVectorizer::createInductionResumeValue(
@@ -3216,26 +3250,33 @@ InnerLoopVectorizer::createVectorizedLoopSkeleton(
 void InnerLoopVectorizer::fixupIVUsers(PHINode *OrigPhi,
                                        const InductionDescriptor &II,
                                        Value *VectorTripCount, Value *EndValue,
-                                       BasicBlock *MiddleBlock,
-                                       BasicBlock *VectorHeader, VPlan &Plan,
+                                       BasicBlock *MiddleBlock, VPlan &Plan,
                                        VPTransformState &State) {
   // There are two kinds of external IV usages - those that use the value
   // computed in the last iteration (the PHI) and those that use the penultimate
   // value (the value that feeds into the phi from the loop latch).
   // We allow both, but they, obviously, have different values.
 
-  assert(OrigLoop->getUniqueExitBlock() && "Expected a single exit block");
+  assert((OrigLoop->getUniqueExitBlock() || Legal->hasSpeculativeEarlyExit()) &&
+         "Expected a single exit block");
 
   DenseMap<Value *, Value *> MissingVals;
 
   // An external user of the last iteration's value should see the value that
   // the remainder loop uses to initialize its own IV.
-  Value *PostInc = OrigPhi->getIncomingValueForBlock(OrigLoop->getLoopLatch());
+  BasicBlock *OrigLoopLatch = OrigLoop->getLoopLatch();
+  Value *PostInc = OrigPhi->getIncomingValueForBlock(OrigLoopLatch);
   for (User *U : PostInc->users()) {
     Instruction *UI = cast<Instruction>(U);
     if (!OrigLoop->contains(UI)) {
-      assert(isa<PHINode>(UI) && "Expected LCSSA form");
-      MissingVals[UI] = EndValue;
+      PHINode *PHI = dyn_cast<PHINode>(UI);
+      assert(PHI && "Expected LCSSA form");
+      // Just because the user is outside the loop it doesn't mean the incoming
+      // value is always from the latch block. This could be an early exit loop
+      // with multiple paths to the same successor.
+      int Index = PHI->getBasicBlockIndex(OrigLoopLatch);
+      if (Index != -1 && PHI->getIncomingValue(Index) == PostInc)
+        MissingVals[PHI] = EndValue;
     }
   }
 
@@ -3245,7 +3286,12 @@ void InnerLoopVectorizer::fixupIVUsers(PHINode *OrigPhi,
   for (User *U : OrigPhi->users()) {
     auto *UI = cast<Instruction>(U);
     if (!OrigLoop->contains(UI)) {
-      assert(isa<PHINode>(UI) && "Expected LCSSA form");
+      PHINode *PHI = dyn_cast<PHINode>(UI);
+      assert(PHI && "Expected LCSSA form");
+      int Index = PHI->getBasicBlockIndex(OrigLoopLatch);
+      if (Index == -1 || PHI->getIncomingValue(Index) != OrigPhi)
+        continue;
+
       IRBuilder<> B(MiddleBlock->getTerminator());
 
       // Fast-math-flags propagate from the original induction instruction.
@@ -3278,6 +3324,94 @@ void InnerLoopVectorizer::fixupIVUsers(PHINode *OrigPhi,
     if (PHI->getBasicBlockIndex(MiddleBlock) == -1) {
       PHI->addIncoming(I.second, MiddleBlock);
       Plan.removeLiveOut(PHI);
+    }
+  }
+}
+
+void InnerLoopVectorizer::fixupEarlyExitIVUsers(PHINode *OrigPhi,
+                                                const InductionDescriptor &II,
+                                                BasicBlock *VectorEarlyExitBB,
+                                                VPlan &Plan,
+                                                VPTransformState &State) {
+  // There are two kinds of external IV usages - those that use the value
+  // computed in the last iteration (the PHI) and those that use the penultimate
+  // value (the value that feeds into the phi from the loop latch).
+  // We allow both, but they, obviously, have different values.
+  DenseMap<Value *, Value *> MissingVals;
+  BasicBlock *OrigEarlyExitingBlock = Legal->getSpeculativeEarlyExitingBlock();
+  BasicBlock *OrigLoopLatch = OrigLoop->getLoopLatch();
+  Value *PostInc = OrigPhi->getIncomingValueForBlock(OrigLoopLatch);
+
+  auto FixUpPhi = [&](Instruction *UI, bool PostInc) -> Value * {
+    IRBuilder<> B(VectorEarlyExitBB->getTerminator());
+    assert(isa<PHINode>(UI) && "Expected LCSSA form");
+
+    // Fast-math-flags propagate from the original induction instruction.
+    if (II.getInductionBinOp() && isa<FPMathOperator>(II.getInductionBinOp()))
+      B.setFastMathFlags(II.getInductionBinOp()->getFastMathFlags());
+
+    // We need to discover the mask that led us into the early exit block.
+    Value *EarlyExitMask = Plan.getVectorLoopRegion()->getEarlyExitMask(&State);
+    VPCanonicalIVPHIRecipe *CanonicalIV = Plan.getCanonicalIV();
+    Type *CtzType = CanonicalIV->getStartValue()->getLiveInIRValue()->getType();
+    Value *Ctz;
+    if (EarlyExitMask)
+      Ctz = B.CreateCountTrailingZeroElems(CtzType, EarlyExitMask);
+    else
+      Ctz = ConstantInt::get(CtzType, 0);
+    Ctz = B.CreateAdd(Ctz,
+                      cast<PHINode>(State.get(CanonicalIV->getVPSingleValue(),
+                                              0, /*IsScalar=*/true)));
+    if (PostInc)
+      Ctz = B.CreateAdd(Ctz, ConstantInt::get(CtzType, 1));
+
+    Value *Escape = nullptr;
+    VPValue *StepVPV = Plan.getSCEVExpansion(II.getStep());
+    assert(StepVPV && "step must have been expanded during VPlan execution");
+    Value *Step = StepVPV->isLiveIn() ? StepVPV->getLiveInIRValue()
+                                      : State.get(StepVPV, {0, 0});
+    Escape = emitTransformedIndex(B, Ctz, II.getStartValue(), Step,
+                                  II.getKind(), II.getInductionBinOp());
+    Escape->setName("ind.early.escape");
+
+    return Escape;
+  };
+
+  for (User *U : PostInc->users()) {
+    // This assumes if it's not in the loop then it must be the normal
+    // exit block. However, it could be a user in an early exit block different
+    // to the latch's exit block.
+    auto *UI = cast<Instruction>(U);
+    if (!OrigLoop->contains(UI)) {
+      PHINode *PHI = dyn_cast<PHINode>(UI);
+      assert(PHI && "Expected LCSSA form");
+      int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
+      if (Index != -1 && PHI->getIncomingValue(Index) == PostInc)
+        MissingVals[UI] = FixUpPhi(UI, true);
+    }
+  }
+
+  for (User *U : OrigPhi->users()) {
+    auto *UI = cast<Instruction>(U);
+    if (!OrigLoop->contains(UI)) {
+      PHINode *PHI = dyn_cast<PHINode>(UI);
+      assert(PHI && "Expected LCSSA form");
+      int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
+      if (Index != -1 && PHI->getIncomingValue(Index) == OrigPhi)
+        MissingVals[UI] = FixUpPhi(UI, false);
+    }
+  }
+
+  for (auto &I : MissingVals) {
+    PHINode *PHI = cast<PHINode>(I.first);
+    // One corner case we have to handle is two IVs "chasing" each-other,
+    // that is %IV2 = phi [...], [ %IV1, %latch ]
+    // In this case, if IV1 has an external use, we need to avoid adding both
+    // "last value of IV1" and "penultimate value of IV2". So, verify that we
+    // don't already have an incoming value for the middle block.
+    if (PHI->getBasicBlockIndex(VectorEarlyExitBB) == -1) {
+      PHI->addIncoming(I.second, VectorEarlyExitBB);
+      Plan.removeEarlyExitLiveOut(PHI);
     }
   }
 }
@@ -3438,6 +3572,22 @@ void InnerLoopVectorizer::fixVectorizedLoop(VPTransformState &State,
 
   VPBasicBlock *LatchVPBB = VectorRegion->getExitingBasicBlock();
   Loop *VectorLoop = LI->getLoopFor(State.CFG.VPBB2IRBB[LatchVPBB]);
+
+  BasicBlock *VectorEarlyExitBB = nullptr;
+  if (VectorRegion->getEarlyExit()) {
+    // Fix-up external users of the induction variables.
+    VPBasicBlock *VectorEarlyExitVPBB =
+        cast<VPBasicBlock>(VectorRegion->getEarlyExit());
+    VectorEarlyExitBB = State.CFG.VPBB2IRBB[VectorEarlyExitVPBB];
+    for (const auto &Entry : Legal->getInductionVars())
+      fixupEarlyExitIVUsers(Entry.first, Entry.second, VectorEarlyExitBB, Plan,
+                            State);
+
+    BasicBlock *OrigEarlyExitBB = Legal->getSpeculativeEarlyExitBlock();
+    if (Loop *EEL = LI->getLoopFor(OrigEarlyExitBB))
+      EEL->addBasicBlockToLoop(VectorEarlyExitBB, *LI);
+  }
+
   if (Cost->requiresScalarEpilogue(VF.isVector())) {
     // No edge from the middle block to the unique exit block has been inserted
     // and there is nothing to fix from vector loop; phis should have incoming
@@ -3454,16 +3604,25 @@ void InnerLoopVectorizer::fixVectorizedLoop(VPTransformState &State,
     for (const auto &Entry : Legal->getInductionVars())
       fixupIVUsers(Entry.first, Entry.second,
                    getOrCreateVectorTripCount(VectorLoop->getLoopPreheader()),
-                   IVEndValues[Entry.first], LoopMiddleBlock,
-                   VectorLoop->getHeader(), Plan, State);
+                   IVEndValues[Entry.first], LoopMiddleBlock, Plan, State);
   }
 
   // Fix LCSSA phis not already fixed earlier. Extracts may need to be generated
   // in the exit block, so update the builder.
+  BasicBlock *OrigEarlyExitBB = Legal->hasSpeculativeEarlyExit()
+                                    ? Legal->getSpeculativeEarlyExitBlock()
+                                    : nullptr;
+
   State.Builder.SetInsertPoint(State.CFG.ExitBB,
                                State.CFG.ExitBB->getFirstNonPHIIt());
   for (const auto &KV : Plan.getLiveOuts())
     KV.second->fixPhi(Plan, State);
+
+  if (VectorEarlyExitBB) {
+    State.Builder.SetInsertPoint(VectorEarlyExitBB->getTerminator());
+    for (const auto &KV : Plan.getEarlyExitLiveOuts())
+      KV.second->fixPhi(Plan, State);
+  }
 
   for (Instruction *PI : PredicatedInstructions)
     sinkScalarOperands(&*PI);
@@ -4622,7 +4781,8 @@ LoopVectorizationCostModel::computeMaxVF(ElementCount UserVF, unsigned UserIC) {
   // a bottom-test and a single exiting block. We'd have to handle the fact
   // that not every instruction executes on the last iteration.  This will
   // require a lane mask which varies through the vector loop body.  (TODO)
-  if (TheLoop->getExitingBlock() != TheLoop->getLoopLatch()) {
+  if (Legal->hasSpeculativeEarlyExit() ||
+      TheLoop->getExitingBlock() != TheLoop->getLoopLatch()) {
     // If there was a tail-folding hint/switch, but we can't fold the tail by
     // masking, fallback to a vectorization with a scalar epilogue.
     if (ScalarEpilogueStatus == CM_ScalarEpilogueNotNeededUsePredicate) {
@@ -5087,7 +5247,9 @@ bool LoopVectorizationPlanner::isCandidateForEpilogueVectorization(
   // Epilogue vectorization code has not been auditted to ensure it handles
   // non-latch exits properly.  It may be fine, but it needs auditted and
   // tested.
-  if (OrigLoop->getExitingBlock() != OrigLoop->getLoopLatch())
+  // TODO: Add support for loops with an early exit.
+  if (Legal->hasSpeculativeEarlyExit() ||
+      OrigLoop->getExitingBlock() != OrigLoop->getLoopLatch())
     return false;
 
   return true;
@@ -5194,7 +5356,8 @@ VectorizationFactor LoopVectorizationPlanner::selectEpilogueVectorizationFactor(
     if (!MainLoopVF.isScalable() && !NextVF.Width.isScalable()) {
       // TODO: extend to support scalable VFs.
       if (!RemainingIterations) {
-        const SCEV *TC = createTripCountSCEV(TCType, PSE, OrigLoop);
+        const SCEV *TC = createTripCountSCEV(TCType, PSE, OrigLoop,
+                                             Legal->hasSpeculativeEarlyExit());
         RemainingIterations = SE.getURemExpr(
             TC, SE.getConstant(TCType, MainLoopVF.getKnownMinValue() * IC));
       }
@@ -5319,6 +5482,10 @@ LoopVectorizationCostModel::selectInterleaveCount(ElementCount VF,
 
   // We used the distance for the interleave count.
   if (!Legal->isSafeForAnyVectorWidth())
+    return 1;
+
+  // We don't attempt to perform interleaving for early exit loops.
+  if (Legal->hasSpeculativeEarlyExit())
     return 1;
 
   auto BestKnownTC = getSmallBestKnownTC(*PSE.getSE(), TheLoop);
@@ -6895,7 +7062,20 @@ LoopVectorizationCostModel::getInstructionCost(Instruction *I, ElementCount VF,
     } else if (I->getParent() == TheLoop->getLoopLatch() || VF.isScalar())
       // The back-edge branch will remain, as will all scalar branches.
       return TTI.getCFInstrCost(Instruction::Br, CostKind);
-    else
+    else if (I->getParent() == Legal->getSpeculativeEarlyExitingBlock()) {
+      // In order to determine whether we take an early exit or not we have to
+      // perform an or reduction of the vector predicate.
+      auto *Vec_i1Ty =
+          VectorType::get(IntegerType::getInt1Ty(RetTy->getContext()), VF);
+      InstructionCost EECost = TTI.getArithmeticReductionCost(
+          Instruction::Or, Vec_i1Ty, std::nullopt, CostKind);
+      // Add on the cost of the conditional branch, which will remain.
+      EECost += TTI.getCFInstrCost(Instruction::Br, CostKind);
+      // TODO: The vector loop early exit block also needs to do work to
+      // determine the first lane that triggered the exit. We should probably
+      // add that somehow, but the cost will be negligible for long loops.
+      return EECost;
+    } else
       // This branch will be eliminated by if-conversion.
       return 0;
     // Note: We currently assume zero cost for an unconditional branch inside
@@ -8589,13 +8769,19 @@ static void addCanonicalIVRecipes(VPlan &Plan, Type *IdxTy, bool HasNUW,
 
 // Add exit values to \p Plan. VPLiveOuts are added for each LCSSA phi in the
 // original exit block.
-static void addUsersInExitBlock(VPBasicBlock *HeaderVPBB, Loop *OrigLoop,
-                                VPRecipeBuilder &Builder, VPlan &Plan) {
-  BasicBlock *ExitBB = OrigLoop->getUniqueExitBlock();
-  BasicBlock *ExitingBB = OrigLoop->getExitingBlock();
-  // Only handle single-exit loops with unique exit blocks for now.
-  if (!ExitBB || !ExitBB->getSinglePredecessor() || !ExitingBB)
-    return;
+static void addUsersInExitBlock(Loop *OrigLoop, VPRecipeBuilder &Builder,
+                                VPlan &Plan) {
+  BasicBlock *ExitBB, *ExitingBB;
+
+  if (Plan.getVectorLoopRegion()->getEarlyExit()) {
+    ExitingBB = OrigLoop->getLoopLatch();
+    ExitBB = OrigLoop->getLatchExitBlock();
+  } else {
+    ExitBB = OrigLoop->getUniqueExitBlock();
+    ExitingBB = OrigLoop->getExitingBlock();
+    if (!ExitBB || !ExitBB->getSinglePredecessor() || !ExitingBB)
+      return;
+  }
 
   // Introduce VPUsers modeling the exit values.
   for (PHINode &ExitPhi : ExitBB->phis()) {
@@ -8604,6 +8790,52 @@ static void addUsersInExitBlock(VPBasicBlock *HeaderVPBB, Loop *OrigLoop,
     VPValue *V = Builder.getVPValueOrAddLiveIn(IncomingValue, Plan);
     Plan.addLiveOut(&ExitPhi, V);
   }
+}
+
+// Add exit values to \p Plan. VPLiveOuts are added for each LCSSA phi in the
+// original exit block.
+static void addUsersInEarlyExitBlock(Loop *OrigLoop, BasicBlock *EarlyExitingBB,
+                                     BasicBlock *EarlyExitBB,
+                                     VPRecipeBuilder &Builder, VPlan &Plan) {
+  // Introduce VPUsers modeling the exit values.
+  for (PHINode &ExitPhi : EarlyExitBB->phis()) {
+    Value *IncomingValue = ExitPhi.getIncomingValueForBlock(EarlyExitingBB);
+    VPValue *V = Builder.getVPValueOrAddLiveIn(IncomingValue, Plan);
+    Plan.addEarlyExitLiveOut(&ExitPhi, V);
+  }
+}
+
+static VPValue *getConditionForVectorEarlyExit(Loop *OrigLoop,
+                                               BasicBlock *ExitingBB,
+                                               VPlan &Plan, VPBuilder &Builder,
+                                               VPRecipeBuilder &RecipeBuilder,
+                                               VPRecipeBase *VPEarlyExitCond) {
+  // To make things easier we canonicalise the condition so that 'true'
+  // means take the early exit.
+  auto *BI = cast<BranchInst>(ExitingBB->getTerminator());
+
+  // If the true destination is in the loop then we want to invert the
+  // condition so that true means early exit.
+  bool NeedsInvert = OrigLoop->contains(BI->getSuccessor(0));
+
+  VPValue *ScalarExitCond;
+  if (!VPEarlyExitCond) {
+    // If we didn't find the exit condition, then this must have been
+    // defined outside the loop and is loop invariant.
+    ScalarExitCond =
+        RecipeBuilder.getVPValueOrAddLiveIn(BI->getCondition(), Plan);
+    if (NeedsInvert)
+      ScalarExitCond = Builder.createNot(ScalarExitCond);
+  } else {
+    VPValue *EarlyExitMask = VPEarlyExitCond->getVPSingleValue();
+    if (NeedsInvert)
+      EarlyExitMask = Builder.createNot(EarlyExitMask);
+    Plan.getVectorLoopRegion()->setVectorEarlyExitCond(EarlyExitMask);
+    // If any lane of EarlyExitMask would be true we should exit the loop.
+    ScalarExitCond =
+        Builder.createNaryOp(VPInstruction::OrReduction, {EarlyExitMask});
+  }
+  return ScalarExitCond;
 }
 
 VPlanPtr
@@ -8622,13 +8854,25 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
   // the vector loop, followed by the middle basic block. The skeleton vector
   // loop region contains a header and latch basic blocks.
   VPlanPtr Plan = VPlan::createInitialVPlan(
-      createTripCountSCEV(Legal->getWidestInductionType(), PSE, OrigLoop),
+      createTripCountSCEV(Legal->getWidestInductionType(), PSE, OrigLoop,
+                          Legal->hasSpeculativeEarlyExit()),
       *PSE.getSE());
   VPBasicBlock *HeaderVPBB = new VPBasicBlock("vector.body");
   VPBasicBlock *LatchVPBB = new VPBasicBlock("vector.latch");
   VPBlockUtils::insertBlockAfter(LatchVPBB, HeaderVPBB);
   Plan->getVectorLoopRegion()->setEntry(HeaderVPBB);
   Plan->getVectorLoopRegion()->setExiting(LatchVPBB);
+
+  VPBasicBlock *EarlyExitVPBB = nullptr;
+  BasicBlock *EarlyExitingBB = nullptr;
+  if (Legal->hasSpeculativeEarlyExit()) {
+    EarlyExitingBB = Legal->getSpeculativeEarlyExitingBlock();
+    EarlyExitVPBB = new VPBasicBlock("vector.early.exit");
+    Plan->getVectorLoopRegion()->setEarlyExit(EarlyExitVPBB);
+    // Needed for updating the dominator tree.
+    Plan->getVectorLoopRegion()->setOrigEarlyExit(
+        Legal->getSpeculativeEarlyExitBlock());
+  }
 
   // Don't use getDecisionAndClampRange here, because we don't know the UF
   // so this function is better to be conservative, rather than to split
@@ -8690,6 +8934,16 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
         bool NeedsBlends = BB != HeaderBB && !BB->phis().empty();
         return Legal->blockNeedsPredication(BB) || NeedsBlends;
       });
+
+  // If we find the recipe for the early exit condition we need to record it
+  // so that we can then generate the new vector exit condition.
+  VPRecipeBase *VPEarlyExitCond = nullptr;
+  Value *EarlyExitCond = nullptr;
+  if (EarlyExitingBB) {
+    BranchInst *BI = cast<BranchInst>(EarlyExitingBB->getTerminator());
+    EarlyExitCond = BI->getCondition();
+  }
+
   for (BasicBlock *BB : make_range(DFS.beginRPO(), DFS.endRPO())) {
     // Relevant instructions from basic block BB will be grouped into VPRecipe
     // ingredients and fill a new VPBasicBlock.
@@ -8728,6 +8982,9 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
       if (!Recipe)
         Recipe = RecipeBuilder.handleReplication(Instr, Range);
 
+      if (&I == EarlyExitCond)
+        VPEarlyExitCond = Recipe;
+
       RecipeBuilder.setRecipe(Instr, Recipe);
       if (isa<VPHeaderPHIRecipe>(Recipe)) {
         // VPHeaderPHIRecipes must be kept in the phi section of HeaderVPBB. In
@@ -8746,19 +9003,47 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
         VPBB->appendRecipe(Recipe);
     }
 
-    VPBlockUtils::insertBlockAfter(new VPBasicBlock(), VPBB);
-    VPBB = cast<VPBasicBlock>(VPBB->getSingleSuccessor());
+    // If this is an early exit block we need to do more work to generate the
+    // actual exit condition. We generate an or reduction of the vector
+    // condition so that we exit the loop if any lane of the vector would cause
+    // us to exit.
+    if (BB == EarlyExitingBB) {
+      VPValue *ScalarExitCond = getConditionForVectorEarlyExit(
+          OrigLoop, BB, *Plan, Builder, RecipeBuilder, VPEarlyExitCond);
+
+      // Branch to early exit BB.
+      auto *NewBR =
+          new VPInstruction(VPInstruction::BranchOnCond, {ScalarExitCond});
+      RecipeBuilder.setRecipe(cast<BranchInst>(BB->getTerminator()), NewBR);
+      VPBB->appendRecipe(NewBR);
+
+      VPBasicBlock *InLoopVPBB = new VPBasicBlock();
+
+      // Surely there should only be one succesor?!
+      VPBlockBase *Successor = VPBB->getSingleSuccessor();
+      VPBlockUtils::disconnectBlocks(VPBB, Successor);
+      VPBlockUtils::insertTwoBlocksAfter(EarlyExitVPBB, InLoopVPBB, VPBB);
+      VPBlockUtils::connectBlocks(InLoopVPBB, Successor);
+
+      VPBB = InLoopVPBB;
+    } else {
+      VPBlockUtils::insertBlockAfter(new VPBasicBlock(), VPBB);
+      VPBB = cast<VPBasicBlock>(VPBB->getSingleSuccessor());
+    }
   }
 
   // After here, VPBB should not be used.
   VPBB = nullptr;
-
+  if (EarlyExitingBB)
+    addUsersInEarlyExitBlock(OrigLoop, EarlyExitingBB,
+                             Legal->getSpeculativeEarlyExitBlock(),
+                             RecipeBuilder, *Plan);
   if (CM.requiresScalarEpilogue(Range)) {
     // No edge from the middle block to the unique exit block has been inserted
     // and there is nothing to fix from vector loop; phis should have incoming
     // from scalar loop only.
   } else
-    addUsersInExitBlock(HeaderVPBB, OrigLoop, RecipeBuilder, *Plan);
+    addUsersInExitBlock(OrigLoop, RecipeBuilder, *Plan);
 
   assert(isa<VPRegionBlock>(Plan->getVectorLoopRegion()) &&
          !Plan->getVectorLoopRegion()->getEntryBasicBlock()->empty() &&
@@ -8856,7 +9141,8 @@ VPlanPtr LoopVectorizationPlanner::buildVPlan(VFRange &Range) {
 
   // Create new empty VPlan
   auto Plan = VPlan::createInitialVPlan(
-      createTripCountSCEV(Legal->getWidestInductionType(), PSE, OrigLoop),
+      createTripCountSCEV(Legal->getWidestInductionType(), PSE, OrigLoop,
+                          Legal->hasSpeculativeEarlyExit()),
       *PSE.getSE());
 
   // Build hierarchical CFG
@@ -9580,7 +9866,8 @@ static bool processLoopInVPlanNativePath(
     bool AddBranchWeights =
         hasBranchWeightMD(*L->getLoopLatch()->getTerminator());
     GeneratedRTChecks Checks(*PSE.getSE(), DT, LI, TTI,
-                             F->getParent()->getDataLayout(), AddBranchWeights);
+                             F->getParent()->getDataLayout(), AddBranchWeights,
+                             false);
     InnerLoopVectorizer LB(L, PSE, LI, DT, TLI, TTI, AC, ORE, VF.Width,
                            VF.Width, 1, LVL, &CM, BFI, PSI, Checks);
     LLVM_DEBUG(dbgs() << "Vectorizing outer loop in \""
@@ -9802,6 +10089,17 @@ bool LoopVectorizePass::processLoop(Loop *L) {
     return false;
   }
 
+  // We may not have LAI at this point.
+  if (LVL.hasSpeculativeEarlyExit() && LVL.getLAI()->mayFault()) {
+    if (!AssumeNoMemFault) {
+      LLVM_DEBUG(dbgs() << "LV: Not vectorizing: Cannot vectorize faulting "
+                        << "loop with early exit.\n");
+      return false;
+    }
+    LLVM_DEBUG(dbgs() << "LV: Assuming early exit vector loop will not "
+                      << "fault\n");
+  }
+
   // Entrance to the VPlan-native vectorization path. Outer loops are processed
   // here. They may require CFG and instruction level transformations before
   // even evaluating whether vectorization is profitable. Since we cannot modify
@@ -9928,7 +10226,8 @@ bool LoopVectorizePass::processLoop(Loop *L) {
   bool AddBranchWeights =
       hasBranchWeightMD(*L->getLoopLatch()->getTerminator());
   GeneratedRTChecks Checks(*PSE.getSE(), DT, LI, TTI,
-                           F->getParent()->getDataLayout(), AddBranchWeights);
+                           F->getParent()->getDataLayout(), AddBranchWeights,
+                           LVL.hasSpeculativeEarlyExit());
   if (MaybeVF) {
     VF = *MaybeVF;
     // Select the interleave count.

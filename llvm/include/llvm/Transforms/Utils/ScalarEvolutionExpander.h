@@ -124,6 +124,11 @@ class SCEVExpander : public SCEVVisitor<SCEVExpander, Value *> {
   /// "expanded" form.
   bool LSRMode;
 
+  /// If the loop has an early exit we may have to use the speculative backedge
+  /// count, since the normal backedge count function is unable to compute a
+  /// SCEV expression.
+  bool UseSpeculativeBackedgeCount;
+
   typedef IRBuilder<InstSimplifyFolder, IRBuilderCallbackInserter> BuilderType;
   BuilderType Builder;
 
@@ -176,10 +181,12 @@ class SCEVExpander : public SCEVVisitor<SCEVExpander, Value *> {
 public:
   /// Construct a SCEVExpander in "canonical" mode.
   explicit SCEVExpander(ScalarEvolution &se, const DataLayout &DL,
-                        const char *name, bool PreserveLCSSA = true)
+                        const char *name, bool PreserveLCSSA = true,
+                        bool UseSpeculativeBackedgeCount = false)
       : SE(se), DL(DL), IVName(name), PreserveLCSSA(PreserveLCSSA),
         IVIncInsertLoop(nullptr), IVIncInsertPos(nullptr), CanonicalMode(true),
         LSRMode(false),
+        UseSpeculativeBackedgeCount(UseSpeculativeBackedgeCount),
         Builder(se.getContext(), InstSimplifyFolder(DL),
                 IRBuilderCallbackInserter(
                     [this](Instruction *I) { rememberInstruction(I); })) {

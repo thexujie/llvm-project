@@ -730,6 +730,9 @@ public:
     return UnderlyingObjects;
   }
 
+  /// Returns true if we cannot prove the loop will not fault.
+  bool mayFault();
+
 private:
   typedef MapVector<MemAccessInfo, SmallSetVector<Type *, 1>> PtrAccessMap;
 
@@ -1279,6 +1282,63 @@ bool AccessAnalysis::canCheckPtrAtRT(RuntimePointerChecking &RtCheck,
   if (!CanDoRTIfNeeded)
     RtCheck.reset();
   return CanDoRTIfNeeded;
+}
+
+bool AccessAnalysis::mayFault() {
+  auto &DL = TheLoop->getHeader()->getModule()->getDataLayout();
+  for (auto &UO : UnderlyingObjects) {
+    // TODO: For now if we encounter more than one underlying object we just
+    // assume it could fault. However, with more analysis it's possible to look
+    // at all of them and calculate a common range of permitted GEP indices.
+    if (UO.second.size() != 1)
+      return true;
+
+    // For now only the simplest cases are permitted, but this could be
+    // extended further.
+    auto *GEP = dyn_cast<GetElementPtrInst>(UO.first);
+    if (!GEP || GEP->getPointerOperand() != UO.second[0] ||
+        GEP->getNumIndices() != 1)
+      return true;
+
+    // Verify pointer accessed within the loop always falls within the bounds
+    // of the underlying object, but first it's necessary to determine the
+    // object size.
+
+    auto GetKnownObjSize = [&](const Value *Obj) -> uint64_t {
+      // TODO: We should also be able to support global variables too.
+      if (auto *AllocaObj = dyn_cast<AllocaInst>(Obj)) {
+        if (TheLoop->isLoopInvariant(AllocaObj))
+          if (std::optional<TypeSize> AllocaSize =
+                  AllocaObj->getAllocationSize(DL))
+            return !AllocaSize->isScalable() ? AllocaSize->getFixedValue() : 0;
+      } else if (auto *ArgObj = dyn_cast<Argument>(Obj))
+        return ArgObj->getDereferenceableBytes();
+      return 0;
+    };
+
+    uint64_t ObjSize = GetKnownObjSize(UO.second[0]);
+    if (!ObjSize)
+      return true;
+
+    Value *GEPInd = GEP->getOperand(1);
+    const SCEV *IndScev = PSE.getSCEV(GEPInd);
+    if (!isa<SCEVAddRecExpr>(IndScev))
+      return true;
+
+    // Calculate the maximum number of addressable elements in the object.
+    uint64_t ElemSize = GEP->getSourceElementType()->getScalarSizeInBits() / 8;
+    uint64_t MaxNumElems = ObjSize / ElemSize;
+
+    const SCEV *MinScev = PSE.getSE()->getConstant(GEPInd->getType(), 0);
+    const SCEV *MaxScev =
+        PSE.getSE()->getConstant(GEPInd->getType(), MaxNumElems);
+    if (!PSE.getSE()->isKnownOnEveryIteration(
+            ICmpInst::ICMP_SGE, cast<SCEVAddRecExpr>(IndScev), MinScev) ||
+        !PSE.getSE()->isKnownOnEveryIteration(
+            ICmpInst::ICMP_SLT, cast<SCEVAddRecExpr>(IndScev), MaxScev))
+      return true;
+  }
+  return false;
 }
 
 void AccessAnalysis::processMemAccesses() {
@@ -2346,6 +2406,67 @@ void MemoryDepChecker::Dependence::print(
   OS.indent(Depth + 2) << *Instrs[Destination] << "\n";
 }
 
+bool LoopAccessInfo::isAnalyzableEarlyExitLoop() {
+  // At least one of the exiting blocks must be the latch.
+  BasicBlock *LatchBB = TheLoop->getLoopLatch();
+  if (!LatchBB)
+    return false;
+
+  SmallVector<BasicBlock *, 8> ExitingBlocks;
+  TheLoop->getExitingBlocks(ExitingBlocks);
+
+  // This is definitely not an early exit loop.
+  if (ExitingBlocks.size() < 2)
+    return false;
+
+  SmallVector<BasicBlock *, 4> CountableExitingBBs;
+  PSE->getSE()->getCountableExitingBlocks(TheLoop, &CountableExitingBBs);
+
+  // We only support one speculative early exit.
+  if ((ExitingBlocks.size() - CountableExitingBBs.size()) > 1)
+    return false;
+
+  // There could be multiple exiting blocks with an exact exit-not-taken
+  // count. Find the speculative early exit block, i.e. the one with an
+  // unknown count.
+  BasicBlock *TmpBB = nullptr;
+  for (BasicBlock *BB1 : ExitingBlocks) {
+    if (!is_contained(CountableExitingBBs, BB1)) {
+      TmpBB = BB1;
+      break;
+    }
+  }
+  assert(TmpBB && "Expected to find speculative early exiting block");
+
+  // For now, let's keep things simple by ensuring the latch block only has
+  // the exiting block as a predecessor.
+  BasicBlock *LatchPredBB = LatchBB->getUniquePredecessor();
+  if (!LatchPredBB || LatchPredBB != TmpBB)
+    return false;
+
+  LLVM_DEBUG(
+      dbgs()
+      << "LAA: Found an early exit. Retrying with speculative exit count.\n");
+  const SCEV *SpecExitCount = PSE->getSpeculativeBackedgeTakenCount();
+  if (isa<SCEVCouldNotCompute>(SpecExitCount))
+    return false;
+
+  LLVM_DEBUG(dbgs() << "LAA: Found speculative backedge taken count: "
+                    << *SpecExitCount << '\n');
+  SpeculativeEarlyExitingBB = TmpBB;
+
+  for (BasicBlock *BB : successors(SpeculativeEarlyExitingBB))
+    if (BB != LatchBB) {
+      SpeculativeEarlyExitBB = BB;
+      break;
+    }
+  assert(SpeculativeEarlyExitBB &&
+         "Expected to find speculative early exit block");
+  CountableEarlyExitingBlocks = std::move(CountableExitingBBs);
+
+  return true;
+}
+
 bool LoopAccessInfo::canAnalyzeLoop() {
   // We need to have a loop header.
   LLVM_DEBUG(dbgs() << "LAA: Found a loop in "
@@ -2371,10 +2492,12 @@ bool LoopAccessInfo::canAnalyzeLoop() {
   // ScalarEvolution needs to be able to find the exit count.
   const SCEV *ExitCount = PSE->getBackedgeTakenCount();
   if (isa<SCEVCouldNotCompute>(ExitCount)) {
-    recordAnalysis("CantComputeNumberOfIterations")
-        << "could not determine number of loop iterations";
     LLVM_DEBUG(dbgs() << "LAA: SCEV could not compute the loop exit count.\n");
-    return false;
+    if (!isAnalyzableEarlyExitLoop()) {
+      recordAnalysis("CantComputeNumberOfIterations")
+          << "could not determine number of loop iterations";
+      return false;
+    }
   }
 
   return true;
@@ -2406,6 +2529,9 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
       EnableMemAccessVersioning &&
       !TheLoop->getHeader()->getParent()->hasOptSize();
 
+  BasicBlock *LatchBB = TheLoop->getLoopLatch();
+  bool HasComplexWorkInEarlyExitLoop = false;
+
   // Traverse blocks in fixed RPOT order, regardless of their storage in the
   // loop info, as it may be arbitrary.
   LoopBlocksRPO RPOT(TheLoop);
@@ -2421,7 +2547,8 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
 
       // With both a non-vectorizable memory instruction and a convergent
       // operation, found in this loop, no reason to continue the search.
-      if (HasComplexMemInst && HasConvergentOp) {
+      if ((HasComplexMemInst && HasConvergentOp) ||
+          HasComplexWorkInEarlyExitLoop) {
         CanVecMem = false;
         return;
       }
@@ -2439,6 +2566,14 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
       // vectorize a loop if it contains known function calls that don't set
       // the flag. Therefore, it is safe to ignore this read from memory.
       auto *Call = dyn_cast<CallInst>(&I);
+      if (Call && SpeculativeEarlyExitingBB) {
+        recordAnalysis("CantVectorizeInstruction", Call)
+            << "cannot vectorize calls in early exit loop";
+        LLVM_DEBUG(dbgs() << "LAA: Found a call in early exit loop.\n");
+        HasComplexWorkInEarlyExitLoop = true;
+        continue;
+      }
+
       if (Call && getVectorIntrinsicIDForCall(Call, TLI))
         continue;
 
@@ -2466,6 +2601,13 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
           HasComplexMemInst = true;
           continue;
         }
+        if (SpeculativeEarlyExitingBB && BB == LatchBB) {
+          recordAnalysis("CantVectorizeInstruction", Call)
+              << "cannot vectorize loads after early exit block";
+          LLVM_DEBUG(dbgs() << "LAA: Found a load after early exit.\n");
+          HasComplexWorkInEarlyExitLoop = true;
+          continue;
+        }
         NumLoads++;
         Loads.push_back(Ld);
         DepChecker->addAccess(Ld);
@@ -2477,6 +2619,15 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
       // Save 'store' instructions. Abort if other instructions write to memory.
       if (I.mayWriteToMemory()) {
         auto *St = dyn_cast<StoreInst>(&I);
+        if (SpeculativeEarlyExitingBB) {
+          recordAnalysis("CantVectorizeInstruction", &I)
+              << "cannot vectorize instructions that write to memory in early "
+              << "exit loop";
+          LLVM_DEBUG(dbgs() << "LAA: Found an instruction that writes to "
+                            << "memory in early exit loop.\n");
+          HasComplexWorkInEarlyExitLoop = true;
+          continue;
+        }
         if (!St) {
           recordAnalysis("CantVectorizeInstruction", St)
               << "instruction cannot be vectorized";
@@ -2499,7 +2650,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
     } // Next instr.
   } // Next block.
 
-  if (HasComplexMemInst) {
+  if (HasComplexMemInst || HasComplexWorkInEarlyExitLoop) {
     CanVecMem = false;
     return;
   }
@@ -2507,13 +2658,20 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
   // Now we have two lists that hold the loads and the stores.
   // Next, we find the pointers that they use.
 
+  // If there is at least one memory access in the loop then it may fault. We
+  // will try to refine this later for certain early exit loops.
+  LoopMayFault = true;
+
   // Check if we see any stores. If there are no stores, then we don't
   // care if the pointers are *restrict*.
-  if (!Stores.size()) {
+  if (!Stores.size() && !SpeculativeEarlyExitingBB) {
     LLVM_DEBUG(dbgs() << "LAA: Found a read-only loop!\n");
     CanVecMem = true;
     return;
   }
+
+  assert(!Stores.size() || !SpeculativeEarlyExitingBB &&
+                               "Did not expect stores in an early exit loop!");
 
   MemoryDepChecker::DepCandidates DependentAccesses;
   AccessAnalysis Accesses(TheLoop, AA, LI, DependentAccesses, *PSE,
@@ -2561,7 +2719,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
     }
   }
 
-  if (IsAnnotatedParallel) {
+  if (IsAnnotatedParallel && !SpeculativeEarlyExitingBB) {
     LLVM_DEBUG(
         dbgs() << "LAA: A loop annotated parallel, ignore memory dependency "
                << "checks.\n");
@@ -2611,7 +2769,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
 
   // If we write (or read-write) to a single destination and there are no
   // other reads in this loop then is it safe to vectorize.
-  if (NumReadWrites == 1 && NumReads == 0) {
+  if (!SpeculativeEarlyExitingBB && NumReadWrites == 1 && NumReads == 0) {
     LLVM_DEBUG(dbgs() << "LAA: Found a write-only loop!\n");
     CanVecMem = true;
     return;
@@ -2620,6 +2778,12 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
   // Build dependence sets and check whether we need a runtime pointer bounds
   // check.
   Accesses.buildDependenceSets();
+
+  if (SpeculativeEarlyExitingBB) {
+    LoopMayFault = Accesses.mayFault();
+    CanVecMem = true;
+    return;
+  }
 
   // Find pointers with computable bounds. We are going to use this information
   // to place a runtime bound check.
@@ -2977,7 +3141,9 @@ void LoopAccessInfo::collectStridedAccess(Value *MemAccess) {
   // of various possible stride specializations, considering the alternatives
   // of using gather/scatters (if available).
 
-  const SCEV *BETakenCount = PSE->getBackedgeTakenCount();
+  const SCEV *BETakenCount = SpeculativeEarlyExitingBB
+                                 ? PSE->getSpeculativeBackedgeTakenCount()
+                                 : PSE->getBackedgeTakenCount();
 
   // Match the types so we can compare the stride and the BETakenCount.
   // The Stride can be positive/negative, so we sign extend Stride;

@@ -489,8 +489,10 @@ void VPBasicBlock::execute(VPTransformState *State) {
     UnreachableInst *Terminator = State->Builder.CreateUnreachable();
     // Register NewBB in its loop. In innermost loops its the same for all
     // BB's.
-    if (State->CurrentVectorLoop)
+    if (State->CurrentVectorLoop &&
+        this != getPlan()->getVectorLoopRegion()->getEarlyExit()) {
       State->CurrentVectorLoop->addBasicBlockToLoop(NewBB, *State->LI);
+    }
     State->Builder.SetInsertPoint(Terminator);
     State->CFG.PrevBB = NewBB;
   }
@@ -750,6 +752,10 @@ VPlan::~VPlan() {
     delete KV.second;
   LiveOuts.clear();
 
+  for (auto &KV : EarlyExitLiveOuts)
+    delete KV.second;
+  EarlyExitLiveOuts.clear();
+
   if (Entry) {
     VPValue DummyValue;
     for (VPBlockBase *Block : vp_depth_first_shallow(Entry))
@@ -891,12 +897,29 @@ void VPlan::execute(VPTransformState *State) {
     }
   }
 
+  BasicBlock *VectorEarlyExitBB = nullptr;
+  BasicBlock *VectorEarlyExitingBB = nullptr;
+  BasicBlock *OrigEarlyExitBB = nullptr;
+  if (getVectorLoopRegion()->getEarlyExit()) {
+    VPBasicBlock *EarlyExitVPBB =
+        cast<VPBasicBlock>(getVectorLoopRegion()->getEarlyExit());
+    VPBasicBlock *EarlyExitingVPBB =
+        cast<VPBasicBlock>(EarlyExitVPBB->getSinglePredecessor());
+    VectorEarlyExitBB = State->CFG.VPBB2IRBB[EarlyExitVPBB];
+    VectorEarlyExitingBB = State->CFG.VPBB2IRBB[EarlyExitingVPBB];
+    OrigEarlyExitBB = getVectorLoopRegion()->getOrigEarlyExit();
+    BranchInst *BI = BranchInst::Create(OrigEarlyExitBB);
+    BI->insertBefore(VectorEarlyExitBB->getTerminator());
+    VectorEarlyExitBB->getTerminator()->eraseFromParent();
+  }
+
   // We do not attempt to preserve DT for outer loop vectorization currently.
   if (!EnableVPlanNativePath) {
     BasicBlock *VectorHeaderBB = State->CFG.VPBB2IRBB[Header];
     State->DT->addNewBlock(VectorHeaderBB, VectorPreHeader);
     updateDominatorTree(State->DT, VectorHeaderBB, VectorLatchBB,
-                        State->CFG.ExitBB);
+                        State->CFG.ExitBB, VectorEarlyExitingBB,
+                        VectorEarlyExitBB, OrigEarlyExitBB);
   }
 }
 
@@ -954,6 +977,12 @@ void VPlan::print(raw_ostream &O) const {
     KV.second->print(O, SlotTracker);
   }
 
+  if (!EarlyExitLiveOuts.empty())
+    O << "\n";
+  for (const auto &KV : EarlyExitLiveOuts) {
+    KV.second->print(O, SlotTracker);
+  }
+
   O << "}\n";
 }
 
@@ -995,9 +1024,17 @@ void VPlan::addLiveOut(PHINode *PN, VPValue *V) {
   LiveOuts.insert({PN, new VPLiveOut(PN, V)});
 }
 
+void VPlan::addEarlyExitLiveOut(PHINode *PN, VPValue *V) {
+  assert(EarlyExitLiveOuts.count(PN) == 0 &&
+         "an exit value for PN already exists");
+  EarlyExitLiveOuts.insert({PN, new VPLiveOut(PN, V, true)});
+}
+
 void VPlan::updateDominatorTree(DominatorTree *DT, BasicBlock *LoopHeaderBB,
-                                BasicBlock *LoopLatchBB,
-                                BasicBlock *LoopExitBB) {
+                                BasicBlock *LoopLatchBB, BasicBlock *LoopExitBB,
+                                BasicBlock *VectorLoopEarlyExitingBB,
+                                BasicBlock *VectorLoopEarlyExitBB,
+                                BasicBlock *OrigEarlyExitBB) {
   // The vector body may be more than a single basic-block by this point.
   // Update the dominator tree information inside the vector body by propagating
   // it from header to latch, expecting only triangular control-flow, if any.
@@ -1007,14 +1044,31 @@ void VPlan::updateDominatorTree(DominatorTree *DT, BasicBlock *LoopHeaderBB,
     std::vector<BasicBlock *> Succs(succ_begin(BB), succ_end(BB));
     assert(Succs.size() <= 2 &&
            "Basic block in vector loop has more than 2 successors.");
-    PostDomSucc = Succs[0];
     if (Succs.size() == 1) {
       assert(PostDomSucc->getSinglePredecessor() &&
              "PostDom successor has more than one predecessor.");
+      PostDomSucc = Succs[0];
       DT->addNewBlock(PostDomSucc, BB);
       continue;
     }
+
+    // Deal with early exits.
+    if (BB == VectorLoopEarlyExitingBB) {
+      BasicBlock *InLoopBB =
+          Succs[0] == VectorLoopEarlyExitBB ? Succs[1] : Succs[0];
+      assert(InLoopBB->getSinglePredecessor() &&
+             "Interim successor has more than one predecessor.");
+      assert(VectorLoopEarlyExitBB->getSinglePredecessor() &&
+             "Interim successor has more than one predecessor.");
+      DT->addNewBlock(VectorLoopEarlyExitBB, BB);
+      DT->addNewBlock(InLoopBB, BB);
+      DT->insertEdge(VectorLoopEarlyExitBB, OrigEarlyExitBB);
+      PostDomSucc = InLoopBB;
+      continue;
+    }
+
     BasicBlock *InterimSucc = Succs[1];
+    PostDomSucc = Succs[0];
     if (PostDomSucc->getSingleSuccessor() == InterimSucc) {
       PostDomSucc = Succs[1];
       InterimSucc = Succs[0];
@@ -1102,6 +1156,10 @@ VPlan *VPlan::duplicate() {
   // Clone live-outs.
   for (const auto &[_, LO] : LiveOuts)
     NewPlan->addLiveOut(LO->getPhi(), Old2NewVPValues[LO->getOperand(0)]);
+
+  for (const auto &[_, LO] : EarlyExitLiveOuts)
+    NewPlan->addEarlyExitLiveOut(LO->getPhi(),
+                                 Old2NewVPValues[LO->getOperand(0)]);
 
   // Initialize remaining fields of cloned VPlan.
   NewPlan->VFs = VFs;
