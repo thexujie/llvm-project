@@ -31,6 +31,7 @@
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveStacks.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <queue>
 using namespace llvm;
 
@@ -57,6 +58,7 @@ namespace {
 template <typename T>
 static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
                            const LiveIntervals *LIS) {
+  
   if (MRI->isSSA() || !MI)
     return MRI->getUniqueVRegDef(Reg);
 
@@ -70,20 +72,16 @@ static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
       }))
     return MI;
 
-  if (Reg.isVirtual() && LIS->hasInterval(Reg)) {
-    auto &LI = LIS->getInterval(Reg);
-    SlotIndexes *SIs = LIS->getSlotIndexes();
-    SlotIndex SI = SIs->getInstructionIndex(*MI);
-    VNInfo *Valno = LI.getVNInfoBefore(SI);
-    if (!Valno || Valno->isPHIDef())
-      return nullptr;
-    MachineInstr *DefMI = SIs->getInstructionFromIndex(Valno->def);
-    return DefMI;
-  }
+  assert(Reg.isVirtual() && LIS->hasInterval(Reg));
 
-  // TODO: Handle physical register
-
-  return nullptr;
+  auto &LI = LIS->getInterval(Reg);
+  SlotIndexes *SIs = LIS->getSlotIndexes();
+  SlotIndex SI = SIs->getInstructionIndex(*MI);
+  VNInfo *Valno = LI.getVNInfoBefore(SI);
+  if (!Valno || Valno->isPHIDef())
+    return nullptr;
+  MachineInstr *DefMI = SIs->getInstructionFromIndex(Valno->def);
+  return DefMI;
 }
 
 static unsigned getVLOpNum(const MachineInstr &MI) {
