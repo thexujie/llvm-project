@@ -926,7 +926,8 @@ INITIALIZE_PASS(RISCVCoalesceVSETVLI, "riscv-coalesce-vsetvli",
 // Return a VSETVLIInfo representing the changes made by this VSETVLI or
 // VSETIVLI instruction.
 static VSETVLIInfo getInfoForVSETVLI(const MachineInstr &MI,
-                                     const MachineRegisterInfo &MRI) {
+                                     const MachineRegisterInfo &MRI,
+                                     const LiveIntervals *LIS) {
   VSETVLIInfo NewInfo;
   if (MI.getOpcode() == RISCV::PseudoVSETIVLI) {
     NewInfo.setAVLImm(MI.getOperand(1).getImm());
@@ -939,7 +940,7 @@ static VSETVLIInfo getInfoForVSETVLI(const MachineInstr &MI,
     if (AVLReg == RISCV::X0)
       NewInfo.setAVLVLMAX();
     else
-      NewInfo.setAVLRegDef(MRI.getVRegDef(AVLReg), AVLReg);
+      NewInfo.setAVLRegDef(getReachingDefMI(AVLReg, &MI, &MRI, LIS), AVLReg);
   }
   NewInfo.setVTYPE(MI.getOperand(2).getImm());
 
@@ -1012,7 +1013,8 @@ static VSETVLIInfo computeInfoForInstr(const MachineInstr &MI, uint64_t TSFlags,
       else
         InstrInfo.setAVLImm(Imm);
     } else {
-      InstrInfo.setAVLRegDef(MRI->getVRegDef(VLOp.getReg()), VLOp.getReg());
+      InstrInfo.setAVLRegDef(getReachingDefMI(VLOp.getReg(), &MI, MRI, LIS),
+                             VLOp.getReg());
     }
   } else {
     assert(isScalarExtractInstr(MI));
@@ -1035,7 +1037,7 @@ static VSETVLIInfo computeInfoForInstr(const MachineInstr &MI, uint64_t TSFlags,
   if (InstrInfo.hasAVLReg()) {
     const MachineInstr &DefMI = InstrInfo.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
-      VSETVLIInfo DefInstrInfo = getInfoForVSETVLI(DefMI, *MRI);
+      VSETVLIInfo DefInstrInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
       if (DefInstrInfo.hasSameVLMAX(InstrInfo) &&
           (DefInstrInfo.hasAVLImm() || DefInstrInfo.hasAVLVLMAX()))
         InstrInfo.setAVL(DefInstrInfo);
@@ -1133,7 +1135,7 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB,
     if (Info.hasSameVLMAX(PrevInfo) && Info.hasAVLReg()) {
       const MachineInstr &DefMI = Info.getAVLDefMI();
       if (isVectorConfigInstr(DefMI)) {
-        VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI);
+        VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
         if (DefInfo.hasSameAVL(PrevInfo) && DefInfo.hasSameVLMAX(PrevInfo)) {
           auto NeedFixupMI = BuildMI(MBB, InsertPt, DL, TII->get(RISCV::PseudoVSETVLIX0))
               .addReg(RISCV::X0, RegState::Define | RegState::Dead)
@@ -1183,10 +1185,12 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB,
 
   if (Info.hasAVLVLMAX()) {
     Register DestReg = MRI->createVirtualRegister(&RISCV::GPRRegClass);
-    BuildMI(MBB, InsertPt, DL, TII->get(RISCV::PseudoVSETVLIX0))
-        .addReg(DestReg, RegState::Define | RegState::Dead)
-        .addReg(RISCV::X0, RegState::Kill)
-        .addImm(Info.encodeVTYPE());
+    auto NeedFixupMI =
+        BuildMI(MBB, InsertPt, DL, TII->get(RISCV::PseudoVSETVLIX0))
+            .addReg(DestReg, RegState::Define | RegState::Dead)
+            .addReg(RISCV::X0, RegState::Kill)
+            .addImm(Info.encodeVTYPE());
+    fixupLIAfterInsertMI(NeedFixupMI, LIS);
     return;
   }
 
@@ -1262,7 +1266,7 @@ bool RISCVInsertVSETVLI::needVSETVLI(const MachineInstr &MI,
   if (Require.hasAVLReg() && CurInfo.hasCompatibleVTYPE(Used, Require)) {
     const MachineInstr &DefMI = Require.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
-      VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI);
+      VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
       if (DefInfo.hasSameAVL(CurInfo) && DefInfo.hasSameVLMAX(CurInfo))
         return false;
     }
@@ -1351,14 +1355,15 @@ void RISCVInsertVSETVLI::transferBefore(VSETVLIInfo &Info,
 void RISCVInsertVSETVLI::transferAfter(VSETVLIInfo &Info,
                                        const MachineInstr &MI) const {
   if (isVectorConfigInstr(MI)) {
-    Info = getInfoForVSETVLI(MI, *MRI);
+    Info = getInfoForVSETVLI(MI, *MRI, LIS);
     return;
   }
 
   if (RISCV::isFaultFirstLoad(MI)) {
     // Update AVL to vl-output of the fault first load.
-    Info.setAVLRegDef(MRI->getVRegDef(MI.getOperand(1).getReg()),
-                      MI.getOperand(1).getReg());
+    Info.setAVLRegDef(
+        getReachingDefMI(MI.getOperand(1).getReg(), &MI, MRI, LIS),
+        MI.getOperand(1).getReg());
     return;
   }
 
@@ -1480,7 +1485,7 @@ bool RISCVInsertVSETVLI::needVSETVLIPHI(const VSETVLIInfo &Require,
       if (!DefMI || !isVectorConfigInstr(*DefMI))
         return true;
 
-      VSETVLIInfo DefInfo = getInfoForVSETVLI(*DefMI, *MRI);
+      VSETVLIInfo DefInfo = getInfoForVSETVLI(*DefMI, *MRI, LIS);
       if (!DefInfo.hasSameAVL(PBBInfo.Exit) ||
           !DefInfo.hasSameVTYPE(PBBInfo.Exit))
         return true;
@@ -1504,7 +1509,7 @@ bool RISCVInsertVSETVLI::needVSETVLIPHI(const VSETVLIInfo &Require,
 
       // We found a VSET(I)VLI make sure it matches the output of the
       // predecessor block.
-      VSETVLIInfo DefInfo = getInfoForVSETVLI(*DefMI, *MRI);
+      VSETVLIInfo DefInfo = getInfoForVSETVLI(*DefMI, *MRI, LIS);
       if (DefInfo != PBBExit)
         return true;
 
@@ -1741,8 +1746,8 @@ static bool canMutatePriorConfig(
     if (Used.VLZeroness) {
       if (isVLPreservingConfig(PrevMI))
         return false;
-      if (!getInfoForVSETVLI(PrevMI, MRI)
-               .hasEquallyZeroAVL(getInfoForVSETVLI(MI, MRI)))
+      if (!getInfoForVSETVLI(PrevMI, MRI, LIS)
+               .hasEquallyZeroAVL(getInfoForVSETVLI(MI, MRI, LIS)))
         return false;
     }
 
