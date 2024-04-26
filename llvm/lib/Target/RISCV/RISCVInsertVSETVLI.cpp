@@ -533,7 +533,7 @@ public:
   bool isUnknown() const { return State == Unknown; }
 
   void setAVLRegDef(const MachineInstr *DefMI, Register AVLReg) {
-    assert(DefMI && AVLReg.isVirtual());
+    assert(AVLReg.isVirtual());
     AVLRegDef.DefMI = DefMI;
     AVLRegDef.DefReg = AVLReg;
     State = AVLIsReg;
@@ -550,6 +550,7 @@ public:
 
   bool hasAVLImm() const { return State == AVLIsImm; }
   bool hasAVLReg() const { return State == AVLIsReg; }
+  bool hasAVLRegDefMI() const { return AVLRegDef.DefMI != nullptr; }
   bool hasAVLVLMAX() const { return State == AVLIsVLMAX; }
   bool hasAVLIgnored() const { return State == AVLIsIgnored; }
   Register getAVLReg() const {
@@ -570,7 +571,8 @@ public:
     if (Info.isUnknown())
       setUnknown();
     else if (Info.hasAVLReg())
-      setAVLRegDef(&Info.getAVLDefMI(), Info.getAVLReg());
+      setAVLRegDef(Info.hasAVLRegDefMI() ? &Info.getAVLDefMI() : nullptr,
+                   Info.getAVLReg());
     else if (Info.hasAVLVLMAX())
       setAVLVLMAX();
     else if (Info.hasAVLIgnored())
@@ -590,7 +592,7 @@ public:
     if (hasAVLImm())
       return getAVLImm() > 0;
     if (hasAVLReg())
-      return isNonZeroLoadImmediate(getAVLDefMI());
+      return hasAVLRegDefMI() && isNonZeroLoadImmediate(getAVLDefMI());
     if (hasAVLVLMAX())
       return true;
     if (hasAVLIgnored())
@@ -606,7 +608,9 @@ public:
 
   bool hasSameAVL(const VSETVLIInfo &Other) const {
     if (hasAVLReg() && Other.hasAVLReg())
-      return getAVLDefMI().isIdenticalTo(Other.getAVLDefMI()) &&
+      return ((!hasAVLRegDefMI() && !Other.hasAVLRegDefMI()) ||
+              (hasAVLRegDefMI() == Other.hasAVLRegDefMI() &&
+               getAVLDefMI().isIdenticalTo(Other.getAVLDefMI()))) &&
              getAVLReg() == Other.getAVLReg();
 
     if (hasAVLImm() && Other.hasAVLImm())
@@ -1034,7 +1038,7 @@ static VSETVLIInfo computeInfoForInstr(const MachineInstr &MI, uint64_t TSFlags,
   // AVL operand with the AVL of the defining vsetvli.  We avoid general
   // register AVLs to avoid extending live ranges without being sure we can
   // kill the original source reg entirely.
-  if (InstrInfo.hasAVLReg()) {
+  if (InstrInfo.hasAVLReg() && InstrInfo.hasAVLRegDefMI()) {
     const MachineInstr &DefMI = InstrInfo.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
       VSETVLIInfo DefInstrInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1132,7 +1136,8 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB,
     // If our AVL is a virtual register, it might be defined by a VSET(I)VLI. If
     // it has the same VLMAX we want and the last VL/VTYPE we observed is the
     // same, we can use the X0, X0 form.
-    if (Info.hasSameVLMAX(PrevInfo) && Info.hasAVLReg()) {
+    if (Info.hasSameVLMAX(PrevInfo) && Info.hasAVLReg() &&
+        Info.hasAVLRegDefMI()) {
       const MachineInstr &DefMI = Info.getAVLDefMI();
       if (isVectorConfigInstr(DefMI)) {
         VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1263,7 +1268,8 @@ bool RISCVInsertVSETVLI::needVSETVLI(const MachineInstr &MI,
   // it might be defined by a VSET(I)VLI. If it has the same VLMAX we need
   // and the last VL/VTYPE we observed is the same, we don't need a
   // VSETVLI here.
-  if (Require.hasAVLReg() && CurInfo.hasCompatibleVTYPE(Used, Require)) {
+  if (Require.hasAVLReg() && Require.hasAVLRegDefMI() &&
+      CurInfo.hasCompatibleVTYPE(Used, Require)) {
     const MachineInstr &DefMI = Require.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
       VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1666,7 +1672,7 @@ void RISCVInsertVSETVLI::doPRE(MachineBasicBlock &MBB) {
   // If the AVL value is a register (other than our VLMAX sentinel),
   // we need to prove the value is available at the point we're going
   // to insert the vsetvli at.
-  if (AvailableInfo.hasAVLReg()) {
+  if (AvailableInfo.hasAVLReg() && AvailableInfo.hasAVLRegDefMI()) {
     const MachineInstr *AVLDefMI = &AvailableInfo.getAVLDefMI();
     // This is an inline dominance check which covers the case of
     // UnavailablePred being the preheader of a loop.
