@@ -973,8 +973,7 @@ void BTFDebug::visitMapDefType(const DIType *Ty, uint32_t &TypeId) {
 }
 
 /// Read file contents from the actual file or from the source
-std::string BTFDebug::populateFileContent(const DISubprogram *SP) {
-  auto File = SP->getFile();
+std::string BTFDebug::populateFileContent(const DIFile *File) {
   std::string FileName;
 
   if (!File->getFilename().starts_with("/") && File->getDirectory().size())
@@ -1005,18 +1004,18 @@ std::string BTFDebug::populateFileContent(const DISubprogram *SP) {
   return FileName;
 }
 
-void BTFDebug::constructLineInfo(const DISubprogram *SP, MCSymbol *Label,
+void BTFDebug::constructLineInfo(MCSymbol *Label, const DIFile *File,
                                  uint32_t Line, uint32_t Column) {
-  std::string FileName = populateFileContent(SP);
+  std::string FileName = populateFileContent(File);
   BTFLineInfo LineInfo;
+
+  // Precoutious to ensure Line is within range.
+  if (Line >= FileContent[FileName].size())
+    return;
 
   LineInfo.Label = Label;
   LineInfo.FileNameOff = addString(FileName);
-  // If file content is not available, let LineOff = 0.
-  if (Line < FileContent[FileName].size())
-    LineInfo.LineOff = addString(FileContent[FileName][Line]);
-  else
-    LineInfo.LineOff = 0;
+  LineInfo.LineOff = addString(FileContent[FileName][Line]);
   LineInfo.LineNum = Line;
   LineInfo.ColumnNum = Column;
   LineInfoTable[SecNameOff].push_back(LineInfo);
@@ -1377,7 +1376,7 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
       if (!S)
         return;
       MCSymbol *FuncLabel = Asm->getFunctionBegin();
-      constructLineInfo(S, FuncLabel, S->getLine(), 0);
+      constructLineInfo(FuncLabel, S->getFile(), S->getLine(), 0);
       LineInfoGenerated = true;
     }
 
@@ -1389,8 +1388,7 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
   OS.emitLabel(LineSym);
 
   // Construct the lineinfo.
-  auto SP = DL->getScope()->getSubprogram();
-  constructLineInfo(SP, LineSym, DL.getLine(), DL.getCol());
+  constructLineInfo(LineSym, DL.get()->getFile(), DL.getLine(), DL.getCol());
 
   LineInfoGenerated = true;
   PrevInstLoc = DL;
