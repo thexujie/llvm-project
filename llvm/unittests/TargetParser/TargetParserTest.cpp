@@ -1899,44 +1899,43 @@ TEST(TargetParserTest, testAArch64Extension) {
 
 TEST(TargetParserTest, AArch64ExtensionFeatures) {
   std::vector<uint64_t> Extensions = {
-      AArch64::AEK_CRC,          AArch64::AEK_LSE,
-      AArch64::AEK_RDM,          AArch64::AEK_CRYPTO,
-      AArch64::AEK_SM4,          AArch64::AEK_SHA3,
-      AArch64::AEK_SHA2,         AArch64::AEK_AES,
-      AArch64::AEK_DOTPROD,      AArch64::AEK_FP,
-      AArch64::AEK_SIMD,         AArch64::AEK_FP16,
-      AArch64::AEK_FP16FML,      AArch64::AEK_PROFILE,
-      AArch64::AEK_RAS,          AArch64::AEK_SVE,
-      AArch64::AEK_SVE2,         AArch64::AEK_SVE2AES,
-      AArch64::AEK_SVE2SM4,      AArch64::AEK_SVE2SHA3,
-      AArch64::AEK_SVE2BITPERM,  AArch64::AEK_RCPC,
-      AArch64::AEK_RAND,         AArch64::AEK_MTE,
-      AArch64::AEK_SSBS,         AArch64::AEK_SB,
-      AArch64::AEK_PREDRES,      AArch64::AEK_BF16,
-      AArch64::AEK_I8MM,         AArch64::AEK_F32MM,
-      AArch64::AEK_F64MM,        AArch64::AEK_TME,
-      AArch64::AEK_LS64,         AArch64::AEK_BRBE,
-      AArch64::AEK_PAUTH,        AArch64::AEK_FLAGM,
-      AArch64::AEK_SME,          AArch64::AEK_SMEF64F64,
-      AArch64::AEK_SMEI16I64,    AArch64::AEK_SME2,
-      AArch64::AEK_HBC,          AArch64::AEK_MOPS,
-      AArch64::AEK_PERFMON,      AArch64::AEK_SVE2p1,
-      AArch64::AEK_SME2p1,       AArch64::AEK_B16B16,
-      AArch64::AEK_SMEF16F16,    AArch64::AEK_CSSC,
-      AArch64::AEK_RCPC3,        AArch64::AEK_THE,
-      AArch64::AEK_D128,         AArch64::AEK_LSE128,
-      AArch64::AEK_SPECRES2,     AArch64::AEK_RASv2,
-      AArch64::AEK_ITE,          AArch64::AEK_GCS,
-      AArch64::AEK_FPMR,         AArch64::AEK_FP8,
-      AArch64::AEK_FAMINMAX,     AArch64::AEK_FP8FMA,
-      AArch64::AEK_SSVE_FP8FMA,  AArch64::AEK_FP8DOT2,
-      AArch64::AEK_SSVE_FP8DOT2, AArch64::AEK_FP8DOT4,
-      AArch64::AEK_SSVE_FP8DOT4, AArch64::AEK_LUT,
-      AArch64::AEK_SME_LUTv2,    AArch64::AEK_SMEF8F16,
-      AArch64::AEK_SMEF8F32,     AArch64::AEK_SMEFA64,
-      AArch64::AEK_CPA,          AArch64::AEK_PAUTHLR,
-      AArch64::AEK_TLBIW,        AArch64::AEK_JSCVT,
-      AArch64::AEK_FCMA,
+      AArch64::AEK_CRC,         AArch64::AEK_LSE,
+      AArch64::AEK_RDM,         AArch64::AEK_CRYPTO,
+      AArch64::AEK_SM4,         AArch64::AEK_SHA3,
+      AArch64::AEK_SHA2,        AArch64::AEK_AES,
+      AArch64::AEK_DOTPROD,     AArch64::AEK_FP,
+      AArch64::AEK_SIMD,        AArch64::AEK_FP16,
+      AArch64::AEK_FP16FML,     AArch64::AEK_PROFILE,
+      AArch64::AEK_RAS,         AArch64::AEK_SVE,
+      AArch64::AEK_SVE2,        AArch64::AEK_SVE2AES,
+      AArch64::AEK_SVE2SM4,     AArch64::AEK_SVE2SHA3,
+      AArch64::AEK_SVE2BITPERM, AArch64::AEK_RCPC,
+      AArch64::AEK_RAND,        AArch64::AEK_MTE,
+      AArch64::AEK_SSBS,        AArch64::AEK_SB,
+      AArch64::AEK_PREDRES,     AArch64::AEK_BF16,
+      AArch64::AEK_I8MM,        AArch64::AEK_F32MM,
+      AArch64::AEK_F64MM,       AArch64::AEK_TME,
+      AArch64::AEK_LS64,        AArch64::AEK_BRBE,
+      AArch64::AEK_PAUTH,       AArch64::AEK_FLAGM,
+      AArch64::AEK_SME,         AArch64::AEK_SMEF64F64,
+      AArch64::AEK_SMEI16I64,   AArch64::AEK_SME2,
+      AArch64::AEK_HBC,         AArch64::AEK_MOPS,
+      AArch64::AEK_PERFMON,     AArch64::AEK_SVE2p1,
+      AArch64::AEK_SME2p1,      AArch64::AEK_B16B16,
+      AArch64::AEK_SMEF16F16,   AArch64::AEK_CSSC,
+      AArch64::AEK_RCPC3,       AArch64::AEK_THE,
+      AArch64::AEK_D128,        AArch64::AEK_LSE128,
+      AArch64::AEK_SPECRES2,    AArch64::AEK_RASv2,
+      AArch64::AEK_ITE,         AArch64::AEK_GCS,
+      AArch64::AEK_FP8,         AArch64::AEK_FAMINMAX,
+      AArch64::AEK_FP8FMA,      AArch64::AEK_SSVE_FP8FMA,
+      AArch64::AEK_FP8DOT2,     AArch64::AEK_SSVE_FP8DOT2,
+      AArch64::AEK_FP8DOT4,     AArch64::AEK_SSVE_FP8DOT4,
+      AArch64::AEK_LUT,         AArch64::AEK_FCMA,
+      AArch64::AEK_SME_LUTv2,   AArch64::AEK_SMEF8F16,
+      AArch64::AEK_SMEF8F32,    AArch64::AEK_SMEFA64,
+      AArch64::AEK_CPA,         AArch64::AEK_PAUTHLR,
+      AArch64::AEK_TLBIW,       AArch64::AEK_JSCVT,
   };
 
   std::vector<StringRef> Features;
@@ -2009,7 +2008,6 @@ TEST(TargetParserTest, AArch64ExtensionFeatures) {
   EXPECT_TRUE(llvm::is_contained(Features, "+specres2"));
   EXPECT_TRUE(llvm::is_contained(Features, "+ite"));
   EXPECT_TRUE(llvm::is_contained(Features, "+gcs"));
-  EXPECT_TRUE(llvm::is_contained(Features, "+fpmr"));
   EXPECT_TRUE(llvm::is_contained(Features, "+fp8"));
   EXPECT_TRUE(llvm::is_contained(Features, "+faminmax"));
   EXPECT_TRUE(llvm::is_contained(Features, "+fp8fma"));
@@ -2155,7 +2153,6 @@ TEST(TargetParserTest, AArch64ArchExtFeature) {
       {"predres2", "nopredres2", "+specres2", "-specres2"},
       {"rasv2", "norasv2", "+rasv2", "-rasv2"},
       {"gcs", "nogcs", "+gcs", "-gcs"},
-      {"fpmr", "nofpmr", "+fpmr", "-fpmr"},
       {"fp8", "nofp8", "+fp8", "-fp8"},
       {"faminmax", "nofaminmax", "+faminmax", "-faminmax"},
       {"fp8fma", "nofp8fma", "+fp8fma", "-fp8fma"},
@@ -2302,7 +2299,10 @@ AArch64ExtensionDependenciesBaseArchTestParams
          {},
          {"v8.1a", "crc", "fp-armv8", "lse", "rdm", "neon"},
          {}},
-        {AArch64::ARMV9_5A, {}, {"v9.5a", "sve", "sve2", "mops", "cpa"}, {}},
+        {AArch64::ARMV9_5A,
+         {},
+         {"v9.5a", "sve", "sve2", "mops", "cpa", "lut", "faminmax"},
+         {}},
 
         // Positive modifiers
         {AArch64::ARMV8A, {"fp16"}, {"fullfp16"}, {}},
@@ -2388,11 +2388,13 @@ AArch64ExtensionDependenciesBaseArchTestParams
         {AArch64::ARMV8A, {"nofp16", "sve"}, {"fullfp16", "sve"}, {}},
         {AArch64::ARMV8A, {"sve", "nofp16"}, {}, {"fullfp16", "sve"}},
 
-        // bf16 -> {sme, b16b16}
+        // bf16 -> {sme, b16b16, fp8}
         {AArch64::ARMV8A, {"nobf16", "sme"}, {"bf16", "sme"}, {}},
         {AArch64::ARMV8A, {"sme", "nobf16"}, {}, {"bf16", "sme"}},
         {AArch64::ARMV8A, {"nobf16", "b16b16"}, {"bf16", "b16b16"}, {}},
         {AArch64::ARMV8A, {"b16b16", "nobf16"}, {}, {"bf16", "b16b16"}},
+        {AArch64::ARMV8A, {"nobf16", "fp8"}, {"fp8", "bf16"}, {}},
+        {AArch64::ARMV8A, {"fp8", "nobf16"}, {}, {"fp8", "bf16"}},
 
         // sve -> {sve2, f32mm, f64mm}
         {AArch64::ARMV8A, {"nosve", "sve2"}, {"sve", "sve2"}, {}},
@@ -2444,32 +2446,20 @@ AArch64ExtensionDependenciesBaseArchTestParams
          {"ssve-fp8fma", "nosme2"},
          {},
          {"sme2", "ssve-fp8fma"}},
-        {AArch64::ARMV8A,
-         {"nosme2", "ssve-fp8dot2"},
-         {"sme2", "ssve-fp8dot2"},
-         {}},
-        {AArch64::ARMV8A,
-         {"ssve-fp8dot2", "nosme2"},
-         {},
-         {"sme2", "ssve-fp8dot2"}},
-        {AArch64::ARMV8A,
-         {"nosme2", "ssve-fp8dot4"},
-         {"sme2", "ssve-fp8dot4"},
-         {}},
-        {AArch64::ARMV8A,
-         {"ssve-fp8dot4", "nosme2"},
-         {},
-         {"sme2", "ssve-fp8dot4"}},
         {AArch64::ARMV8A, {"nosme2", "sme-f8f16"}, {"sme2", "sme-f8f16"}, {}},
         {AArch64::ARMV8A, {"sme-f8f16", "nosme2"}, {}, {"sme2", "sme-f8f16"}},
         {AArch64::ARMV8A, {"nosme2", "sme-f8f32"}, {"sme2", "sme-f8f32"}, {}},
         {AArch64::ARMV8A, {"sme-f8f32", "nosme2"}, {}, {"sme2", "sme-f8f32"}},
 
-        // fp8 -> {sme-f8f16, sme-f8f32}
+        // fp8 -> {sme-f8f16, sme-f8f32, fp8fma, ssve-fp8fma}
         {AArch64::ARMV8A, {"nofp8", "sme-f8f16"}, {"fp8", "sme-f8f16"}, {}},
         {AArch64::ARMV8A, {"sme-f8f16", "nofp8"}, {}, {"fp8", "sme-f8f16"}},
         {AArch64::ARMV8A, {"nofp8", "sme-f8f32"}, {"fp8", "sme-f8f32"}, {}},
         {AArch64::ARMV8A, {"sme-f8f32", "nofp8"}, {}, {"fp8", "sme-f8f32"}},
+        {AArch64::ARMV8A, {"nofp8", "fp8fma"}, {"fp8", "fp8fma"}, {}},
+        {AArch64::ARMV8A, {"fp8fma", "nofp8"}, {}, {"fp8", "fp8fma"}},
+        {AArch64::ARMV8A, {"nofp8", "ssve-fp8fma"}, {"fp8", "ssve-fp8fma"}, {}},
+        {AArch64::ARMV8A, {"ssve-fp8fma", "nofp8"}, {}, {"fp8", "ssve-fp8fma"}},
 
         // lse -> lse128
         {AArch64::ARMV8A, {"nolse", "lse128"}, {"lse", "lse128"}, {}},
@@ -2492,6 +2482,53 @@ AArch64ExtensionDependenciesBaseArchTestParams
         // rcpc -> rcpc3
         {AArch64::ARMV8A, {"norcpc", "rcpc3"}, {"rcpc", "rcpc3"}, {}},
         {AArch64::ARMV8A, {"rcpc3", "norcpc"}, {}, {"rcpc", "rcpc3"}},
+
+        // lut -> fp8
+        {AArch64::ARMV8A, {"nolut", "fp8"}, {"fp8", "lut"}, {}},
+        {AArch64::ARMV8A, {"fp8", "nolut"}, {}, {"fp8", "lut"}},
+
+        // faminmax -> fp8
+        {AArch64::ARMV8A, {"nofaminmax", "fp8"}, {"faminmax", "fp8"}, {}},
+        {AArch64::ARMV8A, {"fp8", "nofaminmax"}, {}, {"faminmax", "fp8"}},
+
+        // fp8dot4 -> fp8dot2
+        {AArch64::ARMV8A, {"nofp8dot4", "fp8dot2"}, {"fp8dot4", "fp8dot2"}, {}},
+        {AArch64::ARMV8A, {"fp8dot2", "nofp8dot4"}, {}, {"fp8dot4", "fp8dot2"}},
+
+        // ssve-fp8dot4 -> ssve-fp8dot2
+        {AArch64::ARMV8A,
+         {"nossve-fp8dot4", "ssve-fp8dot2"},
+         {"ssve-fp8dot4", "ssve-fp8dot2"},
+         {}},
+        {AArch64::ARMV8A,
+         {"ssve-fp8dot2", "nossve-fp8dot4"},
+         {},
+         {"ssve-fp8dot4", "ssve-fp8dot2"}},
+
+        // fp8fma -> fp8dot4
+        {AArch64::ARMV8A, {"nofp8fma", "fp8dot4"}, {"fp8dot4", "fp8fma"}, {}},
+        {AArch64::ARMV8A, {"fp8dot4", "nofp8fma"}, {}, {"fp8dot4", "fp8fma"}},
+
+        // ssve-fp8fma -> ssve-fp8dot4
+        {AArch64::ARMV8A,
+         {"nossve-fp8fma", "ssve-fp8dot4"},
+         {"ssve-fp8dot4", "ssve-fp8fma"},
+         {}},
+        {AArch64::ARMV8A,
+         {"ssve-fp8dot4", "nossve-fp8fma"},
+         {},
+         {"ssve-fp8dot4", "ssve-fp8fma"}},
+
+        // sme-f8f32 -> sme-f8f16
+        {AArch64::ARMV8A,
+         {"nosme-f8f32", "sme-f8f16"},
+         {"sme-f8f32", "sme-f8f16"},
+         {}},
+        {AArch64::ARMV8A,
+         {"sme-f8f16", "nosme-f8f32"},
+         {},
+         {"sme-f8f32", "sme-f8f16"}},
+
 };
 
 INSTANTIATE_TEST_SUITE_P(

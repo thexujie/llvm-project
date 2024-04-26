@@ -118,12 +118,6 @@ def FeatureCCPP : SubtargetFeature<"ccpp", "HasCCPP",
 def FeatureSVE : SubtargetFeature<"sve", "HasSVE", "true",
   "Enable Scalable Vector Extension (SVE) instructions (FEAT_SVE)", [FeatureFullFP16]>;
 
-def FeatureFPMR : SubtargetFeature<"fpmr", "HasFPMR", "true",
-  "Enable FPMR Register (FEAT_FPMR)">;
-
-def FeatureFP8 : SubtargetFeature<"fp8", "HasFP8", "true",
-  "Enable FP8 instructions (FEAT_FP8)">;
-
 // This flag is currently still labeled as Experimental, but when fully
 // implemented this should tell the compiler to use the zeroing pseudos to
 // benefit from the reverse instructions (e.g. SUB vs SUBR) if the inactive
@@ -520,34 +514,38 @@ def FeatureSME2p1 : SubtargetFeature<"sme2p1", "HasSME2p1", "true",
 def FeatureFAMINMAX: SubtargetFeature<"faminmax", "HasFAMINMAX", "true",
    "Enable FAMIN and FAMAX instructions (FEAT_FAMINMAX)">;
 
-def FeatureFP8FMA : SubtargetFeature<"fp8fma", "HasFP8FMA", "true",
-  "Enable fp8 multiply-add instructions (FEAT_FP8FMA)">;
-
-def FeatureSSVE_FP8FMA : SubtargetFeature<"ssve-fp8fma", "HasSSVE_FP8FMA", "true",
-  "Enable SVE2 fp8 multiply-add instructions (FEAT_SSVE_FP8FMA)", [FeatureSME2]>;
-
-def FeatureFP8DOT2: SubtargetFeature<"fp8dot2", "HasFP8DOT2", "true",
-   "Enable fp8 2-way dot instructions (FEAT_FP8DOT2)">;
-
-def FeatureSSVE_FP8DOT2 : SubtargetFeature<"ssve-fp8dot2", "HasSSVE_FP8DOT2", "true",
-  "Enable SVE2 fp8 2-way dot product instructions (FEAT_SSVE_FP8DOT2)", [FeatureSME2]>;
-
-def FeatureFP8DOT4: SubtargetFeature<"fp8dot4", "HasFP8DOT4", "true",
-   "Enable fp8 4-way dot instructions (FEAT_FP8DOT4)">;
-
-def FeatureSSVE_FP8DOT4 : SubtargetFeature<"ssve-fp8dot4", "HasSSVE_FP8DOT4", "true",
-  "Enable SVE2 fp8 4-way dot product instructions (FEAT_SSVE_FP8DOT4)", [FeatureSME2]>;
 def FeatureLUT: SubtargetFeature<"lut", "HasLUT", "true",
    "Enable Lookup Table instructions (FEAT_LUT)">;
+
+def FeatureFP8 : SubtargetFeature<"fp8", "HasFP8", "true",
+  "Enable FP8 instructions (FEAT_FP8)", [FeatureFAMINMAX, FeatureLUT, FeatureBF16]>;
+
+def FeatureFP8FMA : SubtargetFeature<"fp8fma", "HasFP8FMA", "true",
+  "Enable fp8 multiply-add instructions (FEAT_FP8FMA)", [FeatureFP8]>;
+
+def FeatureSSVE_FP8FMA : SubtargetFeature<"ssve-fp8fma", "HasSSVE_FP8FMA", "true",
+  "Enable SVE2 fp8 multiply-add instructions (FEAT_SSVE_FP8FMA)", [FeatureSME2, FeatureFP8]>;
+
+def FeatureFP8DOT4: SubtargetFeature<"fp8dot4", "HasFP8DOT4", "true",
+   "Enable fp8 4-way dot instructions (FEAT_FP8DOT4)", [FeatureFP8FMA]>;
+  
+def FeatureFP8DOT2: SubtargetFeature<"fp8dot2", "HasFP8DOT2", "true",
+   "Enable fp8 2-way dot instructions (FEAT_FP8DOT2)", [FeatureFP8DOT4]>;
+
+def FeatureSSVE_FP8DOT4 : SubtargetFeature<"ssve-fp8dot4", "HasSSVE_FP8DOT4", "true",
+  "Enable SVE2 fp8 4-way dot product instructions (FEAT_SSVE_FP8DOT4)", [FeatureSSVE_FP8FMA]>;
+
+def FeatureSSVE_FP8DOT2 : SubtargetFeature<"ssve-fp8dot2", "HasSSVE_FP8DOT2", "true",
+  "Enable SVE2 fp8 2-way dot product instructions (FEAT_SSVE_FP8DOT2)", [FeatureSSVE_FP8DOT4]>;
 
 def FeatureSME_LUTv2 : SubtargetFeature<"sme-lutv2", "HasSME_LUTv2", "true",
   "Enable Scalable Matrix Extension (SME) LUTv2 instructions (FEAT_SME_LUTv2)">;
 
-def FeatureSMEF8F16 : SubtargetFeature<"sme-f8f16", "HasSMEF8F16", "true",
-  "Enable Scalable Matrix Extension (SME) F8F16 instructions(FEAT_SME_F8F16)", [FeatureSME2, FeatureFP8]>;
-
 def FeatureSMEF8F32 : SubtargetFeature<"sme-f8f32", "HasSMEF8F32", "true",
   "Enable Scalable Matrix Extension (SME) F8F32 instructions (FEAT_SME_F8F32)", [FeatureSME2, FeatureFP8]>;
+  
+def FeatureSMEF8F16 : SubtargetFeature<"sme-f8f16", "HasSMEF8F16", "true",
+  "Enable Scalable Matrix Extension (SME) F8F16 instructions(FEAT_SME_F8F16)", [FeatureSMEF8F32]>;
 
 def FeatureAppleA7SysReg  : SubtargetFeature<"apple-a7-sysreg", "HasAppleA7SysReg", "true",
   "Apple A7 (the CPU formerly known as Cyclone)">;
