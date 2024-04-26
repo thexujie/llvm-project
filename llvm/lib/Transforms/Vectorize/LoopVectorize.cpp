@@ -1610,6 +1610,9 @@ public:
   /// vectorization has actually taken place).
   using VectorizationCostTy = std::pair<InstructionCost, bool>;
 
+  /// Calculate the cost of generating the mask when tail-folding for the VF.
+  InstructionCost getTailFoldMaskCost(ElementCount VF);
+
   /// Returns the expected execution cost. The unit of the cost does
   /// not matter because we use the 'cost' units to compare different
   /// vector widths. The cost that is returned is *not* normalized by
@@ -5945,6 +5948,35 @@ InstructionCost LoopVectorizationCostModel::computePredInstDiscount(
   return Discount;
 }
 
+InstructionCost
+LoopVectorizationCostModel::getTailFoldMaskCost(ElementCount VF) {
+  if (VF.isScalar())
+    return 0;
+
+  InstructionCost MaskCost;
+  Type *IndTy = Legal->getWidestInductionType();
+  TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput;
+  TailFoldingStyle Style = getTailFoldingStyle();
+  LLVMContext &Context = TheLoop->getHeader()->getContext();
+  VectorType *RetTy = VectorType::get(IntegerType::getInt1Ty(Context), VF);
+  if (useActiveLaneMask(Style)) {
+    IntrinsicCostAttributes Attrs(
+        Intrinsic::get_active_lane_mask, RetTy,
+        {PoisonValue::get(IndTy), PoisonValue::get(IndTy)});
+    MaskCost = TTI.getIntrinsicInstrCost(Attrs, CostKind);
+  } else {
+    // This is just a stepvector, added to a splat of the current IV, followed
+    // by a vector comparison with a splat of the trip count. Since the
+    // stepvector is loop invariant it will be hoisted out so we can ignore it.
+    // This just leaves us with an add and an icmp.
+    VectorType *VecTy = VectorType::get(IndTy, VF);
+    MaskCost = TTI.getArithmeticInstrCost(Instruction::Add, VecTy, CostKind);
+    MaskCost += TTI.getCmpSelInstrCost(Instruction::ICmp, VecTy, RetTy,
+                                       ICmpInst::ICMP_ULE, CostKind, nullptr);
+  }
+  return MaskCost;
+}
+
 LoopVectorizationCostModel::VectorizationCostTy
 LoopVectorizationCostModel::expectedCost(
     ElementCount VF, SmallVectorImpl<InstructionVFPair> *Invalid) {
@@ -5991,6 +6023,15 @@ LoopVectorizationCostModel::expectedCost(
 
     Cost.first += BlockCost.first;
     Cost.second |= BlockCost.second;
+  }
+
+  // If we're using tail-folding then we should add the cost of generating the
+  // mask.
+  if (foldTailByMasking()) {
+    InstructionCost MaskCost = getTailFoldMaskCost(VF);
+    LLVM_DEBUG(dbgs() << "LV: Adding cost of generating tail-fold mask for VF "
+                      << VF << ": " << MaskCost << '\n');
+    Cost.first += MaskCost;
   }
 
   return Cost;
