@@ -6538,7 +6538,8 @@ def note_flexible_array_counted_by_attr_field : Note<
   "field %0 declared here">;
 
 def warn_wraps_attr_var_decl_type_not_integer : Warning<
-  "using attribute 'wraps' with non-integer type '%0' has no function">;
+  "using attribute 'wraps' with non-integer type '%0' has no function">,
+  InGroup<UselessWrapsAttr>;
 
 let CategoryName = "ARC Semantic Issue" in {
 

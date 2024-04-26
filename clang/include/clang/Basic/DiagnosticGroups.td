@@ -1525,3 +1525,6 @@ def BitIntExtension : DiagGroup<"bit-int-extension">;
 
 // Warnings about misuse of ExtractAPI options.
 def ExtractAPIMisuse : DiagGroup<"extractapi-misuse">;
+
+// Warnings regarding the usage of __attribute__((wraps)) on non-integer types.
+def UselessWrapsAttr : DiagGroup<"useless-wraps-attribute">;
