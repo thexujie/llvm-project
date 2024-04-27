@@ -15877,11 +15877,37 @@ static bool IsImplicitBoolFloatConversion(Sema &S, Expr *Ex, bool ToBool) {
           FloatCandidateBT && (FloatCandidateBT->isFloatingPoint()));
 }
 
+/// Check to see if the wraps attribute may have been lost through a function
+/// call. For cases where we are unsure, assume not.
+static bool IsWrapsAttrLost(Sema &S, const CallExpr *TheCall,
+                            const FunctionDecl *FD, unsigned i) {
+  // We may not have a FunctionDecl if this CallExpr is associated virtual,
+  // templated or overloaded functions.
+  if (!FD)
+    return false;
+
+  if (i >= TheCall->getNumArgs() || i >= FD->getNumParams())
+    return false;
+
+  const QualType ProvidedArgTy = TheCall->getArg(i)->getType();
+  const QualType PrototypedArgTy = FD->getParamDecl(i)->getType();
+
+  return ProvidedArgTy.hasWrapsAttr() && !PrototypedArgTy.hasWrapsAttr();
+}
+
 static void CheckImplicitArgumentConversions(Sema &S, CallExpr *TheCall,
                                              SourceLocation CC) {
   unsigned NumArgs = TheCall->getNumArgs();
+  const FunctionDecl *FD = TheCall->getDirectCallee();
+
   for (unsigned i = 0; i < NumArgs; ++i) {
     Expr *CurrA = TheCall->getArg(i);
+
+    if (IsWrapsAttrLost(S, TheCall, FD, i))
+      S.Diag(CurrA->getSourceRange().getBegin(),
+             diag::warn_wraps_attr_maybe_lost)
+          << FD->getParamDecl(i)->getType();
+
     if (!IsImplicitBoolFloatConversion(S, CurrA, true))
       continue;
 

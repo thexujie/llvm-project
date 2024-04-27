@@ -1528,3 +1528,6 @@ def ExtractAPIMisuse : DiagGroup<"extractapi-misuse">;
 
 // Warnings regarding the usage of __attribute__((wraps)) on non-integer types.
 def UselessWrapsAttr : DiagGroup<"useless-wraps-attribute">;
+
+// Warnings about the wraps attribute getting implicitly discarded
+def ImpDiscardedWrapsAttr : DiagGroup<"implicitly-discarded-wraps-attribute">;
