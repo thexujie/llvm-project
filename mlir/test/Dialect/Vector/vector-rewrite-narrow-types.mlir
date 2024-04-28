@@ -146,6 +146,42 @@ func.func @f4(%a: vector<16xi16>) -> vector<8xi6> {
   return %1 : vector<8xi6>
 }
 
+// CHECK-LABEL: func.func @ftrunc_splat1(
+//  CHECK-SAME: %[[A:[0-9a-z]*]]: vector<2xi16>) -> vector<1xi8> {
+func.func @ftrunc_splat1(%a: vector<2xi16>) -> vector<1xi8> {
+  // CHECK-DAG: %[[MASK:.*]] = arith.constant dense<15> : vector<1xi16>
+  // CHECK-DAG: %[[SHL_CST:.*]] = arith.constant dense<4> : vector<1xi16>
+  // CHECK: %[[V0:.*]] = vector.shuffle %[[A]], %[[A]] [0] : vector<2xi16>, vector<2xi16>
+  // CHECK: %[[A0:.*]] = arith.andi %[[V0]], %[[MASK]] : vector<1xi16>
+  // CHECK: %[[V1:.*]] = vector.shuffle %[[A]], %[[A]] [1] : vector<2xi16>, vector<2xi16>
+  // CHECK: %[[A1:.*]] = arith.andi %[[V1]], %[[MASK]] : vector<1xi16>
+  // CHECK: %[[SHL0:.*]] = arith.shli %[[A1]], %[[SHL_CST]] : vector<1xi16>
+  // CHECK: %[[O1:.*]] = arith.ori %[[A0]], %[[SHL0]] : vector<1xi16>
+  // CHECK: %[[RES:.*]] = arith.trunci %[[O1]] : vector<1xi16> to vector<1xi8>
+  // return %[[RES]] : vector<1xi8>
+  %0 = arith.trunci %a : vector<2xi16> to vector<2xi4>
+  %1 = vector.bitcast %0 : vector<2xi4> to vector<1xi8>
+  return %1 : vector<1xi8>
+}
+
+// CHECK-LABEL: func.func @ftrunc_splat2(
+//  CHECK-SAME: %[[A:[0-9a-z]*]]: vector<4xi16>) -> vector<2xi8> {
+func.func @ftrunc_splat2(%a: vector<4xi16>) -> vector<2xi8> {
+  // CHECK-DAG: %[[MASK:.*]] = arith.constant dense<15> : vector<2xi16>
+  // CHECK-DAG: %[[SHL_CST:.*]] = arith.constant dense<4> : vector<2xi16>
+  // CHECK: %[[V0:.*]] = vector.shuffle %[[A]], %[[A]] [0, 2] : vector<4xi16>, vector<4xi16>
+  // CHECK: %[[A0:.*]] = arith.andi %[[V0]], %[[MASK]] : vector<2xi16>
+  // CHECK: %[[V1:.*]] = vector.shuffle %[[A]], %[[A]] [1, 3] : vector<4xi16>, vector<4xi16>
+  // CHECK: %[[A1:.*]] = arith.andi %[[V1]], %[[MASK]] : vector<2xi16>
+  // CHECK: %[[SHL0:.*]] = arith.shli %[[A1]], %[[SHL_CST]] : vector<2xi16>
+  // CHECK: %[[O1:.*]] = arith.ori %[[A0]], %[[SHL0]] : vector<2xi16>
+  // CHECK: %[[RES:.*]] = arith.trunci %[[O1]] : vector<2xi16> to vector<2xi8>
+  // return %[[RES]] : vector<2xi8>
+  %0 = arith.trunci %a : vector<4xi16> to vector<4xi4>
+  %1 = vector.bitcast %0 : vector<4xi4> to vector<2xi8>
+  return %1 : vector<2xi8>
+}
+
 // CHECK-LABEL: func.func @f1ext(
 //  CHECK-SAME: %[[A:[0-9a-z]*]]: vector<5xi8>) -> vector<8xi16> {
 func.func @f1ext(%a: vector<5xi8>) -> vector<8xi16> {
@@ -191,6 +227,50 @@ func.func @f3ext(%a: vector<5xi8>) -> vector<8xi17> {
   %0 = vector.bitcast %a : vector<5xi8> to vector<8xi5>
   %1 = arith.extsi %0 : vector<8xi5> to vector<8xi17>
   return %1 : vector<8xi17>
+}
+
+// CHECK-LABEL: func.func @fext_splat1(
+//  CHECK-SAME: %[[ARG:[0-9a-z]*]]: vector<2xi8>) -> vector<4xi16> {
+func.func @fext_splat1(%a: vector<2xi8>) -> vector<4xi16> {
+  // CHECK-DAG: %[[MASK0:.*]] = arith.constant dense<15> : vector<2xi8>
+  // CHECK-DAG: %[[MASK1:.*]] = arith.constant dense<-16> : vector<2xi8>
+  // CHECK-DAG: %[[SHR_CST:.*]] = arith.constant dense<4> : vector<2xi8>
+  // CHECK-DAG: %[[A0:.*]] = arith.andi %[[ARG]], %[[MASK0]] : vector<2xi8>
+  // CHECK-DAG: %[[A1:.*]] = arith.andi %[[ARG]], %[[MASK1]] : vector<2xi8>
+  // CHECK: %[[SHR0:.*]] = arith.shrui %[[A1]], %[[SHR_CST]] : vector<2xi8>
+  // CHECK: %[[V1:.*]] = vector.shuffle %[[A0]], %[[SHR0]] [0, 2, 1, 3] : vector<2xi8>, vector<2xi8>
+  // CHECK: %[[RES:.*]] = arith.extui %[[V1]] : vector<4xi8> to vector<4xi16>
+  // return %[[RES]] : vector<4xi16>
+  %0 = vector.bitcast %a : vector<2xi8> to vector<4xi4>
+  %1 = arith.extui %0 : vector<4xi4> to vector<4xi16>
+  return %1 : vector<4xi16>
+}
+
+// CHECK-LABEL: func.func @fext_splat2(
+//  CHECK-SAME: %[[ARG:[0-9a-z]*]]: vector<3xi16>) -> vector<12xi32> {
+func.func @fext_splat2(%a: vector<3xi16>) -> vector<12xi32> {
+  // CHECK-DAG: %[[MASK0:.*]] = arith.constant dense<15> : vector<3xi16>
+  // CHECK-DAG: %[[MASK1:.*]] = arith.constant dense<240> : vector<3xi16>
+  // CHECK-DAG: %[[MASK2:.*]] = arith.constant dense<3840> : vector<3xi16>
+  // CHECK-DAG: %[[MASK3:.*]] = arith.constant dense<-4096> : vector<3xi16>
+  // CHECK-DAG: %[[SHR_CST0:.*]] = arith.constant dense<4> : vector<3xi16>
+  // CHECK-DAG: %[[SHR_CST1:.*]] = arith.constant dense<8> : vector<3xi16>
+  // CHECK-DAG: %[[SHR_CST2:.*]] = arith.constant dense<12> : vector<3xi16>
+  // CHECK: %[[A0:.*]] = arith.andi %[[ARG]], %[[MASK0]] : vector<3xi16>
+  // CHECK: %[[A1:.*]] = arith.andi %[[ARG]], %[[MASK1]] : vector<3xi16>
+  // CHECK: %[[SHR0:.*]] = arith.shrui %[[A1]], %[[SHR_CST0]] : vector<3xi16>
+  // CHECK: %[[V1:.*]] = vector.shuffle %[[A0]], %[[SHR0]] [0, 3, 1, 4, 2, 5] : vector<3xi16>, vector<3xi16>
+  // CHECK: %[[A2:.*]] = arith.andi %[[ARG]], %[[MASK2]] : vector<3xi16>
+  // CHECK: %[[SHR1:.*]] = arith.shrui %[[A2]], %[[SHR_CST1]] : vector<3xi16>
+  // CHECK: %[[V2:.*]] = vector.shuffle %[[V1]], %[[SHR1]] [0, 1, 6, 2, 3, 7, 4, 5, 8] : vector<6xi16>, vector<3xi16>
+  // CHECK: %[[A3:.*]] = arith.andi %[[ARG]], %[[MASK3]] : vector<3xi16>
+  // CHECK: %[[SHR2:.*]] = arith.shrui %[[A3]], %[[SHR_CST2]] : vector<3xi16>
+  // CHECK: %[[V3:.*]] = vector.shuffle %[[V2]], %[[SHR2]] [0, 1, 2, 9, 3, 4, 5, 10, 6, 7, 8, 11] : vector<9xi16>, vector<3xi16>
+  // CHECK: %[[RES:.*]] = arith.extui %[[V3]] : vector<12xi16> to vector<12xi32>
+  // CHEKC: return %[[RES]] : vector<12xi32>
+  %0 = vector.bitcast %a : vector<3xi16> to vector<12xi4>
+  %1 = arith.extui %0 : vector<12xi4> to vector<12xi32>
+  return %1 : vector<12xi32>
 }
 
 // CHECK-LABEL: func.func @aligned_extsi(
@@ -330,7 +410,7 @@ module attributes {transform.with_named_sequence} {
         : (!transform.any_op) -> !transform.any_op
 
     transform.apply_patterns to %f {
-      transform.apply_patterns.vector.rewrite_narrow_types
+      transform.apply_patterns.vector.rewrite_narrow_types { max_cycle_len = 4 }
     } : !transform.any_op
     transform.yield
   }
