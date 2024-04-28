@@ -454,15 +454,12 @@ void TimerGroup::clearAll() {
     TG->clear();
 }
 
-void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
-                                const char *suffix, double Value) {
-  assert(yaml::needsQuotes(Name) == yaml::QuotingType::None &&
-         "TimerGroup name should not need quotes");
-  assert(yaml::needsQuotes(R.Name) == yaml::QuotingType::None &&
-         "Timer name should not need quotes");
+template <typename T>
+void printJsonProfileValue(raw_ostream &OS, StringRef Name, T Value,
+                           StringRef Prefix, const char *delim) {
   constexpr auto max_digits10 = std::numeric_limits<double>::max_digits10;
-  OS << "\t\"time." << Name << '.' << R.Name << suffix
-     << "\": " << format("%.*e", max_digits10 - 1, Value);
+  OS << Prefix << "\"" << Name
+     << "\": " << format("%.*e", max_digits10 - 1, Value) << delim;
 }
 
 const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
@@ -472,21 +469,18 @@ const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
   for (const PrintRecord &R : TimersToPrint) {
     OS << delim;
     delim = ",\n";
-
     const TimeRecord &T = R.Time;
-    printJSONValue(OS, R, ".wall", T.getWallTime());
-    OS << delim;
-    printJSONValue(OS, R, ".user", T.getUserTime());
-    OS << delim;
-    printJSONValue(OS, R, ".sys", T.getSystemTime());
-    if (T.getMemUsed()) {
-      OS << delim;
-      printJSONValue(OS, R, ".mem", T.getMemUsed());
-    }
-    if (T.getInstructionsExecuted()) {
-      OS << delim;
-      printJSONValue(OS, R, ".instr", T.getInstructionsExecuted());
-    }
+    StringRef Prefix = "  ";
+    OS << Prefix << "{\n";
+    Prefix = "    ";
+    OS << Prefix << "\"name\": \"" << Name << '.' << R.Name << "\"" << delim;
+    printJsonProfileValue(OS, "wall", T.getWallTime(), Prefix, delim);
+    printJsonProfileValue(OS, "user", T.getUserTime(), Prefix, delim);
+    printJsonProfileValue(OS, "sys", T.getSystemTime(), Prefix, delim);
+    printJsonProfileValue(OS, "mem", T.getMemUsed(), Prefix, delim);
+    printJsonProfileValue(OS, "instr", T.getInstructionsExecuted(), Prefix, "");
+    Prefix = "  ";
+    OS << "\n" << Prefix << "}";
   }
   TimersToPrint.clear();
   return delim;
