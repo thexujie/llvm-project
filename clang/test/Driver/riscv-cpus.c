@@ -31,6 +31,40 @@
 // MCPU-XIANGSHAN-NANHU-SAME: "-target-feature" "+zks" "-target-feature" "+zksed" "-target-feature" "+zksh" "-target-feature" "+svinval"
 // MCPU-XIANGSHAN-NANHU-SAME: "-target-abi" "lp64d"
 
+// RUN: %clang --target=riscv64 -### -c %s 2>&1 -mcpu=xiangshan-kunminghu | FileCheck -check-prefix=MCPU-XIANGSHAN-KUNMINGHU %s
+// MCPU-XIANGSHAN-KUNMINGHU: "-nostdsysteminc" "-target-cpu" "xiangshan-kunminghu"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+m"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+a"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+f"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+d"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+c"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+v"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zicbom" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zicboz" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zicsr" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zifencei"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zba" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbb" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbc"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbkb" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbkc" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbkx" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zbs"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zkn" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zknd" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zkne" 
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zknh"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zve32f"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zve32x"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zve64d"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zve64f"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zve64x"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zvl128b"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zvl32b"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-feature" "+zvl64b"
+// MCPU-XIANGSHAN-KUNMINGHU-SAME: "-target-abi" "lp64d"
+
+
 // We cannot check much for -mcpu=native, but it should be replaced by a valid CPU string.
 // RUN: %clang --target=riscv64 -### -c %s -mcpu=native 2> %t.err || true
 // RUN: FileCheck --input-file=%t.err -check-prefix=MCPU-NATIVE %s
@@ -75,6 +109,9 @@
 
 // RUN: %clang --target=riscv64 -### -c %s 2>&1 -mtune=xiangshan-nanhu | FileCheck -check-prefix=MTUNE-XIANGSHAN-NANHU %s
 // MTUNE-XIANGSHAN-NANHU: "-tune-cpu" "xiangshan-nanhu"
+
+// RUN: %clang --target=riscv64 -### -c %s 2>&1 -mtune=xiangshan-kunminghu | FileCheck -check-prefix=MTUNE-XIANGSHAN-KUNMINGHU %s
+// MTUNE-XIANGSHAN-KUNMINGHU: "-tune-cpu" "xiangshan-kunminghu"
 
 // Check mtune alias CPU has resolved to the right CPU according XLEN.
 // RUN: %clang --target=riscv32 -### -c %s 2>&1 -mtune=generic | FileCheck -check-prefix=MTUNE-GENERIC-32 %s
