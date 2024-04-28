@@ -229,6 +229,7 @@ set(BENCHMARK_TESTS
     system_error.bench.cpp
     to_chars.bench.cpp
     unordered_set_operations.bench.cpp
+    utc_clock.bench.cpp
     util_smartptr.bench.cpp
     variant_visit_1.bench.cpp
     variant_visit_2.bench.cpp

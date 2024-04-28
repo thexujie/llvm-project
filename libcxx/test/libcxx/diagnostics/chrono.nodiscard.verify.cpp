@@ -69,4 +69,18 @@ void test() {
     leap.date();  // expected-warning {{ignoring return value of function declared with 'nodiscard' attribute}}
     leap.value(); // expected-warning {{ignoring return value of function declared with 'nodiscard' attribute}}
   }
+
+  { // [time.clock.utc]
+    // expected-warning@+1 {{ignoring return value of function declared with 'nodiscard' attribute}}
+    std::chrono::utc_clock::now();
+
+    // expected-warning@+1 {{ignoring return value of function declared with 'nodiscard' attribute}}
+    std::chrono::utc_clock::to_sys(std::chrono::utc_seconds{});
+
+    // expected-warning@+1 {{ignoring return value of function declared with 'nodiscard' attribute}}
+    std::chrono::utc_clock::from_sys(std::chrono::sys_seconds{});
+
+    // expected-warning@+1 {{ignoring return value of function declared with 'nodiscard' attribute}}
+    std::chrono::get_leap_second_info(std::chrono::utc_seconds{});
+  }
 }
