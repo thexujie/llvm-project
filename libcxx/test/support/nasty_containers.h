@@ -123,13 +123,15 @@ public:
     void resize(size_type sz)                      { v_.resize(sz); }
     void resize(size_type sz, const value_type& c) { v_.resize(sz, c); }
 
-    void swap(nasty_vector &nv)
+    void swap(nasty_vector& nv)
 #if TEST_STD_VER > 14
-    noexcept(std::is_nothrow_swappable<nested_container>::value)
+        noexcept(std::is_nothrow_swappable<nested_container>::value)
 #elif defined(_LIBCPP_VERSION)
-    TEST_NOEXCEPT_COND(std::__is_nothrow_swappable<nested_container>::value)
+        TEST_NOEXCEPT_COND(std::__is_nothrow_swappable_v<nested_container>)
 #endif
-    { v_.swap(nv.v_); }
+    {
+      v_.swap(nv.v_);
+    }
 
     nasty_vector *operator &()             { assert(false); return nullptr; }  // nasty
     const nasty_vector *operator &() const { assert(false); return nullptr; }  // nasty
@@ -252,11 +254,11 @@ public:
     void resize(size_type n)                      { l_.resize(n); }
     void resize(size_type n, const value_type& c) { l_.resize(n, c); }
 
-    void swap(nasty_list &nl)
+    void swap(nasty_list& nl)
 #if TEST_STD_VER > 14
-    noexcept(std::is_nothrow_swappable<nested_container>::value)
+        noexcept(std::is_nothrow_swappable<nested_container>::value)
 #elif defined(_LIBCPP_VERSION)
-    TEST_NOEXCEPT_COND(std::__is_nothrow_swappable<nested_container>::value)
+    TEST_NOEXCEPT_COND(std::__is_nothrow_swappable_v<nested_container>)
 #endif
     { l_.swap(nl.l_); }
 
