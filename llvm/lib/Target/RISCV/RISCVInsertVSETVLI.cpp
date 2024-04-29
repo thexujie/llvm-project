@@ -1139,11 +1139,12 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB,
       if (isVectorConfigInstr(DefMI)) {
         VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
         if (DefInfo.hasSameAVL(PrevInfo) && DefInfo.hasSameVLMAX(PrevInfo)) {
-          auto NeedFixupMI = BuildMI(MBB, InsertPt, DL, TII->get(RISCV::PseudoVSETVLIX0))
-              .addReg(RISCV::X0, RegState::Define | RegState::Dead)
-              .addReg(RISCV::X0, RegState::Kill)
-              .addImm(Info.encodeVTYPE())
-              .addReg(RISCV::VL, RegState::Implicit);
+          auto NeedFixupMI =
+              BuildMI(MBB, InsertPt, DL, TII->get(RISCV::PseudoVSETVLIX0))
+                  .addReg(RISCV::X0, RegState::Define | RegState::Dead)
+                  .addReg(RISCV::X0, RegState::Kill)
+                  .addImm(Info.encodeVTYPE())
+                  .addReg(RISCV::VL, RegState::Implicit);
           fixupLIAfterInsertMI(NeedFixupMI, LIS);
           return;
         }
@@ -1738,10 +1739,11 @@ void RISCVInsertVSETVLI::doPRE(MachineBasicBlock &MBB) {
 
 // Return true if we can mutate PrevMI to match MI without changing any the
 // fields which would be observed.
-static bool canMutatePriorConfig(
-    const MachineInstr &PrevMI, const MachineInstr &MI,
-    const DemandedFields &Used, const MachineRegisterInfo &MRI,
-    const LiveIntervals *LIS) {
+static bool canMutatePriorConfig(const MachineInstr &PrevMI,
+                                 const MachineInstr &MI,
+                                 const DemandedFields &Used,
+                                 const MachineRegisterInfo &MRI,
+                                 const LiveIntervals *LIS) {
   // If the VL values aren't equal, return false if either a) the former is
   // demanded, or b) we can't rewrite the former to be the later for
   // implementation reasons.
