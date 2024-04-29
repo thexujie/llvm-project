@@ -547,7 +547,9 @@ public:
 
   bool hasAVLImm() const { return State == AVLIsImm; }
   bool hasAVLReg() const { return State == AVLIsReg; }
-  bool hasAVLRegDefMI() const { return AVLRegDef.DefMI != nullptr; }
+  bool hasAVLRegDefMI() const {
+    return hasAVLReg() && (AVLRegDef.DefMI != nullptr);
+  }
   bool hasAVLVLMAX() const { return State == AVLIsVLMAX; }
   bool hasAVLIgnored() const { return State == AVLIsIgnored; }
   Register getAVLReg() const {
@@ -1035,7 +1037,7 @@ static VSETVLIInfo computeInfoForInstr(const MachineInstr &MI, uint64_t TSFlags,
   // AVL operand with the AVL of the defining vsetvli.  We avoid general
   // register AVLs to avoid extending live ranges without being sure we can
   // kill the original source reg entirely.
-  if (InstrInfo.hasAVLReg() && InstrInfo.hasAVLRegDefMI()) {
+  if (InstrInfo.hasAVLRegDefMI()) {
     const MachineInstr &DefMI = InstrInfo.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
       VSETVLIInfo DefInstrInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1133,8 +1135,7 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB,
     // If our AVL is a virtual register, it might be defined by a VSET(I)VLI. If
     // it has the same VLMAX we want and the last VL/VTYPE we observed is the
     // same, we can use the X0, X0 form.
-    if (Info.hasSameVLMAX(PrevInfo) && Info.hasAVLReg() &&
-        Info.hasAVLRegDefMI()) {
+    if (Info.hasSameVLMAX(PrevInfo) && Info.hasAVLRegDefMI()) {
       const MachineInstr &DefMI = Info.getAVLDefMI();
       if (isVectorConfigInstr(DefMI)) {
         VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1266,8 +1267,7 @@ bool RISCVInsertVSETVLI::needVSETVLI(const MachineInstr &MI,
   // it might be defined by a VSET(I)VLI. If it has the same VLMAX we need
   // and the last VL/VTYPE we observed is the same, we don't need a
   // VSETVLI here.
-  if (Require.hasAVLReg() && Require.hasAVLRegDefMI() &&
-      CurInfo.hasCompatibleVTYPE(Used, Require)) {
+  if (Require.hasAVLRegDefMI() && CurInfo.hasCompatibleVTYPE(Used, Require)) {
     const MachineInstr &DefMI = Require.getAVLDefMI();
     if (isVectorConfigInstr(DefMI)) {
       VSETVLIInfo DefInfo = getInfoForVSETVLI(DefMI, *MRI, LIS);
@@ -1673,7 +1673,7 @@ void RISCVInsertVSETVLI::doPRE(MachineBasicBlock &MBB) {
   // If the AVL value is a register (other than our VLMAX sentinel),
   // we need to prove the value is available at the point we're going
   // to insert the vsetvli at.
-  if (AvailableInfo.hasAVLReg() && AvailableInfo.hasAVLRegDefMI()) {
+  if (AvailableInfo.hasAVLRegDefMI()) {
     const MachineInstr *AVLDefMI = &AvailableInfo.getAVLDefMI();
     // This is an inline dominance check which covers the case of
     // UnavailablePred being the preheader of a loop.
