@@ -16396,15 +16396,16 @@ bool AArch64TargetLowering::lowerInterleavedStore(StoreInst *SI,
 }
 
 bool AArch64TargetLowering::lowerDeinterleaveIntrinsicToLoad(
-    IntrinsicInst *DI, LoadInst *LI) const {
+    IntrinsicInst *DI, SmallVector<Value *> &LeafNodes, LoadInst *LI) const {
   // Only deinterleave2 supported at present.
   if (DI->getIntrinsicID() != Intrinsic::experimental_vector_deinterleave2)
     return false;
 
-  // Only a factor of 2 supported at present.
-  const unsigned Factor = 2;
+  const unsigned Factor = std::max(2, (int)LeafNodes.size());
 
-  VectorType *VTy = cast<VectorType>(DI->getType()->getContainedType(0));
+  VectorType *VTy = (LeafNodes.size() > 0)
+                        ? cast<VectorType>(LeafNodes.front()->getType())
+                        : cast<VectorType>(DI->getType()->getContainedType(0));
   const DataLayout &DL = DI->getModule()->getDataLayout();
   bool UseScalable;
   if (!isLegalInterleavedAccessType(VTy, DL, UseScalable))
@@ -16460,9 +16461,19 @@ bool AArch64TargetLowering::lowerDeinterleaveIntrinsicToLoad(
     Result = Builder.CreateInsertValue(Result, Left, 0);
     Result = Builder.CreateInsertValue(Result, Right, 1);
   } else {
-    if (UseScalable)
+    if (UseScalable) {
       Result = Builder.CreateCall(LdNFunc, {Pred, BaseAddr}, "ldN");
-    else
+      if (Factor == 2) {
+        DI->replaceAllUsesWith(Result);
+        return true;
+      }
+      for (unsigned I = 0; I < LeafNodes.size(); I++) {
+        llvm::Value *CurrentExtract = LeafNodes[I];
+        Value *Newextrct = Builder.CreateExtractValue(Result, I);
+        CurrentExtract->replaceAllUsesWith(Newextrct);
+      }
+      return true;
+    } else
       Result = Builder.CreateCall(LdNFunc, BaseAddr, "ldN");
   }
 
@@ -16471,15 +16482,15 @@ bool AArch64TargetLowering::lowerDeinterleaveIntrinsicToLoad(
 }
 
 bool AArch64TargetLowering::lowerInterleaveIntrinsicToStore(
-    IntrinsicInst *II, StoreInst *SI) const {
+    IntrinsicInst *II, SmallVector<Value *> &LeafNodes, StoreInst *SI) const {
   // Only interleave2 supported at present.
   if (II->getIntrinsicID() != Intrinsic::experimental_vector_interleave2)
     return false;
 
-  // Only a factor of 2 supported at present.
-  const unsigned Factor = 2;
+  // leaf nodes are the nodes that will be interleaved
+  const unsigned Factor = LeafNodes.size();
 
-  VectorType *VTy = cast<VectorType>(II->getOperand(0)->getType());
+  VectorType *VTy = cast<VectorType>(LeafNodes.front()->getType());
   const DataLayout &DL = II->getModule()->getDataLayout();
   bool UseScalable;
   if (!isLegalInterleavedAccessType(VTy, DL, UseScalable))
@@ -16524,9 +16535,12 @@ bool AArch64TargetLowering::lowerInterleaveIntrinsicToStore(
       R = Builder.CreateExtractVector(StTy, II->getOperand(1), Idx);
     }
 
-    if (UseScalable)
-      Builder.CreateCall(StNFunc, {L, R, Pred, Address});
-    else
+    if (UseScalable) {
+      SmallVector<Value *> Args(LeafNodes);
+      Args.push_back(Pred);
+      Args.push_back(Address);
+      Builder.CreateCall(StNFunc, Args);
+    } else
       Builder.CreateCall(StNFunc, {L, R, Address});
   }
 
