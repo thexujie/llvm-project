@@ -370,6 +370,7 @@ enum class instrprof_error {
   zlib_unavailable,
   raw_profile_version_mismatch,
   counter_value_too_large,
+  unsupported_incompatible_future_version,
 };
 
 /// An ordered list of functions identified by their NameRef found in
@@ -1147,7 +1148,28 @@ enum ProfVersion {
   Version11 = 11,
   // VTable profiling,
   Version12 = 12,
-  // The current version is 12.
+  // Add additional header fields to allow partial forward compatibility.
+  // - Allow reader to locate the end byte of the profile header and each
+  //   payload section.
+  //   - Prior to this version, header records the start byte offset of each
+  //   payload; for some payloads, reader knows the end byte offset as it reads
+  //   (or decodes) the payload (i.e., without explicit header fields).
+  //   - With this change, profile header records the byte size of the profile
+  //   header, and the end byte offset of a payload if explicit recording is
+  //   necessary for reader to locate the end of this payload.
+  //
+  // - Profile reader (in compilers and tools) can detect whether it can parse
+  // known payloads with the correct semantic. It makes use of the compatible
+  // profiles and rejects the incompatbile ones (in this case users should
+  // update compilers and/or command line tools to parse profiles with newer
+  // versions)
+  //  - Indexed profile reader compares the latest version it can parse with
+  //    the  minimum version required by (and recorded in) the profile; if the
+  //    reader  can reasonably interpret the payload, it proceeds to parse known
+  //    sections and skip new unknown sections; otherwise it stops reading and
+  //    throws error.
+  Version13 = 13,
+  // The current version is 13.
   CurrentVersion = INSTR_PROF_INDEX_VERSION
 };
 const uint64_t Version = ProfVersion::CurrentVersion;
@@ -1175,6 +1197,32 @@ struct Header {
   uint64_t BinaryIdOffset;
   uint64_t TemporalProfTracesOffset;
   uint64_t VTableNamesOffset;
+
+  // Records the on-disk byte size of the header.
+  uint64_t OnDiskHeaderByteSize = 0;
+
+  // Indexed profile writer will records the minimum profile reader version
+  // required to parse this profile. If a profile reader's supported version is
+  // smaller than what's recorded in this field, the profile reader (in
+  // compilers or command line tools) should be updated.
+  //
+  // Example scenario:
+  // The semantics of an existing section change starting from version V + 1
+  // (with readers supporting both versions to preserve backward compatibility),
+  // indexed profile writer should record `MinimumProfileReaderVersion` as V
+  // + 1. Previously-built profile readers won't know how to interpret the
+  // existing section correctly; these readers will find the
+  // `MinimumProfileReaderVersion` recorded in the profile is higher than the
+  // readers' supported version (a constant baked in the library), and stop the
+  // read process.
+  uint64_t MinimumProfileReaderVersion = 0;
+
+  // The byte size of temporal profiles.
+  uint64_t TemporalProfSectionSize = 0;
+
+  // Records the on-disk byte size of the profiles (header and payloads).
+  uint64_t OnDiskProfileByteSize = 0;
+
   // New fields should only be added at the end to ensure that the size
   // computation is correct. The methods below need to be updated to ensure that
   // the new field is read correctly.
@@ -1182,12 +1230,15 @@ struct Header {
   // Reads a header struct from the buffer.
   static Expected<Header> readFromBuffer(const unsigned char *Buffer);
 
-  // Returns the size of the header in bytes for all valid fields based on the
-  // version. I.e a older version header will return a smaller size.
+  // Returns the on-disk byte size of the header for all valid fields based on
+  // the version.
   size_t size() const;
 
-  // Returns the format version in little endian. The header retains the version
-  // in native endian of the compiler runtime.
+  // Returns the end byte offset of all known fields by the reader.
+  Expected<size_t> knownFieldsEndByteOffset() const;
+
+  // Returns the format version in little endian. The header retains the
+  // version in native endian of the compiler runtime.
   uint64_t formatVersion() const;
 };
 

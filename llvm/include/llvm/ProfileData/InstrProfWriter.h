@@ -88,6 +88,25 @@ private:
   // Whether to serialize the full schema.
   bool MemProfFullSchema;
 
+  // Returns the profile version in uint32_t.
+  // Header.Version is uint64_t with the lowest 32 bits specifying profile
+  // version and the most significant bits specyfing profile flavors.
+  uint32_t profileVersion() const;
+
+  // Returns the minimum profile reader version required to parse this profile.
+  uint64_t minProfileReaderVersion() const;
+
+  // The following fields are used in unit tests only.
+  // If not std::nullopt, this field overwrites the lowest 32 bits of
+  // Header::Version in the generated profile.
+  std::optional<uint32_t> ProfileVersion = std::nullopt;
+  // If true, profile writer will append one 64-bit dummy value as unknown
+  // header fields.
+  bool AppendAdditionalHeaderFields = false;
+  // If not std::nullopt, this field overwrites
+  // Header::MinimumProfileReaderVersion in the generated profile.
+  std::optional<int> MinCompatibleReaderProfileVersion = std::nullopt;
+
 public:
   InstrProfWriter(
       bool Sparse = false, uint64_t TemporalProfTraceReservoirSize = 0,
@@ -201,9 +220,6 @@ public:
     return static_cast<bool>(ProfileKind & InstrProfKind::SingleByteCoverage);
   }
 
-  // Internal interfaces for testing purpose only.
-  void setValueProfDataEndianness(llvm::endianness Endianness);
-  void setOutputSparse(bool Sparse);
   void setMemProfVersionRequested(memprof::IndexedVersion Version) {
     MemProfVersionRequested = Version;
   }
@@ -213,6 +229,14 @@ public:
   void overlapRecord(NamedInstrProfRecord &&Other, OverlapStats &Overlap,
                      OverlapStats &FuncLevelOverlap,
                      const OverlapFuncFilters &FuncFilter);
+
+  // Internal interface for testing purpose only.
+  void setValueProfDataEndianness(llvm::endianness Endianness);
+  void setOutputSparse(bool Sparse);
+  void setProfileVersion(uint32_t Version);
+  void setMinCompatibleReaderProfileVersion(uint32_t Version);
+  void setAppendAdditionalHeaderFields();
+  void resetTestOnlyStatesForHeaderSection();
 
 private:
   void addRecord(StringRef Name, uint64_t Hash, InstrProfRecord &&I,

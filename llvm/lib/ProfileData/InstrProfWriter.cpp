@@ -194,7 +194,7 @@ InstrProfWriter::InstrProfWriter(
 
 InstrProfWriter::~InstrProfWriter() { delete InfoObj; }
 
-// Internal interface for testing purpose only.
+// Begin: Internal interface for testing purpose only.
 void InstrProfWriter::setValueProfDataEndianness(llvm::endianness Endianness) {
   InfoObj->ValueProfDataEndianness = Endianness;
 }
@@ -202,6 +202,25 @@ void InstrProfWriter::setValueProfDataEndianness(llvm::endianness Endianness) {
 void InstrProfWriter::setOutputSparse(bool Sparse) {
   this->Sparse = Sparse;
 }
+
+void InstrProfWriter::setProfileVersion(uint32_t Version) {
+  ProfileVersion = std::make_optional(Version);
+}
+
+void InstrProfWriter::setMinCompatibleReaderProfileVersion(uint32_t Version) {
+  MinCompatibleReaderProfileVersion = std::make_optional(Version);
+}
+
+void InstrProfWriter::setAppendAdditionalHeaderFields() {
+  AppendAdditionalHeaderFields = true;
+}
+
+void InstrProfWriter::resetTestOnlyStatesForHeaderSection() {
+  ProfileVersion = std::nullopt;
+  MinCompatibleReaderProfileVersion = std::nullopt;
+  AppendAdditionalHeaderFields = false;
+}
+// End: Internal interface for testing purpose only.
 
 void InstrProfWriter::addRecord(NamedInstrProfRecord &&I, uint64_t Weight,
                                 function_ref<void(Error)> Warn) {
@@ -629,6 +648,24 @@ static Error writeMemProf(
               memprof::MaximumSupportedVersion));
 }
 
+uint32_t InstrProfWriter::profileVersion() const {
+  // ProfileVersion is set in tests only.
+  if (this->ProfileVersion)
+    return *(this->ProfileVersion);
+
+  uint64_t CurVersion = IndexedInstrProf::ProfVersion::CurrentVersion;
+
+  return WritePrevVersion ? CurVersion - 1 : CurVersion;
+}
+
+uint64_t InstrProfWriter::minProfileReaderVersion() const {
+  // MinCompatibleReaderProfileVersion is set in tests only.
+  if (this->MinCompatibleReaderProfileVersion)
+    return *(this->MinCompatibleReaderProfileVersion);
+
+  return IndexedInstrProf::ProfVersion::Version13;
+}
+
 Error InstrProfWriter::writeImpl(ProfOStream &OS) {
   using namespace IndexedInstrProf;
   using namespace support;
@@ -652,13 +689,10 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
   // Write the header.
   IndexedInstrProf::Header Header;
   Header.Magic = IndexedInstrProf::Magic;
-  Header.Version = WritePrevVersion
-                       ? IndexedInstrProf::ProfVersion::Version11
-                       : IndexedInstrProf::ProfVersion::CurrentVersion;
-  // The WritePrevVersion handling will either need to be removed or updated
-  // if the version is advanced beyond 12.
+  Header.Version = profileVersion();
+
   assert(IndexedInstrProf::ProfVersion::CurrentVersion ==
-         IndexedInstrProf::ProfVersion::Version12);
+         IndexedInstrProf::ProfVersion::Version13);
   if (static_cast<bool>(ProfileKind & InstrProfKind::IRInstrumentation))
     Header.Version |= VARIANT_MASK_IR_PROF;
   if (static_cast<bool>(ProfileKind & InstrProfKind::ContextSensitive))
@@ -683,6 +717,7 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
   Header.TemporalProfTracesOffset = 0;
   Header.VTableNamesOffset = 0;
 
+  const uint64_t StartOffset = OS.tell();
   // Only write out the first four fields. We need to remember the offset of the
   // remaining fields to allow back patching later.
   for (int I = 0; I < 4; I++)
@@ -710,8 +745,39 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
   OS.write(0);
 
   uint64_t VTableNamesOffset = OS.tell();
-  if (!WritePrevVersion)
+  OS.write(0);
+
+  // Record the offset of 'Header::OnDiskHeaderByteSize' field.
+  const uint64_t OnDiskHeaderSizeOffset = OS.tell();
+
+  uint64_t OnDiskProfileSizeOffset = 0, TemporalProfSizeOffset = 0;
+
+  if (!WritePrevVersion) {
+    // Reserve the space for `OnDiskByteSize` to allow back patching later.
     OS.write(0);
+
+    // Write the minimum compatible version required.
+    OS.write(minProfileReaderVersion());
+
+    // Record the offset of `Header::TemporalProfSizeOffset` field, and reserve
+    // the space for this field to allow back patching.
+    TemporalProfSizeOffset = OS.tell();
+    OS.write(0);
+
+    // Record the offset of `Header::OnDiskProfileByteSize` field, and reserve
+    // the space for this field to allow back patching.
+    OnDiskProfileSizeOffset = OS.tell();
+    OS.write(0);
+  }
+
+  // This is a test-only path to append dummy header fields.
+  // NOTE: please write all other header fields before this one.
+  if (AppendAdditionalHeaderFields)
+    OS.write(0);
+
+  // Record the OnDiskHeader Size after each header field either gets written or
+  // gets its space reserved.
+  uint64_t OnDiskHeaderSize = OS.tell() - StartOffset;
 
   // Reserve space to write profile summary data.
   uint32_t NumEntries = ProfileSummaryBuilder::DefaultCutoffs.size();
@@ -781,36 +847,35 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
 
   uint64_t VTableNamesSectionStart = OS.tell();
 
-  if (!WritePrevVersion) {
-    std::vector<std::string> VTableNameStrs;
-    for (StringRef VTableName : VTableNames.keys())
-      VTableNameStrs.push_back(VTableName.str());
+  std::vector<std::string> VTableNameStrs;
+  for (StringRef VTableName : VTableNames.keys())
+    VTableNameStrs.push_back(VTableName.str());
 
-    std::string CompressedVTableNames;
-    if (!VTableNameStrs.empty())
-      if (Error E = collectGlobalObjectNameStrings(
-              VTableNameStrs, compression::zlib::isAvailable(),
-              CompressedVTableNames))
-        return E;
+  std::string CompressedVTableNames;
+  if (!VTableNameStrs.empty())
+    if (Error E = collectGlobalObjectNameStrings(
+            VTableNameStrs, compression::zlib::isAvailable(),
+            CompressedVTableNames))
+      return E;
 
-    const uint64_t CompressedStringLen = CompressedVTableNames.length();
+  const uint64_t CompressedStringLen = CompressedVTableNames.length();
 
-    // Record the length of compressed string.
-    OS.write(CompressedStringLen);
+  // Record the length of compressed string.
+  OS.write(CompressedStringLen);
 
-    // Write the chars in compressed strings.
-    for (auto &c : CompressedVTableNames)
-      OS.writeByte(static_cast<uint8_t>(c));
+  // Write the chars in compressed strings.
+  for (auto &c : CompressedVTableNames)
+    OS.writeByte(static_cast<uint8_t>(c));
 
-    // Pad up to a multiple of 8.
-    // InstrProfReader could read bytes according to 'CompressedStringLen'.
-    const uint64_t PaddedLength = alignTo(CompressedStringLen, 8);
+  // Pad up to a multiple of 8.
+  // InstrProfReader could read bytes according to 'CompressedStringLen'.
+  const uint64_t PaddedLength = alignTo(CompressedStringLen, 8);
 
-    for (uint64_t K = CompressedStringLen; K < PaddedLength; K++)
-      OS.writeByte(0);
-  }
+  for (uint64_t K = CompressedStringLen; K < PaddedLength; K++)
+    OS.writeByte(0);
 
   uint64_t TemporalProfTracesSectionStart = 0;
+  uint64_t TemporalProfSize = 0;
   if (static_cast<bool>(ProfileKind & InstrProfKind::TemporalProfile)) {
     TemporalProfTracesSectionStart = OS.tell();
     OS.write(TemporalProfTraces.size());
@@ -821,7 +886,11 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
       for (auto &NameRef : Trace.FunctionNameRefs)
         OS.write(NameRef);
     }
+
+    TemporalProfSize = OS.tell() - TemporalProfTracesSectionStart;
   }
+
+  uint64_t OnDiskProfileByteSize = OS.tell() - StartOffset;
 
   // Allocate space for data to be serialized out.
   std::unique_ptr<IndexedInstrProf::Summary> TheSummary =
@@ -855,6 +924,9 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
         // traces).
         {TemporalProfTracesOffset, &TemporalProfTracesSectionStart, 1},
         {VTableNamesOffset, &VTableNamesSectionStart, 1},
+        {OnDiskHeaderSizeOffset, &OnDiskHeaderSize, 1},
+        {TemporalProfSizeOffset, &TemporalProfSize, 1},
+        {OnDiskProfileSizeOffset, &OnDiskProfileByteSize, 1},
         // Patch the summary data.
         {SummaryOffset, reinterpret_cast<uint64_t *>(TheSummary.get()),
          (int)(SummarySize / sizeof(uint64_t))},
@@ -875,6 +947,7 @@ Error InstrProfWriter::writeImpl(ProfOStream &OS) {
         // Patch the Header.TemporalProfTracesOffset (=0 for profiles without
         // traces).
         {TemporalProfTracesOffset, &TemporalProfTracesSectionStart, 1},
+        {VTableNamesOffset, &VTableNamesSectionStart, 1},
         // Patch the summary data.
         {SummaryOffset, reinterpret_cast<uint64_t *>(TheSummary.get()),
          (int)(SummarySize / sizeof(uint64_t))},

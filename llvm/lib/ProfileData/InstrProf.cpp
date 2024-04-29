@@ -38,6 +38,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Path.h"
@@ -164,6 +165,11 @@ static std::string getInstrProfErrString(instrprof_error Err,
     break;
   case instrprof_error::counter_value_too_large:
     OS << "excessively large counter value suggests corrupted profile data";
+    break;
+  case instrprof_error::unsupported_incompatible_future_version:
+    OS << "unsupported incompatible future version. The profile is likely "
+          "generated from newer released compilers/tools and not parsable by "
+          "current reader.";
     break;
   }
 
@@ -1597,14 +1603,15 @@ uint64_t Header::formatVersion() const {
   return endian::byte_swap<uint64_t, llvm::endianness::little>(Version);
 }
 
+constexpr size_t kOnDiskSizeOffset = 9 * sizeof(uint64_t);
+
 Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
   using namespace support;
   static_assert(std::is_standard_layout_v<Header>,
-                "The header should be standard layout type since we use offset "
-                "of fields to read.");
-  Header H;
+                "Keep the header a standard-layout class for simplicity");
 
-  H.Magic = read(Buffer, offsetOf(&Header::Magic));
+  Header H;
+  H.Magic = read(Buffer, 0);
   // Check the magic number.
   uint64_t Magic =
       endian::byte_swap<uint64_t, llvm::endianness::little>(H.Magic);
@@ -1612,50 +1619,140 @@ Expected<Header> Header::readFromBuffer(const unsigned char *Buffer) {
     return make_error<InstrProfError>(instrprof_error::bad_magic);
 
   // Read the version.
-  H.Version = read(Buffer, offsetOf(&Header::Version));
-  if (GET_VERSION(H.formatVersion()) >
-      IndexedInstrProf::ProfVersion::CurrentVersion)
-    return make_error<InstrProfError>(instrprof_error::unsupported_version);
+  H.Version = read(Buffer, sizeof(uint64_t));
+  uint64_t ProfileRecordedProfileVersion = GET_VERSION(H.formatVersion());
 
-  switch (GET_VERSION(H.formatVersion())) {
+  if (ProfileRecordedProfileVersion >= ProfVersion::Version13) {
+    // Starting from version 13, profiles should records header's on-disk byte
+    // size and the minimum profile reader version required.
+    H.OnDiskHeaderByteSize =
+        endian::byte_swap<uint64_t, llvm::endianness::little>(
+            read(Buffer, kOnDiskSizeOffset));
+    H.MinimumProfileReaderVersion =
+        endian::byte_swap<uint64_t, llvm::endianness::little>(
+            read(Buffer, kOnDiskSizeOffset + sizeof(uint64_t)));
+    H.TemporalProfSectionSize =
+        endian::byte_swap<uint64_t, llvm::endianness::little>(
+            read(Buffer, kOnDiskSizeOffset + 2 * sizeof(uint64_t)));
+    H.OnDiskProfileByteSize =
+        endian::byte_swap<uint64_t, llvm::endianness::little>(
+            read(Buffer, kOnDiskSizeOffset + 3 * sizeof(uint64_t)));
+  } else {
+    // Prior to version 13, the largest version supported by the reader
+    // (ProfVersion::CurrentVersion) must be greater than or equal to the
+    // profile-recorded version.
+    H.MinimumProfileReaderVersion = ProfileRecordedProfileVersion;
+  }
+
+  // Stop reading and return error if the largest version supported by the
+  // reader falls behind the minimum reader version required by the profiles.
+  if (IndexedInstrProf::ProfVersion::CurrentVersion <
+      H.MinimumProfileReaderVersion)
+    return make_error<InstrProfError>(
+        instrprof_error::unsupported_incompatible_future_version,
+        formatv("Profile reader should support {0} to parse profile of version "
+                "{1} ",
+                H.MinimumProfileReaderVersion, ProfileRecordedProfileVersion));
+
+  // `FieldByteOffset` represents the end byte of the last known header field.
+  auto FieldByteOffsetOrErr = H.knownFieldsEndByteOffset();
+  if (Error E = FieldByteOffsetOrErr.takeError())
+    return E;
+
+  auto FieldByteOffset = FieldByteOffsetOrErr.get();
+
+  assert(FieldByteOffset != 0 &&
+         "FieldByteOffset specifies the byte offset of the last known field in "
+         "header and should not be zero");
+
+  // If the version from profile is higher than the currently supported version,
+  // read the known defined header fields and discard the rest.
+  if (ProfileRecordedProfileVersion > ProfVersion::CurrentVersion)
+    ProfileRecordedProfileVersion = ProfVersion::CurrentVersion;
+
+  // Initialize header fields based on the currently supported version.
+  switch (ProfileRecordedProfileVersion) {
     // When a new field is added in the header add a case statement here to
     // populate it.
     static_assert(
-        IndexedInstrProf::ProfVersion::CurrentVersion == Version12,
+        IndexedInstrProf::ProfVersion::CurrentVersion == Version13,
         "Please update the reading code below if a new field has been added, "
         "if not add a case statement to fall through to the latest version.");
+  case 13ull:
+    // Size field is already read.
+    FieldByteOffset -= sizeof(Header::OnDiskHeaderByteSize);
+    FieldByteOffset -= sizeof(Header::TemporalProfSectionSize);
+    FieldByteOffset -= sizeof(Header::MinimumProfileReaderVersion);
+    FieldByteOffset -= sizeof(Header::OnDiskProfileByteSize);
+    [[fallthrough]];
   case 12ull:
-    H.VTableNamesOffset = read(Buffer, offsetOf(&Header::VTableNamesOffset));
+    FieldByteOffset -= sizeof(Header::VTableNamesOffset);
+    H.VTableNamesOffset = read(Buffer, FieldByteOffset);
     [[fallthrough]];
   case 11ull:
     [[fallthrough]];
   case 10ull:
-    H.TemporalProfTracesOffset =
-        read(Buffer, offsetOf(&Header::TemporalProfTracesOffset));
+    FieldByteOffset -= sizeof(Header::TemporalProfTracesOffset);
+    H.TemporalProfTracesOffset = read(Buffer, FieldByteOffset);
     [[fallthrough]];
   case 9ull:
-    H.BinaryIdOffset = read(Buffer, offsetOf(&Header::BinaryIdOffset));
+    FieldByteOffset -= sizeof(Header::BinaryIdOffset);
+    H.BinaryIdOffset = read(Buffer, FieldByteOffset);
     [[fallthrough]];
   case 8ull:
-    H.MemProfOffset = read(Buffer, offsetOf(&Header::MemProfOffset));
+    FieldByteOffset -= sizeof(Header::MemProfOffset);
+    H.MemProfOffset = read(Buffer, FieldByteOffset);
     [[fallthrough]];
   default: // Version7 (when the backwards compatible header was introduced).
-    H.HashType = read(Buffer, offsetOf(&Header::HashType));
-    H.HashOffset = read(Buffer, offsetOf(&Header::HashOffset));
+    FieldByteOffset -= sizeof(Header::HashOffset);
+    H.HashOffset = read(Buffer, FieldByteOffset);
+    FieldByteOffset -= sizeof(Header::HashType);
+    H.HashType = read(Buffer, FieldByteOffset);
   }
 
   return H;
 }
 
+Expected<size_t> Header::knownFieldsEndByteOffset() const {
+  // All header fields are known before, so the end byte offset of known fields
+  // is the same as header byte size.
+  const uint64_t ProfileRecordedProfileVersion = GET_VERSION(formatVersion());
+  if (ProfileRecordedProfileVersion <= ProfVersion::Version12)
+    return this->size();
+
+  // Starting from version 13, the known field end byte offset is calculated
+  // based on the currently supported version recorded in the reader.
+  switch (IndexedInstrProf::ProfVersion::CurrentVersion) {
+    // When a new field is added in the header add a case statement here to
+    // populate it.
+    static_assert(IndexedInstrProf::ProfVersion::CurrentVersion == Version13,
+                  "If current version bumps, please update the case below to "
+                  "calculate the known field end byte offset.");
+  case 13ull:
+    return kOnDiskSizeOffset + sizeof(Header::OnDiskHeaderByteSize) +
+           sizeof(Header::MinimumProfileReaderVersion) +
+           sizeof(Header::OnDiskProfileByteSize) +
+           sizeof(Header::TemporalProfSectionSize);
+  default:
+    break;
+  }
+
+  return make_error<InstrProfError>(instrprof_error::unsupported_version);
+}
+
 size_t Header::size() const {
-  switch (GET_VERSION(formatVersion())) {
-    // When a new field is added to the header add a case statement here to
-    // compute the size as offset of the new field + size of the new field. This
-    // relies on the field being added to the end of the list.
-    static_assert(IndexedInstrProf::ProfVersion::CurrentVersion == Version12,
-                  "Please update the size computation below if a new field has "
-                  "been added to the header, if not add a case statement to "
-                  "fall through to the latest version.");
+  const uint64_t ProfileRecordedProfileVersion = GET_VERSION(formatVersion());
+  // Starting from version 13, the indexed profile records the byte size of
+  // header.
+  if (ProfileRecordedProfileVersion >= ProfVersion::Version13) {
+    assert(OnDiskHeaderByteSize != 0 &&
+           "User can call Header::size() only after reading it "
+           "from readMemoryBuffer");
+    return OnDiskHeaderByteSize;
+  }
+  switch (ProfileRecordedProfileVersion) {
+    assert(ProfileRecordedProfileVersion <= ProfVersion::Version12 &&
+           "Do not infer header size field for newer version");
   case 12ull:
     return offsetOf(&Header::VTableNamesOffset) +
            sizeof(Header::VTableNamesOffset);
