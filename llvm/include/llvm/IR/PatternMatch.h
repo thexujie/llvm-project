@@ -2793,6 +2793,65 @@ inline VScaleVal_match m_VScale() {
   return VScaleVal_match();
 }
 
+template <typename LHS, typename RHS> struct Interleave2_match {
+  LHS L;
+  RHS R;
+
+  Interleave2_match(const LHS &L, const RHS &R) : L(L), R(R) {}
+
+  template <typename ITy> bool match(ITy *V) {
+    auto *I = dyn_cast<IntrinsicInst>(V);
+    if (m_Intrinsic<Intrinsic::experimental_vector_interleave2>().match(V)) {
+      return (L.match(I->getOperand(0)) && R.match(I->getOperand(1)));
+    }
+    return false;
+  }
+};
+
+template <typename LHS, typename RHS>
+inline Interleave2_match<LHS, RHS> m_Interleave2(const LHS &L, const RHS &R) {
+  return Interleave2_match<LHS, RHS>(L, R);
+}
+
+// Match deinterleave tree.
+// if the current user of deinterelave is the last (extract instr) in the tree,
+// then match for that user.
+// otherwise, it means there are still deinterleave nodes in the tree,
+// then match for the next deinterleave in the tree,
+// which is the user of the extract.
+template <typename LHS, typename RHS> struct Deinterleave2_match {
+  LHS L;
+  RHS R;
+
+  Deinterleave2_match(const LHS &L, const RHS &R) : L(L), R(R) {}
+
+  template <typename ITy> bool match(ITy *V) {
+    auto *I = dyn_cast<IntrinsicInst>(V);
+    if (m_Intrinsic<Intrinsic::experimental_vector_deinterleave2>().match(V)) {
+      if (!I->hasNUses(2))
+        return false;
+
+      User *UserI1 = *I->user_begin();
+      User *UserI0 = *(++I->user_begin());
+
+      if (!PatternMatch::match(UserI1, m_ExtractValue<1>(m_Value())) ||
+          !PatternMatch::match(UserI0, m_ExtractValue<0>(m_Value())))
+        return false;
+
+      return (L.match(UserI0) && R.match(UserI1)) ||
+             (L.match(*(UserI0->user_begin())) &&
+              R.match(*(UserI1->user_begin())));
+    }
+    return false;
+  }
+};
+
+template <typename LHS, typename RHS>
+inline Deinterleave2_match<LHS, RHS> m_Deinterleave2(const LHS &L,
+                                                     const RHS &R) {
+  return Deinterleave2_match<LHS, RHS>(L, R);
+}
+
 template <typename LHS, typename RHS, unsigned Opcode, bool Commutable = false>
 struct LogicalOp_match {
   LHS L;
