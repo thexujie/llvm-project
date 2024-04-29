@@ -861,10 +861,12 @@ public:
   bool lowerInterleavedStore(StoreInst *SI, ShuffleVectorInst *SVI,
                              unsigned Factor) const override;
 
-  bool lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *II,
+  bool lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
+                                        std::queue<std::pair<unsigned, Value*>>& LeafNodes,
                                         LoadInst *LI) const override;
 
   bool lowerInterleaveIntrinsicToStore(IntrinsicInst *II,
+                                       std::queue<Value*>& LeafNodes,
                                        StoreInst *SI) const override;
 
   bool supportKCFIBundles() const override { return true; }

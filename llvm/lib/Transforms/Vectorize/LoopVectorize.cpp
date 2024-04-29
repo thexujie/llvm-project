@@ -154,6 +154,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <queue>
 
 using namespace llvm;
 
@@ -459,10 +460,23 @@ static Value *interleaveVectors(IRBuilderBase &Builder, ArrayRef<Value *> Vals,
   // Scalable vectors cannot use arbitrary shufflevectors (only splats), so
   // must use intrinsics to interleave.
   if (VecTy->isScalableTy()) {
-    VectorType *WideVecTy = VectorType::getDoubleElementsVectorType(VecTy);
-    return Builder.CreateIntrinsic(
-        WideVecTy, Intrinsic::experimental_vector_interleave2, Vals,
-        /*FMFSource=*/nullptr, Name);
+    SmallVector<Value *> Vecs(Vals);
+    unsigned AllNodesNum = (2*Vals.size()) - 1;
+    // last element in the vec should be the final interleaved result,
+    // so, skip processing last element.
+    AllNodesNum --;
+    // interleave each 2 consecutive nodes, and push result to the vec,
+    // so that we can interleave the interleaved results again if we have
+    // more than 2 vectors to interleave.
+    for (unsigned i = 0; i < AllNodesNum; i +=2) {
+      VectorType *VecTy = cast<VectorType>(Vecs[i]->getType());
+      VectorType *WideVecTy = VectorType::getDoubleElementsVectorType(VecTy);
+      auto InterleavedVec = Builder.CreateIntrinsic(
+        WideVecTy, Intrinsic::experimental_vector_interleave2,
+        {Vecs[i], Vecs[i+1]}, /*FMFSource=*/nullptr, Name);
+      Vecs.push_back(InterleavedVec);
+    }
+    return Vecs[Vecs.size()-1];
   }
 
   // Fixed length. Start by concatenating all vectors into a wide vector.
@@ -2511,7 +2525,7 @@ void InnerLoopVectorizer::vectorizeInterleaveGroup(
                              unsigned Part, Value *MaskForGaps) -> Value * {
     if (VF.isScalable()) {
       assert(!MaskForGaps && "Interleaved groups with gaps are not supported.");
-      assert(InterleaveFactor == 2 &&
+      assert(isPowerOf2_32(InterleaveFactor)  &&
              "Unsupported deinterleave factor for scalable vectors");
       auto *BlockInMaskPart = State.get(BlockInMask, Part);
       SmallVector<Value *, 2> Ops = {BlockInMaskPart, BlockInMaskPart};
@@ -2564,23 +2578,40 @@ void InnerLoopVectorizer::vectorizeInterleaveGroup(
     }
 
     if (VecTy->isScalableTy()) {
-      assert(InterleaveFactor == 2 &&
-             "Unsupported deinterleave factor for scalable vectors");
-
+      assert(isPowerOf2_32(InterleaveFactor)  &&
+            "Unsupported deinterleave factor for scalable vectors");
       for (unsigned Part = 0; Part < UF; ++Part) {
         // Scalable vectors cannot use arbitrary shufflevectors (only splats),
         // so must use intrinsics to deinterleave.
-        Value *DI = Builder.CreateIntrinsic(
-            Intrinsic::experimental_vector_deinterleave2, VecTy, NewLoads[Part],
-            /*FMFSource=*/nullptr, "strided.vec");
+        
+        std::queue<Value *>Queue;
+        Queue.push(NewLoads[Part]);
+        // NonLeaf represents how many times we will do deinterleaving,
+        // think of it as a tree, each node will be deinterleaved, untill we reach to
+        // the leaf nodes which will be the final results of deinterleaving.
+        unsigned NonLeaf = InterleaveFactor - 1;
+        for (unsigned i = 0; i < NonLeaf; i ++) {
+          auto Node = Queue.front();
+          Queue.pop();
+          auto DeinterleaveType = Node->getType();
+          Value *DI = Builder.CreateIntrinsic(
+            Intrinsic::experimental_vector_deinterleave2, DeinterleaveType, Node,
+            /*FMFSource=*/nullptr, "root.strided.vec");
+          Value *StridedVec1 = Builder.CreateExtractValue(DI, 0);
+          Value *StridedVec2 = Builder.CreateExtractValue(DI, 1);
+          Queue.push(StridedVec1);
+          Queue.push(StridedVec2);
+        }
+
         unsigned J = 0;
-        for (unsigned I = 0; I < InterleaveFactor; ++I) {
+        for (unsigned I = 0; I < InterleaveFactor && !Queue.empty(); ++I) {
           Instruction *Member = Group->getMember(I);
 
           if (!Member)
             continue;
 
-          Value *StridedVec = Builder.CreateExtractValue(DI, I);
+          auto StridedVec = Queue.front();
+          Queue.pop();
           // If this member has different type, cast the result type.
           if (Member->getType() != ScalarTy) {
             VectorType *OtherVTy = VectorType::get(Member->getType(), VF);
@@ -2673,6 +2704,7 @@ void InnerLoopVectorizer::vectorizeInterleaveGroup(
 
     // Interleave all the smaller vectors into one wider vector.
     Value *IVec = interleaveVectors(Builder, StoredVecs, "interleaved.vec");
+    //LLVM_DEBUG(dbgs() << "interleaved vec: "; IVec->dump());
     Instruction *NewStoreInstr;
     if (BlockInMask || MaskForGaps) {
       Value *GroupMask = CreateGroupMask(Part, MaskForGaps);
@@ -8666,9 +8698,9 @@ LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes(VFRange &Range) {
                      CM.getWideningDecision(IG->getInsertPos(), VF) ==
                          LoopVectorizationCostModel::CM_Interleave);
       // For scalable vectors, the only interleave factor currently supported
-      // is 2 since we require the (de)interleave2 intrinsics instead of
-      // shufflevectors.
-      assert((!Result || !VF.isScalable() || IG->getFactor() == 2) &&
+      // is a (power of 2) factor, since we require the (de)interleave2 intrinsics instead of
+      // shufflevectors, so we can do (de)interleave2 recursively.
+      assert((!Result || !VF.isScalable() || isPowerOf2_32(IG->getFactor())) &&
              "Unsupported interleave factor for scalable vectors");
       return Result;
     };

@@ -3336,15 +3336,17 @@ InstructionCost AArch64TTIImpl::getInterleavedMemoryOpCost(
   assert(Factor >= 2 && "Invalid interleave factor");
   auto *VecVTy = cast<VectorType>(VecTy);
 
-  if (VecTy->isScalableTy() && (!ST->hasSVE() || Factor != 2))
-    return InstructionCost::getInvalid();
+ unsigned MaxFactor = TLI->getMaxSupportedInterleaveFactor();
+ if (VecTy->isScalableTy() &&
+    (!ST->hasSVE() || Factor > MaxFactor))
+   return InstructionCost::getInvalid();
 
   // Vectorization for masked interleaved accesses is only enabled for scalable
   // VF.
   if (!VecTy->isScalableTy() && (UseMaskForCond || UseMaskForGaps))
     return InstructionCost::getInvalid();
 
-  if (!UseMaskForGaps && Factor <= TLI->getMaxSupportedInterleaveFactor()) {
+  if (!UseMaskForGaps && Factor <= MaxFactor) {
     unsigned MinElts = VecVTy->getElementCount().getKnownMinValue();
     auto *SubVecTy =
         VectorType::get(VecVTy->getElementType(),

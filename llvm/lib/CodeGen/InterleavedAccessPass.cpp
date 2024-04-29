@@ -71,6 +71,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <utility>
+#include <queue>
 
 using namespace llvm;
 
@@ -488,12 +489,52 @@ bool InterleavedAccessImpl::lowerDeinterleaveIntrinsic(
 
   LLVM_DEBUG(dbgs() << "IA: Found a deinterleave intrinsic: " << *DI << "\n");
 
+  std::stack<IntrinsicInst*> DeinterleaveTreeQueue;
+  std::queue<std::pair<unsigned, Value*>> LeafNodes;
+  std::map<IntrinsicInst*, bool>mp;
+  SmallVector<Instruction *> TempDeadInsts;
+
+  DeinterleaveTreeQueue.push(DI);
+  unsigned DILeafCount = 0;
+  while(!DeinterleaveTreeQueue.empty()) {
+    auto CurrentDI = DeinterleaveTreeQueue.top();
+    DeinterleaveTreeQueue.pop();
+    TempDeadInsts.push_back(CurrentDI);
+    bool RootFound = false;
+    for (auto UserExtract : CurrentDI->users()) { // iterate over extract users of deinterleave
+      Instruction *Extract = dyn_cast<Instruction>(UserExtract);
+      if (!Extract || Extract->getOpcode() != Instruction::ExtractValue)
+        continue;
+      bool IsLeaf = true;
+      for (auto UserDI : UserExtract->users()) { // iterate over deinterleave users of extract
+        IntrinsicInst *Child_DI = dyn_cast<IntrinsicInst>(UserDI);
+        if (!Child_DI || 
+            Child_DI->getIntrinsicID() != Intrinsic::experimental_vector_deinterleave2)
+            continue;
+        IsLeaf = false;
+        if (mp.count(Child_DI) == 0) {
+          DeinterleaveTreeQueue.push(Child_DI);
+        }
+        continue;
+      }
+      if (IsLeaf) {
+        RootFound = true;
+        LeafNodes.push(std::make_pair(DILeafCount, UserExtract));
+        TempDeadInsts.push_back(Extract);
+      }
+      else {
+        TempDeadInsts.push_back(Extract);
+      }
+    }
+    if (RootFound)
+      DILeafCount += CurrentDI->getNumUses();
+  }
   // Try and match this with target specific intrinsics.
-  if (!TLI->lowerDeinterleaveIntrinsicToLoad(DI, LI))
+  if (!TLI->lowerDeinterleaveIntrinsicToLoad(DI, LeafNodes, LI))
     return false;
 
   // We now have a target-specific load, so delete the old one.
-  DeadInsts.push_back(DI);
+  DeadInsts.insert(DeadInsts.end(), TempDeadInsts.rbegin(), TempDeadInsts.rend());
   DeadInsts.push_back(LI);
   return true;
 }
@@ -509,14 +550,33 @@ bool InterleavedAccessImpl::lowerInterleaveIntrinsic(
     return false;
 
   LLVM_DEBUG(dbgs() << "IA: Found an interleave intrinsic: " << *II << "\n");
+  std::queue<IntrinsicInst*> IeinterleaveTreeQueue;
+  std::queue<Value*> LeafNodes;
+  SmallVector<Instruction *> TempDeadInsts;
 
+  IeinterleaveTreeQueue.push(II);
+  while(!IeinterleaveTreeQueue.empty()) {
+    auto node = IeinterleaveTreeQueue.front();
+    TempDeadInsts.push_back(node);
+    IeinterleaveTreeQueue.pop();
+    for(unsigned i = 0; i < 2; i++) {
+      auto op = node->getOperand(i);
+      if(auto CurrentII = dyn_cast<IntrinsicInst>(op)) {
+        if (CurrentII->getIntrinsicID() != Intrinsic::experimental_vector_interleave2)
+            continue;
+        IeinterleaveTreeQueue.push(CurrentII);
+        continue;
+      }
+      LeafNodes.push(op);
+    }
+  }
   // Try and match this with target specific intrinsics.
-  if (!TLI->lowerInterleaveIntrinsicToStore(II, SI))
+  if (!TLI->lowerInterleaveIntrinsicToStore(II, LeafNodes, SI))
     return false;
 
   // We now have a target-specific store, so delete the old one.
   DeadInsts.push_back(SI);
-  DeadInsts.push_back(II);
+  DeadInsts.insert(DeadInsts.end(), TempDeadInsts.begin(), TempDeadInsts.end());
   return true;
 }
 
@@ -537,7 +597,7 @@ bool InterleavedAccessImpl::runOnFunction(Function &F) {
       // with a factor of 2.
       if (II->getIntrinsicID() == Intrinsic::experimental_vector_deinterleave2)
         Changed |= lowerDeinterleaveIntrinsic(II, DeadInsts);
-      if (II->getIntrinsicID() == Intrinsic::experimental_vector_interleave2)
+      else if (II->getIntrinsicID() == Intrinsic::experimental_vector_interleave2)
         Changed |= lowerInterleaveIntrinsic(II, DeadInsts);
     }
   }

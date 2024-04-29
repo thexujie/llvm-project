@@ -686,9 +686,11 @@ public:
                              unsigned Factor) const override;
 
   bool lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
+                                        std::queue<std::pair<unsigned, Value*>>& LeafNodes,
                                         LoadInst *LI) const override;
 
   bool lowerInterleaveIntrinsicToStore(IntrinsicInst *II,
+                                       std::queue<Value*>& LeafNodes,
                                        StoreInst *SI) const override;
 
   bool isLegalAddImmediate(int64_t) const override;
