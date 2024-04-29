@@ -867,8 +867,8 @@ public:
 private:
   bool needVSETVLI(const MachineInstr &MI, const VSETVLIInfo &Require,
                    const VSETVLIInfo &CurInfo) const;
-  bool needVSETVLIPHI(const VSETVLIInfo &Require, const MachineBasicBlock &MBB,
-                      const MachineInstr &MI) const;
+  bool needVSETVLIPHI(const VSETVLIInfo &Require,
+                      const MachineBasicBlock &MBB) const;
   void insertVSETVLI(MachineBasicBlock &MBB, MachineInstr &MI,
                      const VSETVLIInfo &Info, const VSETVLIInfo &PrevInfo);
   void insertVSETVLI(MachineBasicBlock &MBB,
@@ -1458,8 +1458,7 @@ void RISCVInsertVSETVLI::computeIncomingVLVTYPE(const MachineBasicBlock &MBB) {
 // be unneeded if the AVL is a phi node where all incoming values are VL
 // outputs from the last VSETVLI in their respective basic blocks.
 bool RISCVInsertVSETVLI::needVSETVLIPHI(const VSETVLIInfo &Require,
-                                        const MachineBasicBlock &MBB,
-                                        const MachineInstr &MI) const {
+                                        const MachineBasicBlock &MBB) const {
   if (DisableInsertVSETVLPHIOpt)
     return true;
 
@@ -1473,7 +1472,11 @@ bool RISCVInsertVSETVLI::needVSETVLIPHI(const VSETVLIInfo &Require,
 
     LiveRange &LR = LIS->getInterval(Require.getAVLReg());
     SlotIndexes *SIs = LIS->getSlotIndexes();
-    SlotIndex SI = SIs->getInstructionIndex(MI);
+
+    if (!Require.hasAVLRegDefMI())
+      return true;
+
+    SlotIndex SI = SIs->getInstructionIndex(Require.getAVLDefMI());
     VNInfo *Valno = LR.getVNInfoAt(SI);
     if (!Valno || !Valno->isPHIDef())
       return true;
@@ -1563,7 +1566,7 @@ void RISCVInsertVSETVLI::emitVSETVLIs(MachineBasicBlock &MBB) {
         // wouldn't be used and VL/VTYPE registers are correct.  Note that
         // we *do* need to model the state as if it changed as while the
         // register contents are unchanged, the abstract model can change.
-        if (!PrefixTransparent || needVSETVLIPHI(CurInfo, MBB, MI))
+        if (!PrefixTransparent || needVSETVLIPHI(CurInfo, MBB))
           insertVSETVLI(MBB, MI, CurInfo, PrevInfo);
         PrefixTransparent = false;
       }
