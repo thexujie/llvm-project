@@ -1365,9 +1365,12 @@ void RISCVInsertVSETVLI::transferAfter(VSETVLIInfo &Info,
 
   if (RISCV::isFaultFirstLoad(MI)) {
     // Update AVL to vl-output of the fault first load.
-    Info.setAVLRegDef(
-        getReachingDefMI(MI.getOperand(1).getReg(), &MI, MRI, LIS),
-        MI.getOperand(1).getReg());
+    if (MI.getOperand(1).getReg() == RISCV::X0)
+      Info.setAVLVLMAX();
+    else
+      Info.setAVLRegDef(
+          getReachingDefMI(MI.getOperand(1).getReg(), &MI, MRI, LIS),
+          MI.getOperand(1).getReg());
     return;
   }
 
