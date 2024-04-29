@@ -31,7 +31,6 @@
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveStacks.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Support/ErrorHandling.h"
 #include <queue>
 using namespace llvm;
 
