@@ -205,8 +205,8 @@ define internal void @level1(i32 %C) {
 ; TUNIT-LABEL: define {{[^@]+}}@level1
 ; TUNIT-SAME: (i32 [[C:%.*]]) #[[ATTR1]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[LOCAL:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    call void @level2all_early(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[LOCAL]]) #[[ATTR4]]
+; TUNIT-NEXT:    [[LOCAL1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    call void @level2all_early(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[LOCAL1]]) #[[ATTR4]]
 ; TUNIT-NEXT:    [[TOBOOL:%.*]] = icmp ne i32 [[C]], 0
 ; TUNIT-NEXT:    br i1 [[TOBOOL]], label [[IF_THEN:%.*]], label [[IF_ELSE:%.*]]
 ; TUNIT:       if.then:
@@ -216,7 +216,7 @@ define internal void @level1(i32 %C) {
 ; TUNIT-NEXT:    call void @level2b() #[[ATTR5]]
 ; TUNIT-NEXT:    br label [[IF_END]]
 ; TUNIT:       if.end:
-; TUNIT-NEXT:    call void @level2all_late(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[LOCAL]]) #[[ATTR6]]
+; TUNIT-NEXT:    call void @level2all_late(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[LOCAL1]]) #[[ATTR6]]
 ; TUNIT-NEXT:    ret void
 ;
 ; CGSCC: Function Attrs: norecurse nosync nounwind

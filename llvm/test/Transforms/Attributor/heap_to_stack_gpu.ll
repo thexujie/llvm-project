@@ -451,15 +451,15 @@ define i32 @malloc_in_loop(i32 %arg) {
 ; CHECK-LABEL: define {{[^@]+}}@malloc_in_loop
 ; CHECK-SAME: (i32 [[ARG:%.*]]) {
 ; CHECK-NEXT:  bb:
-; CHECK-NEXT:    [[I:%.*]] = alloca i32, align 4
+; CHECK-NEXT:    [[I2:%.*]] = alloca i8, i32 4, align 4
 ; CHECK-NEXT:    [[I1:%.*]] = alloca ptr, align 8
-; CHECK-NEXT:    [[I11:%.*]] = alloca i8, i32 0, align 8
-; CHECK-NEXT:    store i32 [[ARG]], ptr [[I]], align 4
+; CHECK-NEXT:    [[I13:%.*]] = alloca i8, i32 0, align 8
+; CHECK-NEXT:    store i32 [[ARG]], ptr [[I2]], align 4
 ; CHECK-NEXT:    br label [[BB2:%.*]]
 ; CHECK:       bb2:
-; CHECK-NEXT:    [[I3:%.*]] = load i32, ptr [[I]], align 4
+; CHECK-NEXT:    [[I3:%.*]] = load i32, ptr [[I2]], align 4
 ; CHECK-NEXT:    [[I4:%.*]] = add nsw i32 [[I3]], -1
-; CHECK-NEXT:    store i32 [[I4]], ptr [[I]], align 4
+; CHECK-NEXT:    store i32 [[I4]], ptr [[I2]], align 4
 ; CHECK-NEXT:    [[I5:%.*]] = icmp sgt i32 [[I4]], 0
 ; CHECK-NEXT:    br i1 [[I5]], label [[BB6:%.*]], label [[BB9:%.*]]
 ; CHECK:       bb6:

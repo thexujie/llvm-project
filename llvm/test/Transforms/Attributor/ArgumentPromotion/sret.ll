@@ -36,8 +36,9 @@ define void @f() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@f
 ; TUNIT-SAME: () #[[ATTR1:[0-9]+]] {
-; TUNIT-NEXT:    [[R:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    call void @add(ptr noalias nocapture nofree nonnull readnone align 8 dereferenceable(8) undef, ptr noalias nocapture nofree noundef nonnull writeonly sret(i32) align 4 dereferenceable(4) [[R]]) #[[ATTR2:[0-9]+]]
+; TUNIT-NEXT:    [[R1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    [[PAIR2:%.*]] = alloca i8, i32 8, align 8
+; TUNIT-NEXT:    call void @add(ptr noalias nocapture nofree nonnull readnone align 8 dereferenceable(8) undef, ptr noalias nocapture nofree noundef nonnull writeonly sret(i32) align 4 dereferenceable(4) [[R1]]) #[[ATTR2:[0-9]+]]
 ; TUNIT-NEXT:    ret void
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

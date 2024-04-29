@@ -18,7 +18,7 @@ define void @foo() {
 ; CHECK: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; CHECK-LABEL: define {{[^@]+}}@foo
 ; CHECK-SAME: () #[[ATTR0:[0-9]+]] {
-; CHECK-NEXT:    [[TMP:%.*]] = alloca ptr, align 8
+; CHECK-NEXT:    [[TMP1:%.*]] = alloca i8, i32 8, align 8
 ; CHECK-NEXT:    ret void
 ;
   %tmp = alloca %fun_t

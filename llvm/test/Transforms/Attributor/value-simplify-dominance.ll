@@ -8,7 +8,7 @@ define i32 @many_writes_nosycn(i1 %c0, i1 %c1, i1 %c2) nosync {
 ; CHECK: Function Attrs: norecurse nosync
 ; CHECK-LABEL: define {{[^@]+}}@many_writes_nosycn
 ; CHECK-SAME: (i1 [[C0:%.*]], i1 [[C1:%.*]], i1 [[C2:%.*]]) #[[ATTR1:[0-9]+]] {
-; CHECK-NEXT:    [[P:%.*]] = alloca i32, align 4
+; CHECK-NEXT:    [[P1:%.*]] = alloca i8, i32 4, align 4
 ; CHECK-NEXT:    call void @unknown()
 ; CHECK-NEXT:    br i1 [[C0]], label [[T0:%.*]], label [[F0:%.*]]
 ; CHECK:       t0:
@@ -19,19 +19,19 @@ define i32 @many_writes_nosycn(i1 %c0, i1 %c1, i1 %c2) nosync {
 ; CHECK-NEXT:    br i1 [[C2]], label [[F1:%.*]], label [[M1]]
 ; CHECK:       t1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 7, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 7, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2:%.*]]
 ; CHECK:       f1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 9, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 9, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2]]
 ; CHECK:       m1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 11, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 11, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2]]
 ; CHECK:       m2:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    [[L:%.*]] = load i32, ptr [[P]], align 4
+; CHECK-NEXT:    [[L:%.*]] = load i32, ptr [[P1]], align 4
 ; CHECK-NEXT:    ret i32 [[L]]
 ;
   %p = alloca i32
@@ -74,7 +74,7 @@ define i32 @many_writes(i1 %c0, i1 %c1, i1 %c2) {
 ; CHECK: Function Attrs: norecurse
 ; CHECK-LABEL: define {{[^@]+}}@many_writes
 ; CHECK-SAME: (i1 [[C0:%.*]], i1 [[C1:%.*]], i1 [[C2:%.*]]) #[[ATTR2:[0-9]+]] {
-; CHECK-NEXT:    [[P:%.*]] = alloca i32, align 4
+; CHECK-NEXT:    [[P1:%.*]] = alloca i8, i32 4, align 4
 ; CHECK-NEXT:    call void @unknown()
 ; CHECK-NEXT:    br i1 [[C0]], label [[T0:%.*]], label [[F0:%.*]]
 ; CHECK:       t0:
@@ -85,19 +85,19 @@ define i32 @many_writes(i1 %c0, i1 %c1, i1 %c2) {
 ; CHECK-NEXT:    br i1 [[C2]], label [[F1:%.*]], label [[M1]]
 ; CHECK:       t1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 7, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 7, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2:%.*]]
 ; CHECK:       f1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 9, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 9, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2]]
 ; CHECK:       m1:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    store i32 11, ptr [[P]], align 4
+; CHECK-NEXT:    store i32 11, ptr [[P1]], align 4
 ; CHECK-NEXT:    br label [[M2]]
 ; CHECK:       m2:
 ; CHECK-NEXT:    call void @unknown()
-; CHECK-NEXT:    [[L:%.*]] = load i32, ptr [[P]], align 4
+; CHECK-NEXT:    [[L:%.*]] = load i32, ptr [[P1]], align 4
 ; CHECK-NEXT:    ret i32 [[L]]
 ;
   %p = alloca i32
@@ -163,8 +163,8 @@ define i32 @local_stack_remote_write_and_read() norecurse {
 ; TUNIT: Function Attrs: norecurse
 ; TUNIT-LABEL: define {{[^@]+}}@local_stack_remote_write_and_read
 ; TUNIT-SAME: () #[[ATTR2]] {
-; TUNIT-NEXT:    [[A:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    [[R:%.*]] = call i32 @remote_write_and_read(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[A]])
+; TUNIT-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    [[R:%.*]] = call i32 @remote_write_and_read(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[A1]])
 ; TUNIT-NEXT:    ret i32 42
 ;
 ; CGSCC: Function Attrs: norecurse

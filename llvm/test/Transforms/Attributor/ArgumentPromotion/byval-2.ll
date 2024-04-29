@@ -15,8 +15,8 @@ define internal void @f(ptr byval(%struct.ss)  %b, ptr byval(i32) %X) nounwind  
 ; CHECK-NEXT:    store i32 [[TMP0]], ptr [[B_PRIV]], align 4
 ; CHECK-NEXT:    [[B_PRIV_B4:%.*]] = getelementptr i8, ptr [[B_PRIV]], i64 4
 ; CHECK-NEXT:    store i64 [[TMP1]], ptr [[B_PRIV_B4]], align 4
-; CHECK-NEXT:    [[TMP1:%.*]] = load i32, ptr [[B_PRIV]], align 8
-; CHECK-NEXT:    [[TMP2:%.*]] = add i32 [[TMP1]], 1
+; CHECK-NEXT:    [[TMP1]] = load i32, ptr [[B_PRIV]], align 8
+; CHECK-NEXT:    [[TMP2]] = add i32 [[TMP1]], 1
 ; CHECK-NEXT:    store i32 [[TMP2]], ptr [[B_PRIV]], align 8
 ; CHECK-NEXT:    store i32 0, ptr [[X_PRIV]], align 4
 ; CHECK-NEXT:    ret void
@@ -36,12 +36,12 @@ define i32 @test(ptr %X) {
 ; TUNIT-LABEL: define {{[^@]+}}@test
 ; TUNIT-SAME: (ptr nocapture nofree nonnull readonly [[X:%.*]]) #[[ATTR1:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[S:%.*]] = alloca [[STRUCT_SS:%.*]], align 8
-; TUNIT-NEXT:    store i32 1, ptr [[S]], align 8
-; TUNIT-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS]], ptr [[S]], i32 0, i32 1
-; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[S]], align 8
-; TUNIT-NEXT:    [[S_B4:%.*]] = getelementptr i8, ptr [[S]], i64 4
-; TUNIT-NEXT:    [[TMP1:%.*]] = load i64, ptr [[S_B4]], align 8
+; TUNIT-NEXT:    [[S1:%.*]] = alloca i8, i32 12, align 8
+; TUNIT-NEXT:    store i32 1, ptr [[S1]], align 8
+; TUNIT-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS:%.*]], ptr [[S1]], i32 0, i32 1
+; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[S1]], align 8
+; TUNIT-NEXT:    [[S1_B4:%.*]] = getelementptr i8, ptr [[S1]], i64 4
+; TUNIT-NEXT:    [[TMP1:%.*]] = load i64, ptr [[S1_B4]], align 8
 ; TUNIT-NEXT:    [[TMP2:%.*]] = load i32, ptr [[X]], align 4
 ; TUNIT-NEXT:    call void @f(i32 [[TMP0]], i64 [[TMP1]], i32 [[TMP2]]) #[[ATTR2:[0-9]+]]
 ; TUNIT-NEXT:    ret i32 0
@@ -50,8 +50,8 @@ define i32 @test(ptr %X) {
 ; CGSCC-LABEL: define {{[^@]+}}@test
 ; CGSCC-SAME: (ptr nocapture nofree noundef nonnull readonly align 4 dereferenceable(4) [[X:%.*]]) #[[ATTR1:[0-9]+]] {
 ; CGSCC-NEXT:  entry:
-; CGSCC-NEXT:    [[S:%.*]] = alloca [[STRUCT_SS:%.*]], align 8
-; CGSCC-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS]], ptr [[S]], i32 0, i32 1
+; CGSCC-NEXT:    [[S1:%.*]] = alloca i8, i32 12, align 8
+; CGSCC-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS:%.*]], ptr [[S1]], i32 0, i32 1
 ; CGSCC-NEXT:    ret i32 0
 ;
 entry:

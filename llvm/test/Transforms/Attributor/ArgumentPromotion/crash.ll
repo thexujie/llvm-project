@@ -100,6 +100,8 @@ define i32 @test_inf_promote_caller(i32 %arg) {
 ; TUNIT-LABEL: define {{[^@]+}}@test_inf_promote_caller
 ; TUNIT-SAME: (i32 [[ARG:%.*]]) #[[ATTR1:[0-9]+]] {
 ; TUNIT-NEXT:  bb:
+; TUNIT-NEXT:    [[TMP3:%.*]] = alloca i8, i32 8, align 8
+; TUNIT-NEXT:    [[TMP14:%.*]] = alloca i8, i32 8, align 8
 ; TUNIT-NEXT:    ret i32 0
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

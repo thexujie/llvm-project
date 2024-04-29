@@ -10,17 +10,17 @@ define i32 @bar(i32 %arg) {
 ; TUNIT-LABEL: define {{[^@]+}}@bar
 ; TUNIT-SAME: (i32 [[ARG:%.*]]) {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[STACK:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    store i32 [[ARG]], ptr [[STACK]], align 4
-; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[STACK]], align 4
+; TUNIT-NEXT:    [[STACK1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    store i32 [[ARG]], ptr [[STACK1]], align 4
+; TUNIT-NEXT:    [[TMP0:%.*]] = load i32, ptr [[STACK1]], align 4
 ; TUNIT-NEXT:    [[CALL:%.*]] = call i32 @foo(i32 [[TMP0]])
 ; TUNIT-NEXT:    ret i32 [[CALL]]
 ;
 ; CGSCC-LABEL: define {{[^@]+}}@bar
 ; CGSCC-SAME: (i32 [[ARG:%.*]]) {
 ; CGSCC-NEXT:  entry:
-; CGSCC-NEXT:    [[STACK:%.*]] = alloca i32, align 4
-; CGSCC-NEXT:    store i32 [[ARG]], ptr [[STACK]], align 4
+; CGSCC-NEXT:    [[STACK1:%.*]] = alloca i8, i32 4, align 4
+; CGSCC-NEXT:    store i32 [[ARG]], ptr [[STACK1]], align 4
 ; CGSCC-NEXT:    [[CALL:%.*]] = call i32 @foo(i32 [[ARG]])
 ; CGSCC-NEXT:    ret i32 [[CALL]]
 ;

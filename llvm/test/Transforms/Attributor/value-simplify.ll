@@ -1267,21 +1267,21 @@ define internal i8 @memcpy_uses_store(i8 %arg) {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@memcpy_uses_store
 ; TUNIT-SAME: (i8 [[ARG:%.*]]) #[[ATTR2]] {
-; TUNIT-NEXT:    [[SRC:%.*]] = alloca i8, align 1
-; TUNIT-NEXT:    [[DST:%.*]] = alloca i8, align 1
-; TUNIT-NEXT:    store i8 [[ARG]], ptr [[SRC]], align 1
-; TUNIT-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr noalias nocapture nofree noundef nonnull writeonly dereferenceable(1) [[DST]], ptr noalias nocapture nofree noundef nonnull readonly dereferenceable(1) [[SRC]], i32 noundef 1, i1 noundef false) #[[ATTR12:[0-9]+]]
-; TUNIT-NEXT:    [[L:%.*]] = load i8, ptr [[DST]], align 1
+; TUNIT-NEXT:    [[SRC1:%.*]] = alloca i8, align 1
+; TUNIT-NEXT:    [[DST2:%.*]] = alloca i8, align 1
+; TUNIT-NEXT:    store i8 [[ARG]], ptr [[SRC1]], align 1
+; TUNIT-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr noalias nocapture nofree noundef nonnull writeonly dereferenceable(1) [[DST2]], ptr noalias nocapture nofree noundef nonnull readonly dereferenceable(1) [[SRC1]], i32 noundef 1, i1 noundef false) #[[ATTR12:[0-9]+]]
+; TUNIT-NEXT:    [[L:%.*]] = load i8, ptr [[DST2]], align 1
 ; TUNIT-NEXT:    ret i8 [[L]]
 ;
 ; CGSCC: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; CGSCC-LABEL: define {{[^@]+}}@memcpy_uses_store
 ; CGSCC-SAME: (i8 [[ARG:%.*]]) #[[ATTR1]] {
-; CGSCC-NEXT:    [[SRC:%.*]] = alloca i8, align 1
-; CGSCC-NEXT:    [[DST:%.*]] = alloca i8, align 1
-; CGSCC-NEXT:    store i8 [[ARG]], ptr [[SRC]], align 1
-; CGSCC-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr noalias nocapture nofree noundef nonnull writeonly dereferenceable(1) [[DST]], ptr noalias nocapture nofree noundef nonnull readonly dereferenceable(1) [[SRC]], i32 noundef 1, i1 noundef false) #[[ATTR16:[0-9]+]]
-; CGSCC-NEXT:    [[L:%.*]] = load i8, ptr [[DST]], align 1
+; CGSCC-NEXT:    [[SRC1:%.*]] = alloca i8, align 1
+; CGSCC-NEXT:    [[DST2:%.*]] = alloca i8, align 1
+; CGSCC-NEXT:    store i8 [[ARG]], ptr [[SRC1]], align 1
+; CGSCC-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr noalias nocapture nofree noundef nonnull writeonly dereferenceable(1) [[DST2]], ptr noalias nocapture nofree noundef nonnull readonly dereferenceable(1) [[SRC1]], i32 noundef 1, i1 noundef false) #[[ATTR16:[0-9]+]]
+; CGSCC-NEXT:    [[L:%.*]] = load i8, ptr [[DST2]], align 1
 ; CGSCC-NEXT:    ret i8 [[L]]
 ;
   %src = alloca i8
@@ -1316,21 +1316,21 @@ define i32 @test_speculatable_expr() norecurse {
 ; TUNIT: Function Attrs: norecurse nosync memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@test_speculatable_expr
 ; TUNIT-SAME: () #[[ATTR7:[0-9]+]] {
-; TUNIT-NEXT:    [[STACK:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[STACK1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    [[SPEC_RESULT:%.*]] = call i32 @speculatable() #[[ATTR14:[0-9]+]]
 ; TUNIT-NEXT:    [[PLUS1:%.*]] = add i32 [[SPEC_RESULT]], 1
-; TUNIT-NEXT:    store i32 [[PLUS1]], ptr [[STACK]], align 4
-; TUNIT-NEXT:    [[TMP1:%.*]] = load i32, ptr [[STACK]], align 4
+; TUNIT-NEXT:    store i32 [[PLUS1]], ptr [[STACK1]], align 4
+; TUNIT-NEXT:    [[TMP1:%.*]] = load i32, ptr [[STACK1]], align 4
 ; TUNIT-NEXT:    [[RSPEC:%.*]] = call i32 @ret_speculatable_expr(i32 [[TMP1]]) #[[ATTR15:[0-9]+]]
 ; TUNIT-NEXT:    ret i32 [[RSPEC]]
 ;
 ; CGSCC: Function Attrs: norecurse nosync memory(none)
 ; CGSCC-LABEL: define {{[^@]+}}@test_speculatable_expr
 ; CGSCC-SAME: () #[[ATTR9:[0-9]+]] {
-; CGSCC-NEXT:    [[STACK:%.*]] = alloca i32, align 4
+; CGSCC-NEXT:    [[STACK1:%.*]] = alloca i8, i32 4, align 4
 ; CGSCC-NEXT:    [[SPEC_RESULT:%.*]] = call i32 @speculatable() #[[ATTR17:[0-9]+]]
 ; CGSCC-NEXT:    [[PLUS1:%.*]] = add i32 [[SPEC_RESULT]], 1
-; CGSCC-NEXT:    store i32 [[PLUS1]], ptr [[STACK]], align 4
+; CGSCC-NEXT:    store i32 [[PLUS1]], ptr [[STACK1]], align 4
 ; CGSCC-NEXT:    [[RSPEC:%.*]] = call i32 @ret_speculatable_expr(i32 [[PLUS1]]) #[[ATTR17]]
 ; CGSCC-NEXT:    ret i32 [[RSPEC]]
 ;

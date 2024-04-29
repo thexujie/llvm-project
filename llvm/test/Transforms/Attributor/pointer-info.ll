@@ -10,10 +10,14 @@ define void @foo(ptr %ptr) {
 ; TUNIT-LABEL: define {{[^@]+}}@foo
 ; TUNIT-SAME: (ptr nocapture nofree readnone [[PTR:%.*]]) #[[ATTR0:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[TMP0:%.*]] = alloca [[STRUCT_TEST_A:%.*]], align 8
+; TUNIT-NEXT:    [[TMP0:%.*]] = alloca i8, i32 8, align 8
 ; TUNIT-NEXT:    br label [[CALL_BR:%.*]]
 ; TUNIT:       call.br:
-; TUNIT-NEXT:    [[TMP1:%.*]] = getelementptr inbounds [[STRUCT_TEST_A]], ptr [[TMP0]], i64 0, i32 2
+; TUNIT-NEXT:    [[TMP1:%.*]] = getelementptr inbounds [[STRUCT_TEST_A:%.*]], ptr [[TMP0]], i64 0, i32 2
+; TUNIT-NEXT:    [[TMP2:%.*]] = ptrtoint ptr [[TMP1]] to i32
+; TUNIT-NEXT:    [[TMP3:%.*]] = sub i32 [[TMP2]], 16
+; TUNIT-NEXT:    [[TMP4:%.*]] = inttoptr i32 [[TMP3]] to ptr
+; TUNIT-NEXT:    store ptr [[PTR]], ptr [[TMP4]], align 8
 ; TUNIT-NEXT:    tail call void @bar(ptr noalias nocapture nofree noundef nonnull readonly byval([[STRUCT_TEST_A]]) align 8 dereferenceable(24) [[TMP0]]) #[[ATTR2:[0-9]+]]
 ; TUNIT-NEXT:    ret void
 ;

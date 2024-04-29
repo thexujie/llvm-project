@@ -31,7 +31,7 @@ define i32 @foo() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@foo
 ; TUNIT-SAME: () #[[ATTR0:[0-9]+]] {
-; TUNIT-NEXT:    [[A:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    ret i32 17
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

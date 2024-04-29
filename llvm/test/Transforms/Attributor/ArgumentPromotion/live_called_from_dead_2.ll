@@ -46,16 +46,16 @@ define internal i32 @caller(ptr %B) {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write)
 ; TUNIT-LABEL: define {{[^@]+}}@caller
 ; TUNIT-SAME: (ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B:%.*]]) #[[ATTR0]] {
-; TUNIT-NEXT:    [[A:%.*]] = alloca i32, align 4
+; TUNIT-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 4
 ; TUNIT-NEXT:    [[C:%.*]] = call i32 @test(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B]]) #[[ATTR2:[0-9]+]]
 ; TUNIT-NEXT:    ret i32 undef
 ;
 ; CGSCC: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write)
 ; CGSCC-LABEL: define {{[^@]+}}@caller
 ; CGSCC-SAME: (ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B:%.*]]) #[[ATTR0]] {
-; CGSCC-NEXT:    [[A:%.*]] = alloca i32, align 4
-; CGSCC-NEXT:    [[A2:%.*]] = alloca i8, i32 0, align 4
-; CGSCC-NEXT:    [[A1:%.*]] = alloca i8, i32 0, align 4
+; CGSCC-NEXT:    [[A1:%.*]] = alloca i8, i32 4, align 4
+; CGSCC-NEXT:    [[A13:%.*]] = alloca i8, i32 0, align 4
+; CGSCC-NEXT:    [[A12:%.*]] = alloca i8, i32 0, align 4
 ; CGSCC-NEXT:    [[C:%.*]] = call i32 @test(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B]]) #[[ATTR2:[0-9]+]]
 ; CGSCC-NEXT:    ret i32 0
 ;
@@ -69,8 +69,8 @@ define i32 @callercaller() {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@callercaller
 ; TUNIT-SAME: () #[[ATTR1:[0-9]+]] {
-; TUNIT-NEXT:    [[B:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    [[X:%.*]] = call i32 @caller(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B]]) #[[ATTR2]]
+; TUNIT-NEXT:    [[B1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    [[X:%.*]] = call i32 @caller(ptr noalias nocapture nofree noundef nonnull writeonly align 4 dereferenceable(4) [[B1]]) #[[ATTR2]]
 ; TUNIT-NEXT:    ret i32 0
 ;
 ; CGSCC: Function Attrs: mustprogress nofree nosync nounwind willreturn memory(none)

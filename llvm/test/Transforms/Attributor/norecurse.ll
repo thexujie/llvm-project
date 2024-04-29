@@ -161,8 +161,8 @@ define void @f(i32 %x)  {
 ; TUNIT-LABEL: define {{[^@]+}}@f
 ; TUNIT-SAME: (i32 [[X:%.*]]) #[[ATTR1]] {
 ; TUNIT-NEXT:  entry:
-; TUNIT-NEXT:    [[X_ADDR:%.*]] = alloca i32, align 4
-; TUNIT-NEXT:    store i32 [[X]], ptr [[X_ADDR]], align 4
+; TUNIT-NEXT:    [[X_ADDR1:%.*]] = alloca i8, i32 4, align 4
+; TUNIT-NEXT:    store i32 [[X]], ptr [[X_ADDR1]], align 4
 ; TUNIT-NEXT:    [[TOBOOL:%.*]] = icmp ne i32 [[X]], 0
 ; TUNIT-NEXT:    br i1 [[TOBOOL]], label [[IF_THEN:%.*]], label [[IF_END:%.*]]
 ; TUNIT:       if.then:
@@ -174,7 +174,7 @@ define void @f(i32 %x)  {
 ; CGSCC-LABEL: define {{[^@]+}}@f
 ; CGSCC-SAME: (i32 [[X:%.*]]) #[[ATTR0]] {
 ; CGSCC-NEXT:  entry:
-; CGSCC-NEXT:    [[X_ADDR:%.*]] = alloca i32, align 4
+; CGSCC-NEXT:    [[X_ADDR12:%.*]] = alloca i8, i32 4, align 4
 ; CGSCC-NEXT:    [[TOBOOL:%.*]] = icmp ne i32 [[X]], 0
 ; CGSCC-NEXT:    br i1 [[TOBOOL]], label [[IF_THEN:%.*]], label [[IF_END:%.*]]
 ; CGSCC:       if.then:

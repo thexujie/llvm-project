@@ -1039,35 +1039,35 @@ define internal ptr @aligned_8_return(ptr %a, i1 %c1, i1 %c2) norecurse {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; TUNIT-LABEL: define {{[^@]+}}@aligned_8_return
 ; TUNIT-SAME: (ptr noalias nofree readnone align 16 "no-capture-maybe-returned" [[A:%.*]], i1 noundef [[C1:%.*]], i1 [[C2:%.*]]) #[[ATTR10]] {
-; TUNIT-NEXT:    [[STACK:%.*]] = alloca ptr, align 8
+; TUNIT-NEXT:    [[STACK1:%.*]] = alloca i8, i32 8, align 8
 ; TUNIT-NEXT:    br i1 [[C1]], label [[T:%.*]], label [[F:%.*]]
 ; TUNIT:       t:
 ; TUNIT-NEXT:    [[GEP:%.*]] = getelementptr i8, ptr @G, i32 8
 ; TUNIT-NEXT:    [[SEL:%.*]] = select i1 [[C2]], ptr [[A]], ptr [[GEP]]
-; TUNIT-NEXT:    store ptr [[SEL]], ptr [[STACK]], align 8
+; TUNIT-NEXT:    store ptr [[SEL]], ptr [[STACK1]], align 8
 ; TUNIT-NEXT:    br label [[END:%.*]]
 ; TUNIT:       f:
-; TUNIT-NEXT:    store ptr @G, ptr [[STACK]], align 8
+; TUNIT-NEXT:    store ptr @G, ptr [[STACK1]], align 8
 ; TUNIT-NEXT:    br label [[END]]
 ; TUNIT:       end:
-; TUNIT-NEXT:    [[L:%.*]] = load ptr, ptr [[STACK]], align 8
+; TUNIT-NEXT:    [[L:%.*]] = load ptr, ptr [[STACK1]], align 8
 ; TUNIT-NEXT:    ret ptr [[L]]
 ;
 ; CGSCC: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none)
 ; CGSCC-LABEL: define {{[^@]+}}@aligned_8_return
 ; CGSCC-SAME: (ptr noalias nofree readnone align 16 "no-capture-maybe-returned" [[A:%.*]], i1 noundef [[C1:%.*]], i1 [[C2:%.*]]) #[[ATTR11]] {
-; CGSCC-NEXT:    [[STACK:%.*]] = alloca ptr, align 8
+; CGSCC-NEXT:    [[STACK1:%.*]] = alloca i8, i32 8, align 8
 ; CGSCC-NEXT:    br i1 [[C1]], label [[T:%.*]], label [[F:%.*]]
 ; CGSCC:       t:
 ; CGSCC-NEXT:    [[GEP:%.*]] = getelementptr i8, ptr @G, i32 8
 ; CGSCC-NEXT:    [[SEL:%.*]] = select i1 [[C2]], ptr [[A]], ptr [[GEP]]
-; CGSCC-NEXT:    store ptr [[SEL]], ptr [[STACK]], align 8
+; CGSCC-NEXT:    store ptr [[SEL]], ptr [[STACK1]], align 8
 ; CGSCC-NEXT:    br label [[END:%.*]]
 ; CGSCC:       f:
-; CGSCC-NEXT:    store ptr @G, ptr [[STACK]], align 8
+; CGSCC-NEXT:    store ptr @G, ptr [[STACK1]], align 8
 ; CGSCC-NEXT:    br label [[END]]
 ; CGSCC:       end:
-; CGSCC-NEXT:    [[L:%.*]] = load ptr, ptr [[STACK]], align 8
+; CGSCC-NEXT:    [[L:%.*]] = load ptr, ptr [[STACK1]], align 8
 ; CGSCC-NEXT:    ret ptr [[L]]
 ;
   %stack = alloca ptr
