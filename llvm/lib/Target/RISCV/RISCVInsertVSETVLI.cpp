@@ -590,8 +590,8 @@ public:
   bool hasNonZeroAVL() const {
     if (hasAVLImm())
       return getAVLImm() > 0;
-    if (hasAVLReg())
-      return hasAVLRegDefMI() && isNonZeroLoadImmediate(getAVLDefMI());
+    if (hasAVLRegDefMI())
+      return isNonZeroLoadImmediate(getAVLDefMI());
     if (hasAVLVLMAX())
       return true;
     if (hasAVLIgnored())
