@@ -22,11 +22,21 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// These two headers must be included last, and make sure shlobj is required
+// These headers must be included last, and make sure shlobj is required
 // after Windows.h to make sure it picks up our definition of _WIN32_WINNT
+#define WIN32_NO_STATUS
 #include "llvm/Support/Windows/WindowsSupport.h"
+#undef WIN32_NO_STATUS
+
+#include <ntstatus.h>
 #include <shellapi.h>
 #include <shlobj.h>
+
+// This is equivalent to NtCurrentTeb()->LastStatusValue, but the public
+// _TEB definition does not expose the LastStatusValue field directly.
+// Avoid offsetting into this structure by calling RtlGetLastNtStatus
+// from ntdll.dll.
+extern "C" NTSYSAPI NTSTATUS NTAPI RtlGetLastNtStatus();
 
 #undef max
 
@@ -786,8 +796,28 @@ std::error_code status(const Twine &path, file_status &result, bool Follow) {
   DWORD Flags = FILE_FLAG_BACKUP_SEMANTICS;
   if (!Follow) {
     DWORD attr = ::GetFileAttributesW(path_utf16.begin());
-    if (attr == INVALID_FILE_ATTRIBUTES)
-      return getStatus(INVALID_HANDLE_VALUE, result);
+    if (attr == INVALID_FILE_ATTRIBUTES) {
+      // If the file is just pending deletion, try querying file attributes
+      // again in a loop to avoid returning a misleading permission denied
+      // error.
+      if (RtlGetLastNtStatus() == STATUS_DELETE_PENDING) {
+        for (unsigned Retry = 0; Retry != 200; ++Retry) {
+          ::Sleep(10);
+          attr = ::GetFileAttributesW(path_utf16.begin());
+          if (attr != INVALID_FILE_ATTRIBUTES ||
+              RtlGetLastNtStatus() != STATUS_DELETE_PENDING)
+            break;
+        }
+
+        if (attr == INVALID_FILE_ATTRIBUTES) {
+          return RtlGetLastNtStatus() == STATUS_DELETE_PENDING
+                     ? llvm::errc::delete_pending
+                     : getStatus(INVALID_HANDLE_VALUE, result);
+        }
+      } else {
+        return getStatus(INVALID_HANDLE_VALUE, result);
+      }
+    }
 
     // Handle reparse points.
     if (attr & FILE_ATTRIBUTE_REPARSE_POINT)
