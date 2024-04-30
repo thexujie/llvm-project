@@ -6141,24 +6141,23 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     assert((isPPC64 || (isAIXABI && !isPPC64)) && "We are dealing with 64-bit"
            " ELF/AIX or 32-bit AIX in the following.");
 
-    // Transforms the ISD::TOC_ENTRY node for 32-bit AIX large code model mode
-    // or 64-bit medium (ELF-only) or large (ELF and AIX) code model code non
-    // toc-data symbols.
+    // Transforms the ISD::TOC_ENTRY node for 32-bit AIX large code model mode,
+    // 64-bit medium (ELF-only), or large (ELF and AIX) code model code that
+    // does not contain TOC data symbols.
     // We generate two instructions as described below. The first source
-    // operand is a symbol reference. If it must be toc-referenced according to
-    // Subtarget, we generate:
+    // operand is a symbol reference. If it must be referenced via the TOC
+    // according to Subtarget, we generate:
     // [32-bit AIX]
     //   LWZtocL(@sym, ADDIStocHA(%r2, @sym))
     // [64-bit ELF/AIX]
     //   LDtocL(@sym, ADDIStocHA8(%x2, @sym))
     // Otherwise we generate:
     //   ADDItocL8(ADDIStocHA8(%x2, @sym), @sym)
-
-    // For large code model toc-data symbols we generate:
+    // For large code model with TOC data symbols we generate:
     // [32-bit AIX]
     //   ADDItocL(ADDIStocHA(%x2, @sym), @sym)
     // [64-bit AIX]
-    //   Currently not supported.
+    //   ADDItocL8(ADDIStocHA8(%x2, @sym), @sym)
 
     SDValue GA = N->getOperand(0);
     SDValue TOCbase = N->getOperand(1);
@@ -6167,16 +6166,12 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     SDNode *Tmp = CurDAG->getMachineNode(
         isPPC64 ? PPC::ADDIStocHA8 : PPC::ADDIStocHA, dl, VT, TOCbase, GA);
 
-    // On AIX if the symbol has the toc-data attribute it will be defined
-    // in the TOC entry, so we use an ADDItocL similar to the medium code
-    // model ELF abi.
+    // On AIX, if the symbol has the toc-data attribute it will be defined
+    // in the TOC entry, so we use an ADDItocL/ADDItocL8.
     if (isAIXABI && hasTocDataAttr(GA)) {
-      if (isPPC64)
-        report_fatal_error(
-            "64-bit large code model toc-data not yet supported");
-
-      ReplaceNode(N, CurDAG->getMachineNode(PPC::ADDItocL, dl, VT,
-                                            SDValue(Tmp, 0), GA));
+      ReplaceNode(
+          N, CurDAG->getMachineNode(isPPC64 ? PPC::ADDItocL8 : PPC::ADDItocL,
+                                    dl, VT, SDValue(Tmp, 0), GA));
       return;
     }
 
@@ -7780,6 +7775,10 @@ void PPCDAGToDAGISel::PeepholePPC64() {
       Flags = PPCII::MO_TLSLD_LO;
       break;
     case PPC::ADDItocL8:
+      // Skip the following peephole optimizations for ADDItocL8 on AIX which
+      // is used for toc-data access.
+      if (Subtarget->isAIXABI())
+        continue;
       Flags = PPCII::MO_TOC_LO;
       break;
     }
