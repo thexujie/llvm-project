@@ -1120,6 +1120,14 @@ public:
   /// Return true if this is a trivially copyable type (C++0x [basic.types]p9)
   bool isTriviallyCopyableType(const ASTContext &Context) const;
 
+  /// Return true if the type is safe to bitwise copy by memcpy.
+  ///
+  /// This is an extension in clang: bitwise clonable types act as trivially
+  /// copyable types, their underlying bytes can be safely copied by memcpy or
+  /// memmove. Clang guarantees that the destination has the same **object**
+  /// representations after the copy.
+  bool isBitwiseCloneableType(const ASTContext &Context) const;
+
   /// Return true if this is a trivially copyable type
   bool isTriviallyCopyConstructibleType(const ASTContext &Context) const;
 
