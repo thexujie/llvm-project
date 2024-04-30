@@ -164,7 +164,6 @@ enum ArchExtKind : unsigned {
   AEK_RASv2 =         55, // FEAT_RASv2
   AEK_ITE =           56, // FEAT_ITE
   AEK_GCS =           57, // FEAT_GCS
-  AEK_FPMR =          58, // FEAT_FPMR
   AEK_FP8 =           59, // FEAT_FP8
   AEK_FAMINMAX =      60, // FEAT_FAMINMAX
   AEK_FP8FMA =        61, // FEAT_FP8FMA
@@ -291,15 +290,14 @@ inline constexpr ExtensionInfo Extensions[] = {
     {"tme", AArch64::AEK_TME, "+tme", "-tme", FEAT_INIT, "", 0},
     {"wfxt", AArch64::AEK_NONE, {}, {}, FEAT_WFXT, "+wfxt", 550},
     {"gcs", AArch64::AEK_GCS, "+gcs", "-gcs", FEAT_INIT, "", 0},
-    {"fpmr", AArch64::AEK_FPMR, "+fpmr", "-fpmr", FEAT_INIT, "", 0},
-    {"fp8", AArch64::AEK_FP8, "+fp8", "-fp8", FEAT_INIT, "+fpmr", 0},
+    {"fp8", AArch64::AEK_FP8, "+fp8", "-fp8", FEAT_INIT, "+faminmax, +lut, +bf16", 0},
     {"faminmax", AArch64::AEK_FAMINMAX, "+faminmax", "-faminmax", FEAT_INIT, "", 0},
-    {"fp8fma", AArch64::AEK_FP8FMA, "+fp8fma", "-fp8fma", FEAT_INIT, "+fpmr", 0},
-    {"ssve-fp8fma", AArch64::AEK_SSVE_FP8FMA, "+ssve-fp8fma", "-ssve-fp8fma", FEAT_INIT, "+sme2", 0},
-    {"fp8dot2", AArch64::AEK_FP8DOT2, "+fp8dot2", "-fp8dot2", FEAT_INIT, "", 0},
-    {"ssve-fp8dot2", AArch64::AEK_SSVE_FP8DOT2, "+ssve-fp8dot2", "-ssve-fp8dot2", FEAT_INIT, "+sme2", 0},
-    {"fp8dot4", AArch64::AEK_FP8DOT4, "+fp8dot4", "-fp8dot4", FEAT_INIT, "", 0},
-    {"ssve-fp8dot4", AArch64::AEK_SSVE_FP8DOT4, "+ssve-fp8dot4", "-ssve-fp8dot4", FEAT_INIT, "+sme2", 0},
+    {"fp8fma", AArch64::AEK_FP8FMA, "+fp8fma", "-fp8fma", FEAT_INIT, "+fp8", 0},
+    {"ssve-fp8fma", AArch64::AEK_SSVE_FP8FMA, "+ssve-fp8fma", "-ssve-fp8fma", FEAT_INIT, "+sme2,+fp8", 0},
+    {"fp8dot2", AArch64::AEK_FP8DOT2, "+fp8dot2", "-fp8dot2", FEAT_INIT, "+fp8dot4", 0},
+    {"ssve-fp8dot2", AArch64::AEK_SSVE_FP8DOT2, "+ssve-fp8dot2", "-ssve-fp8dot2", FEAT_INIT, "+ssve-fp8dot4", 0},
+    {"fp8dot4", AArch64::AEK_FP8DOT4, "+fp8dot4", "-fp8dot4", FEAT_INIT, "+fp8fma", 0},
+    {"ssve-fp8dot4", AArch64::AEK_SSVE_FP8DOT4, "+ssve-fp8dot4", "-ssve-fp8dot4", FEAT_INIT, "+ssve-fp8fma", 0},
     {"lut", AArch64::AEK_LUT, "+lut", "-lut", FEAT_INIT, "", 0},
     {"sme-lutv2", AArch64::AEK_SME_LUTv2, "+sme-lutv2", "-sme-lutv2", FEAT_INIT, "", 0},
     {"sme-f8f16", AArch64::AEK_SMEF8F16, "+sme-f8f16", "-sme-f8f16", FEAT_INIT, "+fp8,+sme2", 0},
@@ -401,8 +399,6 @@ inline constexpr ExtensionDependency ExtensionDependencies[] = {
   {AEK_SME, AEK_SMEFA64},
   {AEK_SME2, AEK_SME2p1},
   {AEK_SME2, AEK_SSVE_FP8FMA},
-  {AEK_SME2, AEK_SSVE_FP8DOT2},
-  {AEK_SME2, AEK_SSVE_FP8DOT4},
   {AEK_SME2, AEK_SMEF8F16},
   {AEK_SME2, AEK_SMEF8F32},
   {AEK_FP8, AEK_SMEF8F16},
@@ -411,6 +407,16 @@ inline constexpr ExtensionDependency ExtensionDependencies[] = {
   {AEK_PREDRES, AEK_SPECRES2},
   {AEK_RAS, AEK_RASv2},
   {AEK_RCPC, AEK_RCPC3},
+  {AEK_FAMINMAX, AEK_FP8},
+  {AEK_LUT, AEK_FP8},
+  {AEK_BF16, AEK_FP8},
+  {AEK_FP8, AEK_FP8FMA},
+  {AEK_FP8, AEK_SSVE_FP8FMA},
+  {AEK_FP8DOT4, AEK_FP8DOT2},
+  {AEK_SSVE_FP8DOT4, AEK_SSVE_FP8DOT2},
+  {AEK_FP8FMA, AEK_FP8DOT4},
+  {AEK_SSVE_FP8FMA, AEK_SSVE_FP8DOT4},
+  {AEK_SMEF8F32, AEK_SMEF8F16},
 };
 // clang-format on
 
@@ -499,7 +505,7 @@ inline constexpr ArchInfo ARMV9_3A  = { VersionTuple{9, 3}, AProfile, "armv9.3-a
 inline constexpr ArchInfo ARMV9_4A  = { VersionTuple{9, 4}, AProfile, "armv9.4-a", "+v9.4a", (ARMV9_3A.DefaultExts |
                                         AArch64::ExtensionBitset({AArch64::AEK_SPECRES2, AArch64::AEK_CSSC, AArch64::AEK_RASv2}))};
 inline constexpr ArchInfo ARMV9_5A  = { VersionTuple{9, 5}, AProfile, "armv9.5-a", "+v9.5a", (ARMV9_4A.DefaultExts |
-                                        AArch64::ExtensionBitset({AArch64::AEK_CPA}))};
+                                        AArch64::ExtensionBitset({AArch64::AEK_CPA, AArch64::AEK_LUT, AArch64::AEK_FAMINMAX}))};
 // For v8-R, we do not enable crypto and align with GCC that enables a more minimal set of optional architecture extensions.
 inline constexpr ArchInfo ARMV8R    = { VersionTuple{8, 0}, RProfile, "armv8-r", "+v8r", (ARMV8_5A.DefaultExts |
                                         AArch64::ExtensionBitset({AArch64::AEK_SSBS,

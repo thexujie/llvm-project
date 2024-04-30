@@ -22,6 +22,14 @@
 // RUN: %clang -target aarch64 -march=armv9.5-a+cpa -### -c %s 2>&1 | FileCheck -check-prefix=V95A-CPA %s
 // V95A-CPA: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-cpu" "generic" "-target-feature" "+v9.5a"{{.*}} "-target-feature" "+cpa"
 
+// RUN: %clang -target aarch64 -march=armv9.5a+cpa -### -c %s 2>&1 | FileCheck -check-prefix=V95A-LUT %s
+// RUN: %clang -target aarch64 -march=armv9.5-a+cpa -### -c %s 2>&1 | FileCheck -check-prefix=V95A-LUT %s
+// V95A-LUT: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-cpu" "generic" "-target-feature" "+v9.5a"{{.*}} "-target-feature" "+lut"
+
+// RUN: %clang -target aarch64 -march=armv9.5a+cpa -### -c %s 2>&1 | FileCheck -check-prefix=V95A-FAMINMAX %s
+// RUN: %clang -target aarch64 -march=armv9.5-a+cpa -### -c %s 2>&1 | FileCheck -check-prefix=V95A-FAMINMAX %s
+// V95A-FAMINMAX: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-cpu" "generic" "-target-feature" "+v9.5a"{{.*}} "-target-feature" "+faminmax"
+
 // RUN: %clang -target aarch64 -march=armv9.5a+pauth-lr -### -c %s 2>&1 | FileCheck -check-prefix=V95A-PAUTHLR %s
 // RUN: %clang -target aarch64 -march=armv9.5-a+pauth-lr -### -c %s 2>&1 | FileCheck -check-prefix=V95A-PAUTHLR %s
 // V95A-PAUTHLR: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-cpu" "generic" "-target-feature" "+v9.5a"{{.*}} "-target-feature" "+pauth-lr"
