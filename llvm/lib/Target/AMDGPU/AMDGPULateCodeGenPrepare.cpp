@@ -126,16 +126,17 @@ public:
         NewType(NewType), ConvertBuilder(InsertBlock, InsertPt) {}
 };
 
+typedef std::pair<Instruction *, BasicBlock *> IncomingPair;
+typedef std::pair<Instruction *, SmallVector<IncomingPair, 4>> PHIUpdateInfo;
+
 class LiveRegOptimizer {
 private:
   Module *Mod = nullptr;
+  const DataLayout *DL = nullptr;
   // The scalar type to convert to
   Type *ConvertToScalar;
   // Holds the collection of PHIs with their pending new operands
-  SmallVector<std::pair<Instruction *,
-                        SmallVector<std::pair<Instruction *, BasicBlock *>, 4>>,
-              4>
-      PHIUpdater;
+  SmallVector<PHIUpdateInfo, 4> PHIUpdater;
 
 public:
   // Should the def of the instruction be converted if it is live across blocks
@@ -157,6 +158,7 @@ public:
   bool replacePHIs();
 
   LiveRegOptimizer(Module *Mod) : Mod(Mod) {
+    DL = &Mod->getDataLayout();
     ConvertToScalar = Type::getInt32Ty(Mod->getContext());
   }
 };
@@ -182,17 +184,18 @@ bool AMDGPULateCodeGenPrepare::runOnFunction(Function &F) {
   AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   UA = &getAnalysis<UniformityInfoWrapperPass>().getUniformityInfo();
 
-  // "Optimize" the virtual regs that cross basic block boundaries. In such
-  // cases, vectors of illegal types will be scalarized and widened, with each
-  // scalar living in its own physical register. The optimization converts the
-  // vectors to equivalent vectors of legal type (which are convereted back
+  // "Optimize" the virtual regs that cross basic block boundaries. When
+  // building the SelectionDAG, vectors of illegal types that cross basic blocks
+  // will be scalarized and widened, with each scalar living in its
+  // own physical register. To work around this, this optimization converts the
+  // vectors to equivalent vectors of legal type (which are converted back
   // before uses in subsequent blocks), to pack the bits into fewer physical
   // registers (used in CopyToReg/CopyFromReg pairs).
   LiveRegOptimizer LRO(Mod);
 
   bool Changed = false;
   for (auto &BB : F)
-    for (Instruction &I : llvm::make_early_inc_range(BB)) {
+    for (Instruction &I : make_early_inc_range(BB)) {
       Changed |= visit(I);
       if (!LRO.shouldReplaceUses(I))
         continue;
@@ -212,65 +215,59 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
   };
   DenseMap<BasicBlock *, ConvertUseInfo> InsertedConversionMap;
 
-  ConversionCandidateInfo FromCCI(
-      &I, I.getParent(),
-      static_cast<BasicBlock::iterator>(std::next(I.getIterator())));
+  ConversionCandidateInfo FromCCI(&I, I.getParent(),
+                                  std::next(I.getIterator()));
   FromCCI.setNewType(getCompatibleType(FromCCI.getLiveRegDef()));
   for (auto IUser = I.user_begin(); IUser != I.user_end(); IUser++) {
 
-    if (Instruction *UserInst = dyn_cast<Instruction>(*IUser)) {
-      if (UserInst->getParent() != I.getParent() || isa<PHINode>(UserInst)) {
-        LLVM_DEBUG(dbgs() << *UserInst << "\n\tUses "
-                          << *FromCCI.getOriginalType()
-                          << " from previous block. Needs conversion\n");
-        convertToOptType(FromCCI);
-        if (!FromCCI.hasConverted())
-          continue;
-        // If it is a PHI node, just create and collect the new operand. We can
-        // only replace the PHI node once we have converted all the operands
-        if (auto PhiInst = dyn_cast<PHINode>(UserInst)) {
-          for (unsigned Idx = 0; Idx < PhiInst->getNumIncomingValues(); Idx++) {
-            Value *IncVal = PhiInst->getIncomingValue(Idx);
-            if (&I == dyn_cast<Instruction>(IncVal)) {
-              BasicBlock *IncBlock = PhiInst->getIncomingBlock(Idx);
-              auto PHIOps = find_if(
-                  PHIUpdater,
-                  [&UserInst](
-                      std::pair<Instruction *,
-                                SmallVector<
-                                    std::pair<Instruction *, BasicBlock *>, 4>>
-                          &Entry) { return Entry.first == UserInst; });
+    Instruction *UserInst = cast<Instruction>(*IUser);
+    if (UserInst->getParent() != I.getParent() || isa<PHINode>(UserInst)) {
+      LLVM_DEBUG(dbgs() << *UserInst << "\n\tUses "
+                        << *FromCCI.getOriginalType()
+                        << " from previous block. Needs conversion\n");
+      convertToOptType(FromCCI);
+      if (!FromCCI.hasConverted())
+        continue;
+      // If it is a PHI node, just create and collect the new operand. We can
+      // only replace the PHI node once we have converted all the operands
+      if (auto PHI = dyn_cast<PHINode>(UserInst)) {
+        for (unsigned Idx = 0; Idx < PHI->getNumIncomingValues(); Idx++) {
+          Value *IncVal = PHI->getIncomingValue(Idx);
+          if (&I == dyn_cast<Instruction>(IncVal)) {
+            BasicBlock *IncBlock = PHI->getIncomingBlock(Idx);
+            auto PHIOps =
+                find_if(PHIUpdater, [&UserInst](PHIUpdateInfo &Entry) {
+                  return Entry.first == UserInst;
+                });
 
-              if (PHIOps == PHIUpdater.end())
-                PHIUpdater.push_back(
-                    {UserInst, {{FromCCI.getConverted(), IncBlock}}});
-              else
-                PHIOps->second.push_back({FromCCI.getConverted(), IncBlock});
+            if (PHIOps == PHIUpdater.end())
+              PHIUpdater.push_back(
+                  {UserInst, {{FromCCI.getConverted(), IncBlock}}});
+            else
+              PHIOps->second.push_back({FromCCI.getConverted(), IncBlock});
 
-              break;
-            }
+            break;
           }
-          continue;
         }
-
-        // Do not create multiple conversion sequences if there are multiple
-        // uses in the same block
-        if (InsertedConversionMap.contains(UserInst->getParent())) {
-          InsertedConversionMap[UserInst->getParent()].Users.push_back(
-              UserInst);
-          LLVM_DEBUG(dbgs() << "\tUser already has access to converted def\n");
-          continue;
-        }
-
-        ConversionCandidateInfo ToCCI(
-            FromCCI.getConverted(), I.getType(), UserInst->getParent(),
-            static_cast<BasicBlock::iterator>(
-                UserInst->getParent()->getFirstNonPHIIt()));
-        convertFromOptType(ToCCI);
-        assert(ToCCI.hasConverted());
-        InsertedConversionMap[UserInst->getParent()] = {ToCCI.getConverted(),
-                                                        {UserInst}};
+        continue;
       }
+
+      // Do not create multiple conversion sequences if there are multiple
+      // uses in the same block
+      if (InsertedConversionMap.contains(UserInst->getParent())) {
+        InsertedConversionMap[UserInst->getParent()].Users.push_back(UserInst);
+        LLVM_DEBUG(dbgs() << "\tUser already has access to converted def\n");
+        continue;
+      }
+
+      ConversionCandidateInfo ToCCI(FromCCI.getConverted(), I.getType(),
+                                    UserInst->getParent(),
+
+                                    UserInst->getParent()->getFirstNonPHIIt());
+      convertFromOptType(ToCCI);
+      assert(ToCCI.hasConverted());
+      InsertedConversionMap[UserInst->getParent()] = {ToCCI.getConverted(),
+                                                      {UserInst}};
     }
   }
 
@@ -279,7 +276,7 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
   for (auto &Entry : InsertedConversionMap) {
     for (auto &UserInst : Entry.second.Users) {
       LLVM_DEBUG(dbgs() << *UserInst
-                        << "\n\tNow uses: " << *Entry.second.Converted << "\n");
+                        << "\n\tNow uses: " << *Entry.second.Converted << '\n');
       UserInst->replaceUsesOfWith(&I, Entry.second.Converted);
       MadeChange = true;
     }
@@ -290,29 +287,29 @@ bool LiveRegOptimizer::replaceUses(Instruction &I) {
 bool LiveRegOptimizer::replacePHIs() {
   bool MadeChange = false;
   for (auto Ele : PHIUpdater) {
-    auto ThePHINode = cast<PHINode>(Ele.first);
-    auto NewPHINodeOps = Ele.second;
-    LLVM_DEBUG(dbgs() << "Attempting to replace: " << *ThePHINode << "\n");
+    auto [ThePHIInst, NewPHINodeOps] = Ele;
+    LLVM_DEBUG(dbgs() << "Attempting to replace: " << *ThePHIInst << '\n');
     // If we have conveted all the required operands, then do the replacement
-    if (ThePHINode->getNumIncomingValues() == NewPHINodeOps.size()) {
+    if (cast<PHINode>(ThePHIInst)->getNumIncomingValues() ==
+        NewPHINodeOps.size()) {
       IRBuilder<> Builder(Ele.first);
       auto NPHI = Builder.CreatePHI(NewPHINodeOps[0].first->getType(),
                                     NewPHINodeOps.size());
       for (auto IncVals : NewPHINodeOps) {
         NPHI->addIncoming(IncVals.first, IncVals.second);
         LLVM_DEBUG(dbgs() << "  Using: " << *IncVals.first
-                          << "  For: " << IncVals.second->getName() << "\n");
+                          << "  For: " << IncVals.second->getName() << '\n');
       }
-      LLVM_DEBUG(dbgs() << "Sucessfully replaced with " << *NPHI << "\n");
+      LLVM_DEBUG(dbgs() << "Sucessfully replaced with " << *NPHI << '\n');
       ConversionCandidateInfo ToCCI(
-          NPHI, ThePHINode->getType(), ThePHINode->getParent(),
-          static_cast<BasicBlock::iterator>(
-              ThePHINode->getParent()->getFirstNonPHIIt()));
+          NPHI, ThePHIInst->getType(), ThePHIInst->getParent(),
+
+          ThePHIInst->getParent()->getFirstNonPHIIt());
       convertFromOptType(ToCCI);
       assert(ToCCI.hasConverted());
       Ele.first->replaceAllUsesWith(ToCCI.getConverted());
       // The old PHI is no longer used
-      ThePHINode->eraseFromParent();
+      ThePHIInst->eraseFromParent();
       MadeChange = true;
     }
   }
@@ -327,8 +324,8 @@ Type *LiveRegOptimizer::getCompatibleType(Instruction *InstToConvert) {
   if (!VTy)
     return ConvertToScalar;
 
-  unsigned OriginalSize = VTy->getPrimitiveSizeInBits();
-  unsigned ConvertScalarSize = ConvertToScalar->getScalarSizeInBits();
+  TypeSize OriginalSize = DL->getTypeSizeInBits(VTy);
+  TypeSize ConvertScalarSize = DL->getTypeSizeInBits(ConvertToScalar);
   unsigned ConvertEltCount =
       (OriginalSize + ConvertScalarSize - 1) / ConvertScalarSize;
 
@@ -336,7 +333,7 @@ Type *LiveRegOptimizer::getCompatibleType(Instruction *InstToConvert) {
     return IntegerType::get(Mod->getContext(), ConvertScalarSize);
 
   return VectorType::get(Type::getIntNTy(Mod->getContext(), ConvertScalarSize),
-                         llvm::ElementCount::getFixed(ConvertEltCount));
+                         ElementCount::getFixed(ConvertEltCount));
 }
 
 void LiveRegOptimizer::convertToOptType(ConversionCandidateInfo &LR) {
@@ -348,24 +345,24 @@ void LiveRegOptimizer::convertToOptType(ConversionCandidateInfo &LR) {
   VectorType *VTy = cast<VectorType>(LR.getOriginalType());
   Type *NewTy = LR.getNewType();
 
-  unsigned OriginalSize = VTy->getPrimitiveSizeInBits();
-  unsigned NewSize = NewTy->getPrimitiveSizeInBits();
+  TypeSize OriginalSize = DL->getTypeSizeInBits(VTy);
+  TypeSize NewSize = DL->getTypeSizeInBits(NewTy);
 
   auto &Builder = LR.getConvertBuilder();
-  Value *V = static_cast<Value *>(LR.getLiveRegDef());
+  Value *V = cast<Value>(LR.getLiveRegDef());
   // If there is a bitsize match, we can fit the old vector into a new vector of
   // desired type
   if (OriginalSize == NewSize) {
-    LR.setConverted(dyn_cast<Instruction>(Builder.CreateBitCast(V, NewTy)));
+    LR.setConverted(cast<Instruction>(Builder.CreateBitCast(V, NewTy)));
     LLVM_DEBUG(dbgs() << "\tConverted def to " << *LR.getConverted()->getType()
-                      << "\n");
+                      << '\n');
     return;
   }
 
   // If there is a bitsize mismatch, we must use a wider vector
   assert(NewSize > OriginalSize);
   ElementCount ExpandedVecElementCount =
-      llvm::ElementCount::getFixed(NewSize / VTy->getScalarSizeInBits());
+      ElementCount::getFixed(NewSize / VTy->getScalarSizeInBits());
 
   SmallVector<int, 8> ShuffleMask;
   for (unsigned I = 0; I < VTy->getElementCount().getFixedValue(); I++)
@@ -375,12 +372,11 @@ void LiveRegOptimizer::convertToOptType(ConversionCandidateInfo &LR) {
        I < ExpandedVecElementCount.getFixedValue(); I++)
     ShuffleMask.push_back(VTy->getElementCount().getFixedValue());
 
-  auto ExpandedVec =
-      dyn_cast<Instruction>(Builder.CreateShuffleVector(V, ShuffleMask));
-  LR.setConverted(
-      dyn_cast<Instruction>(Builder.CreateBitCast(ExpandedVec, NewTy)));
+  Instruction *ExpandedVec =
+      cast<Instruction>(Builder.CreateShuffleVector(V, ShuffleMask));
+  LR.setConverted(cast<Instruction>(Builder.CreateBitCast(ExpandedVec, NewTy)));
   LLVM_DEBUG(dbgs() << "\tConverted def to " << *LR.getConverted()->getType()
-                    << "\n");
+                    << '\n');
   return;
 }
 
@@ -388,48 +384,49 @@ void LiveRegOptimizer::convertFromOptType(ConversionCandidateInfo &LRC) {
   Type *OTy = LRC.getOriginalType();
   VectorType *NewVTy = cast<VectorType>(LRC.getNewType());
 
-  unsigned OriginalSize = OTy->getPrimitiveSizeInBits();
-  unsigned NewSize = NewVTy->getPrimitiveSizeInBits();
+  TypeSize OriginalSize = DL->getTypeSizeInBits(OTy);
+  TypeSize NewSize = DL->getTypeSizeInBits(NewVTy);
 
   auto &Builder = LRC.getConvertBuilder();
-  Value *V = static_cast<Value *>(LRC.getLiveRegDef());
+  Value *V = cast<Value>(LRC.getLiveRegDef());
   // If there is a bitsize match, we simply convert back to the original type
   if (OriginalSize == NewSize) {
-    LRC.setConverted(dyn_cast<Instruction>(Builder.CreateBitCast(V, NewVTy)));
+    LRC.setConverted(cast<Instruction>(Builder.CreateBitCast(V, NewVTy)));
     LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted()
-                      << "\n");
+                      << '\n');
     return;
   }
 
   if (!OTy->isVectorTy()) {
-    auto Trunc = dyn_cast<Instruction>(Builder.CreateTrunc(
+    Instruction *Trunc = cast<Instruction>(Builder.CreateTrunc(
         LRC.getLiveRegDef(), IntegerType::get(Mod->getContext(), NewSize)));
-    auto Original = dyn_cast<Instruction>(Builder.CreateBitCast(Trunc, NewVTy));
-    LRC.setConverted(dyn_cast<Instruction>(Original));
+    Instruction *Original =
+        cast<Instruction>(Builder.CreateBitCast(Trunc, NewVTy));
+    LRC.setConverted(cast<Instruction>(Original));
     LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted()
-                      << "\n");
+                      << '\n');
     return;
   }
 
   // If there is a bitsize mismatch, we have used a wider vector and must strip
   // the MSBs to convert back to the original type
   assert(OriginalSize > NewSize);
-  ElementCount ExpandedVecElementCount = llvm::ElementCount::getFixed(
-      OriginalSize / NewVTy->getScalarSizeInBits());
+  ElementCount ExpandedVecElementCount =
+      ElementCount::getFixed(OriginalSize / NewVTy->getScalarSizeInBits());
   VectorType *ExpandedVT = VectorType::get(
       Type::getIntNTy(Mod->getContext(), NewVTy->getScalarSizeInBits()),
       ExpandedVecElementCount);
-  Instruction *Converted = dyn_cast<Instruction>(
-      Builder.CreateBitCast(LRC.getLiveRegDef(), ExpandedVT));
+  Instruction *Converted =
+      cast<Instruction>(Builder.CreateBitCast(LRC.getLiveRegDef(), ExpandedVT));
 
   unsigned NarrowElementCount = NewVTy->getElementCount().getFixedValue();
   SmallVector<int, 8> ShuffleMask(NarrowElementCount);
   std::iota(ShuffleMask.begin(), ShuffleMask.end(), 0);
 
-  Instruction *NarrowVec = dyn_cast<Instruction>(
-      Builder.CreateShuffleVector(Converted, ShuffleMask));
-  LRC.setConverted(dyn_cast<Instruction>(NarrowVec));
-  LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted() << "\n");
+  Instruction *NarrowVec =
+      cast<Instruction>(Builder.CreateShuffleVector(Converted, ShuffleMask));
+  LRC.setConverted(cast<Instruction>(NarrowVec));
+  LLVM_DEBUG(dbgs() << "\tProduced for user: " << *LRC.getConverted() << '\n');
   return;
 }
 

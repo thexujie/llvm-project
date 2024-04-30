@@ -350,5 +350,56 @@ bb.2:
   ret void
 }
 
-declare i32 @llvm.amdgcn.workitem.id.x()
+define amdgpu_kernel void @repeat_successor(i32 %in, ptr addrspace(1) %src1, ptr addrspace(1) %src2, ptr addrspace(1) nocapture %dst) {
+; GFX906-LABEL: repeat_successor:
+; GFX906:       ; %bb.0: ; %entry
+; GFX906-NEXT:    s_load_dword s8, s[0:1], 0x24
+; GFX906-NEXT:    s_load_dwordx4 s[4:7], s[0:1], 0x2c
+; GFX906-NEXT:    s_load_dwordx2 s[2:3], s[0:1], 0x3c
+; GFX906-NEXT:    s_waitcnt lgkmcnt(0)
+; GFX906-NEXT:    s_cmp_lt_i32 s8, 3
+; GFX906-NEXT:    s_cbranch_scc0 .LBB7_3
+; GFX906-NEXT:  ; %bb.1: ; %LeafBlock
+; GFX906-NEXT:    s_cmp_gt_i32 s8, 0
+; GFX906-NEXT:    s_cbranch_scc0 .LBB7_6
+; GFX906-NEXT:  ; %bb.2:
+; GFX906-NEXT:    v_lshlrev_b32_e32 v0, 2, v0
+; GFX906-NEXT:    global_load_dword v0, v0, s[4:5]
+; GFX906-NEXT:    s_branch .LBB7_5
+; GFX906-NEXT:  .LBB7_3: ; %LeafBlock5
+; GFX906-NEXT:    s_cmp_eq_u32 s8, 3
+; GFX906-NEXT:    s_cbranch_scc0 .LBB7_6
+; GFX906-NEXT:  ; %bb.4: ; %sw.bb5
+; GFX906-NEXT:    v_lshlrev_b32_e32 v0, 2, v0
+; GFX906-NEXT:    global_load_dword v0, v0, s[6:7]
+; GFX906-NEXT:  .LBB7_5: ; %return.sink.split
+; GFX906-NEXT:    v_mov_b32_e32 v1, 0
+; GFX906-NEXT:    s_waitcnt vmcnt(0)
+; GFX906-NEXT:    global_store_dword v1, v0, s[2:3]
+; GFX906-NEXT:  .LBB7_6: ; %return
+; GFX906-NEXT:    s_endpgm
+entry:
+  %idx = call i32 @llvm.amdgcn.workitem.id.x()
+  %gep1 = getelementptr <4 x i8>, ptr addrspace(1) %src1, i32 %idx
+  %vec1 = load <4 x i8>, ptr addrspace(1) %gep1
+  %gep2 = getelementptr <4 x i8>, ptr addrspace(1) %src2, i32 %idx
+  %vec2 = load <4 x i8>, ptr addrspace(1) %gep2
+  switch i32 %in, label %return [
+    i32 1, label %return.sink.split
+    i32 2, label %return.sink.split
+    i32 3, label %sw.bb5
+  ]
 
+sw.bb5:
+  br label %return.sink.split
+
+return.sink.split:
+  %tmp5 = phi <4 x i8> [ %vec2, %sw.bb5 ], [ %vec1, %entry ], [ %vec1, %entry ]
+  store <4 x i8> %tmp5, ptr addrspace(1) %dst, align 4
+  ret void
+
+return:
+  ret void
+}
+
+declare i32 @llvm.amdgcn.workitem.id.x()
