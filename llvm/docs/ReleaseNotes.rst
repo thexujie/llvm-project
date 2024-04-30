@@ -161,6 +161,9 @@ Changes to the C API
 * Added ``LLVMAtomicRMWBinOpUIncWrap`` and ``LLVMAtomicRMWBinOpUDecWrap`` to
   ``LLVMAtomicRMWBinOp`` enum for AtomicRMW instructions.
 
+* Added ``LLVMDIBuilderCreateEnumeratorOfArbitraryPrecision`` for creating
+  debugging metadata of enumerators larger than 64 bits.
+
 Changes to the CodeGen infrastructure
 -------------------------------------
 
