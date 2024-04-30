@@ -89,7 +89,7 @@ function(add_compiler_rt_object_libraries name)
         "${libname}" MATCHES ".*\.osx.*")
       foreach(arch ${LIB_ARCHS_${libname}})
         list(APPEND target_flags
-          "SHELL:-target ${arch}-apple-macos${DARWIN_osx_MIN_V357ER} -darwin-target-variant ${arch}-apple-ios13.1-macabi")
+          "SHELL:-target ${arch}-apple-macos${DARWIN_osx_MIN_VER} -darwin-target-variant ${arch}-apple-ios13.1-macabi")
       endforeach()
     endif()
 
