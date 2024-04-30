@@ -1398,8 +1398,7 @@ InstructionCost RISCVTTIImpl::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
     // one which will calculate as:
     // ScalarizeCost + Num * Cost for fixed vector,
     // InvalidCost for scalable vector.
-    if ((ValTy->getScalarSizeInBits() == 16 && !ST->hasVInstructionsF16() &&
-         !ST->hasVInstructionsF16Minimal()) ||
+    if ((ValTy->getScalarSizeInBits() == 16 && !ST->hasVInstructionsF16Minimal()) ||
         (ValTy->getScalarSizeInBits() == 32 && !ST->hasVInstructionsF32()) ||
         (ValTy->getScalarSizeInBits() == 64 && !ST->hasVInstructionsF64()))
       return BaseT::getCmpSelInstrCost(Opcode, ValTy, CondTy, VecPred, CostKind,
