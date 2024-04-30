@@ -612,6 +612,9 @@ Bug Fixes to C++ Support
 - Fix CTAD for ``std::initializer_list``. This allows ``std::initializer_list{1, 2, 3}`` to be deduced as
   ``std::initializer_list<int>`` as intended.
 
+- Fixed a crash when substituting into constraint expressions for invalid variable templates.
+  Fixes: (`#73885 <https://github.com/llvm/llvm-project/issues/73885>`_)
+
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 - Clang now properly preserves ``FoundDecls`` within a ``ConceptReference``. (#GH82628)
