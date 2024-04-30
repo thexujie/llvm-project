@@ -56,16 +56,6 @@ func.func @za_b_overlapping_za_q() {
 
 // -----
 
-// CHECK-LABEL: za0_h
-func.func @za0_h() {
-  // CHECK-NEXT: tile_id = 0
-  %za0_h = arm_sme.get_tile : vector<[8]x[8]xi16>
-  "test.some_use"(%za0_h) : (vector<[8]x[8]xi16>) -> ()
-  return
-}
-
-// -----
-
 // CHECK-LABEL: za_h
 func.func @za_h() {
   // CHECK-NEXT: tile_id = 0
@@ -162,16 +152,6 @@ func.func @za_h_overlapping_za_q() {
   "test.some_use"(%za13_q) : (vector<[1]x[1]xi128>) -> ()
   "test.some_use"(%za15_q) : (vector<[1]x[1]xi128>) -> ()
   "test.some_use"(%next_tile) : (vector<[1]x[1]xi128>) -> ()
-  return
-}
-
-// -----
-
-// CHECK-LABEL: za0_s
-func.func @za0_s() {
-  // CHECK-NEXT: tile_id = 0
-  %za0_s = arm_sme.get_tile : vector<[4]x[4]xi32>
-  "test.some_use"(%za0_s) : (vector<[4]x[4]xi32>) -> ()
   return
 }
 
@@ -277,16 +257,6 @@ func.func @za_s_overlapping_za_q() {
 
 // -----
 
-// CHECK-LABEL: za0_d
-func.func @za0_d() {
-  // CHECK-NEXT: tile_id = 0
-  %za0_d = arm_sme.get_tile : vector<[2]x[2]xi64>
-  "test.some_use"(%za0_d) : (vector<[2]x[2]xi64>) -> ()
-  return
-}
-
-// -----
-
 // CHECK-LABEL: za_d
 func.func @za_d() {
   // CHECK-NEXT: tile_id = 0
@@ -373,16 +343,6 @@ func.func @za_d_overlapping_za_q() {
   "test.some_use"(%za14_q) : (vector<[1]x[1]xi128>) -> ()
   "test.some_use"(%za15_q) : (vector<[1]x[1]xi128>) -> ()
   "test.some_use"(%next_tile) : (vector<[1]x[1]xi128>) -> ()
-  return
-}
-
-// -----
-
-// CHECK-LABEL: za0_q
-func.func @za0_q() {
-  // CHECK-NEXT: tile_id = 0
-  %za0_q = arm_sme.get_tile : vector<[1]x[1]xi128>
-  "test.some_use"(%za0_q) : (vector<[1]x[1]xi128>) -> ()
   return
 }
 
