@@ -18,6 +18,7 @@
 
 #include "Shared/Debug.h"
 #include "Shared/Environment.h"
+#include "Shared/Utils.h"
 
 #include "GlobalHandler.h"
 #include "OpenMP/OMPT/Callback.h"
@@ -75,7 +76,7 @@ struct GenELF64KernelTy : public GenericKernelTy {
       return Plugin::error("Invalid function for kernel %s", getName());
 
     // Save the function pointer.
-    Func = (void (*)())Global.getPtr();
+    Func = (void (*)(void *, void *))Global.getPtr();
 
     KernelEnvironment.Configuration.ExecMode = OMP_TGT_EXEC_MODE_GENERIC;
     KernelEnvironment.Configuration.MayUseNestedParallelism = /*Unknown=*/2;
@@ -86,31 +87,35 @@ struct GenELF64KernelTy : public GenericKernelTy {
     return Plugin::success();
   }
 
-  /// Launch the kernel using the libffi.
+  /// Launch the kernel by copying the arguments to a new struct.
   Error launchImpl(GenericDeviceTy &GenericDevice, uint32_t NumThreads,
                    uint64_t NumBlocks, KernelArgsTy &KernelArgs, void *Args,
                    AsyncInfoWrapperTy &AsyncInfoWrapper) const override {
-    // Create a vector of ffi_types, one per argument.
-    SmallVector<ffi_type *, 16> ArgTypes(KernelArgs.NumArgs, &ffi_type_pointer);
-    ffi_type **ArgTypesPtr = (ArgTypes.size()) ? &ArgTypes[0] : nullptr;
+    void *AllArgs = nullptr;
+    if (KernelArgs.NumArgs) {
+      size_t Size = KernelArgs.NumArgs * sizeof(uintptr_t);
+      auto AllocOrErr = GenericDevice.dataAlloc(
+          Size, /*HstPtr=*/nullptr, TargetAllocTy::TARGET_ALLOC_DEVICE);
+      if (!AllocOrErr)
+        return AllocOrErr.takeError();
+      AllArgs = *AllocOrErr;
+      std::memcpy(AllArgs, *static_cast<void **>(Args),
+                  sizeof(void *) * KernelArgs.NumArgs);
+      AsyncInfoWrapper.freeAllocationAfterSynchronization(AllArgs);
+    }
 
-    // Prepare the cif structure before running the kernel function.
-    ffi_cif Cif;
-    ffi_status Status = ffi_prep_cif(&Cif, FFI_DEFAULT_ABI, KernelArgs.NumArgs,
-                                     &ffi_type_void, ArgTypesPtr);
-    if (Status != FFI_OK)
-      return Plugin::error("Error in ffi_prep_cif: %d", Status);
-
-    // Call the kernel function through libffi.
-    long Return;
-    ffi_call(&Cif, Func, &Return, (void **)Args);
-
+    if (KernelArgs.NumArgs > 1)
+      Func(AllArgs, advanceVoidPtr(AllArgs, sizeof(void *)));
+    else
+      Func(AllArgs, nullptr);
     return Plugin::success();
   }
 
 private:
-  /// The kernel function to execute.
-  void (*Func)(void);
+  /// The kernel function to execute. The function signature is always expected
+  /// to be the following interface.
+  /// void kernel(void *KernelEnv, void *Args[NumArgs]);
+  void (*Func)(void *, void *);
 };
 
 /// Class implementing the GenELF64 device images properties.

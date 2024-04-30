@@ -18,19 +18,6 @@ add_target_library(omptarget.rtl.host ${machine})
 
 target_sources(omptarget.rtl.host PRIVATE src/rtl.cpp)
 
-if(LIBOMPTARGET_DEP_LIBFFI_FOUND)
-  libomptarget_say("Building ${machine} plugin linked with libffi")
-  if(FFI_STATIC_LIBRARIES)
-    target_link_libraries(omptarget.rtl.host PRIVATE FFI::ffi_static)
-  else()
-    target_link_libraries(omptarget.rtl.host PRIVATE FFI::ffi)
-  endif()
-else()
-  libomptarget_say("Building ${machine} plugin for dlopened libffi")
-  target_sources(omptarget.rtl.host PRIVATE dynamic_ffi/ffi.cpp)
-  target_include_directories(omptarget.rtl.host PRIVATE dynamic_ffi)
-endif()
-
 # Install plugin under the lib destination folder.
 install(TARGETS omptarget.rtl.host
         LIBRARY DESTINATION "${OFFLOAD_INSTALL_LIBDIR}")
