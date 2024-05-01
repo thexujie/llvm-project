@@ -591,6 +591,29 @@ def ROCDL_RawBufferAtomicUMinOp :
   let hasCustomAssemblyFormat = 1;
 }
 
+// DPP Move intrinsic
+def ROCDL_DPPMovOp : ROCDL_IntrOp<"mov.dpp", [], [0],
+    [AllTypesMatch<["res", "src"]>], 1>,
+  Arguments<(ins LLVM_Type:$src, I32Attr:$dppCtrl, I32Attr:$rowMask,
+      I32Attr:$bankMask, I1Attr:$boundCtrl)> {
+  let results = (outs LLVM_Type:$res);
+  let assemblyFormat = [{
+    attr-dict $src `with` $dppCtrl `,` $rowMask `,` $bankMask `,` $boundCtrl `:` type($src)
+  }];
+  string llvmBuilder = [{
+      auto vdataType = moduleTranslation.convertType(op.getSrc().getType());
+      llvm::Value *args[] = {
+        moduleTranslation.lookupValue(op.getSrc()),
+          builder.getInt32(op.getDppCtrl()),  
+          builder.getInt32(op.getRowMask()),  
+          builder.getInt32(op.getBankMask()),  
+          builder.getInt1(op.getBoundCtrl())
+      }; 
+      $res = createIntrinsicCall(builder,
+        llvm::Intrinsic::amdgcn_mov_dpp, args, {vdataType});
+  }];
+}
+
 //===---------------------------------------------------------------------===//
 // 8-bit float intrinsics
 //===---------------------------------------------------------------------===//
