@@ -213,17 +213,20 @@ bool SIInstrInfo::isSafeToSink(MachineInstr &MI,
       // Check if there is a FromCycle that contains SgprDef's basic block but
       // does not contain SuccToSinkTo and also has divergent exit condition.
       while (FromCycle && !FromCycle->contains(ToCycle)) {
-        // After structurize-cfg, there should be exactly one cycle exit.
+        // After structurize-cfg, there should be exactly one cycle exit. Also,
+        // cycle exit block should have exactly one predecessor, the cycle exit.
+        // Early-tailduplication can removed that block so we have to search for
+        // predecessor that is in cycle.
         SmallVector<MachineBasicBlock *, 1> ExitBlocks;
         FromCycle->getExitBlocks(ExitBlocks);
-        assert(ExitBlocks.size() == 1);
-        assert(ExitBlocks[0]->getSinglePredecessor());
 
         // FromCycle has divergent exit condition.
-        if (hasDivergentBranch(ExitBlocks[0]->getSinglePredecessor())) {
-          return false;
+        for (MachineBasicBlock *ExitBlock : ExitBlocks) {
+          for (MachineBasicBlock *Pred : ExitBlock->predecessors()) {
+            if (FromCycle->contains(Pred) && hasDivergentBranch(Pred))
+              return false;
+          }
         }
-
         FromCycle = FromCycle->getParentCycle();
       }
     }
