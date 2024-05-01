@@ -459,7 +459,9 @@ private:
                                  CGUseList &useList, CallGraphSCC &currentSCC);
 
   /// Returns true if the given call should be inlined.
-  bool shouldInline(ResolvedCall &resolvedCall);
+  bool
+  shouldInline(ResolvedCall &resolvedCall,
+               const llvm::SmallPtrSetImpl<Region *> &recursiveCallRegions);
 
 private:
   Inliner &inliner;
@@ -621,6 +623,14 @@ Inliner::Impl::inlineCallsInSCC(InlinerInterfaceImpl &inlinerIface,
     llvm::dbgs() << "}\n";
   });
 
+  // The call graph changes dynamically during inliner iterations.
+  // Maintaining a generated set can avoid to inline self-recursive function.
+  llvm::SmallPtrSet<Region *, 16U> recursiveCallRegions{};
+  for (ResolvedCall const &it : calls) {
+    if (it.sourceNode == it.targetNode)
+      recursiveCallRegions.insert(it.targetNode->getCallableRegion());
+  }
+
   // Try to inline each of the call operations. Don't cache the end iterator
   // here as more calls may be added during inlining.
   bool inlinedAnyCalls = false;
@@ -632,7 +642,7 @@ Inliner::Impl::inlineCallsInSCC(InlinerInterfaceImpl &inlinerIface,
     InlineHistoryT inlineHistoryID = callHistory[i];
     bool inHistory =
         inlineHistoryIncludes(it.targetNode, inlineHistoryID, inlineHistory);
-    bool doInline = !inHistory && shouldInline(it);
+    bool doInline = !inHistory && shouldInline(it, recursiveCallRegions);
     CallOpInterface call = it.call;
     LLVM_DEBUG({
       if (doInline)
@@ -705,24 +715,30 @@ Inliner::Impl::inlineCallsInSCC(InlinerInterfaceImpl &inlinerIface,
   return success(inlinedAnyCalls);
 }
 
+static bool isSelfRecursiveFunction(CallGraphNode *node) {
+  return llvm::find_if(*node, [&](const CallGraphNode::Edge &edge) -> bool {
+           return edge.getTarget() == node;
+         }) != node->end();
+}
+
 /// Returns true if the given call should be inlined.
-bool Inliner::Impl::shouldInline(ResolvedCall &resolvedCall) {
+bool Inliner::Impl::shouldInline(
+    ResolvedCall &resolvedCall,
+    const llvm::SmallPtrSetImpl<Region *> &recursiveCallRegions) {
   // Don't allow inlining terminator calls. We currently don't support this
   // case.
   if (resolvedCall.call->hasTrait<OpTrait::IsTerminator>())
     return false;
 
-  // Don't allow inlining if the target is a self-recursive function.
-  if (llvm::count_if(*resolvedCall.targetNode,
-                     [&](CallGraphNode::Edge const &edge) -> bool {
-                       return edge.getTarget() == resolvedCall.targetNode;
-                     }) > 0)
-    return false;
-
-  // Don't allow inlining if the target is an ancestor of the call. This
-  // prevents inlining recursively.
   Region *callableRegion = resolvedCall.targetNode->getCallableRegion();
-  if (callableRegion->isAncestor(resolvedCall.call->getParentRegion()))
+
+  // Don't allow inlining this following cases to prevent inlining recursively.
+  // 1. target has at least an edge back to itself in original call graph.
+  // 2. target has call instructions call itself after pervious inlining.
+  // 3. target is an ancestor of the call.
+  if (isSelfRecursiveFunction(resolvedCall.targetNode) ||
+      recursiveCallRegions.contains(callableRegion) ||
+      callableRegion->isAncestor(resolvedCall.call->getParentRegion()))
     return false;
 
   // Don't allow inlining if the callee has multiple blocks (unstructured
