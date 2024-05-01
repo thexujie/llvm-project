@@ -4830,6 +4830,9 @@ llvm::CallInst *CodeGenFunction::EmitRuntimeCall(llvm::FunctionCallee callee,
   llvm::CallInst *call = Builder.CreateCall(
       callee, args, getBundlesForFunclet(callee.getCallee()), name);
   call->setCallingConv(getRuntimeCC());
+
+  if (CGM.shouldEmitConvergenceTokens() && call->isConvergent())
+    return addControlledConvergenceToken(call);
   return call;
 }
 
@@ -5729,7 +5732,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (!CI->getType()->isVoidTy())
     CI->setName("call");
 
-  if (getTarget().getTriple().isSPIRVLogical() && CI->isConvergent())
+  if (CGM.shouldEmitConvergenceTokens() && CI->isConvergent())
     CI = addControlledConvergenceToken(CI);
 
   // Update largest vector width from the return type.
