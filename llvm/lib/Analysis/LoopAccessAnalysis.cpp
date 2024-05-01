@@ -1296,8 +1296,29 @@ bool AccessAnalysis::mayFault() {
     // For now only the simplest cases are permitted, but this could be
     // extended further.
     auto *GEP = dyn_cast<GetElementPtrInst>(UO.first);
-    if (!GEP || GEP->getPointerOperand() != UO.second[0] ||
-        GEP->getNumIndices() != 1)
+    if (!GEP || GEP->getPointerOperand() != UO.second[0])
+      return true;
+
+    // The only current supported case for 2 GEP indices is when accessing an
+    // array, i.e.
+    //   getelementptr [32 x i32], ptr %arr, i64 0, i64 %ind
+    Value *GEPInd;
+    Type *GEPElemType;
+    if (GEP->getNumIndices() == 2) {
+      auto *ArrayTy = dyn_cast<ArrayType>(GEP->getSourceElementType());
+      if (!ArrayTy || !isa<ConstantInt>(GEP->getOperand(1)) ||
+          !cast<ConstantInt>(GEP->getOperand(1))->isZero())
+        return true;
+      GEPInd = GEP->getOperand(2);
+      GEPElemType = ArrayTy->getElementType();
+    } else if (GEP->getNumIndices() == 1) {
+      GEPInd = GEP->getOperand(1);
+      GEPElemType = GEP->getSourceElementType();
+    } else
+      return true;
+
+    // We don't handle scalable GEP element types.
+    if (GEPElemType->getPrimitiveSizeInBits().isScalable())
       return true;
 
     // Verify pointer accessed within the loop always falls within the bounds
@@ -1320,13 +1341,12 @@ bool AccessAnalysis::mayFault() {
     if (!ObjSize)
       return true;
 
-    Value *GEPInd = GEP->getOperand(1);
     const SCEV *IndScev = PSE.getSCEV(GEPInd);
     if (!isa<SCEVAddRecExpr>(IndScev))
       return true;
 
     // Calculate the maximum number of addressable elements in the object.
-    uint64_t ElemSize = GEP->getSourceElementType()->getScalarSizeInBits() / 8;
+    uint64_t ElemSize = GEPElemType->getScalarSizeInBits() / 8;
     uint64_t MaxNumElems = ObjSize / ElemSize;
 
     const SCEV *MinScev = PSE.getSE()->getConstant(GEPInd->getType(), 0);
@@ -2462,7 +2482,7 @@ bool LoopAccessInfo::isAnalyzableEarlyExitLoop() {
     }
   assert(SpeculativeEarlyExitBB &&
          "Expected to find speculative early exit block");
-  CountableEarlyExitingBlocks = std::move(CountableExitingBBs);
+  CountableExitingBlocks = std::move(CountableExitingBBs);
 
   return true;
 }

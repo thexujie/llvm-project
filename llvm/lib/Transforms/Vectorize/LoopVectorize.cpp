@@ -181,6 +181,10 @@ static cl::opt<bool> EnableEpilogueVectorization(
     "enable-epilogue-vectorization", cl::init(true), cl::Hidden,
     cl::desc("Enable vectorization of epilogue loops."));
 
+static cl::opt<bool> EnableEarlyExitVectorization(
+    "enable-early-exit-vectorization", cl::init(false), cl::Hidden,
+    cl::desc("Enable vectorization of early exit loops."));
+
 static cl::opt<bool> AssumeNoMemFault(
     "vectorizer-no-mem-fault", cl::init(false), cl::Hidden,
     cl::desc("Assume vectorized loops will not have memory faults, which is "
@@ -1490,7 +1494,7 @@ public:
     // the exits.
     if (Legal->hasSpeculativeEarlyExit()) {
       const SmallVector<BasicBlock *, 4> &CountableExitingBlocks =
-          Legal->getLAI()->getCountableEarlyExitingBlocks();
+          Legal->getLAI()->getCountableExitingBlocks();
       if (CountableExitingBlocks.size() > 1 ||
           (CountableExitingBlocks.size() == 1 &&
            CountableExitingBlocks[0] != TheLoop->getLoopLatch()))
@@ -3609,10 +3613,6 @@ void InnerLoopVectorizer::fixVectorizedLoop(VPTransformState &State,
 
   // Fix LCSSA phis not already fixed earlier. Extracts may need to be generated
   // in the exit block, so update the builder.
-  BasicBlock *OrigEarlyExitBB = Legal->hasSpeculativeEarlyExit()
-                                    ? Legal->getSpeculativeEarlyExitBlock()
-                                    : nullptr;
-
   State.Builder.SetInsertPoint(State.CFG.ExitBB,
                                State.CFG.ExitBB->getFirstNonPHIIt());
   for (const auto &KV : Plan.getLiveOuts())
@@ -9928,14 +9928,73 @@ static void checkMixedPrecision(Loop *L, OptimizationRemarkEmitter *ORE) {
   }
 }
 
-static bool areRuntimeChecksProfitable(GeneratedRTChecks &Checks,
-                                       VectorizationFactor &VF,
-                                       std::optional<unsigned> VScale, Loop *L,
-                                       ScalarEvolution &SE,
-                                       ScalarEpilogueLowering SEL) {
+static InstructionCost calculateEarlyExitCost(const TargetTransformInfo *TTI,
+                                              LoopVectorizationLegality *Legal,
+                                              Loop *L, ElementCount VF) {
+  unsigned NumCttzElemCalls = 0;
+  BasicBlock *OrigEarlyExitingBlock = Legal->getSpeculativeEarlyExitingBlock();
+  BasicBlock *OrigLoopLatch = L->getLoopLatch();
+  for (const auto &Entry : Legal->getInductionVars()) {
+    PHINode *OrigPhi = Entry.first;
+    Value *PostInc = OrigPhi->getIncomingValueForBlock(OrigLoopLatch);
+
+    for (User *U : PostInc->users()) {
+      // This assumes if it's not in the loop then it must be the normal
+      // exit block. However, it could be a user in an early exit block
+      // different to the latch's exit block.
+      auto *UI = cast<Instruction>(U);
+      if (!L->contains(UI)) {
+        PHINode *PHI = dyn_cast<PHINode>(UI);
+        assert(PHI && "Expected LCSSA form");
+        int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
+        if (Index != -1 && PHI->getIncomingValue(Index) == PostInc)
+          NumCttzElemCalls++;
+      }
+    }
+
+    for (User *U : OrigPhi->users()) {
+      auto *UI = cast<Instruction>(U);
+      if (!L->contains(UI)) {
+        PHINode *PHI = dyn_cast<PHINode>(UI);
+        assert(PHI && "Expected LCSSA form");
+        int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
+        if (Index != -1 && PHI->getIncomingValue(Index) == OrigPhi)
+          NumCttzElemCalls++;
+      }
+    }
+  }
+
+  InstructionCost Cost = 0;
+  if (NumCttzElemCalls) {
+    LLVMContext &Context = L->getHeader()->getContext();
+    // Ideally we'd query the vplan for the canonical IV type, but we don't
+    // have a vplan yet so let's assume it's 64-bit.
+    auto CtzType = IntegerType::getIntNTy(Context, 64);
+    auto VecI1Type = VectorType::get(IntegerType::getInt1Ty(Context), VF);
+
+    IntrinsicCostAttributes Attrs(
+        Intrinsic::experimental_cttz_elts, CtzType,
+        {PoisonValue::get(VecI1Type), ConstantInt::getTrue(Context)});
+    Cost = TTI->getIntrinsicInstrCost(Attrs, TTI::TCK_RecipThroughput);
+    Cost *= NumCttzElemCalls;
+  }
+  return Cost;
+}
+
+static bool isOutsideLoopWorkProfitable(GeneratedRTChecks &Checks,
+                                        VectorizationFactor &VF,
+                                        std::optional<unsigned> VScale, Loop *L,
+                                        ScalarEvolution &SE,
+                                        ScalarEpilogueLowering SEL,
+                                        InstructionCost EarlyExitCost) {
   InstructionCost CheckCost = Checks.getCost();
   if (!CheckCost.isValid())
     return false;
+
+  // Add on the cost of work required in the vector early exit block, if one
+  // exists.
+  if (EarlyExitCost.isValid())
+    CheckCost += EarlyExitCost;
 
   // When interleaving only scalar and vector cost will be equal, which in turn
   // would lead to a divide by 0. Fall back to hard threshold.
@@ -10090,14 +10149,21 @@ bool LoopVectorizePass::processLoop(Loop *L) {
   }
 
   // We may not have LAI at this point.
-  if (LVL.hasSpeculativeEarlyExit() && LVL.getLAI()->mayFault()) {
-    if (!AssumeNoMemFault) {
-      LLVM_DEBUG(dbgs() << "LV: Not vectorizing: Cannot vectorize faulting "
-                        << "loop with early exit.\n");
+  if (LVL.hasSpeculativeEarlyExit()) {
+    if (!EnableEarlyExitVectorization) {
+      LLVM_DEBUG(dbgs() << "LV: Not vectorizing: Auto-vectorization of early "
+                        << "exit loops is disabled.\n");
       return false;
     }
-    LLVM_DEBUG(dbgs() << "LV: Assuming early exit vector loop will not "
-                      << "fault\n");
+    if (LVL.getLAI()->mayFault()) {
+      if (!AssumeNoMemFault) {
+        LLVM_DEBUG(dbgs() << "LV: Not vectorizing: Cannot vectorize faulting "
+                          << "loop with early exit.\n");
+        return false;
+      }
+      LLVM_DEBUG(dbgs() << "LV: Assuming early exit vector loop will not "
+                        << "fault\n");
+    }
   }
 
   // Entrance to the VPlan-native vectorization path. Outer loops are processed
@@ -10239,12 +10305,16 @@ bool LoopVectorizePass::processLoop(Loop *L) {
     if (VF.Width.isVector() || SelectedIC > 1)
       Checks.Create(L, *LVL.getLAI(), PSE.getPredicate(), VF.Width, SelectedIC);
 
+    InstructionCost EarlyExitCost = InstructionCost::getInvalid();
+    if (VF.Width.isVector() && LVL.hasSpeculativeEarlyExit())
+      EarlyExitCost = calculateEarlyExitCost(TTI, &LVL, L, VF.Width);
+
     // Check if it is profitable to vectorize with runtime checks.
     bool ForceVectorization =
         Hints.getForce() == LoopVectorizeHints::FK_Enabled;
     if (!ForceVectorization &&
-        !areRuntimeChecksProfitable(Checks, VF, getVScaleForTuning(L, *TTI), L,
-                                    *PSE.getSE(), SEL)) {
+        !isOutsideLoopWorkProfitable(Checks, VF, getVScaleForTuning(L, *TTI), L,
+                                     *PSE.getSE(), SEL, EarlyExitCost)) {
       ORE->emit([&]() {
         return OptimizationRemarkAnalysisAliasing(
                    DEBUG_TYPE, "CantReorderMemOps", L->getStartLoc(),

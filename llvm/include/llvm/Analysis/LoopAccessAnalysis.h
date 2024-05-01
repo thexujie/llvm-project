@@ -625,8 +625,8 @@ public:
 
   /// Returns all blocks with a countable exit, i.e. the exit-not-taken count
   /// is known exactly at compile time.
-  const SmallVector<BasicBlock *, 4> &getCountableEarlyExitingBlocks() const {
-    return CountableEarlyExitingBlocks;
+  const SmallVector<BasicBlock *, 4> &getCountableExitingBlocks() const {
+    return CountableExitingBlocks;
   }
 
   /// The diagnostics report generated for the analysis.  E.g. why we
@@ -729,9 +729,9 @@ private:
   /// Keeps track of the successor of the early-exiting block, if present.
   BasicBlock *SpeculativeEarlyExitBB = nullptr;
 
-  /// Keeps track of all the early exits with known or countable exit-not-taken
+  /// Keeps track of all the exits with known or countable exit-not-taken
   /// counts.
-  SmallVector<BasicBlock *, 4> CountableEarlyExitingBlocks;
+  SmallVector<BasicBlock *, 4> CountableExitingBlocks;
 
   /// Indicator that there are non vectorizable stores to a uniform address.
   bool HasDependenceInvolvingLoopInvariantAddress = false;
