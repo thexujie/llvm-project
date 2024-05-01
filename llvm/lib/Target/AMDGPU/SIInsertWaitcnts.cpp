@@ -187,8 +187,12 @@ VmemType getVmemType(const MachineInstr &Inst) {
   const AMDGPU::MIMGInfo *Info = AMDGPU::getMIMGInfo(Inst.getOpcode());
   const AMDGPU::MIMGBaseOpcodeInfo *BaseInfo =
       AMDGPU::getMIMGBaseOpcodeInfo(Info->BaseOpcode);
-  return BaseInfo->BVH ? VMEM_BVH
-                       : BaseInfo->Sampler ? VMEM_SAMPLER : VMEM_NOSAMPLER;
+  // We have to make an additional check for isVSAMPLE here since some
+  // instructions don't have a sampler, but are still classified as sampler
+  // instructions for the purposes of e.g. waitcnt.
+  return BaseInfo->BVH                                         ? VMEM_BVH
+         : (BaseInfo->Sampler || SIInstrInfo::isVSAMPLE(Inst)) ? VMEM_SAMPLER
+                                                               : VMEM_NOSAMPLER;
 }
 
 unsigned &getCounterRef(AMDGPU::Waitcnt &Wait, InstCounterType T) {
