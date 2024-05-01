@@ -13,9 +13,13 @@
 #include <__type_traits/is_assignable.h>
 #include <__type_traits/is_same.h>
 #include <__utility/forward.h>
+#include <__utility/move.h>
 #include <cstddef>
 #include <experimental/__config>
 #include <experimental/__simd/utility.h>
+
+_LIBCPP_PUSH_MACROS
+#include <__undef_macros>
 
 #if _LIBCPP_STD_VER >= 17 && defined(_LIBCPP_ENABLE_EXPERIMENTAL)
 
@@ -55,10 +59,31 @@ public:
     __set(static_cast<value_type>(std::forward<_Up>(__v)));
     return {__s_, __idx_};
   }
+
+  friend _LIBCPP_HIDE_FROM_ABI void swap(__simd_reference&& __a, __simd_reference&& __b) noexcept {
+    value_type __tmp(std::move(__a.__get()));
+    __a.__set(std::move(__b.__get()));
+    __b.__set(std::move(__tmp));
+  }
+
+  friend _LIBCPP_HIDE_FROM_ABI void swap(value_type& __a, __simd_reference&& __b) noexcept {
+    value_type __tmp(std::move(__a));
+    __a = std::move(__b.__get());
+    __b.__set(std::move(__tmp));
+  }
+
+  friend _LIBCPP_HIDE_FROM_ABI void swap(__simd_reference&& __a, value_type& __b) noexcept {
+    value_type __tmp(std::move(__a.__get()));
+    __a.__set(std::move(__b));
+    __b = std::move(__tmp);
+  }
 };
 
 } // namespace parallelism_v2
 _LIBCPP_END_NAMESPACE_EXPERIMENTAL
 
 #endif // _LIBCPP_STD_VER >= 17 && defined(_LIBCPP_ENABLE_EXPERIMENTAL)
+
+_LIBCPP_POP_MACROS
+
 #endif // _LIBCPP_EXPERIMENTAL___SIMD_REFERENCE_H
