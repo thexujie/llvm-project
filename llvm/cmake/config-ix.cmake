@@ -257,7 +257,7 @@ else()
   set(LLVM_ENABLE_TERMINFO 0)
 endif()
 
-#Check for icu.
+# Check for ICU.
 if(LLVM_ENABLE_ICU)
   set(LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")

@@ -8,7 +8,7 @@
 ///
 /// \file
 /// This file provides utility classes to convert between different character
-/// set encoding.
+/// set encodings.
 ///
 //===----------------------------------------------------------------------===//
 
