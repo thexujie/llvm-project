@@ -851,11 +851,10 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
 
-    AU.addUsedIfAvailable<LiveIntervals>();
+    AU.addRequired<LiveIntervals>();
     AU.addPreserved<LiveIntervals>();
-    AU.addUsedIfAvailable<SlotIndexes>();
+    AU.addRequired<SlotIndexes>();
     AU.addPreserved<SlotIndexes>();
-    AU.addUsedIfAvailable<LiveDebugVariables>();
     AU.addPreserved<LiveDebugVariables>();
     AU.addPreserved<LiveStacks>();
 
