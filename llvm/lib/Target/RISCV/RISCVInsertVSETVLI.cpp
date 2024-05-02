@@ -58,7 +58,7 @@ template <typename T>
 static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
                            const LiveIntervals *LIS) {
 
-  assert(MI);
+  assert(MI && Reg.isVirtual());
 
   if (auto *UniqueDefMI = MRI->getUniqueVRegDef(Reg))
     return UniqueDefMI;
@@ -69,7 +69,7 @@ static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
       }))
     return MI;
 
-  assert(Reg.isVirtual() && LIS->hasInterval(Reg));
+  assert(LIS->hasInterval(Reg));
 
   auto &LI = LIS->getInterval(Reg);
   SlotIndexes *SIs = LIS->getSlotIndexes();
