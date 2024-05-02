@@ -190,6 +190,7 @@ void initializeMachineCycleInfoPrinterPassPass(PassRegistry &);
 void initializeMachineCycleInfoWrapperPassPass(PassRegistry &);
 void initializeMachineDominanceFrontierPass(PassRegistry&);
 void initializeMachineDominatorTreePass(PassRegistry&);
+void initializeMachineFunctionHashBuilderPass(PassRegistry &);
 void initializeMachineFunctionPrinterPassPass(PassRegistry&);
 void initializeMachineFunctionSplitterPass(PassRegistry &);
 void initializeMachineLateInstrsCleanupPass(PassRegistry&);
@@ -312,7 +313,6 @@ void initializeWasmEHPreparePass(PassRegistry&);
 void initializeWinEHPreparePass(PassRegistry&);
 void initializeWriteBitcodePassPass(PassRegistry&);
 void initializeXRayInstrumentationPass(PassRegistry&);
-
 } // end namespace llvm
 
 #endif // LLVM_INITIALIZEPASSES_H
