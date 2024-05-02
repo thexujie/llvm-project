@@ -208,11 +208,9 @@ export namespace std {
     using std::chrono::reload_tzdb;
     using std::chrono::remote_version;
 
-#    if 0
     // [time.zone.exception], exception classes
     using std::chrono::ambiguous_local_time;
     using std::chrono::nonexistent_local_time;
-#    endif // if 0
 
     // [time.zone.info], information classes
     using std::chrono::local_info;
