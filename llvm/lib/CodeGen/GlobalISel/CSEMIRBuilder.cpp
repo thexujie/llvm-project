@@ -51,6 +51,16 @@ CSEMIRBuilder::getDominatingInstrForID(FoldingSetNodeID &ID,
       // this builder will have the def ready.
       setInsertPt(*CurMBB, std::next(MII));
     } else if (!dominates(MI, CurrPos)) {
+      // MergedLocation represents the merged location of two instructions that
+      // were folded, if it is set, merge the location of MI with the merged
+      // location and set it as MI's new location before moving it to the
+      // CurrPos.
+      if (MergedLocation) {
+        auto *Loc = DILocation::getMergedLocation(MergedLocation,
+                                                  MI->getDebugLoc().get());
+        MI->setDebugLoc(Loc);
+        MergedLocation = nullptr;
+      }
       CurMBB->splice(CurrPos, CurMBB, MI);
     }
     return MachineInstrBuilder(getMF(), MI);
