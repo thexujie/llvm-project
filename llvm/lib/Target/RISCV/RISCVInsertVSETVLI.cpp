@@ -83,8 +83,7 @@ static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
   VNInfo *Valno = getVNInfoFromReg(Reg, *MI, LIS);
   if (!Valno || Valno->isPHIDef())
     return nullptr;
-  SlotIndexes *SIs = LIS->getSlotIndexes();
-  MachineInstr *DefMI = SIs->getInstructionFromIndex(Valno->def);
+  MachineInstr *DefMI = LIS->getInstructionFromIndex(Valno->def);
   return DefMI;
 }
 
