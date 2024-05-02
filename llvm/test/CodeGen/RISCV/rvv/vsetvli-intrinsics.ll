@@ -108,7 +108,7 @@ declare <vscale x 4 x i32> @llvm.riscv.vle.nxv4i32.iXLen(<vscale x 4 x i32>, ptr
 define <vscale x 4 x i32> @redundant_vsetvli(iXLen %avl, ptr %ptr) nounwind {
 ; CHECK-LABEL: redundant_vsetvli:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    vsetvli zero, a0, e32, m2, ta, ma
+; CHECK-NEXT:    vsetvli a0, a0, e32, m2, ta, ma
 ; CHECK-NEXT:    vle32.v v8, (a1)
 ; CHECK-NEXT:    ret
   %vl = call iXLen @llvm.riscv.vsetvli.iXLen(iXLen %avl, iXLen 2, iXLen 1)
@@ -124,7 +124,7 @@ define <vscale x 4 x i32> @repeated_vsetvli(iXLen %avl, ptr %ptr) nounwind {
 ; CHECK-LABEL: repeated_vsetvli:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vsetvli a0, a0, e32, m2, ta, ma
-; CHECK-NEXT:    vsetvli zero, a0, e32, m2, ta, ma
+; CHECK-NEXT:    vsetvli a0, a0, e32, m2, ta, ma
 ; CHECK-NEXT:    vle32.v v8, (a1)
 ; CHECK-NEXT:    ret
   %vl0 = call iXLen @llvm.riscv.vsetvli.iXLen(iXLen %avl, iXLen 2, iXLen 1)

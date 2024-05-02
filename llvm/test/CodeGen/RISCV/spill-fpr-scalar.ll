@@ -14,16 +14,12 @@ declare <vscale x 1 x double> @llvm.riscv.vfmv.v.f.nxv1f64(<vscale x 1 x double>
 define <vscale x 1 x half> @intrinsic_vfmv.f.s_s_nxv1f16(<vscale x 1 x half> %0, i64 %1) nounwind {
 ; CHECK-LABEL: intrinsic_vfmv.f.s_s_nxv1f16:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addi sp, sp, -16
 ; CHECK-NEXT:    vsetivli zero, 1, e16, mf4, ta, ma
 ; CHECK-NEXT:    vfmv.f.s fa5, v8
-; CHECK-NEXT:    fsh fa5, 14(sp) # 2-byte Folded Spill
+; CHECK-NEXT:    vsetvli zero, a0, e16, mf4, ta, ma
+; CHECK-NEXT:    vfmv.v.f v8, fa5
 ; CHECK-NEXT:    #APP
 ; CHECK-NEXT:    #NO_APP
-; CHECK-NEXT:    vsetvli zero, a0, e16, mf4, ta, ma
-; CHECK-NEXT:    flh fa5, 14(sp) # 2-byte Folded Reload
-; CHECK-NEXT:    vfmv.v.f v8, fa5
-; CHECK-NEXT:    addi sp, sp, 16
 ; CHECK-NEXT:    ret
 entry:
   %a = call half @llvm.riscv.vfmv.f.s.nxv1f16(<vscale x 1 x half> %0)
@@ -35,16 +31,12 @@ entry:
 define <vscale x 1 x float> @intrinsic_vfmv.f.s_s_nxv1f32(<vscale x 1 x float> %0, i64 %1) nounwind {
 ; CHECK-LABEL: intrinsic_vfmv.f.s_s_nxv1f32:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addi sp, sp, -16
 ; CHECK-NEXT:    vsetivli zero, 1, e32, mf2, ta, ma
 ; CHECK-NEXT:    vfmv.f.s fa5, v8
-; CHECK-NEXT:    fsw fa5, 12(sp) # 4-byte Folded Spill
+; CHECK-NEXT:    vsetvli zero, a0, e32, mf2, ta, ma
+; CHECK-NEXT:    vfmv.v.f v8, fa5
 ; CHECK-NEXT:    #APP
 ; CHECK-NEXT:    #NO_APP
-; CHECK-NEXT:    vsetvli zero, a0, e32, mf2, ta, ma
-; CHECK-NEXT:    flw fa5, 12(sp) # 4-byte Folded Reload
-; CHECK-NEXT:    vfmv.v.f v8, fa5
-; CHECK-NEXT:    addi sp, sp, 16
 ; CHECK-NEXT:    ret
 entry:
   %a = call float @llvm.riscv.vfmv.f.s.nxv1f32(<vscale x 1 x float> %0)
@@ -56,16 +48,12 @@ entry:
 define <vscale x 1 x double> @intrinsic_vfmv.f.s_s_nxv1f64(<vscale x 1 x double> %0, i64 %1) nounwind {
 ; CHECK-LABEL: intrinsic_vfmv.f.s_s_nxv1f64:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addi sp, sp, -16
 ; CHECK-NEXT:    vsetivli zero, 1, e64, m1, ta, ma
 ; CHECK-NEXT:    vfmv.f.s fa5, v8
-; CHECK-NEXT:    fsd fa5, 8(sp) # 8-byte Folded Spill
+; CHECK-NEXT:    vsetvli zero, a0, e64, m1, ta, ma
+; CHECK-NEXT:    vfmv.v.f v8, fa5
 ; CHECK-NEXT:    #APP
 ; CHECK-NEXT:    #NO_APP
-; CHECK-NEXT:    vsetvli zero, a0, e64, m1, ta, ma
-; CHECK-NEXT:    fld fa5, 8(sp) # 8-byte Folded Reload
-; CHECK-NEXT:    vfmv.v.f v8, fa5
-; CHECK-NEXT:    addi sp, sp, 16
 ; CHECK-NEXT:    ret
 entry:
   %a = call double @llvm.riscv.vfmv.f.s.nxv1f64(<vscale x 1 x double> %0)
