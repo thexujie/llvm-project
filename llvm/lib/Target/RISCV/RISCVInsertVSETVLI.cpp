@@ -921,6 +921,15 @@ char RISCVCoalesceVSETVLI::ID = 0;
 INITIALIZE_PASS(RISCVCoalesceVSETVLI, "riscv-coalesce-vsetvli",
                 RISCV_COALESCE_VSETVLI_NAME, false, false)
 
+static VNInfo *getVNInfoFromReg(Register Reg, const MachineInstr &MI,
+                                const LiveIntervals *LIS) {
+  auto &LI = LIS->getInterval(Reg);
+  SlotIndexes *SIs = LIS->getSlotIndexes();
+  SlotIndex SI = SIs->getInstructionIndex(MI);
+  VNInfo *VNI = LI.getVNInfoBefore(SI);
+  return VNI;
+}
+
 // Return a VSETVLIInfo representing the changes made by this VSETVLI or
 // VSETIVLI instruction.
 static VSETVLIInfo getInfoForVSETVLI(const MachineInstr &MI,
@@ -937,13 +946,8 @@ static VSETVLIInfo getInfoForVSETVLI(const MachineInstr &MI,
            "Can't handle X0, X0 vsetvli yet");
     if (AVLReg == RISCV::X0)
       NewInfo.setAVLVLMAX();
-    else {
-      auto &LI = LIS->getInterval(AVLReg);
-      SlotIndexes *SIs = LIS->getSlotIndexes();
-      SlotIndex SI = SIs->getInstructionIndex(MI);
-      VNInfo *VNI = LI.getVNInfoBefore(SI);
-      NewInfo.setAVLRegDef(VNI, AVLReg);
-    }
+    else
+      NewInfo.setAVLRegDef(getVNInfoFromReg(AVLReg, MI, LIS), AVLReg);
   }
   NewInfo.setVTYPE(MI.getOperand(2).getImm());
 
@@ -1016,11 +1020,8 @@ static VSETVLIInfo computeInfoForInstr(const MachineInstr &MI, uint64_t TSFlags,
       else
         InstrInfo.setAVLImm(Imm);
     } else {
-      auto &LI = LIS->getInterval(VLOp.getReg());
-      SlotIndexes *SIs = LIS->getSlotIndexes();
-      SlotIndex SI = SIs->getInstructionIndex(MI);
-      VNInfo *VNI = LI.getVNInfoBefore(SI);
-      InstrInfo.setAVLRegDef(VNI, VLOp.getReg());
+      InstrInfo.setAVLRegDef(getVNInfoFromReg(VLOp.getReg(), MI, LIS),
+                             VLOp.getReg());
     }
   } else {
     assert(isScalarExtractInstr(MI));
