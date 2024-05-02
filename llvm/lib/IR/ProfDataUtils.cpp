@@ -123,6 +123,10 @@ unsigned getBranchWeightOffset(const MDNode *ProfileData) {
   return hasBranchWeightProvenance(ProfileData) ? 2 : 1;
 }
 
+unsigned getNumBranchWeights(const MDNode &ProfileData) {
+  return ProfileData.getNumOperands() - getBranchWeightOffset(&ProfileData);
+}
+
 MDNode *getBranchWeightMDNode(const Instruction &I) {
   auto *ProfileData = I.getMetadata(LLVMContext::MD_prof);
   if (!isBranchWeightMD(ProfileData))
@@ -132,9 +136,7 @@ MDNode *getBranchWeightMDNode(const Instruction &I) {
 
 MDNode *getValidBranchWeightMDNode(const Instruction &I) {
   auto *ProfileData = getBranchWeightMDNode(I);
-  auto Offset = getBranchWeightOffset(ProfileData);
-  if (ProfileData &&
-      ProfileData->getNumOperands() == Offset + I.getNumSuccessors())
+  if (ProfileData && getNumBranchWeights(*ProfileData) == I.getNumSuccessors())
     return ProfileData;
   return nullptr;
 }
