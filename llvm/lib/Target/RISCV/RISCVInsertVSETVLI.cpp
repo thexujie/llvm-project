@@ -609,9 +609,8 @@ public:
   }
 
   bool hasSameAVL(const VSETVLIInfo &Other) const {
-    // FIXME: Is the id unique across LiveIntervals or just LiveRange?
     if (hasAVLReg() && Other.hasAVLReg())
-      return getAVLVNInfo()->id == Other.getAVLVNInfo()->id &&
+      return getAVLVNInfo()->def == Other.getAVLVNInfo()->def &&
              getAVLReg() == Other.getAVLReg();
 
     if (hasAVLImm() && Other.hasAVLImm())
