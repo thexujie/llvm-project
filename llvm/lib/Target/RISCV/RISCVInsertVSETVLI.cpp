@@ -61,10 +61,6 @@ static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
   if (MRI->isSSA() || !MI)
     return MRI->getUniqueVRegDef(Reg);
 
-  // For O0 situation
-  if (!LIS)
-    return nullptr;
-
   // If MI is DefMI
   if (llvm::any_of(MI->defs(), [Reg](const MachineOperand MO) {
         return MO.isReg() && MO.getReg() == Reg;
@@ -1058,9 +1054,6 @@ void RISCVInsertVSETVLI::insertVSETVLI(MachineBasicBlock &MBB, MachineInstr &MI,
 }
 
 static void fixupModifyVRegLI(Register VReg, LiveIntervals *LIS) {
-  if (!LIS)
-    return;
-
   if (LIS->hasInterval(VReg))
     LIS->removeInterval(VReg);
   LIS->createAndComputeVirtRegInterval(VReg);
@@ -1083,10 +1076,6 @@ static void getVRegFromMI(MachineInstr *MI, SmallVector<Register> &VRegs) {
 }
 
 static void fixupLIAfterInsertMI(MachineInstr *MI, LiveIntervals *LIS) {
-
-  if (!LIS)
-    return;
-
   if (LIS->isNotInMIMap(*MI))
     LIS->InsertMachineInstrInMaps(*MI);
 
@@ -1104,9 +1093,6 @@ static void removeMIAndFixupLI(MachineInstr *MI, LiveIntervals *LIS) {
   getVRegFromMI(MI, NeedFixupVReg);
 
   MI->eraseFromParent();
-
-  if (!LIS)
-    return;
 
   LIS->RemoveMachineInstrFromMaps(*MI);
   for (auto VReg : NeedFixupVReg)
@@ -1465,10 +1451,6 @@ bool RISCVInsertVSETVLI::needVSETVLIPHI(const VSETVLIInfo &Require,
     return true;
 
   if (!MRI->isSSA()) {
-    // For O0
-    if (!LIS)
-      return true;
-
     LiveRange &LR = LIS->getInterval(Require.getAVLReg());
     SlotIndexes *SIs = LIS->getSlotIndexes();
 
