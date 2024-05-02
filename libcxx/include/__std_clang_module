@@ -30,7 +30,7 @@
 #include <algorithm>
 #include <any>
 #include <array>
-#if !defined(_LIBCPP_HAS_NO_ATOMIC_HEADER)
+#if _LIBCPP_HAS_ATOMIC_HEADER
 #  include <atomic>
 #endif
 #if !defined(_LIBCPP_HAS_NO_THREADS)
@@ -166,7 +166,7 @@
 #  include <sstream>
 #endif
 #include <stack>
-#if !defined(_LIBCPP_HAS_NO_ATOMIC_HEADER)
+#if _LIBCPP_HAS_ATOMIC_HEADER
 #  include <stdatomic.h>
 #endif
 #include <stdbool.h>
