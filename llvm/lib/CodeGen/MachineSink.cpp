@@ -1974,11 +1974,8 @@ static bool hasRegisterDependency(MachineInstr *MI,
       }
       DefedRegsInCopy.push_back(Reg);
 
-      // FIXME: instead of isUse(), readsReg() would be a better fix here,
-      // For example, we can ignore modifications in reg with undef. However,
-      // it's not perfectly clear if skipping the internal read is safe in all
-      // other targets.
-    } else if (MO.isUse()) {
+      // Ignore undef uses and internal reads.
+    } else if (MO.readsReg()) {
       if (!ModifiedRegUnits.available(Reg)) {
         HasRegDependency = true;
         break;
