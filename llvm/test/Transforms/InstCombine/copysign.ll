@@ -109,3 +109,53 @@ define float @fabs_mag(float %x, float %y) {
   %r = call float @llvm.copysign.f32(float %a, float %y)
   ret float %r
 }
+
+define float @copysign_conditional_olt(i1 %x, float %y, float %z) {
+; CHECK-LABEL: @copysign_conditional_olt(
+; CHECK-NEXT:    [[RES:%.*]] = tail call float @llvm.copysign.f32(float [[Z:%.*]], float [[Y:%.*]])
+; CHECK-NEXT:    ret float [[RES]]
+;
+  %cmp = fcmp olt float %y, 0.000000e+00
+  %and = and i1 %cmp, %x
+  %sel = select i1 %and, float -1.000000e+00, float 1.000000e+00
+  %res = tail call float @llvm.copysign.f32(float %z, float %sel)
+  ret float %res
+}
+
+define float @copysign_conditional_ogt(i1 %x, float %y, float %z) {
+; CHECK-LABEL: @copysign_conditional_ogt(
+; CHECK-NEXT:    [[TMP1:%.*]] = fneg float [[Y:%.*]]
+; CHECK-NEXT:    [[RES:%.*]] = tail call float @llvm.copysign.f32(float [[Z:%.*]], float [[TMP1]])
+; CHECK-NEXT:    ret float [[RES]]
+;
+  %cmp = fcmp ogt float %y, 0.000000e+00
+  %and = and i1 %cmp, %x
+  %sel = select i1 %and, float -1.000000e+00, float 1.000000e+00
+  %res = tail call float @llvm.copysign.f32(float %z, float %sel)
+  ret float %res
+}
+
+define float @copysign_conditional_uge(i1 %x, float %y, float %z) {
+; CHECK-LABEL: @copysign_conditional_uge(
+; CHECK-NEXT:    [[TMP1:%.*]] = fneg float [[Y:%.*]]
+; CHECK-NEXT:    [[RES:%.*]] = tail call float @llvm.copysign.f32(float [[Z:%.*]], float [[TMP1]])
+; CHECK-NEXT:    ret float [[RES]]
+;
+  %cmp = fcmp uge float %y, 0.000000e+00
+  %and  = and i1 %cmp, %x
+  %sel = select i1 %and, float -1.000000e+00, float 1.000000e+00
+  %res = tail call float @llvm.copysign.f32(float %z, float %sel)
+  ret float %res
+}
+
+define float @copysign_conditional_ule(i1 %x, float %y, float %z) {
+; CHECK-LABEL: @copysign_conditional_ule(
+; CHECK-NEXT:    [[RES:%.*]] = tail call float @llvm.copysign.f32(float [[Z:%.*]], float [[Y:%.*]])
+; CHECK-NEXT:    ret float [[RES]]
+;
+  %cmp = fcmp ule float %y, 0.000000e+00
+  %and  = and i1 %cmp, %x
+  %sel = select i1 %and, float -1.000000e+00, float 1.000000e+00
+  %res = tail call float @llvm.copysign.f32(float %z, float %sel)
+  ret float %res
+}
