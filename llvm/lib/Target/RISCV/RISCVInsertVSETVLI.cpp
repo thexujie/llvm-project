@@ -227,6 +227,10 @@ static bool hasUndefinedMergeOp(const MachineInstr &MI,
   // operands are solely IMPLICIT_DEFS, then the pass through lanes are
   // undefined.
   const MachineOperand &UseMO = MI.getOperand(UseOpIdx);
+  if (!MRI.isSSA())
+    return UseMO.isUndef();
+
+  // FIXME: Remove the following code when only post-RA version.
   if (UseMO.getReg() == RISCV::NoRegister)
     return true;
 
