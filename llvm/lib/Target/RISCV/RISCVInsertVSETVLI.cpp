@@ -51,6 +51,15 @@ static cl::opt<bool> UseStrictAsserts(
 
 namespace {
 
+static VNInfo *getVNInfoFromReg(Register Reg, const MachineInstr &MI,
+                                const LiveIntervals *LIS) {
+  auto &LI = LIS->getInterval(Reg);
+  SlotIndexes *SIs = LIS->getSlotIndexes();
+  SlotIndex SI = SIs->getInstructionIndex(MI);
+  VNInfo *VNI = LI.getVNInfoBefore(SI);
+  return VNI;
+}
+
 // For the SSA form, we could just use the getVRegDef to take Reaching
 // definition. For the non-SSA, we retrieve reaching definition for specific
 // register from LiveInterval/VNInfo.
@@ -71,12 +80,10 @@ static T *getReachingDefMI(Register Reg, T *MI, const MachineRegisterInfo *MRI,
 
   assert(LIS->hasInterval(Reg));
 
-  auto &LI = LIS->getInterval(Reg);
-  SlotIndexes *SIs = LIS->getSlotIndexes();
-  SlotIndex SI = SIs->getInstructionIndex(*MI);
-  VNInfo *Valno = LI.getVNInfoBefore(SI);
+  VNInfo *Valno = getVNInfoFromReg(Reg, *MI, LIS);
   if (!Valno || Valno->isPHIDef())
     return nullptr;
+  SlotIndexes *SIs = LIS->getSlotIndexes();
   MachineInstr *DefMI = SIs->getInstructionFromIndex(Valno->def);
   return DefMI;
 }
@@ -920,15 +927,6 @@ char RISCVCoalesceVSETVLI::ID = 0;
 
 INITIALIZE_PASS(RISCVCoalesceVSETVLI, "riscv-coalesce-vsetvli",
                 RISCV_COALESCE_VSETVLI_NAME, false, false)
-
-static VNInfo *getVNInfoFromReg(Register Reg, const MachineInstr &MI,
-                                const LiveIntervals *LIS) {
-  auto &LI = LIS->getInterval(Reg);
-  SlotIndexes *SIs = LIS->getSlotIndexes();
-  SlotIndex SI = SIs->getInstructionIndex(MI);
-  VNInfo *VNI = LI.getVNInfoBefore(SI);
-  return VNI;
-}
 
 // Return a VSETVLIInfo representing the changes made by this VSETVLI or
 // VSETIVLI instruction.
