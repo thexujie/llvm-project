@@ -63,6 +63,11 @@ struct AMDGPUOutgoingValueHandler : public CallLowering::OutgoingValueHandler {
 
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         const CCValAssign &VA) override {
+    if (VA.getLocVT() == MVT::i1) {
+      MIRBuilder.buildCopy(PhysReg, ValVReg);
+      return;
+    }
+
     Register ExtReg = extendRegisterMin32(*this, ValVReg, VA);
 
     // If this is a scalar return, insert a readfirstlane just in case the value
@@ -120,6 +125,15 @@ struct AMDGPUIncomingArgHandler : public CallLowering::IncomingValueHandler {
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         const CCValAssign &VA) override {
     markPhysRegUsed(PhysReg);
+
+    if (VA.getLocVT() == MVT::i1) {
+      MIRBuilder.buildCopy(ValVReg, PhysReg);
+      MRI.setRegClass(ValVReg, MIRBuilder.getMF()
+                                   .getSubtarget<GCNSubtarget>()
+                                   .getRegisterInfo()
+                                   ->getBoolRC());
+      return;
+    }
 
     if (VA.getLocVT().getSizeInBits() < 32) {
       // 16-bit types are reported as legal for 32-bit registers. We need to do
@@ -233,6 +247,12 @@ struct AMDGPUOutgoingArgHandler : public AMDGPUOutgoingValueHandler {
   void assignValueToReg(Register ValVReg, Register PhysReg,
                         const CCValAssign &VA) override {
     MIB.addUse(PhysReg, RegState::Implicit);
+
+    if (VA.getLocVT() == MVT::i1) {
+      MIRBuilder.buildCopy(PhysReg, ValVReg);
+      return;
+    }
+
     Register ExtReg = extendRegisterMin32(*this, ValVReg, VA);
     MIRBuilder.buildCopy(PhysReg, ExtReg);
   }
@@ -260,7 +280,7 @@ struct AMDGPUOutgoingArgHandler : public AMDGPUOutgoingValueHandler {
     assignValueToAddress(ValVReg, Addr, MemTy, MPO, VA);
   }
 };
-}
+} // namespace
 
 AMDGPUCallLowering::AMDGPUCallLowering(const AMDGPUTargetLowering &TLI)
   : CallLowering(&TLI) {
