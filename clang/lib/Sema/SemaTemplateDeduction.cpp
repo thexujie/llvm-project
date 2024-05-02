@@ -145,7 +145,7 @@ DeduceTemplateArguments(Sema &S, TemplateParameterList *TemplateParams,
                         ArrayRef<TemplateArgument> As,
                         TemplateDeductionInfo &Info,
                         SmallVectorImpl<DeducedTemplateArgument> &Deduced,
-                        bool NumberOfArgumentsMustMatch);
+                        bool NumberOfArgumentsMustMatch, bool Swapped);
 
 static void MarkUsedTemplateParameters(ASTContext &Ctx,
                                        const TemplateArgument &TemplateArg,
@@ -703,9 +703,9 @@ DeduceTemplateSpecArguments(Sema &S, TemplateParameterList *TemplateParams,
     // Perform template argument deduction on each template
     // argument. Ignore any missing/extra arguments, since they could be
     // filled in by default arguments.
-    return DeduceTemplateArguments(S, TemplateParams, PResolved,
-                                   SA->template_arguments(), Info, Deduced,
-                                   /*NumberOfArgumentsMustMatch=*/false);
+    return DeduceTemplateArguments(
+        S, TemplateParams, PResolved, SA->template_arguments(), Info, Deduced,
+        /*NumberOfArgumentsMustMatch=*/false, /*Swapped=*/false);
   }
 
   // If the argument type is a class template specialization, we
@@ -731,7 +731,8 @@ DeduceTemplateSpecArguments(Sema &S, TemplateParameterList *TemplateParams,
   // Perform template argument deduction for the template arguments.
   return DeduceTemplateArguments(S, TemplateParams, PResolved,
                                  SA->getTemplateArgs().asArray(), Info, Deduced,
-                                 /*NumberOfArgumentsMustMatch=*/true);
+                                 /*NumberOfArgumentsMustMatch=*/true,
+                                 /*Swapped=*/false);
 }
 
 static bool IsPossiblyOpaquelyQualifiedTypeInternal(const Type *T) {
@@ -2552,7 +2553,7 @@ DeduceTemplateArguments(Sema &S, TemplateParameterList *TemplateParams,
                         ArrayRef<TemplateArgument> As,
                         TemplateDeductionInfo &Info,
                         SmallVectorImpl<DeducedTemplateArgument> &Deduced,
-                        bool NumberOfArgumentsMustMatch) {
+                        bool NumberOfArgumentsMustMatch, bool Swapped) {
   // C++0x [temp.deduct.type]p9:
   //   If the template argument list of P contains a pack expansion that is not
   //   the last template argument, the entire template argument list is a
@@ -2583,8 +2584,11 @@ DeduceTemplateArguments(Sema &S, TemplateParameterList *TemplateParams,
         return TemplateDeductionResult::MiscellaneousDeductionFailure;
 
       // Perform deduction for this Pi/Ai pair.
-      if (auto Result = DeduceTemplateArguments(S, TemplateParams, P,
-                                                As[ArgIdx], Info, Deduced);
+      TemplateArgument Pi = P, Ai = As[ArgIdx];
+      if (Swapped)
+        std::swap(Pi, Ai);
+      if (auto Result =
+              DeduceTemplateArguments(S, TemplateParams, Pi, Ai, Info, Deduced);
           Result != TemplateDeductionResult::Success)
         return Result;
 
@@ -2611,9 +2615,12 @@ DeduceTemplateArguments(Sema &S, TemplateParameterList *TemplateParams,
     for (; hasTemplateArgumentForDeduction(As, ArgIdx) &&
            PackScope.hasNextElement();
          ++ArgIdx) {
+      TemplateArgument Pi = Pattern, Ai = As[ArgIdx];
+      if (Swapped)
+        std::swap(Pi, Ai);
       // Deduce template arguments from the pattern.
-      if (auto Result = DeduceTemplateArguments(S, TemplateParams, Pattern,
-                                                As[ArgIdx], Info, Deduced);
+      if (auto Result =
+              DeduceTemplateArguments(S, TemplateParams, Pi, Ai, Info, Deduced);
           Result != TemplateDeductionResult::Success)
         return Result;
 
@@ -2636,7 +2643,8 @@ TemplateDeductionResult Sema::DeduceTemplateArguments(
     SmallVectorImpl<DeducedTemplateArgument> &Deduced,
     bool NumberOfArgumentsMustMatch) {
   return ::DeduceTemplateArguments(*this, TemplateParams, Ps, As, Info, Deduced,
-                                   NumberOfArgumentsMustMatch);
+                                   NumberOfArgumentsMustMatch,
+                                   /*Swapped=*/false);
 }
 
 /// Determine whether two template arguments are the same.
@@ -3272,7 +3280,7 @@ DeduceTemplateArguments(Sema &S, T *Partial,
   if (TemplateDeductionResult Result = ::DeduceTemplateArguments(
           S, Partial->getTemplateParameters(),
           Partial->getTemplateArgs().asArray(), TemplateArgs, Info, Deduced,
-          /*NumberOfArgumentsMustMatch=*/false);
+          /*NumberOfArgumentsMustMatch=*/false, /*Swapped=*/false);
       Result != TemplateDeductionResult::Success)
     return Result;
 
@@ -6187,7 +6195,8 @@ bool Sema::isMoreSpecializedThanPrimary(
 }
 
 bool Sema::isTemplateTemplateParameterAtLeastAsSpecializedAs(
-     TemplateParameterList *P, TemplateDecl *AArg, SourceLocation Loc) {
+    TemplateParameterList *P, TemplateDecl *AArg, SourceLocation Loc,
+    bool IsDeduced) {
   // C++1z [temp.arg.template]p4: (DR 150)
   //   A template template-parameter P is at least as specialized as a
   //   template template-argument A if, given the following rewrite to two
@@ -6197,11 +6206,10 @@ bool Sema::isTemplateTemplateParameterAtLeastAsSpecializedAs(
   // equivalent partial ordering by performing deduction directly on
   // the template parameter lists of the template template parameters.
   //
-  //   Given an invented class template X with the template parameter list of
-  //   A (including default arguments):
-  TemplateName X = Context.getCanonicalTemplateName(TemplateName(AArg));
   TemplateParameterList *A = AArg->getTemplateParameters();
 
+  //   Given an invented class template X with the template parameter list of
+  //   A (including default arguments):
   //    - Each function template has a single function parameter whose type is
   //      a specialization of X with template arguments corresponding to the
   //      template parameters from the respective function template
@@ -6242,14 +6250,45 @@ bool Sema::isTemplateTemplateParameterAtLeastAsSpecializedAs(
       return false;
   }
 
-  QualType AType = Context.getCanonicalTemplateSpecializationType(X, AArgs);
-  QualType PType = Context.getCanonicalTemplateSpecializationType(X, PArgs);
+  // Determine whether P1 is at least as specialized as P2.
+  TemplateDeductionInfo Info(Loc, A->getDepth());
+  SmallVector<DeducedTemplateArgument, 4> Deduced;
+  Deduced.resize(A->size());
 
   //   ... the function template corresponding to P is at least as specialized
   //   as the function template corresponding to A according to the partial
   //   ordering rules for function templates.
-  TemplateDeductionInfo Info(Loc, A->getDepth());
-  return isAtLeastAsSpecializedAs(*this, PType, AType, AArg, Info);
+
+  // Provisional resolution for CWG2398: Regarding temp.arg.template]p4, when
+  // applying the partial ordering rules for function templates on
+  // the rewritten template template parameters:
+  //   - In a deduced context, the specific rules in [temp.deduct.type]p9
+  //   regarding how the argument lists themselves are matched is swapped
+  //   between P and A.
+  //   Note: The roles of the elements themselves are not swapped.
+  ArrayRef<TemplateArgument> Ps = AArgs, As = PArgs;
+  if (IsDeduced)
+    std::swap(Ps, As);
+  if (::DeduceTemplateArguments(*this, A, Ps, As, Info, Deduced,
+                                /*NumberOfArgumentsMustMatch=*/false,
+                                /*Swapped=*/IsDeduced) !=
+      TemplateDeductionResult::Success)
+    return false;
+
+  SmallVector<TemplateArgument, 4> DeducedArgs(Deduced.begin(), Deduced.end());
+  Sema::InstantiatingTemplate Inst(*this, Info.getLocation(), AArg, DeducedArgs,
+                                   Info);
+  if (Inst.isInvalid())
+    return false;
+
+  bool AtLeastAsSpecialized;
+  runWithSufficientStackSpace(Info.getLocation(), [&] {
+    AtLeastAsSpecialized =
+        ::FinishTemplateArgumentDeduction(
+            *this, AArg, /*IsPartialOrdering=*/true, PArgs, Deduced, Info) ==
+        TemplateDeductionResult::Success;
+  });
+  return AtLeastAsSpecialized;
 }
 
 namespace {
