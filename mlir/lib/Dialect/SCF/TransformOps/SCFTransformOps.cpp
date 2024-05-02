@@ -217,6 +217,8 @@ loopScheduling(scf::ForOp forOp,
     return 1;
   };
 
+  auto ubConstant = getConstantIntValue(forOp.getUpperBound());
+  auto lbConstant = getConstantIntValue(forOp.getLowerBound());
   DenseMap<Operation *, unsigned> opCycles;
   std::map<unsigned, std::vector<Operation *>> wrappedSchedule;
   for (Operation &op : forOp.getBody()->getOperations()) {
@@ -227,7 +229,14 @@ loopScheduling(scf::ForOp forOp,
       Operation *def = operand.getDefiningOp();
       if (!def)
         continue;
-      earlyCycle = std::max(earlyCycle, opCycles[def] + getLatency(def));
+      if (ubConstant && lbConstant) {
+        unsigned ubInt = ubConstant.value();
+        unsigned lbInt = lbConstant.value();
+        auto minLatency = std::min(ubInt - lbInt - 1, getLatency(def));
+        earlyCycle = std::max(earlyCycle, opCycles[def] + minLatency);
+      } else {
+        earlyCycle = std::max(earlyCycle, opCycles[def] + getLatency(def));
+      }
     }
     opCycles[&op] = earlyCycle;
     wrappedSchedule[earlyCycle % iterationInterval].push_back(&op);
