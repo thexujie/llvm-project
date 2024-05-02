@@ -1019,12 +1019,17 @@ bool SeparateConstOffsetFromGEP::reorderGEP(GetElementPtrInst *GEP,
   }
 
   // For trivial GEP chains, we can swap the indicies.
+  // TODO(gep_nowrap): Make nusw preservation independent of inbounds and
+  // preserve nuw.
   auto NewSrc = Builder.CreateGEP(PtrGEPType, PtrGEP->getPointerOperand(),
                                   SmallVector<Value *, 4>(GEP->indices()));
   cast<GetElementPtrInst>(NewSrc)->setIsInBounds(IsChainInBounds);
+  cast<GetElementPtrInst>(NewSrc)->setHasNoUnsignedSignedWrap(IsChainInBounds);
+  cast<GetElementPtrInst>(NewSrc)->setHasNoUnsignedWrap(false);
   auto NewGEP = Builder.CreateGEP(GEPType, NewSrc,
                                   SmallVector<Value *, 4>(PtrGEP->indices()));
   cast<GetElementPtrInst>(NewGEP)->setIsInBounds(IsChainInBounds);
+  cast<GetElementPtrInst>(NewSrc)->setHasNoUnsignedWrap(false);
   GEP->replaceAllUsesWith(NewGEP);
   RecursivelyDeleteTriviallyDeadInstructions(GEP);
   return true;
@@ -1121,6 +1126,9 @@ bool SeparateConstOffsetFromGEP::splitGEP(GetElementPtrInst *GEP) {
   // possible. GEPs with inbounds are more friendly to alias analysis.
   bool GEPWasInBounds = GEP->isInBounds();
   GEP->setIsInBounds(false);
+  // TODO(gep_nowrap): Try to preserve these.
+  GEP->setHasNoUnsignedSignedWrap(false);
+  GEP->setHasNoUnsignedWrap(false);
 
   // Lowers a GEP to either GEPs with a single index or arithmetic operations.
   if (LowerGEP) {
@@ -1396,6 +1404,11 @@ void SeparateConstOffsetFromGEP::swapGEPOperand(GetElementPtrInst *First,
      Offset.ugt(ObjectSize)) {
     First->setIsInBounds(false);
     Second->setIsInBounds(false);
+    // TODO(gep_nowrap): Make flag preservation more precise.
+    First->setHasNoUnsignedSignedWrap(false);
+    Second->setHasNoUnsignedSignedWrap(false);
+    First->setHasNoUnsignedWrap(false);
+    Second->setHasNoUnsignedWrap(false);
   } else
     First->setIsInBounds(true);
 }

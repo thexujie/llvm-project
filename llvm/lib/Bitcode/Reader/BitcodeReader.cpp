@@ -5061,10 +5061,17 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
 
       unsigned TyID;
       Type *Ty;
-      bool InBounds;
+      bool InBounds = false, NUSW = false, NUW = false;
 
       if (BitCode == bitc::FUNC_CODE_INST_GEP) {
-        InBounds = Record[OpNum++];
+        uint64_t Flags = Record[OpNum++];
+        if (Flags & (1 << bitc::GEP_INBOUNDS))
+          InBounds = true;
+        if (Flags & (1 << bitc::GEP_NUSW))
+          NUSW = true;
+        if (Flags & (1 << bitc::GEP_NUW))
+          NUW = true;
+
         TyID = Record[OpNum++];
         Ty = getTypeByID(TyID);
       } else {
@@ -5095,7 +5102,8 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
         GEPIdx.push_back(Op);
       }
 
-      I = GetElementPtrInst::Create(Ty, BasePtr, GEPIdx);
+      auto *GEP = GetElementPtrInst::Create(Ty, BasePtr, GEPIdx);
+      I = GEP;
 
       ResTypeID = TyID;
       if (cast<GEPOperator>(I)->getNumIndices() != 0) {
@@ -5122,7 +5130,11 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
 
       InstructionList.push_back(I);
       if (InBounds)
-        cast<GetElementPtrInst>(I)->setIsInBounds(true);
+        GEP->setIsInBounds(true);
+      if (NUSW)
+        GEP->setHasNoUnsignedSignedWrap(true);
+      if (NUW)
+        GEP->setHasNoUnsignedWrap(true);
       break;
     }
 
