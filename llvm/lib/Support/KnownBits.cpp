@@ -1009,6 +1009,9 @@ KnownBits KnownBits::udiv(const KnownBits &LHS, const KnownBits &RHS,
 
   Known.Zero.setHighBits(LeadZ);
   Known = divComputeLowBit(Known, LHS, RHS, Exact);
+  std::optional<bool> uge = KnownBits::uge(LHS, RHS);
+  if (uge && *uge)
+    Known.makeGE(APInt(BitWidth, 1));
 
   assert(!Known.hasConflict() && "Bad Output");
   return Known;
