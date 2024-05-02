@@ -604,3 +604,51 @@ define <2 x i8> @ashr_known_pos_exact_vec(<2 x i8> %x, <2 x i8> %y) {
   %r = ashr exact <2 x i8> %p, %y
   ret <2 x i8> %r
 }
+
+define i32 @lshr_mul_times_3_div_2(i32 %0) {
+; CHECK-LABEL: @lshr_mul_times_3_div_2(
+; CHECK-NEXT:    [[MUL:%.*]] = mul nuw nsw i32 [[TMP0:%.*]], 3
+; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[MUL]], 1
+; CHECK-NEXT:    ret i32 [[LSHR]]
+;
+  %mul = mul nsw nuw i32 %0, 3
+  %lshr = lshr i32 %mul, 1
+  ret i32 %lshr
+}
+
+define i32 @lshr_mul_times_3_div_2_exact(i32 %x) {
+; CHECK-LABEL: @lshr_mul_times_3_div_2_exact(
+; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i32 [[X:%.*]], 3
+; CHECK-NEXT:    [[LSHR:%.*]] = lshr exact i32 [[MUL]], 1
+; CHECK-NEXT:    ret i32 [[LSHR]]
+;
+  %mul = mul nsw i32 %x, 3
+  %lshr = lshr exact i32 %mul, 1
+  ret i32 %lshr
+}
+
+define i32 @mul_times_3_div_2_multiuse_lshr(i32 %x) {
+; CHECK-LABEL: @mul_times_3_div_2_multiuse_lshr(
+; CHECK-NEXT:    [[MUL:%.*]] = mul nuw i32 [[X:%.*]], 3
+; CHECK-NEXT:    [[RES:%.*]] = lshr i32 [[MUL]], 1
+; CHECK-NEXT:    call void @use(i32 [[MUL]])
+; CHECK-NEXT:    ret i32 [[RES]]
+;
+  %mul = mul nuw i32 %x, 3
+  %res = lshr i32 %mul, 1
+  call void @use (i32 %mul)
+  ret i32 %res
+}
+
+define i32 @lshr_mul_times_3_div_2_exact_2(i32 %x) {
+; CHECK-LABEL: @lshr_mul_times_3_div_2_exact_2(
+; CHECK-NEXT:    [[MUL:%.*]] = mul nuw i32 [[X:%.*]], 3
+; CHECK-NEXT:    [[LSHR:%.*]] = lshr exact i32 [[MUL]], 1
+; CHECK-NEXT:    ret i32 [[LSHR]]
+;
+  %mul = mul nuw i32 %x, 3
+  %lshr = lshr exact i32 %mul, 1
+  ret i32 %lshr
+}
+
+declare void @use(i32)
