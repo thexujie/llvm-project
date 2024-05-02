@@ -1203,10 +1203,9 @@ define <8 x i32> @saddl_v8i8_v8i32(<8 x i8> %a, <8 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v8i8_v8i32:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    sshll v1.8h, v1.8b, #0
-; CHECK-GI-NEXT:    saddl v0.4s, v2.4h, v1.4h
-; CHECK-GI-NEXT:    saddl2 v1.4s, v2.8h, v1.8h
+; CHECK-GI-NEXT:    saddl v1.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    sshll v0.4s, v1.4h, #0
+; CHECK-GI-NEXT:    sshll2 v1.4s, v1.8h, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <8 x i8> %a to <8 x i32>
     %d = sext <8 x i8> %b to <8 x i32>
@@ -1228,16 +1227,13 @@ define <8 x i64> @saddl_v8i8_v8i64(<8 x i8> %a, <8 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v8i8_v8i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v0.8h, v0.8b, #0
-; CHECK-GI-NEXT:    sshll v1.8h, v1.8b, #0
-; CHECK-GI-NEXT:    sshll v2.4s, v0.4h, #0
-; CHECK-GI-NEXT:    sshll v3.4s, v1.4h, #0
-; CHECK-GI-NEXT:    sshll2 v4.4s, v0.8h, #0
-; CHECK-GI-NEXT:    sshll2 v5.4s, v1.8h, #0
-; CHECK-GI-NEXT:    saddl v0.2d, v2.2s, v3.2s
-; CHECK-GI-NEXT:    saddl2 v1.2d, v2.4s, v3.4s
-; CHECK-GI-NEXT:    saddl v2.2d, v4.2s, v5.2s
-; CHECK-GI-NEXT:    saddl2 v3.2d, v4.4s, v5.4s
+; CHECK-GI-NEXT:    saddl v0.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    sshll v1.4s, v0.4h, #0
+; CHECK-GI-NEXT:    sshll2 v3.4s, v0.8h, #0
+; CHECK-GI-NEXT:    sshll v0.2d, v1.2s, #0
+; CHECK-GI-NEXT:    sshll2 v1.2d, v1.4s, #0
+; CHECK-GI-NEXT:    sshll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    sshll2 v3.2d, v3.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <8 x i8> %a to <8 x i64>
     %d = sext <8 x i8> %b to <8 x i64>
@@ -1258,14 +1254,12 @@ define <8 x i64> @saddl_v8i16_v8i64(<8 x i16> %a, <8 x i16> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v8i16_v8i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v2.4s, v0.4h, #0
-; CHECK-GI-NEXT:    sshll v3.4s, v1.4h, #0
-; CHECK-GI-NEXT:    sshll2 v4.4s, v0.8h, #0
-; CHECK-GI-NEXT:    sshll2 v5.4s, v1.8h, #0
-; CHECK-GI-NEXT:    saddl v0.2d, v2.2s, v3.2s
-; CHECK-GI-NEXT:    saddl2 v1.2d, v2.4s, v3.4s
-; CHECK-GI-NEXT:    saddl v2.2d, v4.2s, v5.2s
-; CHECK-GI-NEXT:    saddl2 v3.2d, v4.4s, v5.4s
+; CHECK-GI-NEXT:    saddl v2.4s, v0.4h, v1.4h
+; CHECK-GI-NEXT:    saddl2 v3.4s, v0.8h, v1.8h
+; CHECK-GI-NEXT:    sshll v0.2d, v2.2s, #0
+; CHECK-GI-NEXT:    sshll2 v1.2d, v2.4s, #0
+; CHECK-GI-NEXT:    sshll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    sshll2 v3.2d, v3.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <8 x i16> %a to <8 x i64>
     %d = sext <8 x i16> %b to <8 x i64>
@@ -1286,14 +1280,12 @@ define <16 x i32> @saddl_v16i8_v16i32(<16 x i8> %a, <16 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v16i8_v16i32:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    sshll v3.8h, v1.8b, #0
-; CHECK-GI-NEXT:    sshll2 v4.8h, v0.16b, #0
-; CHECK-GI-NEXT:    sshll2 v5.8h, v1.16b, #0
-; CHECK-GI-NEXT:    saddl v0.4s, v2.4h, v3.4h
-; CHECK-GI-NEXT:    saddl2 v1.4s, v2.8h, v3.8h
-; CHECK-GI-NEXT:    saddl v2.4s, v4.4h, v5.4h
-; CHECK-GI-NEXT:    saddl2 v3.4s, v4.8h, v5.8h
+; CHECK-GI-NEXT:    saddl v2.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    saddl2 v3.8h, v0.16b, v1.16b
+; CHECK-GI-NEXT:    sshll v0.4s, v2.4h, #0
+; CHECK-GI-NEXT:    sshll2 v1.4s, v2.8h, #0
+; CHECK-GI-NEXT:    sshll v2.4s, v3.4h, #0
+; CHECK-GI-NEXT:    sshll2 v3.4s, v3.8h, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <16 x i8> %a to <16 x i32>
     %d = sext <16 x i8> %b to <16 x i32>
@@ -1322,26 +1314,20 @@ define <16 x i64> @saddl_v16i8_v16i64(<16 x i8> %a, <16 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v16i8_v16i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    sshll v3.8h, v1.8b, #0
-; CHECK-GI-NEXT:    sshll2 v0.8h, v0.16b, #0
-; CHECK-GI-NEXT:    sshll2 v1.8h, v1.16b, #0
-; CHECK-GI-NEXT:    sshll v4.4s, v2.4h, #0
-; CHECK-GI-NEXT:    sshll2 v5.4s, v2.8h, #0
-; CHECK-GI-NEXT:    sshll v2.4s, v3.4h, #0
-; CHECK-GI-NEXT:    sshll v6.4s, v0.4h, #0
-; CHECK-GI-NEXT:    sshll2 v3.4s, v3.8h, #0
-; CHECK-GI-NEXT:    sshll v7.4s, v1.4h, #0
-; CHECK-GI-NEXT:    sshll2 v16.4s, v0.8h, #0
-; CHECK-GI-NEXT:    sshll2 v17.4s, v1.8h, #0
-; CHECK-GI-NEXT:    saddl v0.2d, v4.2s, v2.2s
-; CHECK-GI-NEXT:    saddl2 v1.2d, v4.4s, v2.4s
-; CHECK-GI-NEXT:    saddl v2.2d, v5.2s, v3.2s
-; CHECK-GI-NEXT:    saddl2 v3.2d, v5.4s, v3.4s
-; CHECK-GI-NEXT:    saddl v4.2d, v6.2s, v7.2s
-; CHECK-GI-NEXT:    saddl2 v5.2d, v6.4s, v7.4s
-; CHECK-GI-NEXT:    saddl v6.2d, v16.2s, v17.2s
-; CHECK-GI-NEXT:    saddl2 v7.2d, v16.4s, v17.4s
+; CHECK-GI-NEXT:    saddl v2.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    saddl2 v0.8h, v0.16b, v1.16b
+; CHECK-GI-NEXT:    sshll v1.4s, v2.4h, #0
+; CHECK-GI-NEXT:    sshll2 v3.4s, v2.8h, #0
+; CHECK-GI-NEXT:    sshll v5.4s, v0.4h, #0
+; CHECK-GI-NEXT:    sshll2 v7.4s, v0.8h, #0
+; CHECK-GI-NEXT:    sshll v0.2d, v1.2s, #0
+; CHECK-GI-NEXT:    sshll2 v1.2d, v1.4s, #0
+; CHECK-GI-NEXT:    sshll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    sshll2 v3.2d, v3.4s, #0
+; CHECK-GI-NEXT:    sshll v4.2d, v5.2s, #0
+; CHECK-GI-NEXT:    sshll2 v5.2d, v5.4s, #0
+; CHECK-GI-NEXT:    sshll v6.2d, v7.2s, #0
+; CHECK-GI-NEXT:    sshll2 v7.2d, v7.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <16 x i8> %a to <16 x i64>
     %d = sext <16 x i8> %b to <16 x i64>
@@ -1368,22 +1354,18 @@ define <16 x i64> @saddl_v16i16_v16i64(<16 x i16> %a, <16 x i16> %b) {
 ;
 ; CHECK-GI-LABEL: saddl_v16i16_v16i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sshll v4.4s, v0.4h, #0
-; CHECK-GI-NEXT:    sshll2 v5.4s, v0.8h, #0
-; CHECK-GI-NEXT:    sshll v6.4s, v2.4h, #0
-; CHECK-GI-NEXT:    sshll v7.4s, v1.4h, #0
-; CHECK-GI-NEXT:    sshll2 v16.4s, v2.8h, #0
-; CHECK-GI-NEXT:    sshll v17.4s, v3.4h, #0
-; CHECK-GI-NEXT:    sshll2 v18.4s, v1.8h, #0
-; CHECK-GI-NEXT:    sshll2 v19.4s, v3.8h, #0
-; CHECK-GI-NEXT:    saddl v0.2d, v4.2s, v6.2s
-; CHECK-GI-NEXT:    saddl2 v1.2d, v4.4s, v6.4s
-; CHECK-GI-NEXT:    saddl v2.2d, v5.2s, v16.2s
-; CHECK-GI-NEXT:    saddl2 v3.2d, v5.4s, v16.4s
-; CHECK-GI-NEXT:    saddl v4.2d, v7.2s, v17.2s
-; CHECK-GI-NEXT:    saddl2 v5.2d, v7.4s, v17.4s
-; CHECK-GI-NEXT:    saddl v6.2d, v18.2s, v19.2s
-; CHECK-GI-NEXT:    saddl2 v7.2d, v18.4s, v19.4s
+; CHECK-GI-NEXT:    saddl v4.4s, v0.4h, v2.4h
+; CHECK-GI-NEXT:    saddl2 v5.4s, v0.8h, v2.8h
+; CHECK-GI-NEXT:    saddl v6.4s, v1.4h, v3.4h
+; CHECK-GI-NEXT:    saddl2 v7.4s, v1.8h, v3.8h
+; CHECK-GI-NEXT:    sshll v0.2d, v4.2s, #0
+; CHECK-GI-NEXT:    sshll2 v1.2d, v4.4s, #0
+; CHECK-GI-NEXT:    sshll v2.2d, v5.2s, #0
+; CHECK-GI-NEXT:    sshll2 v3.2d, v5.4s, #0
+; CHECK-GI-NEXT:    sshll v4.2d, v6.2s, #0
+; CHECK-GI-NEXT:    sshll2 v5.2d, v6.4s, #0
+; CHECK-GI-NEXT:    sshll v6.2d, v7.2s, #0
+; CHECK-GI-NEXT:    sshll2 v7.2d, v7.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = sext <16 x i16> %a to <16 x i64>
     %d = sext <16 x i16> %b to <16 x i64>
@@ -1401,10 +1383,9 @@ define <8 x i32> @uaddl_v8i8_v8i32(<8 x i8> %a, <8 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v8i8_v8i32:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    ushll v1.8h, v1.8b, #0
-; CHECK-GI-NEXT:    uaddl v0.4s, v2.4h, v1.4h
-; CHECK-GI-NEXT:    uaddl2 v1.4s, v2.8h, v1.8h
+; CHECK-GI-NEXT:    uaddl v1.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    ushll v0.4s, v1.4h, #0
+; CHECK-GI-NEXT:    ushll2 v1.4s, v1.8h, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <8 x i8> %a to <8 x i32>
     %d = zext <8 x i8> %b to <8 x i32>
@@ -1426,16 +1407,13 @@ define <8 x i64> @uaddl_v8i8_v8i64(<8 x i8> %a, <8 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v8i8_v8i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v0.8h, v0.8b, #0
-; CHECK-GI-NEXT:    ushll v1.8h, v1.8b, #0
-; CHECK-GI-NEXT:    ushll v2.4s, v0.4h, #0
-; CHECK-GI-NEXT:    ushll v3.4s, v1.4h, #0
-; CHECK-GI-NEXT:    ushll2 v4.4s, v0.8h, #0
-; CHECK-GI-NEXT:    ushll2 v5.4s, v1.8h, #0
-; CHECK-GI-NEXT:    uaddl v0.2d, v2.2s, v3.2s
-; CHECK-GI-NEXT:    uaddl2 v1.2d, v2.4s, v3.4s
-; CHECK-GI-NEXT:    uaddl v2.2d, v4.2s, v5.2s
-; CHECK-GI-NEXT:    uaddl2 v3.2d, v4.4s, v5.4s
+; CHECK-GI-NEXT:    uaddl v0.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    ushll v1.4s, v0.4h, #0
+; CHECK-GI-NEXT:    ushll2 v3.4s, v0.8h, #0
+; CHECK-GI-NEXT:    ushll v0.2d, v1.2s, #0
+; CHECK-GI-NEXT:    ushll2 v1.2d, v1.4s, #0
+; CHECK-GI-NEXT:    ushll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    ushll2 v3.2d, v3.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <8 x i8> %a to <8 x i64>
     %d = zext <8 x i8> %b to <8 x i64>
@@ -1456,14 +1434,12 @@ define <8 x i64> @uaddl_v8i16_v8i64(<8 x i16> %a, <8 x i16> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v8i16_v8i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v2.4s, v0.4h, #0
-; CHECK-GI-NEXT:    ushll v3.4s, v1.4h, #0
-; CHECK-GI-NEXT:    ushll2 v4.4s, v0.8h, #0
-; CHECK-GI-NEXT:    ushll2 v5.4s, v1.8h, #0
-; CHECK-GI-NEXT:    uaddl v0.2d, v2.2s, v3.2s
-; CHECK-GI-NEXT:    uaddl2 v1.2d, v2.4s, v3.4s
-; CHECK-GI-NEXT:    uaddl v2.2d, v4.2s, v5.2s
-; CHECK-GI-NEXT:    uaddl2 v3.2d, v4.4s, v5.4s
+; CHECK-GI-NEXT:    uaddl v2.4s, v0.4h, v1.4h
+; CHECK-GI-NEXT:    uaddl2 v3.4s, v0.8h, v1.8h
+; CHECK-GI-NEXT:    ushll v0.2d, v2.2s, #0
+; CHECK-GI-NEXT:    ushll2 v1.2d, v2.4s, #0
+; CHECK-GI-NEXT:    ushll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    ushll2 v3.2d, v3.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <8 x i16> %a to <8 x i64>
     %d = zext <8 x i16> %b to <8 x i64>
@@ -1484,14 +1460,12 @@ define <16 x i32> @uaddl_v16i8_v16i32(<16 x i8> %a, <16 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v16i8_v16i32:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    ushll v3.8h, v1.8b, #0
-; CHECK-GI-NEXT:    ushll2 v4.8h, v0.16b, #0
-; CHECK-GI-NEXT:    ushll2 v5.8h, v1.16b, #0
-; CHECK-GI-NEXT:    uaddl v0.4s, v2.4h, v3.4h
-; CHECK-GI-NEXT:    uaddl2 v1.4s, v2.8h, v3.8h
-; CHECK-GI-NEXT:    uaddl v2.4s, v4.4h, v5.4h
-; CHECK-GI-NEXT:    uaddl2 v3.4s, v4.8h, v5.8h
+; CHECK-GI-NEXT:    uaddl v2.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    uaddl2 v3.8h, v0.16b, v1.16b
+; CHECK-GI-NEXT:    ushll v0.4s, v2.4h, #0
+; CHECK-GI-NEXT:    ushll2 v1.4s, v2.8h, #0
+; CHECK-GI-NEXT:    ushll v2.4s, v3.4h, #0
+; CHECK-GI-NEXT:    ushll2 v3.4s, v3.8h, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <16 x i8> %a to <16 x i32>
     %d = zext <16 x i8> %b to <16 x i32>
@@ -1520,26 +1494,20 @@ define <16 x i64> @uaddl_v16i8_v16i64(<16 x i8> %a, <16 x i8> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v16i8_v16i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v2.8h, v0.8b, #0
-; CHECK-GI-NEXT:    ushll v3.8h, v1.8b, #0
-; CHECK-GI-NEXT:    ushll2 v0.8h, v0.16b, #0
-; CHECK-GI-NEXT:    ushll2 v1.8h, v1.16b, #0
-; CHECK-GI-NEXT:    ushll v4.4s, v2.4h, #0
-; CHECK-GI-NEXT:    ushll2 v5.4s, v2.8h, #0
-; CHECK-GI-NEXT:    ushll v2.4s, v3.4h, #0
-; CHECK-GI-NEXT:    ushll v6.4s, v0.4h, #0
-; CHECK-GI-NEXT:    ushll2 v3.4s, v3.8h, #0
-; CHECK-GI-NEXT:    ushll v7.4s, v1.4h, #0
-; CHECK-GI-NEXT:    ushll2 v16.4s, v0.8h, #0
-; CHECK-GI-NEXT:    ushll2 v17.4s, v1.8h, #0
-; CHECK-GI-NEXT:    uaddl v0.2d, v4.2s, v2.2s
-; CHECK-GI-NEXT:    uaddl2 v1.2d, v4.4s, v2.4s
-; CHECK-GI-NEXT:    uaddl v2.2d, v5.2s, v3.2s
-; CHECK-GI-NEXT:    uaddl2 v3.2d, v5.4s, v3.4s
-; CHECK-GI-NEXT:    uaddl v4.2d, v6.2s, v7.2s
-; CHECK-GI-NEXT:    uaddl2 v5.2d, v6.4s, v7.4s
-; CHECK-GI-NEXT:    uaddl v6.2d, v16.2s, v17.2s
-; CHECK-GI-NEXT:    uaddl2 v7.2d, v16.4s, v17.4s
+; CHECK-GI-NEXT:    uaddl v2.8h, v0.8b, v1.8b
+; CHECK-GI-NEXT:    uaddl2 v0.8h, v0.16b, v1.16b
+; CHECK-GI-NEXT:    ushll v1.4s, v2.4h, #0
+; CHECK-GI-NEXT:    ushll2 v3.4s, v2.8h, #0
+; CHECK-GI-NEXT:    ushll v5.4s, v0.4h, #0
+; CHECK-GI-NEXT:    ushll2 v7.4s, v0.8h, #0
+; CHECK-GI-NEXT:    ushll v0.2d, v1.2s, #0
+; CHECK-GI-NEXT:    ushll2 v1.2d, v1.4s, #0
+; CHECK-GI-NEXT:    ushll v2.2d, v3.2s, #0
+; CHECK-GI-NEXT:    ushll2 v3.2d, v3.4s, #0
+; CHECK-GI-NEXT:    ushll v4.2d, v5.2s, #0
+; CHECK-GI-NEXT:    ushll2 v5.2d, v5.4s, #0
+; CHECK-GI-NEXT:    ushll v6.2d, v7.2s, #0
+; CHECK-GI-NEXT:    ushll2 v7.2d, v7.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <16 x i8> %a to <16 x i64>
     %d = zext <16 x i8> %b to <16 x i64>
@@ -1566,22 +1534,18 @@ define <16 x i64> @uaddl_v16i16_v16i64(<16 x i16> %a, <16 x i16> %b) {
 ;
 ; CHECK-GI-LABEL: uaddl_v16i16_v16i64:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    ushll v4.4s, v0.4h, #0
-; CHECK-GI-NEXT:    ushll2 v5.4s, v0.8h, #0
-; CHECK-GI-NEXT:    ushll v6.4s, v2.4h, #0
-; CHECK-GI-NEXT:    ushll v7.4s, v1.4h, #0
-; CHECK-GI-NEXT:    ushll2 v16.4s, v2.8h, #0
-; CHECK-GI-NEXT:    ushll v17.4s, v3.4h, #0
-; CHECK-GI-NEXT:    ushll2 v18.4s, v1.8h, #0
-; CHECK-GI-NEXT:    ushll2 v19.4s, v3.8h, #0
-; CHECK-GI-NEXT:    uaddl v0.2d, v4.2s, v6.2s
-; CHECK-GI-NEXT:    uaddl2 v1.2d, v4.4s, v6.4s
-; CHECK-GI-NEXT:    uaddl v2.2d, v5.2s, v16.2s
-; CHECK-GI-NEXT:    uaddl2 v3.2d, v5.4s, v16.4s
-; CHECK-GI-NEXT:    uaddl v4.2d, v7.2s, v17.2s
-; CHECK-GI-NEXT:    uaddl2 v5.2d, v7.4s, v17.4s
-; CHECK-GI-NEXT:    uaddl v6.2d, v18.2s, v19.2s
-; CHECK-GI-NEXT:    uaddl2 v7.2d, v18.4s, v19.4s
+; CHECK-GI-NEXT:    uaddl v4.4s, v0.4h, v2.4h
+; CHECK-GI-NEXT:    uaddl2 v5.4s, v0.8h, v2.8h
+; CHECK-GI-NEXT:    uaddl v6.4s, v1.4h, v3.4h
+; CHECK-GI-NEXT:    uaddl2 v7.4s, v1.8h, v3.8h
+; CHECK-GI-NEXT:    ushll v0.2d, v4.2s, #0
+; CHECK-GI-NEXT:    ushll2 v1.2d, v4.4s, #0
+; CHECK-GI-NEXT:    ushll v2.2d, v5.2s, #0
+; CHECK-GI-NEXT:    ushll2 v3.2d, v5.4s, #0
+; CHECK-GI-NEXT:    ushll v4.2d, v6.2s, #0
+; CHECK-GI-NEXT:    ushll2 v5.2d, v6.4s, #0
+; CHECK-GI-NEXT:    ushll v6.2d, v7.2s, #0
+; CHECK-GI-NEXT:    ushll2 v7.2d, v7.4s, #0
 ; CHECK-GI-NEXT:    ret
     %c = zext <16 x i16> %a to <16 x i64>
     %d = zext <16 x i16> %b to <16 x i64>
