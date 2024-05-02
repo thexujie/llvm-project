@@ -1435,10 +1435,25 @@ define i32 @and31_add_sexts(i1 %x, i1 %y) {
   ret i32 %r
 }
 
-; Negative test - extra use
-
 define i32 @lshr_add_use_sexts(i1 %x, i1 %y, ptr %p) {
 ; CHECK-LABEL: @lshr_add_use_sexts(
+; CHECK-NEXT:    [[XS:%.*]] = sext i1 [[X:%.*]] to i32
+; CHECK-NEXT:    [[YS:%.*]] = sext i1 [[Y:%.*]] to i32
+; CHECK-NEXT:    store i32 [[YS]], ptr [[P:%.*]], align 4
+; CHECK-NEXT:    [[SUB:%.*]] = add nsw i32 [[XS]], [[YS]]
+; CHECK-NEXT:    [[R:%.*]] = lshr i32 [[SUB]], 31
+; CHECK-NEXT:    ret i32 [[R]]
+;
+  %xs = sext i1 %x to i32
+  %ys = sext i1 %y to i32
+  store i32 %ys, ptr %p
+  %sub = add i32 %xs, %ys
+  %r = lshr i32 %sub, 31
+  ret i32 %r
+}
+
+define i32 @lshr_add_use_sexts_2(i1 %x, i1 %y, ptr %p) {
+; CHECK-LABEL: @lshr_add_use_sexts_2(
 ; CHECK-NEXT:    [[XS:%.*]] = sext i1 [[X:%.*]] to i32
 ; CHECK-NEXT:    store i32 [[XS]], ptr [[P:%.*]], align 4
 ; CHECK-NEXT:    [[YS:%.*]] = sext i1 [[Y:%.*]] to i32
@@ -1456,18 +1471,20 @@ define i32 @lshr_add_use_sexts(i1 %x, i1 %y, ptr %p) {
 
 ; Negative test - extra use
 
-define i32 @lshr_add_use2_sexts(i1 %x, i1 %y, ptr %p) {
-; CHECK-LABEL: @lshr_add_use2_sexts(
+declare void @use_sexts(i32, i32)
+
+define i32 @lshr_add_use_sexts_both(i1 %x, i1 %y) {
+; CHECK-LABEL: @lshr_add_use_sexts_both(
 ; CHECK-NEXT:    [[XS:%.*]] = sext i1 [[X:%.*]] to i32
 ; CHECK-NEXT:    [[YS:%.*]] = sext i1 [[Y:%.*]] to i32
-; CHECK-NEXT:    store i32 [[YS]], ptr [[P:%.*]], align 4
+; CHECK-NEXT:    call void @use_sexts(i32 [[XS]], i32 [[YS]])
 ; CHECK-NEXT:    [[SUB:%.*]] = add nsw i32 [[XS]], [[YS]]
 ; CHECK-NEXT:    [[R:%.*]] = lshr i32 [[SUB]], 31
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xs = sext i1 %x to i32
   %ys = sext i1 %y to i32
-  store i32 %ys, ptr %p
+  call void @use_sexts(i32 %xs, i32 %ys)
   %sub = add i32 %xs, %ys
   %r = lshr i32 %sub, 31
   ret i32 %r
@@ -4018,8 +4035,8 @@ define i32 @add_reduce_sqr_sum_varC_invalid2(i32 %a, i32 %b) {
 
 define i32 @fold_sext_addition_or_disjoint(i8 %x) {
 ; CHECK-LABEL: @fold_sext_addition_or_disjoint(
-; CHECK-NEXT:    [[SE:%.*]] = sext i8 [[XX:%.*]] to i32
-; CHECK-NEXT:    [[R:%.*]] = add nsw i32 [[SE]], 1246
+; CHECK-NEXT:    [[TMP1:%.*]] = sext i8 [[X:%.*]] to i32
+; CHECK-NEXT:    [[R:%.*]] = add nsw i32 [[TMP1]], 1246
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 12
@@ -4043,8 +4060,8 @@ define i32 @fold_sext_addition_fail(i8 %x) {
 
 define i32 @fold_zext_addition_or_disjoint(i8 %x) {
 ; CHECK-LABEL: @fold_zext_addition_or_disjoint(
-; CHECK-NEXT:    [[SE:%.*]] = zext i8 [[XX:%.*]] to i32
-; CHECK-NEXT:    [[R:%.*]] = add nuw nsw i32 [[SE]], 1246
+; CHECK-NEXT:    [[TMP1:%.*]] = zext i8 [[X:%.*]] to i32
+; CHECK-NEXT:    [[R:%.*]] = add nuw nsw i32 [[TMP1]], 1246
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 12
@@ -4055,9 +4072,9 @@ define i32 @fold_zext_addition_or_disjoint(i8 %x) {
 
 define i32 @fold_zext_addition_or_disjoint2(i8 %x) {
 ; CHECK-LABEL: @fold_zext_addition_or_disjoint2(
-; CHECK-NEXT:    [[XX:%.*]] = add nuw i8 [[X:%.*]], 4
-; CHECK-NEXT:    [[SE:%.*]] = zext i8 [[XX]] to i32
-; CHECK-NEXT:    ret i32 [[SE]]
+; CHECK-NEXT:    [[TMP1:%.*]] = add nuw i8 [[X:%.*]], 4
+; CHECK-NEXT:    [[R:%.*]] = zext i8 [[TMP1]] to i32
+; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 18
   %se = zext i8 %xx to i32
