@@ -1437,11 +1437,6 @@ add_instruction:
 
   clearList(Relocations);
 
-  if (!IsSimple) {
-    clearList(Instructions);
-    return createNonFatalBOLTError("");
-  }
-
   updateState(State::Disassembled);
 
   return Error::success();
