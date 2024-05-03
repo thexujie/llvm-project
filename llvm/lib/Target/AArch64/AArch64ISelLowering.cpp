@@ -13897,7 +13897,8 @@ AArch64TargetLowering::LowerEXTRACT_VECTOR_ELT(SDValue Op,
 
 SDValue AArch64TargetLowering::LowerEXTRACT_SUBVECTOR(SDValue Op,
                                                       SelectionDAG &DAG) const {
-  assert(Op.getValueType().isFixedLengthVector() &&
+  EVT VT = Op.getValueType();
+  assert(VT.isFixedLengthVector() &&
          "Only cases that extract a fixed length vector are supported!");
 
   EVT InVT = Op.getOperand(0).getValueType();
@@ -13905,15 +13906,18 @@ SDValue AArch64TargetLowering::LowerEXTRACT_SUBVECTOR(SDValue Op,
   unsigned Size = Op.getValueSizeInBits();
 
   // If we don't have legal types yet, do nothing
-  if (!DAG.getTargetLoweringInfo().isTypeLegal(InVT))
+  if (!isTypeLegal(InVT))
     return SDValue();
 
   if (InVT.isScalableVector()) {
     // This will be matched by custom code during ISelDAGToDAG.
-    if (Idx == 0 && isPackedVectorType(InVT, DAG))
+    if (Idx == 0)
       return Op;
 
-    return SDValue();
+    SDLoc DL(Op);
+    SDValue Splice = DAG.getNode(ISD::VECTOR_SPLICE, DL, InVT, Op.getOperand(0),
+                                 Op.getOperand(0), Op.getOperand(1));
+    return convertFromScalableVector(DAG, VT, Splice);
   }
 
   // This will get lowered to an appropriate EXTRACT_SUBREG in ISel.
@@ -13934,8 +13938,8 @@ SDValue AArch64TargetLowering::LowerEXTRACT_SUBVECTOR(SDValue Op,
         convertToScalableVector(DAG, ContainerVT, Op.getOperand(0));
 
     SDValue Splice = DAG.getNode(ISD::VECTOR_SPLICE, DL, ContainerVT, NewInVec,
-                                 NewInVec, DAG.getConstant(Idx, DL, MVT::i64));
-    return convertFromScalableVector(DAG, Op.getValueType(), Splice);
+                                 NewInVec, Op.getOperand(1));
+    return convertFromScalableVector(DAG, VT, Splice);
   }
 
   return SDValue();
