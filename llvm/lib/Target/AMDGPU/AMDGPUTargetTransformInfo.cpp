@@ -1162,12 +1162,21 @@ InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
   if (IsExtractSubvector)
     Kind = TTI::SK_PermuteSingleSrc;
 
-  if (ST->hasVOP3PInsts()) {
-    if (cast<FixedVectorType>(VT)->getNumElements() == 2 &&
-        DL.getTypeSizeInBits(VT->getElementType()) == 16) {
+  bool IsGFX8Plus = ST->getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS;
+
+  FixedVectorType *FixedVT = dyn_cast<FixedVectorType>(VT);
+  if (FixedVT) {
+    unsigned NumElts = FixedVT->getNumElements();
+    unsigned ScalarSizeInBits = DL.getTypeSizeInBits(VT->getElementType());
+
+    if (IsGFX8Plus && ScalarSizeInBits == 8) {
+      // For GFX8Plus, we can emit v_perms for shuffle vectors
+      return (NumElts + 3) / 4;
+    }
+
+    if (ST->hasVOP3PInsts() && NumElts == 2 && ScalarSizeInBits == 16) {
       // With op_sel VOP3P instructions freely can access the low half or high
       // half of a register, so any swizzle is free.
-
       switch (Kind) {
       case TTI::SK_Broadcast:
       case TTI::SK_Reverse:
