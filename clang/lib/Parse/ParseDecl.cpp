@@ -3284,7 +3284,7 @@ void Parser::ParseAlignmentSpecifier(ParsedAttributes &Attrs,
 
 void Parser::DistributeCLateParsedAttrs(Decl *Dcl,
                                         LateParsedAttrList *LateAttrs) {
-  assert(Dcl);
+  assert(Dcl && "Dcl cannot be null");
 
   if (!LateAttrs)
     return;

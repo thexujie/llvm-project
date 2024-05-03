@@ -336,6 +336,9 @@ Attribute Changes in Clang
 - Clang now warns that the ``exclude_from_explicit_instantiation`` attribute
   is ignored when applied to a local class or a member thereof.
 
+- The ``counted_by`` attribute is now allowed on pointers that are members of a
+  struct in C.
+
 - The ``counted_by`` attribute can now be late parsed in C when
   ``-fexperimental-late-parse-attributes`` is passed but only when attribute is
   used in the declaration attribute position. This allows using the

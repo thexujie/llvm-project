@@ -638,9 +638,7 @@ bool Type::isStructureTypeWithFlexibleArrayMember() const {
   const auto *Decl = RT->getDecl();
   if (!Decl->isStruct())
     return false;
-  if (!Decl->hasFlexibleArrayMember())
-    return false;
-  return true;
+  return Decl->hasFlexibleArrayMember();
 }
 
 bool Type::isObjCBoxableRecordType() const {
