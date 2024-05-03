@@ -308,7 +308,7 @@ bool GCNTTIImpl::hasBranchDivergence(const Function *F) const {
 
 unsigned GCNTTIImpl::getNumberOfParts(Type *Tp) const {
   if (auto VTy = dyn_cast<FixedVectorType>(Tp)) {
-    if (VTy->getScalarSizeInBits() == 8) {
+    if (DL.getTypeSizeInBits(VTy->getElementType()) == 8) {
       auto ElCount = VTy->getElementCount().getFixedValue();
       return ElCount / 4;
     }
@@ -1139,6 +1139,14 @@ Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
 
 InstructionCost GCNTTIImpl::getPHIScalarizationOverhead(Type *ScalarTy,
                                                         VectorType *VTy) {
+  if (DL.getTypeSizeInBits(ScalarTy) != 8)
+    return 0;
+
+  if (auto FVTy = dyn_cast<FixedVectorType>(VTy)) {
+    unsigned NumElts = FVTy->getElementCount().getFixedValue();
+    return alignDown(NumElts, 4);
+  }
+
   return 0;
 }
 
