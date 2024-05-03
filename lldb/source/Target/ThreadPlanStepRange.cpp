@@ -346,7 +346,9 @@ bool ThreadPlanStepRange::SetNextBranchBreakpoint() {
       run_to_address =
           instructions->GetInstructionAtIndex(branch_index)->GetAddress();
     }
-
+    if (branch_index == pc_index)
+      LLDB_LOGF(log, "ThreadPlanStepRange::SetNextBranchBreakpoint - skipping "
+                     "because current is branch instruction");
     if (run_to_address.IsValid()) {
       const bool is_internal = true;
       m_next_branch_bp_sp =
@@ -380,7 +382,9 @@ bool ThreadPlanStepRange::SetNextBranchBreakpoint() {
         return true;
       } else
         return false;
-    }
+    } else
+      LLDB_LOGF(log, "ThreadPlanStepRange::SetNextBranchBreakpoint - skipping "
+                     "invalid run_to_address");
   }
   return false;
 }
@@ -417,7 +421,6 @@ bool ThreadPlanStepRange::NextRangeBreakpointExplainsStop(
               "next range breakpoint which has %" PRIu64
               " constituents - explains stop: %u.",
               (uint64_t)num_constituents, explains_stop);
-    ClearNextBranchBreakpoint();
     return explains_stop;
   }
 }
