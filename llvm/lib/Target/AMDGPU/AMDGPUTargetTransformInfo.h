@@ -246,6 +246,8 @@ public:
 
   int getInlinerVectorBonusPercent() const { return InlinerVectorBonusPercent; }
 
+  InstructionCost getPHIScalarizationOverhead(Type *ScalarTy, VectorType *VTy);
+
   InstructionCost getArithmeticReductionCost(
       unsigned Opcode, VectorType *Ty, std::optional<FastMathFlags> FMF,
       TTI::TargetCostKind CostKind);

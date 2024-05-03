@@ -585,6 +585,12 @@ InstructionCost TargetTransformInfo::getScalarizationOverhead(
                                            CostKind);
 }
 
+InstructionCost
+TargetTransformInfo::getPHIScalarizationOverhead(Type *ScalarTy,
+                                                 VectorType *VTy) const {
+  return TTIImpl->getPHIScalarizationOverhead(ScalarTy, VTy);
+}
+
 InstructionCost TargetTransformInfo::getOperandsScalarizationOverhead(
     ArrayRef<const Value *> Args, ArrayRef<Type *> Tys,
     TTI::TargetCostKind CostKind) const {

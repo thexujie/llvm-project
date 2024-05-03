@@ -1123,6 +1123,11 @@ Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
   }
 }
 
+InstructionCost GCNTTIImpl::getPHIScalarizationOverhead(Type *ScalarTy,
+                                                        VectorType *VTy) {
+  return 0;
+}
+
 InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            VectorType *VT, ArrayRef<int> Mask,
                                            TTI::TargetCostKind CostKind,
