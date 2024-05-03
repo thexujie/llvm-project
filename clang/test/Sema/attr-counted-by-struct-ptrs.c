@@ -18,17 +18,25 @@ struct on_member_pointer_complete_ty {
 
 struct on_member_pointer_incomplete_ty {
   int count;
-  struct size_unknown * buf __counted_by(count); // expected-error{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct size_unknown' is an incomplete type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct size_unknown' is an incomplete type}}
+  struct size_unknown * buf __counted_by(count);
+};
+
+struct on_member_pointer_const_incomplete_ty {
+  int count;
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'const struct size_unknown' is an incomplete type}}
+  const struct size_unknown * buf __counted_by(count);
 };
 
 struct on_member_pointer_void_ty {
   int count;
-  void* buf __counted_by(count); // expected-error{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'void' is an incomplete type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'void' is an incomplete type}}
+  void* buf __counted_by(count);
 };
 
 struct on_member_pointer_fn_ty {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'void (void)' is a function type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'void (void)' is a function type}}
   void (*fn_ptr)(void) __counted_by(count);
 };
 
@@ -39,7 +47,7 @@ struct has_unannotated_vla {
 
 struct on_member_pointer_struct_with_vla {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct has_unannotated_vla' is a struct type with a flexible array member}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct has_unannotated_vla' is a struct type with a flexible array member}}
   struct has_unannotated_vla* objects __counted_by(count);
 };
 
@@ -53,7 +61,7 @@ struct has_annotated_vla {
 // in each struct instance.
 struct on_member_pointer_struct_with_annotated_vla {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct has_annotated_vla' is a struct type with a flexible array member}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct has_annotated_vla' is a struct type with a flexible array member}}
   struct has_annotated_vla* objects __counted_by(count);
 };
 
@@ -79,22 +87,30 @@ struct on_pointer_anon_count {
 
 struct on_member_pointer_complete_ty_ty_pos {
   int count;
-  struct size_known *__counted_by(count) buf ;
+  struct size_known *__counted_by(count) buf;
 };
 
 struct on_member_pointer_incomplete_ty_ty_pos {
   int count;
-  struct size_unknown * __counted_by(count) buf; // expected-error{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct size_unknown' is an incomplete type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct size_unknown' is an incomplete type}}
+  struct size_unknown * __counted_by(count) buf;
+};
+
+struct on_member_pointer_const_incomplete_ty_ty_pos {
+  int count;
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'const struct size_unknown' is an incomplete type}}
+  const struct size_unknown * __counted_by(count) buf;
 };
 
 struct on_member_pointer_void_ty_ty_pos {
   int count;
-  void *__counted_by(count) buf; // expected-error{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'void' is an incomplete type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'void' is an incomplete type}}
+  void *__counted_by(count) buf;
 };
 
 struct on_member_pointer_fn_ty_ty_pos {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'void (void)' is a function type}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'void (void)' is a function type}}
   void (* __counted_by(count) fn_ptr)(void);
 };
 
@@ -113,7 +129,7 @@ struct on_member_pointer_fn_ptr_ty_ty_pos_inner {
 
 struct on_member_pointer_struct_with_vla_ty_pos {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct has_unannotated_vla' is a struct type with a flexible array member}}
+  // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct has_unannotated_vla' is a struct type with a flexible array member}}
   struct has_unannotated_vla *__counted_by(count) objects;
 };
 
@@ -122,7 +138,7 @@ struct on_member_pointer_struct_with_vla_ty_pos {
 // in each struct instance.
 struct on_member_pointer_struct_with_annotated_vla_ty_pos {
   int count;
-  // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because 'struct has_annotated_vla' is a struct type with a flexible array member}}
+  // expected-error@+1{{counted_by' cannot be applied to a pointer with pointee of unknown size because 'struct has_annotated_vla' is a struct type with a flexible array member}}
   struct has_annotated_vla* __counted_by(count) objects;
 };
 

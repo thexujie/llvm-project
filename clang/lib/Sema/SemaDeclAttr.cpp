@@ -8626,26 +8626,37 @@ static bool CheckCountedByAttrOnField(
     return true;
   }
 
+  CountedByInvalidPointeeTypeKind InvalidTypeKind =
+      CountedByInvalidPointeeTypeKind::VALID;
+  QualType PointeeTy;
+  int SelectPtrOrArr = 0;
   if (FieldTy->isPointerType()) {
-    CountedByInvalidPointeeTypeKind InvalidTypeKind =
-        CountedByInvalidPointeeTypeKind::VALID;
-    const auto PointeeTy = FieldTy->getPointeeType();
-    if (PointeeTy->isIncompleteType()) {
-      InvalidTypeKind = CountedByInvalidPointeeTypeKind::INCOMPLETE;
-    } else if (PointeeTy->isSizelessType()) {
-      InvalidTypeKind = CountedByInvalidPointeeTypeKind::SIZELESS;
-    } else if (PointeeTy->isFunctionType()) {
-      InvalidTypeKind = CountedByInvalidPointeeTypeKind::FUNCTION;
-    } else if (PointeeTy->isStructureTypeWithFlexibleArrayMember()) {
-      InvalidTypeKind = CountedByInvalidPointeeTypeKind::FLEXIBLE_ARRAY_MEMBER;
-    }
+    PointeeTy = FieldTy->getPointeeType();
+    SelectPtrOrArr = 0;
+  } else {
+    assert(FieldTy->isArrayType());
+    const ArrayType *AT = S.getASTContext().getAsArrayType(FieldTy);
+    PointeeTy = AT->getElementType();
+    SelectPtrOrArr = 1;
+  }
+  // Note: The `Decl::isFlexibleArrayMemberLike` check earlier on means
+  // only `PointeeTy->isStructureTypeWithFlexibleArrayMember()` is reachable
+  // when `FieldTy->isArrayType()`.
+  if (PointeeTy->isIncompleteType()) {
+    InvalidTypeKind = CountedByInvalidPointeeTypeKind::INCOMPLETE;
+  } else if (PointeeTy->isSizelessType()) {
+    InvalidTypeKind = CountedByInvalidPointeeTypeKind::SIZELESS;
+  } else if (PointeeTy->isFunctionType()) {
+    InvalidTypeKind = CountedByInvalidPointeeTypeKind::FUNCTION;
+  } else if (PointeeTy->isStructureTypeWithFlexibleArrayMember()) {
+    InvalidTypeKind = CountedByInvalidPointeeTypeKind::FLEXIBLE_ARRAY_MEMBER;
+  }
 
-    if (InvalidTypeKind != CountedByInvalidPointeeTypeKind::VALID) {
-      S.Diag(FD->getBeginLoc(), diag::err_counted_by_attr_pointee_unknown_size)
-          << FieldTy->getPointeeType() << (int)InvalidTypeKind
-          << FD->getSourceRange();
-      return true;
-    }
+  if (InvalidTypeKind != CountedByInvalidPointeeTypeKind::VALID) {
+    S.Diag(FD->getBeginLoc(), diag::err_counted_by_attr_pointee_unknown_size)
+        << SelectPtrOrArr << PointeeTy << (int)InvalidTypeKind
+        << FD->getSourceRange();
+    return true;
   }
 
   // Check the expression

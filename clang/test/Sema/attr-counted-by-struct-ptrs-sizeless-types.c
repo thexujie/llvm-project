@@ -5,7 +5,7 @@
 
 struct on_sizeless_pointee_ty {
     int count;
-    // expected-error@+1{{'counted_by' cannot be applied a pointer with pointee with unknown size because '__SVInt8_t' is a sizeless type}}
+    // expected-error@+1{{'counted_by' cannot be applied to a pointer with pointee of unknown size because '__SVInt8_t' is a sizeless type}}
     __SVInt8_t* member __counted_by(count);
 };
 
