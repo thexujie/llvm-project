@@ -1,6 +1,10 @@
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+// RUN: %clang -emit-llvm -S %s
 
-__kernel void foo(float4 *x, double4 *y) {
+#if defined(cl_khr_fp64)
+
+__kernel void foo(__global float4 *x, __global double4 *y) {
   x[1] = rsqrt(x[0]);
   y[1] = rsqrt(y[0]);
 }
+
+#endif

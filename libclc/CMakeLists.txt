@@ -393,7 +393,10 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
         COMMAND libclc::llvm-spirv ${spvflags} -o ${spv_suffix} ${builtins_link_lib}
         DEPENDS ${builtins_link_lib}
       )
-      add_custom_target( "prepare-${spv_suffix}" ALL DEPENDS "${spv_suffix}" )
+      add_custom_target( prepare-${arch_suffix} ALL DEPENDS ${spv_suffix} )
+      set_target_properties( prepare-${arch_suffix}
+        PROPERTIES TARGET_FILE ${spv_suffix}
+      )
       install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${spv_suffix}
          DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
     else()
@@ -419,7 +422,10 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
       add_custom_command( OUTPUT ${obj_suffix}
         COMMAND prepare_builtins -o ${obj_suffix} ${builtins_opt_lib}
         DEPENDS ${builtins_opt_lib} prepare_builtins )
-      add_custom_target( prepare-${obj_suffix} ALL DEPENDS ${obj_suffix} )
+      add_custom_target( prepare-${arch_suffix} ALL DEPENDS ${obj_suffix} )
+      set_target_properties( prepare-${arch_suffix}
+        PROPERTIES TARGET_FILE ${obj_suffix}
+      )
 
       # nvptx-- targets don't include workitem builtins
       if( NOT clang_triple MATCHES ".*ptx.*--$" )
@@ -433,9 +439,13 @@ foreach( t ${LIBCLC_TARGETS_TO_BUILD} )
         set( alias_suffix "${a}-${clang_triple}.bc" )
         add_custom_target( ${alias_suffix} ALL
           COMMAND ${CMAKE_COMMAND} -E create_symlink ${obj_suffix} ${alias_suffix}
-          DEPENDS prepare-${obj_suffix} )
+          DEPENDS prepare-${arch_suffix} )
         install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${alias_suffix} DESTINATION "${CMAKE_INSTALL_DATADIR}/clc" )
       endforeach( a )
     endif()
   endforeach( d )
 endforeach( t )
+
+if( NOT LIBCLC_STANDALONE_BUILD )
+  add_subdirectory( test )
+endif()
