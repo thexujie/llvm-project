@@ -485,11 +485,25 @@ uint64_t BoltAddressTranslation::translate(uint64_t FuncAddress,
   --KeyVal;
 
   const uint32_t Val = KeyVal->second >> 1; // dropping BRANCHENTRY bit
-  // Branch source addresses are translated to the first instruction of the
-  // source BB to avoid accounting for modifications BOLT may have made in the
-  // BB regarding deletion/addition of instructions.
-  if (IsBranchSrc)
-    return Val;
+  if (IsBranchSrc) {
+    // Branch entry is found in BAT
+    if (KeyVal->first == Offset && KeyVal->second & BRANCHENTRY)
+      return Val;
+
+    // Branch source addresses are translated to the first instruction of the
+    // source BB to avoid accounting for modifications BOLT may have made in the
+    // BB regarding deletion/addition of instructions.
+    const uint64_t ParentAddress = fetchParentAddress(FuncAddress);
+    const BBHashMapTy &BBHashMap =
+        getBBHashMap(ParentAddress ? ParentAddress : FuncAddress);
+    auto BBIt = BBHashMap.upper_bound(Val);
+    if (BBIt == BBHashMap.begin())
+      return Offset;
+
+    --BBIt;
+
+    return BBIt->first;
+  }
   return Offset - KeyVal->first + Val;
 }
 
