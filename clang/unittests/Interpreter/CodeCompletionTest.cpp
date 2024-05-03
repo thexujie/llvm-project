@@ -13,14 +13,14 @@
 
 using namespace clang;
 namespace {
-auto CB = clang::IncrementalCompilerBuilder();
+auto CB = clang::caas::IncrementalCompilerBuilder();
 
-static std::unique_ptr<Interpreter> createInterpreter() {
+static std::unique_ptr<clang::caas::Interpreter> createInterpreter() {
   auto CI = cantFail(CB.CreateCpp());
-  return cantFail(clang::Interpreter::create(std::move(CI)));
+  return cantFail(clang::caas::Interpreter::create(std::move(CI)));
 }
 
-static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
+static std::vector<std::string> runComp(clang::caas::Interpreter &MainInterp,
                                         llvm::StringRef Input,
                                         llvm::Error &ErrR) {
   auto CI = CB.CreateCpp();
@@ -29,7 +29,7 @@ static std::vector<std::string> runComp(clang::Interpreter &MainInterp,
     return {};
   }
 
-  auto Interp = clang::Interpreter::create(std::move(*CI));
+  auto Interp = clang::caas::Interpreter::create(std::move(*CI));
   if (auto Err = Interp.takeError()) {
     // log the error and returns an empty vector;
     ErrR = std::move(Err);

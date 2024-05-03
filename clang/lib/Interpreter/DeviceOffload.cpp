@@ -20,7 +20,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 
-namespace clang {
+namespace clang::caas {
 
 IncrementalCUDADeviceParser::IncrementalCUDADeviceParser(
     Interpreter &Interp, std::unique_ptr<CompilerInstance> Instance,
@@ -173,4 +173,4 @@ llvm::Error IncrementalCUDADeviceParser::GenerateFatbinary() {
 
 IncrementalCUDADeviceParser::~IncrementalCUDADeviceParser() {}
 
-} // namespace clang
+} // namespace clang::caas

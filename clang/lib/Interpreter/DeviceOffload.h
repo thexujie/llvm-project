@@ -17,7 +17,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/VirtualFileSystem.h"
 
-namespace clang {
+namespace clang::caas {
 
 class IncrementalCUDADeviceParser : public IncrementalParser {
 public:
@@ -46,6 +46,6 @@ protected:
   llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> VFS;
 };
 
-} // namespace clang
+} // namespace clang::caas
 
 #endif // LLVM_CLANG_LIB_INTERPRETER_DEVICE_OFFLOAD_H

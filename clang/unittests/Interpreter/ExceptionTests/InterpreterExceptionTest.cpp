@@ -38,6 +38,7 @@ LLVM_ATTRIBUTE_USED int __lsan_is_turned_off() { return 1; }
 #endif
 
 using namespace clang;
+using namespace clang::caas;
 
 namespace {
 using Args = std::vector<const char *>;
@@ -46,12 +47,12 @@ createInterpreter(const Args &ExtraArgs = {},
                   DiagnosticConsumer *Client = nullptr) {
   Args ClangArgs = {"-Xclang", "-emit-llvm-only"};
   ClangArgs.insert(ClangArgs.end(), ExtraArgs.begin(), ExtraArgs.end());
-  auto CB = clang::IncrementalCompilerBuilder();
+  auto CB = clang::caas::IncrementalCompilerBuilder();
   CB.SetCompilerArgs(ClangArgs);
   auto CI = cantFail(CB.CreateCpp());
   if (Client)
     CI->getDiagnostics().setClient(Client, /*ShouldOwnClient=*/false);
-  return cantFail(clang::Interpreter::create(std::move(CI)));
+  return cantFail(clang::caas::Interpreter::create(std::move(CI)));
 }
 
 TEST(InterpreterTest, CatchException) {
