@@ -83,9 +83,9 @@ entry:
 ; GFX8: buffer_store_dword v0, off, s[0:3], 0
 ; GFX1011: v_mov_b32_e32 v0, 0
 ; GFX1011: s_waitcnt lgkmcnt(0)
-; GFX10: s_lshr_b32 s2, s2, 16
+; GFX10: s_lshr_b32 s2, s4, 16
 ; GFX10: s_pack_ll_b32_b16 s2, s2, 5
-; GFX11: s_pack_hl_b32_b16 s2, s2, 5
+; GFX11: s_pack_hl_b32_b16 s2, s4, 5
 ; GFX1011: v_mov_b32_e32 v1, s2
 ; GFX10: global_store_dword v0, v1, s[0:1]
 ; GFX11: global_store_b32 v0, v1, s[0:1]
@@ -120,7 +120,7 @@ define amdgpu_kernel void @build_vector_v2i16_trunc (ptr addrspace(1) %out, i32 
 ;
 ; GFX6-LABEL: build_v2i32_from_v4i16_shuffle:
 ; GFX6:       ; %bb.0: ; %entry
-; GFX6-NEXT:    s_load_dwordx4 s[0:3], s[0:1], 0x9
+; GFX6-NEXT:    s_load_dwordx4 s[0:3], s[2:3], 0x9
 ; GFX6-NEXT:    s_mov_b32 s7, 0xf000
 ; GFX6-NEXT:    s_waitcnt lgkmcnt(0)
 ; GFX6-NEXT:    s_lshl_b32 s3, s3, 16
@@ -135,7 +135,7 @@ define amdgpu_kernel void @build_vector_v2i16_trunc (ptr addrspace(1) %out, i32 
 ;
 ; GFX8-LABEL: build_v2i32_from_v4i16_shuffle:
 ; GFX8:       ; %bb.0: ; %entry
-; GFX8-NEXT:    s_load_dwordx4 s[0:3], s[0:1], 0x24
+; GFX8-NEXT:    s_load_dwordx4 s[0:3], s[2:3], 0x24
 ; GFX8-NEXT:    s_mov_b32 s7, 0xf000
 ; GFX8-NEXT:    s_mov_b32 s6, -1
 ; GFX8-NEXT:    s_waitcnt lgkmcnt(0)
@@ -150,7 +150,7 @@ define amdgpu_kernel void @build_vector_v2i16_trunc (ptr addrspace(1) %out, i32 
 ;
 ; GFX10-LABEL: build_v2i32_from_v4i16_shuffle:
 ; GFX10:       ; %bb.0: ; %entry
-; GFX10-NEXT:    s_load_dwordx4 s[0:3], s[0:1], 0x0
+; GFX10-NEXT:    s_load_dwordx4 s[0:3], s[2:3], 0x0
 ; GFX10-NEXT:    v_mov_b32_e32 v2, 0
 ; GFX10-NEXT:    s_waitcnt lgkmcnt(0)
 ; GFX10-NEXT:    s_lshl_b32 s2, s2, 16
@@ -162,7 +162,7 @@ define amdgpu_kernel void @build_vector_v2i16_trunc (ptr addrspace(1) %out, i32 
 ;
 ; GFX11-LABEL: build_v2i32_from_v4i16_shuffle:
 ; GFX11:       ; %bb.0: ; %entry
-; GFX11-NEXT:    s_load_b128 s[0:3], s[0:1], 0x0
+; GFX11-NEXT:    s_load_b128 s[0:3], s[2:3], 0x0
 ; GFX11-NEXT:    v_mov_b32_e32 v2, 0
 ; GFX11-NEXT:    s_waitcnt lgkmcnt(0)
 ; GFX11-NEXT:    s_lshl_b32 s2, s2, 16
@@ -176,7 +176,7 @@ define amdgpu_kernel void @build_vector_v2i16_trunc (ptr addrspace(1) %out, i32 
 ;
 ; GFX940-LABEL: build_v2i32_from_v4i16_shuffle:
 ; GFX940:       ; %bb.0: ; %entry
-; GFX940-NEXT:    s_load_dwordx4 s[0:3], s[0:1], 0x24
+; GFX940-NEXT:    s_load_dwordx4 s[0:3], s[2:3], 0x24
 ; GFX940-NEXT:    v_mov_b32_e32 v2, 0
 ; GFX940-NEXT:    s_waitcnt lgkmcnt(0)
 ; GFX940-NEXT:    s_lshl_b32 s3, s3, 16
