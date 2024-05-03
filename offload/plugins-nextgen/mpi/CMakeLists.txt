@@ -9,10 +9,27 @@
 # Build a plugin for a MPI machine if available.
 #
 ##===----------------------------------------------------------------------===##
-if (NOT(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(ppc64le)$" AND CMAKE_SYSTEM_NAME MATCHES "Linux"))
+
+# Looking for MPI...
+find_package(MPI QUIET)
+
+set(LIBOMPTARGET_DEP_MPI_FOUND ${MPI_CXX_FOUND})
+set(LIBOMPTARGET_DEP_MPI_LIBRARIES ${MPI_CXX_LIBRARIES})
+set(LIBOMPTARGET_DEP_MPI_INCLUDE_DIRS ${MPI_CXX_INCLUDE_DIRS})
+set(LIBOMPTARGET_DEP_MPI_COMPILE_FLAGS ${MPI_CXX_COMPILE_FLAGS})
+set(LIBOMPTARGET_DEP_MPI_LINK_FLAGS ${MPI_CXX_LINK_FLAGS})
+
+mark_as_advanced(
+  LIBOMPTARGET_DEP_MPI_FOUND
+  LIBOMPTARGET_DEP_MPI_LIBRARIES
+  LIBOMPTARGET_DEP_MPI_INCLUDE_DIRS
+  LIBOMPTARGET_DEP_MPI_COMPILE_FLAGS
+  LIBOMPTARGET_DEP_MPI_LINK_FLAGS)
+
+if(NOT(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(ppc64le)$" AND CMAKE_SYSTEM_NAME MATCHES "Linux"))
   libomptarget_say("Not building MPI offloading plugin: only support MPI in Linux x86_64 or ppc64le hosts.")
   return()
-elseif (NOT LIBOMPTARGET_DEP_LIBFFI_FOUND)
+elseif(NOT LIBOMPTARGET_DEP_LIBFFI_FOUND)
   libomptarget_say("Not building MPI offloading plugin: libffi dependency not found.")
   return()
 elseif(NOT LIBOMPTARGET_DEP_MPI_FOUND)

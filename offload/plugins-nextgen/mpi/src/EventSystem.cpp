@@ -25,6 +25,7 @@
 
 #include <ffi.h>
 #include <mpi.h>
+#include <unistd.h>
 
 #include "Shared/Debug.h"
 #include "Shared/EnvironmentVar.h"
@@ -43,22 +44,21 @@ using llvm::sys::DynamicLibrary;
     return false;                                                              \
   }
 
-// Customizable parameters of the event system
-// =============================================================================
-// Number of execute event handlers to spawn.
+/// Customizable parameters of the event system
+///
+/// Number of execute event handlers to spawn.
 static IntEnvar NumExecEventHandlers("OMPTARGET_NUM_EXEC_EVENT_HANDLERS", 1);
-// Number of data event handlers to spawn.
+/// Number of data event handlers to spawn.
 static IntEnvar NumDataEventHandlers("OMPTARGET_NUM_DATA_EVENT_HANDLERS", 1);
-// Polling rate period (us) used by event handlers.
+/// Polling rate period (us) used by event handlers.
 static IntEnvar EventPollingRate("OMPTARGET_EVENT_POLLING_RATE", 1);
-// Number of communicators to be spawned and distributed for the events.
-// Allows for parallel use of network resources.
+/// Number of communicators to be spawned and distributed for the events.
+/// Allows for parallel use of network resources.
 static Int64Envar NumMPIComms("OMPTARGET_NUM_MPI_COMMS", 10);
-// Maximum buffer Size to use during data transfer.
+/// Maximum buffer Size to use during data transfer.
 static Int64Envar MPIFragmentSize("OMPTARGET_MPI_FRAGMENT_SIZE", 100e6);
 
-// Helper functions
-// =============================================================================
+/// Helper function to transform event type to string
 const char *toString(EventTypeTy Type) {
   using enum EventTypeTy;
 
@@ -91,8 +91,7 @@ const char *toString(EventTypeTy Type) {
   return nullptr;
 }
 
-// Coroutine events implementation
-// =============================================================================
+/// Resumes the most recent incomplete coroutine in the list.
 void EventTy::resume() {
   // Acquire first handle not done.
   const CoHandleTy &RootHandle = getHandle().promise().RootHandle;
@@ -108,6 +107,7 @@ void EventTy::resume() {
     ResumableHandle.resume();
 }
 
+/// Wait until event completes.
 void EventTy::wait() {
   // Advance the event progress until it is completed.
   while (!done()) {
@@ -118,10 +118,13 @@ void EventTy::wait() {
   }
 }
 
+/// Check if the event has completed.
 bool EventTy::done() const { return getHandle().done(); }
 
+/// Check if it is an empty event.
 bool EventTy::empty() const { return !getHandle(); }
 
+/// Get the coroutine error from the Handle.
 llvm::Error EventTy::getError() const {
   auto &Error = getHandle().promise().CoroutineError;
   if (Error)
@@ -130,19 +133,22 @@ llvm::Error EventTy::getError() const {
   return llvm::Error::success();
 }
 
-// Helpers
-// =============================================================================
+///  MPI Request Manager Destructor. The Manager cannot be destroyed until all
+///  the requests it manages have been completed.
 MPIRequestManagerTy::~MPIRequestManagerTy() {
   assert(Requests.empty() && "Requests must be fulfilled and emptied before "
                              "destruction. Did you co_await on it?");
 }
 
+/// Send a message to \p OtherRank asynchronously.
 void MPIRequestManagerTy::send(const void *Buffer, int Size,
                                MPI_Datatype Datatype) {
   MPI_Isend(Buffer, Size, Datatype, OtherRank, Tag, Comm,
             &Requests.emplace_back(MPI_REQUEST_NULL));
 }
 
+/// Divide the \p Buffer into fragments of size \p MPIFragmentSize and send them
+/// to \p OtherRank asynchronously.
 void MPIRequestManagerTy::sendInBatchs(void *Buffer, int Size) {
   // Operates over many fragments of the original buffer of at most
   // MPI_FRAGMENT_SIZE bytes.
@@ -156,12 +162,15 @@ void MPIRequestManagerTy::sendInBatchs(void *Buffer, int Size) {
   }
 }
 
+/// Receive a message from \p OtherRank asynchronously.
 void MPIRequestManagerTy::receive(void *Buffer, int Size,
                                   MPI_Datatype Datatype) {
   MPI_Irecv(Buffer, Size, Datatype, OtherRank, Tag, Comm,
             &Requests.emplace_back(MPI_REQUEST_NULL));
 }
 
+/// Asynchronously receive message fragments from \p OtherRank and reconstruct
+/// them into \p Buffer.
 void MPIRequestManagerTy::receiveInBatchs(void *Buffer, int Size) {
   // Operates over many fragments of the original buffer of at most
   // MPI_FRAGMENT_SIZE bytes.
@@ -175,6 +184,7 @@ void MPIRequestManagerTy::receiveInBatchs(void *Buffer, int Size) {
   }
 }
 
+/// Coroutine that waits until all pending requests finish.
 EventTy MPIRequestManagerTy::wait() {
   int RequestsCompleted = false;
 
@@ -198,9 +208,8 @@ EventTy operator co_await(MPIRequestManagerTy &RequestManager) {
   return RequestManager.wait();
 }
 
-// Device Image Storage
-// =============================================================================
-
+/// Device Image Storage. This class is used to store Device Image data
+/// in the remote device process.
 struct DeviceImage : __tgt_device_image {
   llvm::SmallVector<unsigned char, 1> ImageBuffer;
   llvm::SmallVector<__tgt_offload_entry, 16> Entries;
@@ -253,15 +262,14 @@ private:
   DynamicLibrary DynLib;
 };
 
-// Event Implementations
-// =============================================================================
-
+/// Event implementations on Host side.
 namespace OriginEvents {
 
 EventTy allocateBuffer(MPIRequestManagerTy RequestManager, int64_t Size,
                        void **Buffer) {
   RequestManager.send(&Size, 1, MPI_INT64_T);
 
+  // Event completion notification
   RequestManager.receive(Buffer, sizeof(void *), MPI_BYTE);
 
   co_return (co_await RequestManager);
@@ -369,9 +377,6 @@ EventTy loadBinary(MPIRequestManagerTy RequestManager,
     RequestManager.send(&EntriesBegin[I].size, 1, MPI_UINT64_T);
     RequestManager.send(&EntriesBegin[I].flags, 1, MPI_INT32_T);
     RequestManager.send(&EntriesBegin[I].data, 1, MPI_INT32_T);
-  }
-
-  for (size_t I = 0; I < EntryCount; I++) {
     RequestManager.receive(&((*DeviceImageAddrs)[I]), 1, MPI_UINT64_T);
   }
 
@@ -386,6 +391,7 @@ EventTy exit(MPIRequestManagerTy RequestManager) {
 
 } // namespace OriginEvents
 
+/// Event Implementations on Device side.
 namespace DestinationEvents {
 
 EventTy allocateBuffer(MPIRequestManagerTy RequestManager) {
@@ -628,6 +634,9 @@ EventTy loadBinary(MPIRequestManagerTy RequestManager, DeviceImage &Image) {
   // Save a reference of the image's dynamic library.
   Image.setDynamicLibrary(DynLib);
 
+  // Delete TmpFile
+  unlink(TmpFileName);
+
   for (size_t I = 0; I < EntryCount; I++) {
     Image.Entries[I].addr = DynLib.getAddressOfSymbol(Image.Entries[I].name);
     RequestManager.send(&Image.Entries[I].addr, 1, MPI_UINT64_T);
@@ -651,8 +660,7 @@ EventTy exit(MPIRequestManagerTy RequestManager,
 
 } // namespace DestinationEvents
 
-// Event Queue implementation
-// =============================================================================
+/// Event Queue implementation
 EventQueue::EventQueue() : Queue(), QueueMtx(), CanPopCv() {}
 
 size_t EventQueue::size() {
@@ -687,8 +695,7 @@ EventTy EventQueue::pop(std::stop_token &Stop) {
   return TargetEvent;
 }
 
-// Event System implementation
-// =============================================================================
+/// Event System implementation
 EventSystemTy::EventSystemTy()
     : EventSystemState(EventSystemStateTy::CREATED) {}
 
@@ -726,7 +733,7 @@ bool EventSystemTy::deinitialize() {
   }
 
   // Only send exit events from the host side
-  if (isHead() && WorldSize > 1) {
+  if (isHost() && WorldSize > 1) {
     const int NumWorkers = WorldSize - 1;
     llvm::SmallVector<EventTy> ExitEvents(NumWorkers);
     for (int WorkerRank = 0; WorkerRank < NumWorkers; WorkerRank++) {
@@ -911,9 +918,9 @@ void EventSystemTy::runGateThread() {
          "Event State should be EXITED after receiving an Exit event");
 }
 
-// Creates a new event tag of at least 'FIRST_EVENT' value.
-// Tag values smaller than 'FIRST_EVENT' are reserved for control
-// messages between the event systems of different MPI processes.
+/// Creates a new event tag of at least 'FIRST_EVENT' value.
+/// Tag values smaller than 'FIRST_EVENT' are reserved for control
+/// messages between the event systems of different MPI processes.
 int EventSystemTy::createNewEventTag() {
   int tag = 0;
 
@@ -944,10 +951,9 @@ static const char *threadLevelToString(int ThreadLevel) {
   }
 }
 
+/// Initialize the MPI context.
 bool EventSystemTy::createLocalMPIContext() {
   int MPIError = MPI_SUCCESS;
-
-  // Initialize the MPI context.
   int IsMPIInitialized = 0;
   int ThreadLevel = MPI_THREAD_SINGLE;
 
@@ -1003,6 +1009,7 @@ bool EventSystemTy::createLocalMPIContext() {
   return true;
 }
 
+/// Destroy the MPI context.
 bool EventSystemTy::destroyLocalMPIContext() {
   int MPIError = MPI_SUCCESS;
 
@@ -1041,9 +1048,9 @@ bool EventSystemTy::destroyLocalMPIContext() {
 }
 
 int EventSystemTy::getNumWorkers() const {
-  if (isHead())
+  if (isHost())
     return WorldSize - 1;
   return 0;
 }
 
-int EventSystemTy::isHead() const { return LocalRank == WorldSize - 1; };
+int EventSystemTy::isHost() const { return LocalRank == WorldSize - 1; };

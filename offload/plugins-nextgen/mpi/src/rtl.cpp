@@ -134,21 +134,21 @@ private:
   EventSystemTy &EventSystem;
 };
 
-// MPI resource reference and queue
-// =============================================================================
+/// MPI resource reference and queue. These are the objects handled by the
+/// MPIQueue Manager for the MPI plugin.
 template <typename ResourceTy>
 struct MPIResourceRef final : public GenericDeviceResourceRef {
 
-  // The underlying handler type for the resource.
+  /// The underlying handler type for the resource.
   using HandleTy = ResourceTy *;
 
-  // Create a empty reference to an invalid resource.
+  /// Create a empty reference to an invalid resource.
   MPIResourceRef() : Resource(nullptr) {}
 
-  // Create a reference to an existing resource.
+  /// Create a reference to an existing resource.
   MPIResourceRef(HandleTy Queue) : Resource(Queue) {}
 
-  // Create a new resource and save the reference.
+  /// Create a new resource and save the reference.
   Error create(GenericDeviceTy &Device) override {
     if (Resource)
       return Plugin::error("Recreating an existing resource");
@@ -160,7 +160,7 @@ struct MPIResourceRef final : public GenericDeviceResourceRef {
     return Plugin::success();
   }
 
-  // Destroy the resource and invalidate the reference.
+  /// Destroy the resource and invalidate the reference.
   Error destroy(GenericDeviceTy &Device) override {
     if (!Resource)
       return Plugin::error("Destroying an invalid resource");
@@ -177,17 +177,17 @@ private:
   HandleTy Resource;
 };
 
-// Device class
-// =============================================================================
+/// Class implementing the device functionalities for remote x86_64 processes.
 struct MPIDeviceTy : public GenericDeviceTy {
+  /// Create a MPI Device with a device id and the default MPI grid values.
   MPIDeviceTy(GenericPluginTy &Plugin, int32_t DeviceId, int32_t NumDevices,
               EventSystemTy &EventSystem)
       : GenericDeviceTy(Plugin, DeviceId, NumDevices, MPIGridValues),
         MPIEventQueueManager(*this), MPIEventManager(*this),
         EventSystem(EventSystem) {}
 
+  /// Initialize the device, its resources and get its properties.
   Error initImpl(GenericPluginTy &Plugin) override {
-    // TODO: Check if EventQueueManager is equivalent to StreamManager.
     if (auto Err = MPIEventQueueManager.init(OMPX_InitialNumStreams))
       return Err;
 
@@ -197,6 +197,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Deinitizalize the device and release its resources.
   Error deinitImpl() override {
     if (auto Err = MPIEventQueueManager.deinit())
       return Err;
@@ -235,8 +236,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Image;
   }
 
-  // Data management
-  // ===========================================================================
+  /// Allocate memory on the device or related to the device.
   void *allocate(size_t Size, void *, TargetAllocTy Kind) override {
     if (Size == 0)
       return nullptr;
@@ -275,6 +275,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return BufferAddress;
   }
 
+  /// Deallocate memory on the device or related to the device.
   int free(void *TgtPtr, TargetAllocTy Kind) override {
     if (TgtPtr == nullptr)
       return OFFLOAD_SUCCESS;
@@ -312,8 +313,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return OFFLOAD_SUCCESS;
   }
 
-  // Data transfer
-  // ===========================================================================
+  /// Submit data to the device (host to device transfer).
   Error dataSubmitImpl(void *TgtPtr, const void *HstPtr, int64_t Size,
                        AsyncInfoWrapperTy &AsyncInfoWrapper) override {
     MPIEventQueuePtr Queue = nullptr;
@@ -336,6 +336,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Retrieve data from the device (device to host transfer).
   Error dataRetrieveImpl(void *HstPtr, const void *TgtPtr, int64_t Size,
                          AsyncInfoWrapperTy &AsyncInfoWrapper) override {
     MPIEventQueuePtr Queue = nullptr;
@@ -353,6 +354,10 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Exchange data between two devices directly. In the MPI plugin, this
+  /// function will create an event for the host to tell the devices about the
+  /// exchange. Then, the devices will do the transfer themselves and let the
+  /// host know when it's done.
   Error dataExchangeImpl(const void *SrcPtr, GenericDeviceTy &DstDev,
                          void *DstPtr, int64_t Size,
                          AsyncInfoWrapperTy &AsyncInfoWrapper) override {
@@ -371,8 +376,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
-  // Allocate and construct a MPI kernel.
-  // ===========================================================================
+  /// Allocate and construct a MPI kernel.
   Expected<GenericKernelTy &> constructKernel(const char *Name) override {
     // Allocate and construct the kernel.
     MPIKernelTy *MPIKernel = Plugin.allocate<MPIKernelTy>();
@@ -385,8 +389,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return *MPIKernel;
   }
 
-  // External event management
-  // ===========================================================================
+  /// Create an event.
   Error createEventImpl(void **EventStoragePtr) override {
     if (!EventStoragePtr)
       return Plugin::error("Received invalid event storage pointer");
@@ -399,6 +402,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Destroy a previously created event.
   Error destroyEventImpl(void *Event) override {
     if (!Event)
       return Plugin::error("Received invalid event pointer");
@@ -406,6 +410,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return MPIEventManager.returnResource(reinterpret_cast<EventTy *>(Event));
   }
 
+  /// Record the event.
   Error recordEventImpl(void *Event,
                         AsyncInfoWrapperTy &AsyncInfoWrapper) override {
     if (!Event)
@@ -424,6 +429,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Make the queue wait on the event.
   Error waitEventImpl(void *Event,
                       AsyncInfoWrapperTy &AsyncInfoWrapper) override {
     if (!Event)
@@ -441,6 +447,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return Plugin::success();
   }
 
+  /// Synchronize the current thread with the event
   Error syncEventImpl(void *Event) override {
     if (!Event)
       return Plugin::error("Received invalid event pointer");
@@ -453,8 +460,7 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return SyncEvent.getError();
   }
 
-  // Asynchronous queue management
-  // ===========================================================================
+  /// Synchronize current thread with the pending operations on the async info.
   Error synchronizeImpl(__tgt_async_info &AsyncInfo) override {
     auto *Queue = reinterpret_cast<MPIEventQueue *>(AsyncInfo.Queue);
 
@@ -473,13 +479,13 @@ struct MPIDeviceTy : public GenericDeviceTy {
     return MPIEventQueueManager.returnResource(Queue);
   }
 
+  /// Query for the completion of the pending operations on the async info.
   Error queryAsyncImpl(__tgt_async_info &AsyncInfo) override {
     auto *Queue = reinterpret_cast<MPIEventQueue *>(AsyncInfo.Queue);
 
     // Returns success when there are pending operations in the AsyncInfo.
-    if (!Queue->empty() && !Queue->back().done()) {
+    if (!Queue->empty() && !Queue->back().done())
       return Plugin::success();
-    }
 
     // Once the queue is synchronized, return it to the pool and reset the
     // AsyncInfo. This is to make sure that the synchronization only works
@@ -489,32 +495,23 @@ struct MPIDeviceTy : public GenericDeviceTy {
   }
 
   Expected<void *> dataLockImpl(void *HstPtr, int64_t Size) override {
-    // TODO: Check if this is correct.
     return HstPtr;
   }
 
   /// Indicate that the buffer is not pinned.
-  // TODO: Check if this is correct too.
   Expected<bool> isPinnedPtrImpl(void *HstPtr, void *&BaseHstPtr,
                                  void *&BaseDevAccessiblePtr,
                                  size_t &BaseSize) const override {
     return false;
   }
 
-  // TODO: Check if this is correct too.
   Error dataUnlockImpl(void *HstPtr) override { return Plugin::success(); }
 
-  // Device environment
-  // NOTE: not applicable to MPI.
-  // ===========================================================================
+  /// This plugin should not setup the device environment or memory pool.
   virtual bool shouldSetupDeviceEnvironment() const override { return false; };
-
-  //  MPIPlugin should not setup the device memory pool.
   virtual bool shouldSetupDeviceMemoryPool() const override { return false; };
 
-  // Device memory limits
-  // NOTE: not applicable to MPI.
-  // ===========================================================================
+  /// Device memory limits are currently not applicable to the MPI plugin.
   Error getDeviceStackSize(uint64_t &Value) override {
     Value = 0;
     return Plugin::success();
@@ -531,19 +528,17 @@ struct MPIDeviceTy : public GenericDeviceTy {
 
   Error setDeviceHeapSize(uint64_t Value) override { return Plugin::success(); }
 
-  // Device interoperability
-  // NOTE: not supported by MPI right now.
-  // ===========================================================================
+  /// Device interoperability. Not supported by MPI right now.
   Error initAsyncInfoImpl(AsyncInfoWrapperTy &AsyncInfoWrapper) override {
     return Plugin::error("initAsyncInfoImpl not supported");
   }
 
+  /// This plugin does not support interoperability.
   Error initDeviceInfoImpl(__tgt_device_info *DeviceInfo) override {
     return Plugin::error("initDeviceInfoImpl not supported");
   }
 
-  // Debugging & Logging
-  // ===========================================================================
+  /// Print information about the device.
   Error obtainInfoImpl(InfoQueueTy &Info) override {
     // TODO: Add more information about the device.
     Info.add("MPI plugin");
@@ -626,6 +621,7 @@ struct MPIPluginTy : GenericPluginTy {
   MPIPluginTy(const MPIPluginTy &) = delete;
   MPIPluginTy(MPIPluginTy &&) = delete;
 
+  /// Initialize the plugin and return the number of devices.
   Expected<int32_t> initImpl() override {
 #ifdef OMPT_SUPPORT
     ompt::connectLibrary();
@@ -643,7 +639,6 @@ struct MPIPluginTy : GenericPluginTy {
   /// Create a MPI device.
   GenericDeviceTy *createDevice(GenericPluginTy &Plugin, int32_t DeviceId,
                                 int32_t NumDevices) override {
-    // MPIPluginTy &MPIPlugin = static_cast<MPIPluginTy &>(Plugin);
     return new MPIDeviceTy(Plugin, DeviceId, NumDevices, EventSystem);
   }
 

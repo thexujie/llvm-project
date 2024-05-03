@@ -37,12 +37,10 @@
 #include "Shared/EnvironmentVar.h"
 #include "Shared/Utils.h"
 
-// External forward declarations.
-// =============================================================================
+/// External forward declarations.
 struct __tgt_device_image;
 
-// Helper
-// =============================================================================
+/// Template helper for generating llvm::Error instances from events.
 template <typename... ArgsTy>
 static llvm::Error createError(const char *ErrFmt, ArgsTy... Args) {
   return llvm::createStringError(llvm::inconvertibleErrorCode(), ErrFmt,
@@ -60,11 +58,11 @@ enum class EventTypeTy : unsigned int {
   DELETE, // Deletes a buffer at the remote process.
 
   // Data movement.
-  SUBMIT,   // Sends a buffer data to a remote process.
-  RETRIEVE, // Receives a buffer data from a remote process.
-  EXCHANGE, // Exchange a buffer between two remote processes.
-  EXCHANGE_SRC,
-  EXCHANGE_DST,
+  SUBMIT,       // Sends a buffer data to a remote process.
+  RETRIEVE,     // Receives a buffer data from a remote process.
+  EXCHANGE,     // Wait data exchange between two remote processes.
+  EXCHANGE_SRC, // SRC side of the exchange event.
+  EXCHANGE_DST, // DST side of the exchange event.
 
   // Target region execution.
   EXECUTE, // Executes a target region at the remote process.
@@ -82,49 +80,50 @@ enum class EventTypeTy : unsigned int {
 /// \returns the string representation of \p type.
 const char *toString(EventTypeTy Type);
 
-// Coroutine events
-// =============================================================================
-// Return object for the event system coroutines. This class works as an
-// external handle for the coroutine execution, allowing anyone to: query for
-// the coroutine completion, resume the coroutine and check its state. Moreover,
-// this class allows for coroutines to be chainable, meaning a coroutine
-// function may wait on the completion of another one by using the co_await
-// operator, all through a single external handle.
+/// Coroutine events
+///
+/// Return object for the event system coroutines. This class works as an
+/// external handle for the coroutine execution, allowing anyone to: query for
+/// the coroutine completion, resume the coroutine and check its state.
+/// Moreover, this class allows for coroutines to be chainable, meaning a
+/// coroutine function may wait on the completion of another one by using the
+/// co_await operator, all through a single external handle.
 struct EventTy {
-  // Internal event handle to access C++ coroutine states.
+  /// Internal event handle to access C++ coroutine states.
   struct promise_type;
   using CoHandleTy = std::coroutine_handle<promise_type>;
   std::shared_ptr<void> HandlePtr;
 
-  // Internal (and required) promise type. Allows for customization of the
-  // coroutines behavior and to store custom data inside the coroutine itself.
+  /// Internal (and required) promise type. Allows for customization of the
+  /// coroutines behavior and to store custom data inside the coroutine itself.
   struct promise_type {
-    // Coroutines are chained as a reverse linked-list. The most-recent
-    // coroutine in a chain points to the previous one and so on, until the root
-    // (and first) coroutine, which then points to the most-recent one. The root
-    // always refers to the coroutine stored in the external handle, the only
-    // handle an external user have access to.
+    /// Coroutines are chained as a reverse linked-list. The most-recent
+    /// coroutine in a chain points to the previous one and so on, until the
+    /// root (and first) coroutine, which then points to the most-recent one.
+    /// The root always refers to the coroutine stored in the external handle,
+    /// the only handle an external user have access to.
     CoHandleTy PrevHandle;
     CoHandleTy RootHandle;
-    // Indicates if the coroutine was completed successfully. Contains the
-    // appropriate error otherwise.
+
+    /// Indicates if the coroutine was completed successfully. Contains the
+    /// appropriate error otherwise.
     std::optional<llvm::Error> CoroutineError;
 
     promise_type() : CoroutineError(std::nullopt) {
       PrevHandle = RootHandle = CoHandleTy::from_promise(*this);
     }
 
-    // Event coroutines should always suspend upon creation and finalization.
+    /// Event coroutines should always suspend upon creation and finalization.
     std::suspend_always initial_suspend() { return {}; }
     std::suspend_always final_suspend() noexcept { return {}; }
 
-    // Coroutines should return llvm::Error::success() or an appropriate error
-    // message.
+    /// Coroutines should return llvm::Error::success() or an appropriate error
+    /// message.
     void return_value(llvm::Error &&GivenError) noexcept {
       CoroutineError = std::move(GivenError);
     }
 
-    // Any unhandled exception should create an externally visible error.
+    /// Any unhandled exception should create an externally visible error.
     void unhandled_exception() {
       assert(std::uncaught_exceptions() > 0 &&
              "Function should only be called if an uncaught exception is "
@@ -132,7 +131,7 @@ struct EventTy {
       CoroutineError = createError("Event generated an unhandled exception");
     }
 
-    // Returns the external coroutine handle from the promise object.
+    /// Returns the external coroutine handle from the promise object.
     EventTy get_return_object() {
       void *HandlePtr = CoHandleTy::from_promise(*this).address();
       return {std::shared_ptr<void>(HandlePtr, [](void *HandlePtr) {
@@ -142,35 +141,40 @@ struct EventTy {
     }
   };
 
+  /// Returns the external coroutine handle from the event.
   CoHandleTy getHandle() const {
     return CoHandleTy::from_address(HandlePtr.get());
   }
 
-  // Execution handling.
-  // Resume the coroutine execution up until the next suspension point.
+  /// Execution handling.
+  /// Resume the coroutine execution up until the next suspension point.
   void resume();
-  // Blocks the caller thread until the coroutine is completed.
+
+  /// Blocks the caller thread until the coroutine is completed.
   void wait();
-  // Checks if the coroutine is completed or not.
+
+  /// Checks if the coroutine is completed or not.
   bool done() const;
 
-  // Coroutine state handling.
-  // Checks if the coroutine is valid.
+  /// Coroutine state handling.
+  /// Checks if the coroutine is valid.
   bool empty() const;
-  // Get the returned error from the coroutine.
+
+  /// Get the returned error from the coroutine.
   llvm::Error getError() const;
 
-  // EventTy instances are also awaitables. This means one can link multiple
-  // EventTy together by calling the co_await operator on one another. For this
-  // to work, EventTy must implement the following three functions.
-
-  // Called on the new coroutine before suspending the current one on co_await.
-  // If returns true, the new coroutine is already completed, thus it should not
-  // be linked against the current one and the current coroutine can continue
-  // without suspending.
+  /// EventTy instances are also awaitables. This means one can link multiple
+  /// EventTy together by calling the co_await operator on one another. For this
+  /// to work, EventTy must implement the following three functions.
+  ///
+  /// Called on the new coroutine before suspending the current one on co_await.
+  /// If returns true, the new coroutine is already completed, thus it should
+  /// not be linked against the current one and the current coroutine can
+  /// continue without suspending.
   bool await_ready() { return getHandle().done(); }
-  // Called on the new coroutine when the current one is suspended. It is
-  // responsible for chaining coroutines together.
+
+  /// Called on the new coroutine when the current one is suspended. It is
+  /// responsible for chaining coroutines together.
   void await_suspend(CoHandleTy SuspendedHandle) {
     auto Handle = getHandle();
     auto &CurrPromise = Handle.promise();
@@ -182,8 +186,9 @@ struct EventTy {
 
     RootPromise.PrevHandle = Handle;
   }
-  // Called on the new coroutine when the current one is resumed. Used to return
-  // errors when co_awaiting on other EventTy.
+
+  /// Called on the new coroutine when the current one is resumed. Used to
+  /// return errors when co_awaiting on other EventTy.
   llvm::Error await_resume() {
     auto &Error = getHandle().promise().CoroutineError;
 
@@ -195,16 +200,17 @@ struct EventTy {
   }
 };
 
-// Coroutine like manager for many non-blocking MPI calls. Allows for coroutine
-// to co_await on the registered MPI requests.
+/// Coroutine like manager for many non-blocking MPI calls. Allows for coroutine
+/// to co_await on the registered MPI requests.
 class MPIRequestManagerTy {
-  // Target specification for the MPI messages.
+  /// Target specification for the MPI messages.
   const MPI_Comm Comm;
   const int Tag;
-  // Pending MPI requests.
+  /// Pending MPI requests.
   llvm::SmallVector<MPI_Request> Requests;
 
 public:
+  /// Target peer to send and receive messages
   int OtherRank;
 
   MPIRequestManagerTy(MPI_Comm Comm, int Tag, int OtherRank,
@@ -212,6 +218,7 @@ public:
                           {}) // TODO: Change to initializer_list
       : Comm(Comm), Tag(Tag), Requests(InitialRequests), OtherRank(OtherRank) {}
 
+  /// This class should not be copied.
   MPIRequestManagerTy(const MPIRequestManagerTy &) = delete;
   MPIRequestManagerTy &operator=(const MPIRequestManagerTy &) = delete;
 
@@ -225,27 +232,28 @@ public:
 
   ~MPIRequestManagerTy();
 
-  // Sends a buffer of given datatype items with determined size to target.
+  /// Sends a buffer of given datatype items with determined size to target.
   void send(const void *Buffer, int Size, MPI_Datatype Datatype);
 
-  // Send a buffer with determined size to target in batchs.
+  /// Send a buffer with determined size to target in batchs.
   void sendInBatchs(void *Buffer, int Size);
 
-  // Receives a buffer of given datatype items with determined size from target.
+  /// Receives a buffer of given datatype items with determined size from
+  /// target.
   void receive(void *Buffer, int Size, MPI_Datatype Datatype);
 
-  // Receives a buffer with determined size from target in batchs.
+  /// Receives a buffer with determined size from target in batchs.
   void receiveInBatchs(void *Buffer, int Size);
 
-  // Coroutine that waits on all internal pending requests.
+  /// Coroutine that waits on all internal pending requests.
   EventTy wait();
 };
 
-// Data handle for host buffers in event. It keeps the host data even if the
-// original buffer is deallocated before the event happens.
+/// Data handle for host buffers in event. It keeps the host data even if the
+/// original buffer is deallocated before the event happens.
 using EventDataHandleTy = std::shared_ptr<void>;
 
-// Coroutine events created at the origin rank of the event.
+/// Coroutine events created at the origin rank of the event.
 namespace OriginEvents {
 
 EventTy allocateBuffer(MPIRequestManagerTy RequestManager, int64_t Size,
@@ -266,7 +274,7 @@ EventTy loadBinary(MPIRequestManagerTy RequestManager,
                    llvm::SmallVector<void *> *DeviceImageAddrs);
 EventTy exit(MPIRequestManagerTy RequestManager);
 
-// Transform a function pointer to its representing enumerator.
+/// Transform a function pointer to its representing enumerator.
 template <typename FuncTy> constexpr EventTypeTy toEventType(FuncTy) {
   using enum EventTypeTy;
 
@@ -294,8 +302,8 @@ template <typename FuncTy> constexpr EventTypeTy toEventType(FuncTy) {
 
 } // namespace OriginEvents
 
-// Event Queue
-// =============================================================================
+/// Event Queue
+///
 /// Event queue for received events.
 class EventQueue {
 private:
@@ -322,9 +330,8 @@ public:
   EventTy pop(std::stop_token &Stop);
 };
 
-// Event System
-// =============================================================================
-
+/// Event System
+///
 /// MPI tags used in control messages.
 ///
 /// Special tags values used to send control messages between event systems of
@@ -350,20 +357,24 @@ enum class EventSystemStateTy {
 
 /// The distributed event system.
 class EventSystemTy {
-  // MPI definitions.
+  /// MPI definitions.
   /// The largest MPI tag allowed by its implementation.
   int32_t MPITagMaxValue = 0;
+
   /// Communicator used by the gate thread and base communicator for the event
   /// system.
   MPI_Comm GateThreadComm = MPI_COMM_NULL;
+
   /// Communicator pool distributed over the events. Many MPI implementations
   /// allow for better network hardware parallelism when unrelated MPI messages
   /// are exchanged over distinct communicators. Thus this pool will be given in
   /// a round-robin fashion to each newly created event to better utilize the
   /// hardware capabilities.
   llvm::SmallVector<MPI_Comm> EventCommPool{};
+
   /// Number of process used by the event system.
   int WorldSize = -1;
+
   /// The local rank of the current instance.
   int LocalRank = -1;
 
@@ -419,7 +430,11 @@ public:
     requires std::invocable<EventFuncTy, MPIRequestManagerTy, ArgsTy...>
   EventTy createEvent(EventFuncTy EventFunc, int DstDeviceID, ArgsTy... Args);
 
-  /// Notifi
+  /// Create a new Exchange event.
+  ///
+  /// This function notifies \p SrcDevice and \p TargetDevice about the
+  /// transfer and creates a host event that waits until the transfer is
+  /// completed.
   EventTy createExchangeEvent(int SrcDevice, const void *SrcBuffer,
                               int DstDevice, void *DstBuffer, int64_t Size);
 
@@ -436,9 +451,9 @@ public:
 
   /// Check if we are at the host MPI process.
   ///
-  /// \return true if the current MPI process is the host (rank 0), false
-  /// otherwise.
-  int isHead() const;
+  /// \return true if the current MPI process is the host (rank WorldSize-1),
+  /// false otherwise.
+  int isHost() const;
 };
 
 template <class EventFuncTy, typename... ArgsTy>
