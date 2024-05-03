@@ -154,7 +154,8 @@ void AddAliasTagsPass::runOnAliasInterface(fir::FirAliasTagOpInterface op,
 
     // TBAA for global variables
   } else if (enableGlobals &&
-             source.kind == fir::AliasAnalysis::SourceKind::Global && !source.isBoxData()) {
+             source.kind == fir::AliasAnalysis::SourceKind::Global &&
+             !source.isBoxData()) {
     mlir::SymbolRefAttr glbl = source.origin.u.get<mlir::SymbolRefAttr>();
     const char *name = glbl.getRootReference().data();
     LLVM_DEBUG(llvm::dbgs().indent(2) << "Found reference to global " << name
@@ -180,7 +181,8 @@ void AddAliasTagsPass::runOnAliasInterface(fir::FirAliasTagOpInterface op,
   } else if (enableLocalAllocs &&
              source.kind == fir::AliasAnalysis::SourceKind::Allocate) {
     std::optional<llvm::StringRef> name;
-    mlir::Operation *sourceOp = source.origin.u.get<mlir::Value>().getDefiningOp();
+    mlir::Operation *sourceOp =
+        source.origin.u.get<mlir::Value>().getDefiningOp();
     if (auto alloc = mlir::dyn_cast_or_null<fir::AllocaOp>(sourceOp))
       name = alloc.getUniqName();
     else if (auto alloc = mlir::dyn_cast_or_null<fir::AllocMemOp>(sourceOp))
