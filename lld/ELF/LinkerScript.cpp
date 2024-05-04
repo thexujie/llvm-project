@@ -304,6 +304,9 @@ getChangedSymbolAssignment(const SymbolAssignmentMap &oldValues) {
 void LinkerScript::processInsertCommands() {
   SmallVector<OutputDesc *, 0> moves;
   for (const InsertCommand &cmd : insertCommands) {
+    if (config->enableNonContiguousRegions)
+      error("INSERT cannot be used with --enable-non-contiguous-regions");
+
     for (StringRef name : cmd.names) {
       // If base is empty, it may have been discarded by
       // adjustOutputSections(). We do not handle such output sections.
@@ -486,10 +489,12 @@ static void sortInputSections(MutableArrayRef<InputSectionBase *> vec,
 // Compute and remember which sections the InputSectionDescription matches.
 SmallVector<InputSectionBase *, 0>
 LinkerScript::computeInputSections(const InputSectionDescription *cmd,
-                                   ArrayRef<InputSectionBase *> sections) {
+                                   ArrayRef<InputSectionBase *> sections,
+                                   const OutputSection &outCmd) {
   SmallVector<InputSectionBase *, 0> ret;
   SmallVector<size_t, 0> indexes;
   DenseSet<size_t> seen;
+  DenseSet<InputSectionBase *> spills;
   auto sortByPositionThenCommandLine = [&](size_t begin, size_t end) {
     llvm::sort(MutableArrayRef<size_t>(indexes).slice(begin, end - begin));
     for (size_t i = begin; i != end; ++i)
@@ -505,11 +510,32 @@ LinkerScript::computeInputSections(const InputSectionDescription *cmd,
     size_t sizeBeforeCurrPat = ret.size();
 
     for (size_t i = 0, e = sections.size(); i != e; ++i) {
-      // Skip if the section is dead or has been matched by a previous input
-      // section description or a previous pattern.
+      // Skip if the section is dead or has been matched by a previous pattern
+      // in this input section description.
       InputSectionBase *sec = sections[i];
-      if (!sec->isLive() || sec->parent || seen.contains(i))
+      if (!sec->isLive() || seen.contains(i))
         continue;
+
+      if (sec->parent) {
+        // Skip if not allowing multiple matches.
+        if (!config->enableNonContiguousRegions)
+          continue;
+
+        // Disallow spilling into /DISCARD/; special handling would be needed
+        // for this in address assignment, and the semantics are nebulous.
+        if (outCmd.name == "/DISCARD/")
+          continue;
+
+        // Skip if the section's first match was /DISCARD/; such sections are
+        // always discarded.
+        if (sec->parent->name == "/DISCARD/")
+          continue;
+
+        // Skip if the section was already matched by a different input section
+        // description within this output section.
+        if (sec->parent == &outCmd)
+          continue;
+      }
 
       // For --emit-relocs we have to ignore entries like
       //   .rela.dyn : { *(.rela.data) }
@@ -530,6 +556,8 @@ LinkerScript::computeInputSections(const InputSectionDescription *cmd,
         continue;
 
       ret.push_back(sec);
+      if (sec->parent)
+        spills.insert(sec);
       indexes.push_back(i);
       seen.insert(i);
     }
@@ -555,6 +583,32 @@ LinkerScript::computeInputSections(const InputSectionDescription *cmd,
   // Matched sections after the last SORT* are sorted by (--sort-alignment,
   // input order).
   sortByPositionThenCommandLine(sizeAfterPrevSort, ret.size());
+
+  // The flag --enable-non-contiguous-regions may cause sections to match an
+  // InputSectionDescription in more than one OutputSection. Matches after the
+  // first were collected in the spills set, so replace these with potential
+  // spill sections.
+  if (!spills.empty()) {
+    for (InputSectionBase *&sec : ret) {
+      if (!spills.contains(sec))
+        continue;
+
+      PotentialSpillSection *pss = make<PotentialSpillSection>(
+          sec, const_cast<InputSectionDescription *>(cmd));
+
+      // Append the spill input section to the list for the input section,
+      // creating it if necessary.
+      auto res =
+          potentialSpillLists.try_emplace(sec, PotentialSpillList{pss, pss});
+      if (!res.second) {
+        PotentialSpillSection *&tail = res.first->second.tail;
+        tail = tail->next = pss;
+      }
+
+      sec = pss;
+    }
+  }
+
   return ret;
 }
 
@@ -577,7 +631,7 @@ void LinkerScript::discardSynthetic(OutputSection &outCmd) {
         part.armExidx->exidxSections.end());
     for (SectionCommand *cmd : outCmd.commands)
       if (auto *isd = dyn_cast<InputSectionDescription>(cmd))
-        for (InputSectionBase *s : computeInputSections(isd, secs))
+        for (InputSectionBase *s : computeInputSections(isd, secs, outCmd))
           discard(*s);
   }
 }
@@ -588,7 +642,7 @@ LinkerScript::createInputSectionList(OutputSection &outCmd) {
 
   for (SectionCommand *cmd : outCmd.commands) {
     if (auto *isd = dyn_cast<InputSectionDescription>(cmd)) {
-      isd->sectionBases = computeInputSections(isd, ctx.inputSections);
+      isd->sectionBases = computeInputSections(isd, ctx.inputSections, outCmd);
       for (InputSectionBase *s : isd->sectionBases)
         s->parent = &outCmd;
       ret.insert(ret.end(), isd->sectionBases.begin(), isd->sectionBases.end());
@@ -644,6 +698,9 @@ void LinkerScript::processSectionCommands() {
 
   // Process OVERWRITE_SECTIONS first so that it can overwrite the main script
   // or orphans.
+  if (config->enableNonContiguousRegions && !overwriteSections.empty())
+    error("OVERWRITE_SECTIONS cannot be used with "
+          "--enable-non-contiguous-regions");
   DenseMap<CachedHashStringRef, OutputDesc *> map;
   size_t i = 0;
   for (OutputDesc *osd : overwriteSections) {
@@ -911,6 +968,14 @@ void LinkerScript::diagnoseMissingSGSectionAddress() const {
     error("no address assigned to the veneers output section " + sec->name);
 }
 
+void LinkerScript::copyPotentialSpillList(InputSectionBase *dst,
+                                          InputSectionBase *src) {
+  auto i = potentialSpillLists.find(src);
+  if (i == potentialSpillLists.end())
+    return;
+  potentialSpillLists.try_emplace(dst, i->second);
+}
+
 // This function searches for a memory region to place the given output
 // section in. If found, a pointer to the appropriate memory region is
 // returned in the first member of the pair. Otherwise, a nullptr is returned.
@@ -1066,8 +1131,15 @@ void LinkerScript::assignOffsets(OutputSection *sec) {
     // Handle a single input section description command.
     // It calculates and assigns the offsets for each section and also
     // updates the output section size.
-    for (InputSection *isec : cast<InputSectionDescription>(cmd)->sections) {
+
+    auto &sections = cast<InputSectionDescription>(cmd)->sections;
+    for (InputSection *isec : sections) {
       assert(isec->getParent() == sec);
+
+      // Skip all potential spill locations.
+      if (isa<PotentialSpillSection>(isec))
+        continue;
+
       const uint64_t pos = dot;
       dot = alignToPowerOf2(dot, isec->addralign);
       isec->outSecOff = dot - sec->addr;
@@ -1362,6 +1434,117 @@ const Defined *LinkerScript::assignAddresses() {
 
   state = nullptr;
   return getChangedSymbolAssignment(oldValues);
+}
+
+static bool hasRegionOverflowed(MemoryRegion *mr) {
+  if (!mr)
+    return false;
+  return mr->curPos - mr->getOrigin() > mr->getLength();
+}
+
+// Spill input sections in reverse order of address assignment to (potentially)
+// bring memory regions out of overflow. The size savings of a spill can only be
+// estimated, since general linker script arithmetic may occur afterwards.
+// Under-estimates may cause unnecessary spills, but over-estimates can always
+// be corrected on the next pass.
+bool LinkerScript::spillSections() {
+  if (!config->enableNonContiguousRegions)
+    return false;
+
+  bool spilled = false;
+  for (SectionCommand *cmd : reverse(sectionCommands)) {
+    auto *od = dyn_cast<OutputDesc>(cmd);
+    if (!od)
+      continue;
+    OutputSection *osec = &od->osec;
+    if (!osec->size || !osec->memRegion)
+      continue;
+
+    // Input sections that have replaced a potential spill and should be removed
+    // from their input section description.
+    DenseSet<InputSection *> spilledInputSections;
+
+    for (SectionCommand *cmd : reverse(osec->commands)) {
+      if (!hasRegionOverflowed(osec->memRegion) &&
+          !hasRegionOverflowed(osec->lmaRegion))
+        break;
+
+      auto *isd = dyn_cast<InputSectionDescription>(cmd);
+      if (!isd)
+        continue;
+      for (InputSection *isec : reverse(isd->sections)) {
+        // Potential spill locations cannot be spilled.
+        if (isa<PotentialSpillSection>(isec))
+          continue;
+
+        // Find the next spill location.
+        auto it = potentialSpillLists.find(isec);
+        if (it == potentialSpillLists.end())
+          continue;
+
+        spilled = true;
+        PotentialSpillList &list = it->second;
+
+        PotentialSpillSection *spill = list.head;
+        if (!spill->next)
+          potentialSpillLists.erase(isec);
+        else
+          list.head = spill->next;
+
+        spilledInputSections.insert(isec);
+
+        // Replace the next spill location with the spilled section and adjust
+        // its properties to match the new location.
+        *llvm::find(spill->isd->sections, spill) = isec;
+        isec->parent = spill->parent;
+
+        // The alignment of the spill section may have diverged from the
+        // original due to e.g. a SUBALIGN. Correct assignment requires the
+        // spill's alignment to be used, not the original.
+        isec->addralign = spill->addralign;
+
+        // Record the (potential) reduction in the region's end position.
+        osec->memRegion->curPos -= isec->getSize();
+        if (osec->lmaRegion)
+          osec->lmaRegion->curPos -= isec->getSize();
+
+        // Spilling continues until the end position no longer overflows the
+        // region. Then, another round of address assignment will either confirm
+        // the spill's success or lead to yet more spilling.
+        if (!hasRegionOverflowed(osec->memRegion) &&
+            !hasRegionOverflowed(osec->lmaRegion))
+          break;
+      }
+
+      // Remove any spilled input sections to complete their move.
+      if (!spilledInputSections.empty())
+        llvm::erase_if(isd->sections, [&](InputSection *isec) {
+          return spilledInputSections.contains(isec);
+        });
+    }
+  }
+
+  return spilled;
+}
+
+// Erase any potential spill sections that were not used.
+void LinkerScript::erasePotentialSpillSections() {
+  if (potentialSpillLists.empty())
+    return;
+
+  // Collect the set of input section descriptions that contain potential
+  // spills.
+  DenseSet<InputSectionDescription *> isds;
+  for (const auto &[_, list] : potentialSpillLists)
+    for (PotentialSpillSection *s = list.head; s; s = s->next)
+      isds.insert(s->isd);
+
+  for (InputSectionDescription *isd : isds)
+    llvm::erase_if(isd->sections, [](InputSection *s) {
+      return isa<PotentialSpillSection>(s);
+    });
+
+  potentialSpillLists.clear();
 }
 
 // Creates program headers as instructed by PHDRS linker script command.
