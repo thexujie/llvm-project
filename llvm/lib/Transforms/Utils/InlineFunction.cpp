@@ -1352,20 +1352,41 @@ static void AddParamAndFnBasicAttributes(const CallBase &CB,
   auto &Context = CalledFunction->getContext();
 
   // Collect valid attributes for all params.
-  SmallVector<AttrBuilder> ValidParamAttrs;
+  SmallVector<AttrBuilder> ValidObjParamAttrs, ValidExactParamAttrs;
   bool HasAttrToPropagate = false;
 
   for (unsigned I = 0, E = CB.arg_size(); I < E; ++I) {
-    ValidParamAttrs.emplace_back(AttrBuilder{CB.getContext()});
+    ValidObjParamAttrs.emplace_back(AttrBuilder{CB.getContext()});
+    ValidExactParamAttrs.emplace_back(AttrBuilder{CB.getContext()});
     // Access attributes can be propagated to any param with the same underlying
     // object as the argument.
     if (CB.paramHasAttr(I, Attribute::ReadNone))
-      ValidParamAttrs.back().addAttribute(Attribute::ReadNone);
+      ValidObjParamAttrs.back().addAttribute(Attribute::ReadNone);
     if (CB.paramHasAttr(I, Attribute::ReadOnly))
-      ValidParamAttrs.back().addAttribute(Attribute::ReadOnly);
+      ValidObjParamAttrs.back().addAttribute(Attribute::ReadOnly);
     if (CB.paramHasAttr(I, Attribute::WriteOnly))
-      ValidParamAttrs.back().addAttribute(Attribute::WriteOnly);
-    HasAttrToPropagate |= ValidParamAttrs.back().hasAttributes();
+      ValidObjParamAttrs.back().addAttribute(Attribute::WriteOnly);
+
+    // Attributes we can only propagate if the exact parameter is forwarded.
+
+    // We can propagate both poison generating an UB generating attributes
+    // without any extra checks. The only attribute that is tricky to propagate
+    // is `noundef` (skipped for now) as that can create new UB where previous
+    // behavior was just using a poison value.
+    if (auto DerefBytes = CB.getParamDereferenceableBytes(I))
+      ValidExactParamAttrs.back().addDereferenceableAttr(DerefBytes);
+    if (auto DerefOrNullBytes = CB.getParamDereferenceableOrNullBytes(I))
+      ValidExactParamAttrs.back().addDereferenceableOrNullAttr(
+          DerefOrNullBytes);
+    if (CB.paramHasAttr(I, Attribute::NoFree))
+      ValidExactParamAttrs.back().addAttribute(Attribute::NoFree);
+    if (CB.paramHasAttr(I, Attribute::NonNull))
+      ValidExactParamAttrs.back().addAttribute(Attribute::NonNull);
+    if (auto Align = CB.getParamAlign(I))
+      ValidExactParamAttrs.back().addAlignmentAttr(Align);
+
+    HasAttrToPropagate |= ValidObjParamAttrs.back().hasAttributes();
+    HasAttrToPropagate |= ValidExactParamAttrs.back().hasAttributes();
   }
 
   // Won't be able to propagate anything.
@@ -1383,15 +1404,42 @@ static void AddParamAndFnBasicAttributes(const CallBase &CB,
       AttributeList AL = NewInnerCB->getAttributes();
       for (unsigned I = 0, E = InnerCB->arg_size(); I < E; ++I) {
         // Check if the underlying value for the parameter is an argument.
-        const Value *UnderlyingV =
-            getUnderlyingObject(InnerCB->getArgOperand(I));
-        const Argument *Arg = dyn_cast<Argument>(UnderlyingV);
-        if (!Arg)
-          continue;
+        const Argument *Arg = dyn_cast<Argument>(InnerCB->getArgOperand(I));
+        unsigned ArgNo;
+        if (Arg) {
+          ArgNo = Arg->getArgNo();
+          // For dereferenceable, dereferenceable_or_null, align, etc...
+          // we don't want to propagate if the existing param has the same
+          // attribute with "better" constraints. So, only remove from the
+          // existing AL if the region of the existing param is smaller than
+          // what we can propagate. AttributeList's merge API honours the
+          // already existing attribute value so we choose the "better"
+          // attribute by removing if the existing one is worse.
+          if (AL.getParamDereferenceableBytes(I) <
+              ValidExactParamAttrs[ArgNo].getDereferenceableBytes())
+            AL =
+                AL.removeParamAttribute(Context, I, Attribute::Dereferenceable);
+          if (AL.getParamDereferenceableOrNullBytes(I) <
+              ValidExactParamAttrs[ArgNo].getDereferenceableOrNullBytes())
+            AL =
+                AL.removeParamAttribute(Context, I, Attribute::Dereferenceable);
+          if (AL.getParamAlignment(I).valueOrOne() <
+              ValidExactParamAttrs[ArgNo].getAlignment().valueOrOne())
+            AL = AL.removeParamAttribute(Context, I, Attribute::Alignment);
 
-        unsigned ArgNo = Arg->getArgNo();
+          AL = AL.addParamAttributes(Context, I, ValidExactParamAttrs[ArgNo]);
+
+        } else {
+          const Value *UnderlyingV =
+              getUnderlyingObject(InnerCB->getArgOperand(I));
+          Arg = dyn_cast<Argument>(UnderlyingV);
+          if (!Arg)
+            continue;
+          ArgNo = Arg->getArgNo();
+        }
+
         // If so, propagate its access attributes.
-        AL = AL.addParamAttributes(Context, I, ValidParamAttrs[ArgNo]);
+        AL = AL.addParamAttributes(Context, I, ValidObjParamAttrs[ArgNo]);
         // We can have conflicting attributes from the inner callsite and
         // to-be-inlined callsite. In that case, choose the most
         // restrictive.
