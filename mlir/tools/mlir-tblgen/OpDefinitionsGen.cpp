@@ -41,6 +41,14 @@
 
 #define DEBUG_TYPE "mlir-tblgen-opdefgen"
 
+#if 0
+#define DBG_ODS_PRINT(body, X)                                                 \
+  body << "fprintf(stderr, \"Generated from " << X                             \
+       << " at %s:%d\\n\", __FILE__, __LINE__);\n";
+#else
+#define DBG_ODS_PRINT(body, X)
+#endif
+
 using namespace llvm;
 using namespace mlir;
 using namespace mlir::tblgen;
@@ -1321,7 +1329,7 @@ void OpEmitter::genPropertiesSupport() {
       {2};
       if (!attr) {{
         emitError() << "expected key entry for {1} in DictionaryAttr to set "
-                   "Properties.";
+                   "Properties";
         return ::mlir::failure();
       }
       if (::mlir::failed(setFromAttr(prop.{1}, attr, emitError)))
@@ -1380,14 +1388,14 @@ void OpEmitter::genPropertiesSupport() {
     if (attr || /*isRequired=*/{1}) {{
       if (!attr) {{
         emitError() << "expected key entry for {0} in DictionaryAttr to set "
-                   "Properties.";
+                   "Properties";
         return ::mlir::failure();
       }
       auto convertedAttr = ::llvm::dyn_cast<std::remove_reference_t<decltype(propStorage)>>(attr);
       if (convertedAttr) {{
         propStorage = convertedAttr;
       } else {{
-        emitError() << "Invalid attribute `{0}` in property conversion: " << attr;
+        emitError() << "invalid attribute `{0}` in property conversion: " << attr;
         return ::mlir::failure();
       }
     }
@@ -2397,6 +2405,7 @@ void OpEmitter::genSeparateArgParamBuilder() {
     if (!m)
       return;
     auto &body = m->body();
+    DBG_ODS_PRINT(body, __LINE__);
     genCodeForAddingArgAndRegionForBuilder(body, inferredAttributes,
                                            /*isRawValueAttr=*/attrType ==
                                                AttrParamKind::UnwrappedValue);
@@ -2519,6 +2528,7 @@ void OpEmitter::genUseOperandAsResultTypeCollectiveParamBuilder() {
   if (!m)
     return;
   auto &body = m->body();
+  DBG_ODS_PRINT(body, __LINE__);
 
   // Operands
   body << "  " << builderOpState << ".addOperands(operands);\n";
@@ -2623,6 +2633,7 @@ void OpEmitter::genInferredTypeCollectiveParamBuilder() {
   if (!m)
     return;
   auto &body = m->body();
+  DBG_ODS_PRINT(body, __LINE__);
 
   int numResults = op.getNumResults();
   int numVariadicResults = op.getNumVariableLengthResults();
@@ -2650,6 +2661,19 @@ void OpEmitter::genInferredTypeCollectiveParamBuilder() {
   }
 
   // Result types
+  if (emitHelper.hasProperties()) {
+    // Initialize the properties from Attributes before invoking the infer
+    // function.
+    body << formatv(R"(
+  ::mlir::OpaqueProperties properties =
+    &{1}.getOrAddProperties<{0}::Properties>();
+  std::optional<::mlir::RegisteredOperationName> info =
+    {1}.name.getRegisteredInfo();
+  if (failed(info->setOpPropertiesFromAttribute({1}.name, properties,
+      {1}.attributes.getDictionary({1}.getContext()), nullptr)))
+    ::llvm::report_fatal_error("Property conversion failed.");)",
+                    opClass.getClassName(), builderOpState);
+  }
   body << formatv(R"(
   ::llvm::SmallVector<::mlir::Type, 2> inferredReturnTypes;
   if (::mlir::succeeded({0}::inferReturnTypes(odsBuilder.getContext(),
@@ -2684,6 +2708,7 @@ void OpEmitter::genUseOperandAsResultTypeSeparateParamBuilder() {
     if (!m)
       return;
     auto &body = m->body();
+    DBG_ODS_PRINT(body, __LINE__);
     genCodeForAddingArgAndRegionForBuilder(body, inferredAttributes,
                                            /*isRawValueAttr=*/attrType ==
                                                AttrParamKind::UnwrappedValue);
@@ -2721,6 +2746,7 @@ void OpEmitter::genUseAttrAsResultTypeBuilder() {
     return;
 
   auto &body = m->body();
+  DBG_ODS_PRINT(body, __LINE__);
 
   // Push all result types to the operation state
   std::string resultType;
@@ -2852,6 +2878,7 @@ void OpEmitter::genCollectiveParamBuilder() {
   if (!m)
     return;
   auto &body = m->body();
+  DBG_ODS_PRINT(body, __LINE__);
 
   // Operands
   if (numVariadicOperands == 0 || numNonVariadicOperands != 0)
@@ -2878,6 +2905,20 @@ void OpEmitter::genCollectiveParamBuilder() {
          << (numVariadicResults != 0 ? " >= " : " == ") << numNonVariadicResults
          << "u && \"mismatched number of return types\");\n";
   body << "  " << builderOpState << ".addTypes(resultTypes);\n";
+
+  if (emitHelper.hasProperties()) {
+    // Initialize the properties from Attributes before invoking the infer
+    // function.
+    body << formatv(R"(
+  ::mlir::OpaqueProperties properties =
+    &{1}.getOrAddProperties<{0}::Properties>();
+  std::optional<::mlir::RegisteredOperationName> info =
+    {1}.name.getRegisteredInfo();
+  if (failed(info->setOpPropertiesFromAttribute({1}.name, properties,
+      {1}.attributes.getDictionary({1}.getContext()), nullptr)))
+    ::llvm::report_fatal_error("Property conversion failed.");)",
+                    opClass.getClassName(), builderOpState);
+  }
 
   // Generate builder that infers type too.
   // TODO: Expand to handle successors.
