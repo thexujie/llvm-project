@@ -46,7 +46,6 @@ define dso_local void @foo3_writable(ptr %p) {
   ret void
 }
 
-
 define dso_local void @foo1_bar_aligned64_deref512(ptr %p) {
 ; CHECK-LABEL: define {{[^@]+}}@foo1_bar_aligned64_deref512
 ; CHECK-SAME: (ptr [[P:%.*]]) {
@@ -322,6 +321,16 @@ define void @prop_param_nonnull_and_align(ptr %p) {
   ret void
 }
 
+define void @prop_param_nofree_and_align(ptr %p) {
+; CHECK-LABEL: define {{[^@]+}}@prop_param_nofree_and_align
+; CHECK-SAME: (ptr [[P:%.*]]) {
+; CHECK-NEXT:    call void @bar1(ptr [[P]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo1(ptr nofree align 32 %p)
+  ret void
+}
+
 define void @prop_param_deref_align_no_update(ptr %p) {
 ; CHECK-LABEL: define {{[^@]+}}@prop_param_deref_align_no_update
 ; CHECK-SAME: (ptr [[P:%.*]]) {
@@ -528,7 +537,6 @@ define void @prop_no_conflict_writable(ptr %p) {
   ret void
 }
 
-
 define void @prop_no_conflict_writable2(ptr %p) {
 ; CHECK-LABEL: define {{[^@]+}}@prop_no_conflict_writable2
 ; CHECK-SAME: (ptr [[P:%.*]]) {
@@ -539,3 +547,107 @@ define void @prop_no_conflict_writable2(ptr %p) {
   ret void
 }
 
+declare void @bar4(i32)
+
+define dso_local void @foo4_range_0_10(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@foo4_range_0_10
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 range(i32 0, 10) [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @bar4(i32 range(i32 0, 10) %v)
+  ret void
+}
+
+define dso_local void @foo4_2_range_0_10(i32 range(i32 0, 10) %v) {
+; CHECK-LABEL: define {{[^@]+}}@foo4_2_range_0_10
+; CHECK-SAME: (i32 range(i32 0, 10) [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @bar4(i32 %v)
+  ret void
+}
+
+
+define dso_local void @foo4(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@foo4
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @bar4(i32 %v)
+  ret void
+}
+
+
+
+define void @prop_range_empty_intersect(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_empty_intersect
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 range(i32 0, 10) [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4_range_0_10(i32 range(i32 11, 50) %v)
+  ret void
+}
+
+define void @prop_range_empty(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_empty
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4(i32 range(i32 1, 0) %v)
+  ret void
+}
+
+define void @prop_range_empty_with_intersect(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_empty_with_intersect
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 range(i32 0, 10) [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4_range_0_10(i32 range(i32 1, 0) %v)
+  ret void
+}
+
+define void @prop_range_intersect1(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_intersect1
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 range(i32 0, 10) [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4_range_0_10(i32 range(i32 0, 9) %v)
+  ret void
+}
+
+define void @prop_range_intersect2(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_intersect2
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 range(i32 0, 10) [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4_range_0_10(i32 range(i32 1, 9) %v)
+  ret void
+}
+
+define void @prop_range_intersect3(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_intersect3
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4_2_range_0_10(i32 range(i32 0, 11) %v)
+  ret void
+}
+
+define void @prop_range_direct(i32 %v) {
+; CHECK-LABEL: define {{[^@]+}}@prop_range_direct
+; CHECK-SAME: (i32 [[V:%.*]]) {
+; CHECK-NEXT:    call void @bar4(i32 [[V]])
+; CHECK-NEXT:    ret void
+;
+  call void @foo4(i32 range(i32 1, 11) %v)
+  ret void
+}
