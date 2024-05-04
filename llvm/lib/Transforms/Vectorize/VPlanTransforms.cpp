@@ -76,7 +76,7 @@ void VPlanTransforms::VPInstructionsToVPRecipes(
         } else if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
           NewRecipe = new VPWidenCallRecipe(
               CI, Ingredient.operands(), getVectorIntrinsicIDForCall(CI, &TLI),
-              CI->getDebugLoc());
+              CI->getType(), CI->getDebugLoc());
         } else if (SelectInst *SI = dyn_cast<SelectInst>(Inst)) {
           NewRecipe = new VPWidenSelectRecipe(*SI, Ingredient.operands());
         } else if (auto *CI = dyn_cast<CastInst>(Inst)) {
@@ -970,8 +970,8 @@ void VPlanTransforms::truncateToMinimalBitwidths(
   for (VPBasicBlock *VPBB : VPBlockUtils::blocksOnly<VPBasicBlock>(
            vp_depth_first_deep(Plan.getVectorLoopRegion()))) {
     for (VPRecipeBase &R : make_early_inc_range(*VPBB)) {
-      if (!isa<VPWidenRecipe, VPWidenCastRecipe, VPReplicateRecipe,
-               VPWidenSelectRecipe, VPWidenLoadRecipe>(&R))
+      if (!isa<VPWidenRecipe, VPWidenCallRecipe, VPWidenCastRecipe,
+               VPReplicateRecipe, VPWidenSelectRecipe, VPWidenLoadRecipe>(&R))
         continue;
 
       VPValue *ResultVPV = R.getVPSingleValue();
@@ -1048,7 +1048,9 @@ void VPlanTransforms::truncateToMinimalBitwidths(
 
       // Shrink operands by introducing truncates as needed.
       unsigned StartIdx = isa<VPWidenSelectRecipe>(&R) ? 1 : 0;
-      for (unsigned Idx = StartIdx; Idx != R.getNumOperands(); ++Idx) {
+      unsigned EndIdx =
+          R.getNumOperands() - (isa<VPWidenCallRecipe>(&R) ? 1 : 0);
+      for (unsigned Idx = StartIdx; Idx != EndIdx; ++Idx) {
         auto *Op = R.getOperand(Idx);
         unsigned OpSizeInBits =
             TypeInfo.inferScalarType(Op)->getScalarSizeInBits();
@@ -1077,6 +1079,12 @@ void VPlanTransforms::truncateToMinimalBitwidths(
         }
       }
 
+      // If this was a WIDEN-CALL (intrinsic) then we need to update the return
+      // type so it's compatible with the new args.
+      if (isa<VPWidenCallRecipe>(&R)) {
+        auto *callInsn = dyn_cast<VPWidenCallRecipe>(&R);
+        callInsn->setResultType(NewResTy);
+      }
     }
   }
 
