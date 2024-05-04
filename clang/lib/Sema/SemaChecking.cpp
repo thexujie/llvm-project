@@ -40,6 +40,7 @@
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangOptions.h"
@@ -8495,7 +8496,9 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
         << 0 << AdjustedNumArgs << static_cast<unsigned>(Args.size())
         << /*is non object*/ 0 << ExprRange;
     return ExprError();
-  } else if (Args.size() > AdjustedNumArgs) {
+  }
+  
+  if (Args.size() > AdjustedNumArgs) {
     Diag(Args[AdjustedNumArgs]->getBeginLoc(),
          diag::err_typecheck_call_too_many_args)
         << 0 << AdjustedNumArgs << static_cast<unsigned>(Args.size())
@@ -8540,6 +8543,13 @@ ExprResult Sema::BuildAtomicExpr(SourceRange CallRange, SourceRange ExprRange,
           << Ptr->getType() << Ptr->getSourceRange();
       return ExprError();
     }
+  }
+
+  // pointer to object of size zero is not allowed
+  if (Context.getTypeInfoInChars(AtomTy).Width.isZero()) {
+    Diag(ExprRange.getBegin(), diag::err_atomic_op_size_zero)
+        << Ptr->getSourceRange();
+    return ExprError();
   }
 
   // For an arithmetic operation, the implied arithmetic must be well-formed.

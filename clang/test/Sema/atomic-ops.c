@@ -639,6 +639,38 @@ void memory_checks(_Atomic(int) *Ap, int *p, int val) {
   (void)__atomic_compare_exchange_n(p, p, val, 0, memory_order_seq_cst, -1); // expected-warning {{memory order argument to atomic operation is invalid}}
 }
 
+struct Z {
+  char z[];
+};
+
+void zeroSizeArgError(struct Z *a, struct Z *b, struct Z *c) {
+  __atomic_exchange(b, b, c, memory_order_relaxed); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_exchange(b, b, c, memory_order_acq_rel); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_exchange(b, b, c, memory_order_acquire); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_exchange(b, b, c, memory_order_consume); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_exchange(b, b, c, memory_order_release); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_exchange(b, b, c, memory_order_seq_cst); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_relaxed); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_acq_rel); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_acquire); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_consume); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_release); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_load(a, b, memory_order_seq_cst); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_relaxed); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_acq_rel); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_acquire); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_consume); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_release); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_store(a, b, memory_order_seq_cst); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_relaxed, memory_order_relaxed); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_acq_rel, memory_order_acq_rel); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_acquire, memory_order_acquire); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_consume, memory_order_consume); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_release, memory_order_release); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+  __atomic_compare_exchange(a, b, c, 0, memory_order_seq_cst, memory_order_seq_cst); // expected-error {{First argument cannot be a pointer to an object of size zero}}
+
+}
+
 void nullPointerWarning(void) {
   volatile _Atomic(int) vai;
   _Atomic(int) ai;
