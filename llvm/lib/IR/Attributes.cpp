@@ -1530,6 +1530,13 @@ AttributeList::addDereferenceableOrNullParamAttr(LLVMContext &C, unsigned Index,
   return addParamAttributes(C, Index, B);
 }
 
+AttributeList AttributeList::addRangeParamAttr(LLVMContext &C, unsigned Index,
+                                               const ConstantRange &CR) const {
+  AttrBuilder B(C);
+  B.addRangeAttr(CR);
+  return addParamAttributes(C, Index, B);
+}
+
 AttributeList AttributeList::addRangeRetAttr(LLVMContext &C,
                                              const ConstantRange &CR) const {
   AttrBuilder B(C);
@@ -1656,6 +1663,14 @@ uint64_t AttributeList::getRetDereferenceableOrNullBytes() const {
 uint64_t
 AttributeList::getParamDereferenceableOrNullBytes(unsigned Index) const {
   return getParamAttrs(Index).getDereferenceableOrNullBytes();
+}
+
+std::optional<ConstantRange>
+AttributeList::getParamRange(unsigned Index) const {
+  auto RangeAttr = getParamAttrs(Index).getAttribute(Attribute::Range);
+  if (RangeAttr.isValid())
+    return RangeAttr.getRange();
+  return std::nullopt;
 }
 
 FPClassTest AttributeList::getRetNoFPClass() const {
@@ -1989,6 +2004,13 @@ Attribute AttrBuilder::getAttribute(StringRef A) const {
   if (It != Attrs.end() && It->hasAttribute(A))
     return *It;
   return {};
+}
+
+std::optional<ConstantRange> AttrBuilder::getRange() const {
+  const Attribute RangeAttr = getAttribute(Attribute::Range);
+  if (RangeAttr.isValid())
+    return RangeAttr.getRange();
+  return std::nullopt;
 }
 
 bool AttrBuilder::contains(Attribute::AttrKind A) const {
