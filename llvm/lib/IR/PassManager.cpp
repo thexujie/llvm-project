@@ -8,11 +8,20 @@
 
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/PassManagerImpl.h"
+#include "llvm/Support/DebugCounter.h"
 #include <optional>
 
 using namespace llvm;
 
 namespace llvm {
+
+DEBUG_COUNTER(AddNewPMPassCounter, "new-pm-pass-counter",
+              "Control what passes get run");
+
+bool shouldAddNewPMPass() {
+  return DebugCounter::shouldExecute(AddNewPMPassCounter);
+}
+
 // Explicit template instantiations and specialization defininitions for core
 // template typedefs.
 template class AllAnalysesOn<Module>;

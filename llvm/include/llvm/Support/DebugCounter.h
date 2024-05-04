@@ -43,6 +43,7 @@
 #ifndef LLVM_SUPPORT_DEBUGCOUNTER_H
 #define LLVM_SUPPORT_DEBUGCOUNTER_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/UniqueVector.h"
@@ -52,6 +53,18 @@
 namespace llvm {
 
 class raw_ostream;
+
+struct Chunk {
+  int64_t Begin;
+  int64_t End;
+  void print(llvm::raw_ostream &OS);
+  bool contains(int64_t Idx) { return Idx >= Begin && Idx <= End; }
+};
+
+void printChunks(raw_ostream &OS, ArrayRef<Chunk>);
+
+/// Return true on parsing error and print the error message on the llvm::errs()
+bool parseChunks(StringRef Str, SmallVector<Chunk> &Res);
 
 class DebugCounter {
 public:
@@ -77,18 +90,28 @@ public:
     auto Result = Us.Counters.find(CounterName);
     if (Result != Us.Counters.end()) {
       auto &CounterInfo = Result->second;
-      ++CounterInfo.Count;
+      int64_t CurrCount = CounterInfo.Count++;
+      uint64_t CurrIdx = CounterInfo.CurrChunkIdx;
 
-      // We only execute while the Skip is not smaller than Count,
-      // and the StopAfter + Skip is larger than Count.
-      // Negative counters always execute.
-      if (CounterInfo.Skip < 0)
+      if (CounterInfo.Chunks.empty())
         return true;
-      if (CounterInfo.Skip >= CounterInfo.Count)
+      if (CurrIdx >= CounterInfo.Chunks.size())
         return false;
-      if (CounterInfo.StopAfter < 0)
-        return true;
-      return CounterInfo.StopAfter + CounterInfo.Skip >= CounterInfo.Count;
+
+      bool Res = CounterInfo.Chunks[CurrIdx].contains(CurrCount);
+      if (Us.BreakOnLast && CurrIdx == (CounterInfo.Chunks.size() - 1) &&
+          CurrCount == CounterInfo.Chunks[CurrIdx].End) {
+        LLVM_BUILTIN_DEBUGTRAP;
+      }
+      if (CurrCount > CounterInfo.Chunks[CurrIdx].End) {
+        CounterInfo.CurrChunkIdx++;
+
+        /// Handle consecutive blocks.
+        if (CounterInfo.CurrChunkIdx < CounterInfo.Chunks.size() &&
+            CurrCount == CounterInfo.Chunks[CounterInfo.CurrChunkIdx].Begin)
+          return true;
+      }
+      return Res;
     }
     // Didn't find the counter, should we warn?
     return true;
@@ -152,11 +175,11 @@ public:
 #ifdef NDEBUG
     return false;
 #else
-    return instance().Enabled;
+    return instance().Enabled || instance().ShouldPrintCounter;
 #endif
   }
 
-private:
+protected:
   unsigned addCounter(const std::string &Name, const std::string &Desc) {
     unsigned Result = RegisteredCounters.insert(Name);
     Counters[Result] = {};
@@ -166,17 +189,22 @@ private:
   // Struct to store counter info.
   struct CounterInfo {
     int64_t Count = 0;
-    int64_t Skip = 0;
-    int64_t StopAfter = -1;
+    uint64_t CurrChunkIdx = 0;
     bool IsSet = false;
     std::string Desc;
+    SmallVector<Chunk> Chunks;
   };
+
   DenseMap<unsigned, CounterInfo> Counters;
   CounterVector RegisteredCounters;
 
   // Whether we should do DebugCounting at all. DebugCounters aren't
   // thread-safe, so this should always be false in multithreaded scenarios.
   bool Enabled = false;
+
+  bool ShouldPrintCounter = false;
+
+  bool BreakOnLast = false;
 };
 
 #define DEBUG_COUNTER(VARNAME, COUNTERNAME, DESC)                              \
