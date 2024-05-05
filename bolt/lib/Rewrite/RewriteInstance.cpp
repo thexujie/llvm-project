@@ -1264,7 +1264,7 @@ void RewriteInstance::discoverFileObjects() {
                              FDE->getAddressRange());
   }
 
-  BC->setHasSymbolsWithFileName(SeenFileName);
+  BC->setHasSymbolsWithFileName(FileSymbols.size());
 
   // Now that all the functions were created - adjust their boundaries.
   adjustFunctionBoundaries();
