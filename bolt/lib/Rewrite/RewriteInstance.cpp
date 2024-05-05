@@ -813,8 +813,6 @@ void RewriteInstance::discoverFileObjects() {
 
   // For local symbols we want to keep track of associated FILE symbol name for
   // disambiguation by combined name.
-  bool SeenFileName = false;
-  std::vector<std::pair<DataRefImpl, StringRef>> FileSymbols;
   for (const ELFSymbolRef &Symbol : InputFile->symbols()) {
     Expected<StringRef> NameOrError = Symbol.getName();
     if (NameOrError && NameOrError->starts_with("__asan_init")) {
@@ -833,18 +831,8 @@ void RewriteInstance::discoverFileObjects() {
     if (cantFail(Symbol.getFlags()) & SymbolRef::SF_Undefined)
       continue;
 
-    if (cantFail(Symbol.getType()) == SymbolRef::ST_File) {
+    if (cantFail(Symbol.getType()) == SymbolRef::ST_File)
       FileSymbols.emplace_back(Symbol);
-      StringRef Name =
-          cantFail(std::move(NameOrError), "cannot get symbol name for file");
-      // Ignore Clang LTO artificial FILE symbol as it is not always generated,
-      // and this uncertainty is causing havoc in function name matching.
-      if (Name == "ld-temp.o")
-        continue;
-      FileSymbols.emplace_back(Symbol.getRawDataRefImpl(), Name);
-      SeenFileName = true;
-      continue;
-    }
   }
 
   // Sort symbols in the file by value. Ignore symbols from non-allocatable
@@ -1019,16 +1007,11 @@ void RewriteInstance::discoverFileObjects() {
       // The <id> field is used for disambiguation of local symbols since there
       // could be identical function names coming from identical file names
       // (e.g. from different directories).
-      auto CompareSymsByIdx = [](const std::pair<DataRefImpl, StringRef> &A,
-                                 const std::pair<DataRefImpl, StringRef> &B) {
-        return A.first.d.b < B.first.d.b;
-      };
-      DataRefImpl SymDataRef = Symbol.getRawDataRefImpl();
-      auto SFI = llvm::upper_bound(FileSymbols,
-                                   std::make_pair(SymDataRef, StringRef()),
-                                   CompareSymsByIdx);
-      if (SymbolType == SymbolRef::ST_Function && SFI != FileSymbols.begin())
-        AlternativeName = NR.uniquify(Name + "/" + SFI[-1].second.str());
+      auto SFI = llvm::upper_bound(FileSymbols, ELFSymbolRef(Symbol));
+      if (SymbolType == SymbolRef::ST_Function && SFI != FileSymbols.begin()) {
+        StringRef FileSymbolName = cantFail(SFI[-1].getName());
+        AlternativeName = NR.uniquify(Name + "/" + FileSymbolName.str());
+      }
 
       UniqueName = NR.uniquify(Name);
     }
