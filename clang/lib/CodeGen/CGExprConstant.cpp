@@ -1950,8 +1950,22 @@ ConstantLValueEmitter::tryEmitBase(const APValue::LValueBase &base) {
     if (D->hasAttr<WeakRefAttr>())
       return CGM.GetWeakRefReference(D).getPointer();
 
-    if (auto FD = dyn_cast<FunctionDecl>(D))
-      return CGM.GetAddrOfFunction(FD);
+    if (auto FD = dyn_cast<FunctionDecl>(D)) {
+      auto *C = CGM.GetAddrOfFunction(FD);
+
+      // we don't normally emit debug info for extern fns referenced via
+      // variable initialisers; BPF needs it since it generates BTF from
+      // debug info and bpftool demands BTF for every symbol linked
+      if (CGM.getTarget().getTriple().isBPF() && FD->getStorageClass() == SC_Extern) {
+        if (CGDebugInfo *DI = CGM.getModuleDebugInfo()) {
+          auto *Fn = dyn_cast<llvm::Function>(C);
+          if (Fn && !Fn->getSubprogram())
+            DI->EmitFunctionDecl(FD, FD->getLocation(), D->getType(), Fn);
+        }
+      }
+
+      return C;
+    }
 
     if (auto VD = dyn_cast<VarDecl>(D)) {
       // We can never refer to a variable with local storage.
