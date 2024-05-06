@@ -5,6 +5,8 @@
 // RUN: %clang_cc1 -triple powerpc-unknown-linux-gnu -fcomplex-ppc-gnu-abi \
 // RUN:   -emit-llvm %s -o - | FileCheck %s --check-prefix=CHECK-GNU
 
+
+
 // CHECK-DEF-LABEL: define dso_local void @_cfloat
 // CHECK-DEF-SAME: (ptr dead_on_unwind noalias writable sret({ float, float }) align 4 [[AGG_RESULT:%.*]], ptr noundef byval({ float, float }) align 4 [[X:%.*]]) #[[ATTR0:[0-9]+]] {
 // CHECK-DEF-NEXT:  entry:
@@ -25,7 +27,7 @@
 // CHECK-DEF-NEXT:    store float [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP3]], align 4
 // CHECK-DEF-NEXT:    store float [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP4]], align 4
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [1 x i64] @_cfloat
 // CHECK-GNU-SAME: ([1 x i64] noundef [[X_COERCE:%.*]]) #[[ATTR0:[0-9]+]] {
 // CHECK-GNU-NEXT:  entry:
@@ -42,7 +44,7 @@
 // CHECK-GNU-NEXT:    store float [[X_IMAG]], ptr [[RETVAL_IMAGP]], align 4
 // CHECK-GNU-NEXT:    [[TMP0:%.*]] = load [1 x i64], ptr [[RETVAL]], align 4
 // CHECK-GNU-NEXT:    ret [1 x i64] [[TMP0]]
-//
+
 _Complex float _cfloat(_Complex float x) {
   return x;
 }
@@ -67,7 +69,7 @@ _Complex float _cfloat(_Complex float x) {
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP3]], align 8
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP4]], align 8
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [4 x i32] @_cdouble
 // CHECK-GNU-SAME: ([4 x i32] noundef [[X_COERCE:%.*]]) #[[ATTR0]] {
 // CHECK-GNU-NEXT:  entry:
@@ -109,7 +111,7 @@ _Complex double _cdouble(_Complex double x) {
 // CHECK-DEF-NEXT:    store ppc_fp128 [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP3]], align 16
 // CHECK-DEF-NEXT:    store ppc_fp128 [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP4]], align 16
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [8 x i32] @_cldouble
 // CHECK-GNU-SAME: ([8 x i32] noundef [[X_COERCE:%.*]]) #[[ATTR0]] {
 // CHECK-GNU-NEXT:  entry:
@@ -126,7 +128,7 @@ _Complex double _cdouble(_Complex double x) {
 // CHECK-GNU-NEXT:    store ppc_fp128 [[X_IMAG]], ptr [[RETVAL_IMAGP]], align 16
 // CHECK-GNU-NEXT:    [[TMP0:%.*]] = load [8 x i32], ptr [[RETVAL]], align 16
 // CHECK-GNU-NEXT:    ret [8 x i32] [[TMP0]]
-//
+
 _Complex long double _cldouble(_Complex long double x) {
   return x;
 }
@@ -164,7 +166,7 @@ _Complex long double _cldouble(_Complex long double x) {
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP3]], align 8
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP4]], align 8
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [4 x i32] @testComplexDouble
 // CHECK-GNU-SAME: (i32 noundef [[W:%.*]], [1 x i64] noundef [[X_COERCE:%.*]], [4 x i32] noundef [[Z_COERCE:%.*]]) #[[ATTR0]] {
 // CHECK-GNU-NEXT:  entry:
@@ -198,7 +200,7 @@ _Complex long double _cldouble(_Complex long double x) {
 // CHECK-GNU-NEXT:    store double [[COERCE1_IMAG]], ptr [[RETVAL_IMAGP]], align 8
 // CHECK-GNU-NEXT:    [[TMP1:%.*]] = load [4 x i32], ptr [[RETVAL]], align 8
 // CHECK-GNU-NEXT:    ret [4 x i32] [[TMP1]]
-//
+
 _Complex double testComplexDouble(int w, _Complex float x, _Complex double z)
 {
   return _cdouble(z);
@@ -249,7 +251,7 @@ _Complex double testComplexDouble(int w, _Complex float x, _Complex double z)
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP4]], align 8
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP5]], align 8
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [4 x i32] @checkComplexDoubleOnStack
 // CHECK-GNU-SAME: (i32 noundef [[X1:%.*]], [1 x i64] noundef [[CF_COERCE:%.*]], i32 noundef [[X2:%.*]], ptr noundef byval({ double, double }) align 8 [[CD:%.*]]) #[[ATTR0]] {
 // CHECK-GNU-NEXT:  entry:
@@ -294,7 +296,7 @@ _Complex double testComplexDouble(int w, _Complex float x, _Complex double z)
 // CHECK-GNU-NEXT:    store double [[COERCE2_IMAG]], ptr [[RETVAL_IMAGP]], align 8
 // CHECK-GNU-NEXT:    [[TMP3:%.*]] = load [4 x i32], ptr [[RETVAL]], align 8
 // CHECK-GNU-NEXT:    ret [4 x i32] [[TMP3]]
-//
+
 _Complex double checkComplexDoubleOnStack(int x1, _Complex float cf, int x2, _Complex double cd)
 {
   return testComplexDouble(x2, cf, cd);
@@ -343,7 +345,7 @@ _Complex double checkComplexDoubleOnStack(int x1, _Complex float cf, int x2, _Co
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_REAL]], ptr [[AGG_RESULT_REALP4]], align 8
 // CHECK-DEF-NEXT:    store double [[AGG_RESULT_IMAG]], ptr [[AGG_RESULT_IMAGP5]], align 8
 // CHECK-DEF-NEXT:    ret void
-//
+
 // CHECK-GNU-LABEL: define dso_local [4 x i32] @checkComplexFloatOnStack
 // CHECK-GNU-SAME: ([4 x i32] noundef [[_CD1_COERCE:%.*]], [1 x i64] noundef [[_CF1_COERCE:%.*]], i32 noundef [[Y:%.*]], ptr noundef byval({ float, float }) align 4 [[_CF2:%.*]]) #[[ATTR0]] {
 // CHECK-GNU-NEXT:  entry:
@@ -387,7 +389,7 @@ _Complex double checkComplexDoubleOnStack(int x1, _Complex float cf, int x2, _Co
 // CHECK-GNU-NEXT:    store double [[COERCE1_IMAG]], ptr [[RETVAL_IMAGP]], align 8
 // CHECK-GNU-NEXT:    [[TMP2:%.*]] = load [4 x i32], ptr [[RETVAL]], align 8
 // CHECK-GNU-NEXT:    ret [4 x i32] [[TMP2]]
-//
+
 _Complex double checkComplexFloatOnStack(_Complex double _cd1, _Complex float _cf1, int y, _Complex float _cf2)
 {
   return checkComplexDoubleOnStack(y, _cf2, 0, _cd1);

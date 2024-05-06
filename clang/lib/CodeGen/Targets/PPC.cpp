@@ -331,7 +331,7 @@ class PPC32_SVR4_ABIInfo : public DefaultABIInfo {
   bool IsSoftFloatABI;
   bool IsRetSmallStructInRegABI;
   // Size of GPR in bits.
-  static const unsigned RegLen = 32;
+  static const unsigned GPRBits = 32;
   static const int ArgGPRsNum = 8;
 
   CharUnits getParamTypeAlignment(QualType Ty) const;
@@ -455,8 +455,8 @@ ABIArgInfo PPC32_SVR4_ABIInfo::classifyArgumentType(QualType Ty,
     if (TypeSize == 64 && ArgGPRsLeft % 2 == 1)
       --ArgGPRsLeft;
 
-    if (TypeSize <= RegLen * ArgGPRsLeft) {
-      ArgGPRsLeft -= TypeSize / RegLen;
+    if (TypeSize <= GPRBits * ArgGPRsLeft) {
+      ArgGPRsLeft -= TypeSize / GPRBits;
       if (IsComplex)
         return handleComplex(TypeSize);
     }
