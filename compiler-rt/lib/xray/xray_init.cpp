@@ -71,6 +71,7 @@ __xray_register_sleds(const XRaySledEntry *SledsBegin,
                       const XRayFunctionSledIndex *FnIndexEnd, bool FromDSO,
                       XRayTrampolines Trampolines) XRAY_NEVER_INSTRUMENT {
   if (!SledsBegin || !SledsEnd) {
+    Report("Invalid XRay sleds.\n");
     return -1;
   }
   XRaySledMap SledMap;

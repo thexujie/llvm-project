@@ -328,7 +328,6 @@ if (APPLE)
     LINK_LIBS ${XRAY_LINK_LIBS}
     PARENT_TARGET xray)
 else() # not Apple
-  message("DSO Supported Archs: ${XRAY_DSO_SUPPORTED_ARCH}")
   foreach(arch ${XRAY_SUPPORTED_ARCH})
     if(NOT CAN_TARGET_${arch})
       continue()
