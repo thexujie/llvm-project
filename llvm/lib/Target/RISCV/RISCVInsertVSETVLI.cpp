@@ -1649,8 +1649,16 @@ bool RISCVCoalesceVSETVLI::coalesceVSETVLIs(MachineBasicBlock &MBB) {
             NextMI->getOperand(1).setReg(RISCV::NoRegister);
 
           // NextMI no longer uses OldVLReg so shrink its LiveInterval.
+          SmallVector<MachineInstr *> DeadMIs;
           if (OldVLReg && OldVLReg.isVirtual())
-            LIS->shrinkToUses(&LIS->getInterval(OldVLReg), &ToDelete);
+            LIS->shrinkToUses(&LIS->getInterval(OldVLReg), &DeadMIs);
+          for (MachineInstr *DeadMI : DeadMIs) {
+            bool SawStore = false;
+            if (DeadMI->isSafeToMove(nullptr, SawStore) &&
+                !DeadMI->isBundled() && !DeadMI->isInlineAsm())
+              ToDelete.push_back(DeadMI);
+          }
+
           MI.setDesc(NextMI->getDesc());
         }
         MI.getOperand(2).setImm(NextMI->getOperand(2).getImm());
