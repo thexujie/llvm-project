@@ -1689,35 +1689,56 @@ void SBDebugger::SetLoggingCallback(lldb::LogOutputCallback log_callback,
 void SBDebugger::SetDestroyCallback(
     lldb::SBDebuggerDestroyCallback destroy_callback, void *baton) {
   LLDB_INSTRUMENT_VA(this, destroy_callback, baton);
+
   if (m_opaque_sp) {
-    return m_opaque_sp->SetDestroyCallback(
-        destroy_callback, baton);
+    m_opaque_sp->SetDestroyCallback(destroy_callback, baton);
   }
+}
+
+lldb::destroy_callback_token_t
+SBDebugger::AddDestroyCallback(lldb::SBDebuggerDestroyCallback destroy_callback,
+                               void *baton) {
+  LLDB_INSTRUMENT_VA(this, destroy_callback, baton);
+
+  if (m_opaque_sp) {
+    return m_opaque_sp->AddDestroyCallback(destroy_callback, baton);
+  }
+  return LLDB_INVALID_DESTROY_CALLBACK_TOKEN;
+}
+
+bool SBDebugger::RemoveDestroyCallback(lldb::destroy_callback_token_t token) {
+  LLDB_INSTRUMENT_VA(this, token);
+
+  if (m_opaque_sp) {
+    return m_opaque_sp->RemoveDestroyCallback(token);
+  }
+  return false;
 }
 
 SBTrace
 SBDebugger::LoadTraceFromFile(SBError &error,
                               const SBFileSpec &trace_description_file) {
   LLDB_INSTRUMENT_VA(this, error, trace_description_file);
+
   return SBTrace::LoadTraceFromFile(error, *this, trace_description_file);
 }
 
 void SBDebugger::RequestInterrupt() {
   LLDB_INSTRUMENT_VA(this);
-  
+
   if (m_opaque_sp)
-    m_opaque_sp->RequestInterrupt();  
+    m_opaque_sp->RequestInterrupt();
 }
 void SBDebugger::CancelInterruptRequest()  {
   LLDB_INSTRUMENT_VA(this);
-  
+
   if (m_opaque_sp)
-    m_opaque_sp->CancelInterruptRequest();  
+    m_opaque_sp->CancelInterruptRequest();
 }
 
 bool SBDebugger::InterruptRequested()   {
   LLDB_INSTRUMENT_VA(this);
-  
+
   if (m_opaque_sp)
     return m_opaque_sp->InterruptRequested();
   return false;

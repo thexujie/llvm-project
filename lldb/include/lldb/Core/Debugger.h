@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "lldb/Core/DebuggerEvents.h"
@@ -568,9 +569,24 @@ public:
 
   static void ReportSymbolChange(const ModuleSpec &module_spec);
 
+  /// DEPRECATED: We used to only support one Destroy callback. Now that we
+  /// support Add and Remove, you should only remove callbacks that you added.
+  /// Use Add and Remove instead.
+  ///
+  /// Clear all previously added callbacks and only add the given one.
   void
   SetDestroyCallback(lldb_private::DebuggerDestroyCallback destroy_callback,
                      void *baton);
+
+  /// Add a callback for when the debugger is destroyed. Return a token, which
+  /// can be used to remove said callback. Multiple callbacks can be added by
+  /// calling this function multiple times.
+  lldb::destroy_callback_token_t
+  AddDestroyCallback(lldb_private::DebuggerDestroyCallback destroy_callback,
+                     void *baton);
+
+  /// Remove the specified callback. Return true if successful.
+  bool RemoveDestroyCallback(lldb::destroy_callback_token_t token);
 
   /// Manually start the global event handler thread. It is useful to plugins
   /// that directly use the \a lldb_private namespace and want to use the
@@ -730,8 +746,11 @@ protected:
   lldb::TargetSP m_dummy_target_sp;
   Diagnostics::CallbackID m_diagnostics_callback_id;
 
-  lldb_private::DebuggerDestroyCallback m_destroy_callback = nullptr;
-  void *m_destroy_callback_baton = nullptr;
+  std::recursive_mutex m_destroy_callback_mutex;
+  lldb::destroy_callback_token_t m_destroy_callback_next_token = 0;
+  llvm::SmallDenseMap<lldb::destroy_callback_token_t,
+                      std::pair<lldb_private::DebuggerDestroyCallback, void *>>
+      m_destroy_callback_and_baton;
 
   uint32_t m_interrupt_requested = 0; ///< Tracks interrupt requests
   std::mutex m_interrupt_mutex;
