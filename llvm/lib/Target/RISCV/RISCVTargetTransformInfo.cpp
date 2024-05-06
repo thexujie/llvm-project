@@ -92,6 +92,7 @@ static InstructionCost getSiFiveX280RVVCost(ArrayRef<unsigned> OpCodes, MVT VT,
                                             const RISCVTTIImpl *TTI,
                                             const RISCVTargetLowering *TLI) {
   InstructionCost LMULCost = TLI->getLMULCost(VT);
+  size_t NumInstr = OpCodes.size();
   if ((CostKind != TTI::TCK_RecipThroughput) && (CostKind != TTI::TCK_Latency))
     return LMULCost * NumInstr;
   InstructionCost Cost = 0;
