@@ -95,7 +95,7 @@ __xray_register_sleds(const XRaySledEntry *SledsBegin,
         LastFnAddr = Function;
       }
     }
-
+    SledMap.SledsIndex = nullptr;
     SledMap.Functions = CountFunctions;
   }
   if (SledMap.Functions >= XRayMaxFunctions) {
