@@ -371,7 +371,7 @@ else() # not Apple
      LINK_LIBS ${XRAY_LINK_LIBS}
      DEFS ${XRAY_COMMON_DEFINITIONS}
      OBJECT_LIBS ${XRAY_COMMON_RUNTIME_OBJECT_LIBS} RTXray
-     PARENT_TARGET xray)  
+     PARENT_TARGET xray)
     # FDR mode runtime archive (addon for clang_rt.xray)
     add_compiler_rt_runtime(clang_rt.xray-fdr
       STATIC
