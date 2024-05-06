@@ -4399,6 +4399,7 @@ immediately after the name being declared.
 For example, this applies the GNU ``unused`` attribute to ``a`` and ``f``, and
 also applies the GNU ``noreturn`` attribute to ``f``.
 
+Examples:
 .. code-block:: c++
 
   [[gnu::unused]] int a, f [[gnu::noreturn]] ();
@@ -4407,6 +4408,42 @@ Target-Specific Extensions
 ==========================
 
 Clang supports some language features conditionally on some targets.
+
+AMDGPU Language Extensions
+--------------------------
+
+__builtin_amdgcn_fence
+^^^^^^^^^^^^^^^^^^^^^^
+
+``__builtin_amdgcn_fence`` emits a fence.
+
+* ``unsigned`` atomic ordering, e.g. ``__ATOMIC_ACQUIRE``
+* ``const char *`` synchronization scope, e.g. ``workgroup``
+* Zero or more ``const char *`` address spaces names.
+
+The address spaces arguments must be string literals with known values, such as:
+
+* ``"local"``
+* ``"global"``
+* ``"image"``
+
+If one or more address space name are provided, the code generator will attempt
+to emit potentially faster instructions that only fence those address spaces.
+Emitting such instructions may not always be possible and the compiler is free
+to fence more aggressively.
+
+If no address spaces names are provided, all address spaces are fenced.
+
+.. code-block:: c++
+
+  // Fence all address spaces.
+  __builtin_amdgcn_fence(__ATOMIC_SEQ_CST, "workgroup");
+  __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");
+
+  // Fence only requested address spaces.
+  __builtin_amdgcn_fence(__ATOMIC_SEQ_CST, "workgroup", "local")
+  __builtin_amdgcn_fence(__ATOMIC_SEQ_CST, "workgroup", "local", "global")
+
 
 ARM/AArch64 Language Extensions
 -------------------------------
