@@ -187,3 +187,21 @@ void bar() {
 }
 
 } // namespace ignore_for_if
+
+namespace conditional_op {
+RefCountable *provide_ref_ctnbl();
+bool bar();
+
+void foo() {
+  RefCountable *a = bar() ? nullptr : provide_ref_ctnbl();
+  // expected-warning@-1{{Local variable 'a' is uncounted and unsafe [alpha.webkit.UncountedLocalVarsChecker]}}
+  RefPtr<RefCountable> b = provide_ref_ctnbl();
+  {
+    RefCountable* c = bar() ? nullptr : b.get();
+    c->method();
+    RefCountable* d = bar() ? b.get() : nullptr;
+    d->method();
+  }
+}
+
+} // namespace conditional_op
