@@ -1417,6 +1417,9 @@ SDValue SelectionDAGLegalize::ExpandExtractFromVectorThroughStack(SDValue Op) {
     Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, StoreMMO);
   }
 
+  // Freeze the index so we don't poison the clamping code we're about to emit.
+  Idx = DAG.getFreeze(Idx);
+
   SDValue NewLoad;
   Align ElementAlignment =
       std::min(cast<StoreSDNode>(Ch)->getAlign(),
