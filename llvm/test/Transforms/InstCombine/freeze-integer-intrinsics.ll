@@ -396,8 +396,7 @@ define <2 x i32> @sshl_sat_v2i32_unsafe_constant_vector(<2 x i32> %arg0) {
 
 define <vscale x 2 x i32> @ushl_sat_v2i32_scalable_zeroinitializer(<vscale x 2 x i32> %arg0) {
 ; CHECK-LABEL: @ushl_sat_v2i32_scalable_zeroinitializer(
-; CHECK-NEXT:    [[CALL:%.*]] = call <vscale x 2 x i32> @llvm.ushl.sat.nxv2i32(<vscale x 2 x i32> [[ARG0:%.*]], <vscale x 2 x i32> zeroinitializer)
-; CHECK-NEXT:    [[FREEZE:%.*]] = freeze <vscale x 2 x i32> [[CALL]]
+; CHECK-NEXT:    [[FREEZE:%.*]] = freeze <vscale x 2 x i32> [[CALL:%.*]]
 ; CHECK-NEXT:    ret <vscale x 2 x i32> [[FREEZE]]
 ;
   %call = call <vscale x 2 x i32> @llvm.ushl.sat.nxv2i32(<vscale x 2 x i32> %arg0, <vscale x 2 x i32> zeroinitializer)
@@ -407,8 +406,7 @@ define <vscale x 2 x i32> @ushl_sat_v2i32_scalable_zeroinitializer(<vscale x 2 x
 
 define <vscale x 2 x i32> @sshl_sat_v2i32_scalable_zeroinitializer(<vscale x 2 x i32> %arg0) {
 ; CHECK-LABEL: @sshl_sat_v2i32_scalable_zeroinitializer(
-; CHECK-NEXT:    [[CALL:%.*]] = call <vscale x 2 x i32> @llvm.sshl.sat.nxv2i32(<vscale x 2 x i32> [[ARG0:%.*]], <vscale x 2 x i32> zeroinitializer)
-; CHECK-NEXT:    [[FREEZE:%.*]] = freeze <vscale x 2 x i32> [[CALL]]
+; CHECK-NEXT:    [[FREEZE:%.*]] = freeze <vscale x 2 x i32> [[CALL:%.*]]
 ; CHECK-NEXT:    ret <vscale x 2 x i32> [[FREEZE]]
 ;
   %call = call <vscale x 2 x i32> @llvm.sshl.sat.nxv2i32(<vscale x 2 x i32> %arg0, <vscale x 2 x i32> zeroinitializer)
