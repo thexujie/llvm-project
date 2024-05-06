@@ -1,7 +1,5 @@
 // RUN: %libomptarget-compile-run-and-check-generic
 
-// UNSUPPORTED: x86_64-pc-linux-gnu-mpi
-
 #include <omp.h>
 #include <stdio.h>
 

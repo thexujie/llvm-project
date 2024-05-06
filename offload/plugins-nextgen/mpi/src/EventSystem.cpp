@@ -208,6 +208,21 @@ EventTy operator co_await(MPIRequestManagerTy &RequestManager) {
   return RequestManager.wait();
 }
 
+void *memAllocHost(int64_t Size) {
+  void *HstPrt = nullptr;
+  int MPIError = MPI_Alloc_mem(Size, MPI_INFO_NULL, &HstPrt);
+  if (MPIError != MPI_SUCCESS)
+    return nullptr;
+  return HstPrt;
+}
+
+int memFreeHost(void *HstPtr) {
+  int MPIError = MPI_Free_mem(HstPtr);
+  if (MPIError != MPI_SUCCESS)
+    return OFFLOAD_FAIL;
+  return OFFLOAD_SUCCESS;
+}
+
 /// Device Image Storage. This class is used to store Device Image data
 /// in the remote device process.
 struct DeviceImage : __tgt_device_image {

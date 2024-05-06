@@ -261,6 +261,10 @@ struct MPIDeviceTy : public GenericDeviceTy {
       Err = Event.getError();
       break;
     case TARGET_ALLOC_HOST:
+      BufferAddress = memAllocHost(Size);
+      Err = Plugin::check(BufferAddress == nullptr,
+                          "Failed to allocate host memory");
+      break;
     case TARGET_ALLOC_SHARED:
       Err = Plugin::error("Incompatible memory type %d", Kind);
       break;
@@ -299,6 +303,8 @@ struct MPIDeviceTy : public GenericDeviceTy {
       Err = Event.getError();
       break;
     case TARGET_ALLOC_HOST:
+      Err = Plugin::check(memFreeHost(TgtPtr), "Failed to free host memory");
+      break;
     case TARGET_ALLOC_SHARED:
       Err = createStringError(inconvertibleErrorCode(),
                               "Incompatible memory type %d", Kind);

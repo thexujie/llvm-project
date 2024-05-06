@@ -253,6 +253,14 @@ public:
 /// original buffer is deallocated before the event happens.
 using EventDataHandleTy = std::shared_ptr<void>;
 
+/// Routines to alloc/dealloc pinned host memory.
+///
+/// Allocate \p Size of host memory and returns its ptr.
+void *memAllocHost(int64_t Size);
+
+/// Deallocate the host memory pointered by \p HstPrt.
+int memFreeHost(void *HstPtr);
+
 /// Coroutine events created at the origin rank of the event.
 namespace OriginEvents {
 
