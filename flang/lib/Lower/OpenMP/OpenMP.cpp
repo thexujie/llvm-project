@@ -1634,11 +1634,15 @@ genTargetOp(Fortran::lower::AbstractConverter &converter,
         } else if (!fir::isa_builtin_cptr_type(eleType)) {
           mapFlag |= llvm::omp::OpenMPOffloadMappingFlags::OMP_MAP_TO;
           mapFlag |= llvm::omp::OpenMPOffloadMappingFlags::OMP_MAP_FROM;
-        }
-
+        };
+        auto context = converter.getFirOpBuilder().getContext();
+        auto location =
+            mlir::NameLoc::get(mlir::StringAttr::get(firOpBuilder.getContext(),
+                                                     sym.name().ToString()),
+                               baseOp.getLoc());
         mlir::Value mapOp = createMapInfoOp(
-            firOpBuilder, baseOp.getLoc(), baseOp, mlir::Value{}, name.str(),
-            bounds, {},
+            firOpBuilder, location, baseOp, mlir::Value{}, name.str(), bounds,
+            {},
             static_cast<
                 std::underlying_type_t<llvm::omp::OpenMPOffloadMappingFlags>>(
                 mapFlag),
