@@ -172,7 +172,7 @@ define i1 @eq_const_mask_not_same(i8 %x, i8 %y) {
 define i1 @eq_const_mask_wrong_opcode(i8 %x, i8 %y) {
 ; CHECK-LABEL: @eq_const_mask_wrong_opcode(
 ; CHECK-NEXT:    [[B0:%.*]] = or i8 [[X:%.*]], 5
-; CHECK-NEXT:    [[TMP1:%.*]] = xor i8 [[B0]], [[Y:%.*]]
+; CHECK-NEXT:    [[TMP1:%.*]] = xor i8 [[Y:%.*]], [[B0]]
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[TMP1]], 5
 ; CHECK-NEXT:    ret i1 [[CMP]]
 ;
@@ -955,7 +955,7 @@ define i1 @icmp_or_xor_with_sub_3_6(i64 %x1, i64 %y1, i64 %x2, i64 %y2, i64 %x3,
 
 define i1 @or_disjoint_with_constants(i8 %x) {
 ; CHECK-LABEL: @or_disjoint_with_constants(
-; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[TMP1:%.*]], 18
+; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[X:%.*]], 18
 ; CHECK-NEXT:    ret i1 [[CMP]]
 ;
   %or = or disjoint i8 %x, 1
@@ -966,8 +966,8 @@ define i1 @or_disjoint_with_constants(i8 %x) {
 
 define i1 @or_disjoint_with_constants2(i8 %x) {
 ; CHECK-LABEL: @or_disjoint_with_constants2(
-; CHECK-NEXT:    [[OR:%.*]] = or disjoint i8 [[TMP1:%.*]], 5
-; CHECK-NEXT:    [[CMP:%.*]] = icmp ne i8 [[TMP1]], 66
+; CHECK-NEXT:    [[OR:%.*]] = or disjoint i8 [[X:%.*]], 5
+; CHECK-NEXT:    [[CMP:%.*]] = icmp ne i8 [[X]], 66
 ; CHECK-NEXT:    call void @use(i8 [[OR]])
 ; CHECK-NEXT:    ret i1 [[CMP]]
 ;

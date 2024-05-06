@@ -80,7 +80,7 @@ define void @negative_load(i32 %V1, ptr %P) {
 define void @deref_load(i32 %V1, ptr dereferenceable(4) align 4 %P) nofree nosync {
 ; CHECK-LABEL: @deref_load(
 ; CHECK-NEXT:    [[V2:%.*]] = load i32, ptr [[P:%.*]], align 4
-; CHECK-NEXT:    [[TMP1:%.*]] = and i32 [[V2]], [[V1:%.*]]
+; CHECK-NEXT:    [[TMP1:%.*]] = and i32 [[V1:%.*]], [[V2]]
 ; CHECK-NEXT:    [[TMP2:%.*]] = icmp slt i32 [[TMP1]], 0
 ; CHECK-NEXT:    call void (i1, ...) @llvm.experimental.guard(i1 [[TMP2]], i32 123) [ "deopt"() ]
 ; CHECK-NEXT:    ret void
@@ -116,10 +116,10 @@ define void @negative_window(i32 %V1, i32 %a, i32 %b, i32 %c, i32 %d) {
 ; CHECK-LABEL: @negative_window(
 ; CHECK-NEXT:    [[A:%.*]] = icmp slt i32 [[V1:%.*]], 0
 ; CHECK-NEXT:    call void (i1, ...) @llvm.experimental.guard(i1 [[A]], i32 123) [ "deopt"() ]
-; CHECK-NEXT:    [[V2:%.*]] = add i32 [[A:%.*]], [[B:%.*]]
+; CHECK-NEXT:    [[V2:%.*]] = add i32 [[A]], [[B:%.*]]
 ; CHECK-NEXT:    [[V3:%.*]] = add i32 [[V2]], [[C:%.*]]
 ; CHECK-NEXT:    [[V4:%.*]] = add i32 [[V3]], [[D:%.*]]
-; CHECK-NEXT:    [[B:%.*]] = icmp slt i32 [[V4]], 0
+; CHECK-NEXT:    [[B]] = icmp slt i32 [[V4]], 0
 ; CHECK-NEXT:    call void (i1, ...) @llvm.experimental.guard(i1 [[B]], i32 456) [ "deopt"() ]
 ; CHECK-NEXT:    ret void
 ;
