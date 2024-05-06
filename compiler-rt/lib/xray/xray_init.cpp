@@ -102,9 +102,8 @@ __xray_register_sleds(const XRaySledEntry *SledsBegin,
     return -1;
   }
 
-  if (Verbosity()) {
+  if (Verbosity())
     Report("Registering %d new functions!\n", SledMap.Functions);
-  }
 
   {
     SpinMutexLock Guard(&XRayInstrMapMutex);
@@ -145,8 +144,14 @@ void __xray_init() XRAY_NEVER_INSTRUMENT {
   // Pre-allocation takes up approx. 5kB for XRayMaxObjects=64.
   XRayInstrMaps = allocateBuffer<XRaySledMap>(XRayMaxObjects);
 
-  __xray_register_sleds(__start_xray_instr_map, __stop_xray_instr_map,
+  int MainBinaryId = __xray_register_sleds(__start_xray_instr_map, __stop_xray_instr_map,
                         __start_xray_fn_idx, __stop_xray_fn_idx, false, {});
+
+  // The executable should always get ID 0.
+  if (MainBinaryId != 0) {
+    Report("Registering XRay sleds failed.\n");
+    return;
+  }
 
   atomic_store(&XRayInitialized, true, memory_order_release);
 
@@ -187,8 +192,12 @@ SANITIZER_INTERFACE_ATTRIBUTE int32_t __xray_register_dso(
 
 SANITIZER_INTERFACE_ATTRIBUTE bool
 __xray_deregister_dso(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
-  // Make sure XRay has been initialized in the main executable.
-  __xray_init();
+
+  if (!atomic_load(&XRayInitialized, memory_order_acquire)) {
+    if (Verbosity())
+      Report("XRay has not been initialized. Cannot deregister DSO.\n");
+    return false;
+  }
 
   if (ObjId <= 0 || ObjId >= __xray_num_objects()) {
     if (Verbosity())
@@ -210,8 +219,9 @@ __xray_deregister_dso(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
       if (Verbosity())
         Report("Can't deregister object with ID %d: object is not loaded.\n",
                ObjId);
+      return false;
     }
-    // This is all we have to do here.
+    // Mark DSO as unloaded. No need to unpatch.
     Entry.Loaded = false;
   }
 
