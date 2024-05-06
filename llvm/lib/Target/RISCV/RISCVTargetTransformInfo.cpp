@@ -34,14 +34,21 @@ static cl::opt<unsigned> SLPMaxVF(
         "exclusively by SLP vectorizer."),
     cl::Hidden);
 
-static std::optional<InstructionCost>
-getSiFiveX280RVVCost(unsigned Op, MVT VT, TTI::TargetCostKind CostKind) {
-  std::optional<InstructionCost> Cost;
-  unsigned VScale = 8;
+static InstructionCost getRVVBaseCost(unsigned Op, MVT VT,
+                                      const RISCVTTIImpl *TTI,
+                                      const RISCVTargetLowering *TLI) {
+  InstructionCost LMULCost = TLI->getLMULCost(VT);
   switch (Op) {
-  default:
-    Cost = std::nullopt;
-    break;
+  case RISCV::VRGATHER_VI:
+    return TLI->getVRGatherVICost(VT);
+  case RISCV::VRGATHER_VV:
+    return TLI->getVRGatherVVCost(VT);
+  case RISCV::VSLIDEUP_VI:
+  case RISCV::VSLIDEDOWN_VI:
+    return TLI->getVSlideVICost(VT);
+  case RISCV::VSLIDEUP_VX:
+  case RISCV::VSLIDEDOWN_VX:
+    return TLI->getVSlideVXCost(VT);
   case RISCV::VREDMAX_VS:
   case RISCV::VREDMIN_VS:
   case RISCV::VREDMAXU_VS:
@@ -55,29 +62,84 @@ getSiFiveX280RVVCost(unsigned Op, MVT VT, TTI::TargetCostKind CostKind) {
   case RISCV::VFREDUSUM_VS: {
     unsigned VL = VT.getVectorMinNumElements();
     if (!VT.isFixedLengthVector())
-      VL *= VScale;
-    // For the cases with small VL, we use a lookup table for accurate
-    // cost estimation.
-    unsigned LookUpSiFive7ReduceLatency[] = {0, 20, 27, 32, 34, 38, 40, 41, 42};
-    if (VL <= 32) {
-      Cost = LookUpSiFive7ReduceLatency[(VL + 3) >> 2];
-      break;
-    }
-    Cost = 6 + 7 * Log2_32_Ceil(VL);
-    break;
+      VL *= *(TTI->getVScaleForTuning());
+    return Log2_32_Ceil(VL);
   }
   case RISCV::VFREDOSUM_VS: {
     unsigned VL = VT.getVectorMinNumElements();
     if (!VT.isFixedLengthVector())
-      VL *= VScale;
-    Cost = VL * 6;
-    break;
+      VL *= *(TTI->getVScaleForTuning());
+    return VL;
   }
   case RISCV::VMV_X_S:
+  case RISCV::VMV_S_X:
   case RISCV::VFMV_F_S:
+  case RISCV::VFMV_S_F:
+  case RISCV::VMOR_MM:
+  case RISCV::VMXOR_MM:
+  case RISCV::VMAND_MM:
+  case RISCV::VMANDN_MM:
+  case RISCV::VMNAND_MM:
   case RISCV::VCPOP_M:
-    /* Vector-to-scalar communication */
-    Cost = 8;
+    return 1;
+  default:
+    return LMULCost;
+  }
+}
+
+static InstructionCost getSiFiveX280RVVCost(ArrayRef<unsigned> OpCodes, MVT VT,
+                                            TTI::TargetCostKind CostKind,
+                                            const RISCVTTIImpl *TTI,
+                                            const RISCVTargetLowering *TLI) {
+  InstructionCost LMULCost = TLI->getLMULCost(VT);
+  if ((CostKind != TTI::TCK_RecipThroughput) && (CostKind != TTI::TCK_Latency))
+    return LMULCost * NumInstr;
+  InstructionCost Cost = 0;
+  unsigned VScale = 8;
+  for (auto Op : OpCodes) {
+    switch (Op) {
+    case RISCV::VREDMAX_VS:
+    case RISCV::VREDMIN_VS:
+    case RISCV::VREDMAXU_VS:
+    case RISCV::VREDMINU_VS:
+    case RISCV::VREDSUM_VS:
+    case RISCV::VREDAND_VS:
+    case RISCV::VREDOR_VS:
+    case RISCV::VREDXOR_VS:
+    case RISCV::VFREDMAX_VS:
+    case RISCV::VFREDMIN_VS:
+    case RISCV::VFREDUSUM_VS: {
+      unsigned VL = VT.getVectorMinNumElements();
+      if (!VT.isFixedLengthVector())
+        VL *= VScale;
+      // For the cases with small VL, we use a lookup table for accurate
+      // cost estimation.
+      unsigned LookUpSiFive7ReduceLatency[] = {0,  20, 27, 32, 34,
+                                               38, 40, 41, 42};
+      if (VL <= 32) {
+        Cost += LookUpSiFive7ReduceLatency[(VL + 3) >> 2];
+        break;
+      }
+      Cost += 6 + 7 * Log2_32_Ceil(VL);
+      break;
+    }
+    case RISCV::VFREDOSUM_VS: {
+      unsigned VL = VT.getVectorMinNumElements();
+      if (!VT.isFixedLengthVector())
+        VL *= VScale;
+      Cost += VL * 6;
+      break;
+    }
+    case RISCV::VMV_X_S:
+    case RISCV::VFMV_F_S:
+    case RISCV::VCPOP_M:
+      /* Vector-to-scalar communication */
+      Cost += 8;
+      break;
+    default:
+      Cost += getRVVBaseCost(Op, VT, TTI, TLI);
+      break;
+    }
   }
   return Cost;
 }
@@ -92,77 +154,16 @@ RISCVTTIImpl::getRISCVInstructionCost(ArrayRef<unsigned> OpCodes, MVT VT,
   if (CostKind == TTI::TCK_CodeSize)
     return NumInstr;
 
-  std::optional<InstructionCost> (*GetTargetCost)(
-      unsigned, MVT, TTI::TargetCostKind) = nullptr;
   if (ST->getProcFamily() == RISCVSubtarget::SiFive7)
-    GetTargetCost = getSiFiveX280RVVCost;
+    return getSiFiveX280RVVCost(OpCodes, VT, CostKind, this, TLI);
+
   InstructionCost LMULCost = TLI->getLMULCost(VT);
   if ((CostKind != TTI::TCK_RecipThroughput) && (CostKind != TTI::TCK_Latency))
     return LMULCost * NumInstr;
   InstructionCost Cost = 0;
-  for (auto Op : OpCodes) {
-    std::optional<InstructionCost> OverrideCost =
-        GetTargetCost ? GetTargetCost(Op, VT, CostKind) : std::nullopt;
-    if (OverrideCost) {
-      Cost += *OverrideCost;
-      continue;
-    }
+  for (auto Op : OpCodes)
+    Cost += getRVVBaseCost(Op, VT, this, TLI);
 
-    switch (Op) {
-    case RISCV::VRGATHER_VI:
-      Cost += TLI->getVRGatherVICost(VT);
-      break;
-    case RISCV::VRGATHER_VV:
-      Cost += TLI->getVRGatherVVCost(VT);
-      break;
-    case RISCV::VSLIDEUP_VI:
-    case RISCV::VSLIDEDOWN_VI:
-      Cost += TLI->getVSlideVICost(VT);
-      break;
-    case RISCV::VSLIDEUP_VX:
-    case RISCV::VSLIDEDOWN_VX:
-      Cost += TLI->getVSlideVXCost(VT);
-      break;
-    case RISCV::VREDMAX_VS:
-    case RISCV::VREDMIN_VS:
-    case RISCV::VREDMAXU_VS:
-    case RISCV::VREDMINU_VS:
-    case RISCV::VREDSUM_VS:
-    case RISCV::VREDAND_VS:
-    case RISCV::VREDOR_VS:
-    case RISCV::VREDXOR_VS:
-    case RISCV::VFREDMAX_VS:
-    case RISCV::VFREDMIN_VS:
-    case RISCV::VFREDUSUM_VS: {
-      unsigned VL = VT.getVectorMinNumElements();
-      if (!VT.isFixedLengthVector())
-        VL *= *getVScaleForTuning();
-      Cost += Log2_32_Ceil(VL);
-      break;
-    }
-    case RISCV::VFREDOSUM_VS: {
-      unsigned VL = VT.getVectorMinNumElements();
-      if (!VT.isFixedLengthVector())
-        VL *= *getVScaleForTuning();
-      Cost += VL;
-      break;
-    }
-    case RISCV::VMV_X_S:
-    case RISCV::VMV_S_X:
-    case RISCV::VFMV_F_S:
-    case RISCV::VFMV_S_F:
-    case RISCV::VMOR_MM:
-    case RISCV::VMXOR_MM:
-    case RISCV::VMAND_MM:
-    case RISCV::VMANDN_MM:
-    case RISCV::VMNAND_MM:
-    case RISCV::VCPOP_M:
-      Cost += 1;
-      break;
-    default:
-      Cost += LMULCost;
-    }
-  }
   return Cost;
 }
 
