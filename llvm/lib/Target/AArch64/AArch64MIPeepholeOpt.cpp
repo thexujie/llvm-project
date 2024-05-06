@@ -128,6 +128,7 @@ struct AArch64MIPeepholeOpt : public MachineFunctionPass {
   bool visitINSviGPR(MachineInstr &MI, unsigned Opc);
   bool visitINSvi64lane(MachineInstr &MI);
   bool visitFMOVDr(MachineInstr &MI);
+  bool visitLOAD(MachineInstr &MI);
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   StringRef getPassName() const override {
@@ -690,6 +691,64 @@ bool AArch64MIPeepholeOpt::visitFMOVDr(MachineInstr &MI) {
   return true;
 }
 
+bool AArch64MIPeepholeOpt::visitLOAD(MachineInstr &MI) {
+  Register LdOp2Reg = MI.getOperand(2).getReg();
+  unsigned RegSize = TRI->getRegSizeInBits(LdOp2Reg, *MRI);
+
+  // Consider:
+  // (ldr w, [x, (and x, (ubfm x, x, imms, immr), C1)])
+  // If bitmask C1 of And is all the bits remaining after
+  // bitshifting to UBFM minus last 2 bits, try to optimize.
+  // Optimize to:
+  // (ldr w, [x (ubfm x, x, imms, immr), lsl #2])
+  {
+    if (!MI.getOperand(4).isImm() || MI.getOperand(4).getImm() != 0)
+      return false;
+
+    MachineInstr *AndMI = MRI->getUniqueVRegDef(LdOp2Reg);
+    if (!AndMI || AndMI->getOpcode() != AArch64::ANDXri ||
+        !AndMI->getOperand(2).isImm())
+      return false;
+
+    uint64_t AndMask = AArch64_AM::decodeLogicalImmediate(
+        AndMI->getOperand(2).getImm(), RegSize);
+    MachineInstr *ShtMI = MRI->getUniqueVRegDef(AndMI->getOperand(1).getReg());
+    uint64_t Mask = 0;
+    if (!ShtMI || ShtMI->getOpcode() != AArch64::UBFMXri)
+      return false;
+    uint64_t imms = ShtMI->getOperand(2).getImm();
+    uint64_t immr = ShtMI->getOperand(3).getImm();
+    uint64_t new_imms = 0;
+    uint64_t new_immr = 0;
+    if (imms <= immr) {
+      if (immr != RegSize - 1)
+        return false;
+      Mask = ((uint64_t)1 << (RegSize - imms)) - 4;
+      new_imms = imms + 2;
+      new_immr = immr;
+    } else {
+      // we only need to handle case lsl #1
+      if ((imms - immr != 1) || imms != RegSize - 1)
+        return false;
+      Mask = UINT64_MAX - 3;
+      new_imms = 1;
+      new_immr = imms;
+    }
+
+    // check this shifting can be treat as PreIndex Shifting.
+    if (AndMask == Mask) {
+      AndMI->eraseFromParent();
+      ShtMI->getOperand(2).setImm(new_imms);
+      ShtMI->getOperand(3).setImm(new_immr);
+      MI.getOperand(2).setReg(ShtMI->getOperand(0).getReg());
+      MI.getOperand(4).setImm(1);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool AArch64MIPeepholeOpt::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
@@ -770,6 +829,9 @@ bool AArch64MIPeepholeOpt::runOnMachineFunction(MachineFunction &MF) {
         break;
       case AArch64::FMOVDr:
         Changed |= visitFMOVDr(MI);
+        break;
+      case AArch64::LDRWroX:
+        Changed |= visitLOAD(MI);
         break;
       }
     }
