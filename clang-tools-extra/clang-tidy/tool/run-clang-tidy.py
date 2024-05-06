@@ -34,29 +34,31 @@ Compilation database setup:
 http://clang.llvm.org/docs/HowToSetupToolingForLLVM.html
 """
 
-from __future__ import print_function
-
 import argparse
+import asyncio
 import glob
 import json
 import multiprocessing
 import os
-import queue
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
-import threading
+import time
 import traceback
+from types import ModuleType
+from typing import Any, Awaitable, Callable, List, Optional, Tuple, TypeVar
 
+
+yaml: Optional[ModuleType] = None
 try:
     import yaml
 except ImportError:
-    yaml = None
+    pass
 
 
-def strtobool(val):
+def strtobool(val: str) -> bool:
     """Convert a string representation of truth to a bool following LLVM's CLI argument parsing."""
 
     val = val.lower()
@@ -67,11 +69,11 @@ def strtobool(val):
 
     # Return ArgumentTypeError so that argparse does not substitute its own error message
     raise argparse.ArgumentTypeError(
-        "'{}' is invalid value for boolean argument! Try 0 or 1.".format(val)
+        f"'{val}' is invalid value for boolean argument! Try 0 or 1."
     )
 
 
-def find_compilation_database(path):
+def find_compilation_database(path: str) -> str:
     """Adjusts the directory until a compilation database is found."""
     result = os.path.realpath("./")
     while not os.path.isfile(os.path.join(result, path)):
@@ -83,30 +85,24 @@ def find_compilation_database(path):
     return result
 
 
-def make_absolute(f, directory):
-    if os.path.isabs(f):
-        return f
-    return os.path.normpath(os.path.join(directory, f))
-
-
 def get_tidy_invocation(
-    f,
-    clang_tidy_binary,
-    checks,
-    tmpdir,
-    build_path,
-    header_filter,
-    allow_enabling_alpha_checkers,
-    extra_arg,
-    extra_arg_before,
-    quiet,
-    config_file_path,
-    config,
-    line_filter,
-    use_color,
-    plugins,
-    warnings_as_errors,
-):
+    f: str,
+    clang_tidy_binary: str,
+    checks: str,
+    tmpdir: Optional[str],
+    build_path: str,
+    header_filter: Optional[str],
+    allow_enabling_alpha_checkers: bool,
+    extra_arg: List[str],
+    extra_arg_before: List[str],
+    quiet: bool,
+    config_file_path: str,
+    config: str,
+    line_filter: Optional[str],
+    use_color: bool,
+    plugins: List[str],
+    warnings_as_errors: Optional[str],
+) -> List[str]:
     """Gets a command line for clang-tidy."""
     start = [clang_tidy_binary]
     if allow_enabling_alpha_checkers:
@@ -130,9 +126,9 @@ def get_tidy_invocation(
         os.close(handle)
         start.append(name)
     for arg in extra_arg:
-        start.append("-extra-arg=%s" % arg)
+        start.append(f"-extra-arg={arg}")
     for arg in extra_arg_before:
-        start.append("-extra-arg-before=%s" % arg)
+        start.append(f"-extra-arg-before={arg}")
     start.append("-p=" + build_path)
     if quiet:
         start.append("-quiet")
@@ -148,8 +144,9 @@ def get_tidy_invocation(
     return start
 
 
-def merge_replacement_files(tmpdir, mergefile):
+def merge_replacement_files(tmpdir: str, mergefile: str) -> None:
     """Merge all replacement files in a directory into a single file"""
+    assert yaml
     # The fixes suggested by clang-tidy >= 4.0.0 are given under
     # the top level key 'Diagnostics' in the output yaml files
     mergekey = "Diagnostics"
@@ -173,16 +170,14 @@ def merge_replacement_files(tmpdir, mergefile):
         open(mergefile, "w").close()
 
 
-def find_binary(arg, name, build_path):
+def find_binary(arg: str, name: str, build_path: str) -> str:
     """Get the path for a binary or exit"""
     if arg:
         if shutil.which(arg):
             return arg
         else:
             raise SystemExit(
-                "error: passed binary '{}' was not found or is not executable".format(
-                    arg
-                )
+                f"error: passed binary '{arg}' was not found or is not executable"
             )
 
     built_path = os.path.join(build_path, "bin", name)
@@ -190,12 +185,12 @@ def find_binary(arg, name, build_path):
     if binary:
         return binary
     else:
-        raise SystemExit(
-            "error: failed to find {} in $PATH or at {}".format(name, built_path)
-        )
+        raise SystemExit(f"error: failed to find {name} in $PATH or at {built_path}")
 
 
-def apply_fixes(args, clang_apply_replacements_binary, tmpdir):
+def apply_fixes(
+    args: argparse.Namespace, clang_apply_replacements_binary: str, tmpdir: str
+) -> None:
     """Calls clang-apply-fixes on a given directory."""
     invocation = [clang_apply_replacements_binary]
     invocation.append("-ignore-insert-conflict")
@@ -207,47 +202,72 @@ def apply_fixes(args, clang_apply_replacements_binary, tmpdir):
     subprocess.call(invocation)
 
 
-def run_tidy(args, clang_tidy_binary, tmpdir, build_path, queue, lock, failed_files):
-    """Takes filenames out of queue and runs clang-tidy on them."""
-    while True:
-        name = queue.get()
-        invocation = get_tidy_invocation(
-            name,
-            clang_tidy_binary,
-            args.checks,
-            tmpdir,
-            build_path,
-            args.header_filter,
-            args.allow_enabling_alpha_checkers,
-            args.extra_arg,
-            args.extra_arg_before,
-            args.quiet,
-            args.config_file,
-            args.config,
-            args.line_filter,
-            args.use_color,
-            args.plugins,
-            args.warnings_as_errors,
-        )
-
-        proc = subprocess.Popen(
-            invocation, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        output, err = proc.communicate()
-        if proc.returncode != 0:
-            if proc.returncode < 0:
-                msg = "%s: terminated by signal %d\n" % (name, -proc.returncode)
-                err += msg.encode("utf-8")
-            failed_files.append(name)
-        with lock:
-            sys.stdout.write(" ".join(invocation) + "\n" + output.decode("utf-8"))
-            if len(err) > 0:
-                sys.stdout.flush()
-                sys.stderr.write(err.decode("utf-8"))
-        queue.task_done()
+# FIXME Python 3.12: This can be simplified out with run_with_semaphore[T](...).
+T = TypeVar("T")
 
 
-def main():
+async def run_with_semaphore(
+    semaphore: asyncio.Semaphore,
+    f: Callable[..., Awaitable[T]],
+    *args: Any,
+    **kwargs: Any,
+) -> T:
+    async with semaphore:
+        return await f(*args, **kwargs)
+
+
+async def run_tidy(
+    args: argparse.Namespace,
+    name: str,
+    clang_tidy_binary: str,
+    tmpdir: str,
+    build_path: str,
+) -> Tuple[str, int, str, str, float]:
+    """
+    Runs clang-tidy on a single file and returns the result.
+    Five values are returned:
+     -  the name of the file.
+     -  the return code from clang-tidy.
+     -  clang-tidy's stdout.
+     -  clang-tidy's stderr.
+     -  the total elapsed time in seconds.
+    """
+    invocation = get_tidy_invocation(
+        name,
+        clang_tidy_binary,
+        args.checks,
+        tmpdir,
+        build_path,
+        args.header_filter,
+        args.allow_enabling_alpha_checkers,
+        args.extra_arg,
+        args.extra_arg_before,
+        args.quiet,
+        args.config_file,
+        args.config,
+        args.line_filter,
+        args.use_color,
+        args.plugins,
+        args.warnings_as_errors,
+    )
+
+    process = await asyncio.create_subprocess_exec(
+        *invocation, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    start = time.time()
+    stdout, stderr = await process.communicate()
+    elapsed = time.time() - start
+    assert process.returncode is not None
+    return (
+        name,
+        process.returncode,
+        stdout.decode("UTF-8"),
+        stderr.decode("UTF-8"),
+        elapsed,
+    )
+
+
+async def main() -> None:
     parser = argparse.ArgumentParser(
         description="Runs clang-tidy over all files "
         "in a compilation database. Requires "
@@ -408,7 +428,7 @@ def main():
         )
 
     combine_fixes = False
-    export_fixes_dir = None
+    export_fixes_dir: Optional[str] = None
     delete_fixes_dir = False
     if args.export_fixes is not None:
         # if a directory is given, create it if it does not exist
@@ -464,10 +484,10 @@ def main():
         sys.exit(1)
 
     # Load the database and extract all files.
-    database = json.load(open(os.path.join(build_path, db_path)))
-    files = set(
-        [make_absolute(entry["file"], entry["directory"]) for entry in database]
-    )
+    with open(os.path.join(build_path, db_path)) as f:
+        database = json.load(f)
+    files = {os.path.abspath(os.path.join(e["directory"], e["file"])) for e in database}
+    number_files_in_database = len(files)
 
     # Filter source files from compilation database.
     if args.source_filter:
@@ -488,70 +508,80 @@ def main():
 
     # Build up a big regexy filter from all command line arguments.
     file_name_re = re.compile("|".join(args.files))
+    files = {f for f in files if file_name_re.search(f)}
 
-    return_code = 0
+    print(
+        "Running clang-tidy for",
+        len(files),
+        "files out of",
+        number_files_in_database,
+        "in compilation database ...",
+    )
+
+    returncode = 0
     try:
-        # Spin up a bunch of tidy-launching threads.
-        task_queue = queue.Queue(max_task)
-        # List of files with a non-zero return code.
-        failed_files = []
-        lock = threading.Lock()
-        for _ in range(max_task):
-            t = threading.Thread(
-                target=run_tidy,
-                args=(
-                    args,
-                    clang_tidy_binary,
-                    export_fixes_dir,
-                    build_path,
-                    task_queue,
-                    lock,
-                    failed_files,
-                ),
+        semaphore = asyncio.Semaphore(max_task)
+        tasks = [
+            run_with_semaphore(
+                semaphore,
+                run_tidy,
+                args,
+                f,
+                clang_tidy_binary,
+                export_fixes_dir,
+                build_path,
             )
-            t.daemon = True
-            t.start()
+            for f in files
+        ]
 
-        # Fill the queue with files.
-        for name in files:
-            if file_name_re.search(name):
-                task_queue.put(name)
-
-        # Wait for all threads to be done.
-        task_queue.join()
-        if len(failed_files):
-            return_code = 1
-
+        for i, coro in enumerate(asyncio.as_completed(tasks)):
+            name, process_returncode, stdout, stderr, elapsed = await coro
+            if process_returncode != 0:
+                returncode = 1
+                if process_returncode < 0:
+                    stderr += f"{name}: terminated by signal {-process_returncode}\n"
+            print(f"[{i + 1}/{len(files)}][{elapsed:.1f}s] {name}")
+            if stdout:
+                print(stdout, end=("" if stderr else "\n"))
+            if stderr:
+                print(stderr)
     except KeyboardInterrupt:
         # This is a sad hack. Unfortunately subprocess goes
         # bonkers with ctrl-c and we start forking merrily.
         print("\nCtrl-C detected, goodbye.")
         if delete_fixes_dir:
+            assert export_fixes_dir
             shutil.rmtree(export_fixes_dir)
         os.kill(0, 9)
 
     if combine_fixes:
         print("Writing fixes to " + args.export_fixes + " ...")
         try:
+            assert export_fixes_dir
             merge_replacement_files(export_fixes_dir, args.export_fixes)
         except:
             print("Error exporting fixes.\n", file=sys.stderr)
             traceback.print_exc()
-            return_code = 1
+            returncode = 1
 
     if args.fix:
         print("Applying fixes ...")
         try:
+            assert export_fixes_dir
             apply_fixes(args, clang_apply_replacements_binary, export_fixes_dir)
         except:
             print("Error applying fixes.\n", file=sys.stderr)
             traceback.print_exc()
-            return_code = 1
+            returncode = 1
 
     if delete_fixes_dir:
+        assert export_fixes_dir
         shutil.rmtree(export_fixes_dir)
-    sys.exit(return_code)
+    sys.exit(returncode)
 
 
 if __name__ == "__main__":
-    main()
+    # FIXME Python 3.7: This can be simplified by asyncio.run(main()).
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()
