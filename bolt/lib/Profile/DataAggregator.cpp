@@ -2354,30 +2354,6 @@ std::error_code DataAggregator::writeBATYAML(BinaryContext &BC,
       for (auto BI = BlockMap.begin(), BE = BlockMap.end(); BI != BE; ++BI)
         YamlBF.Blocks[BI->second.getBBIndex()].Hash = BI->second.getBBHash();
 
-      auto getSuccessorInfo = [&](uint32_t SuccOffset, unsigned SuccDataIdx) {
-        const llvm::bolt::BranchInfo &BI = Branches.Data.at(SuccDataIdx);
-        yaml::bolt::SuccessorInfo SI;
-        SI.Index = BlockMap.getBBIndex(SuccOffset);
-        SI.Count = BI.Branches;
-        SI.Mispreds = BI.Mispreds;
-        return SI;
-      };
-
-      auto getCallSiteInfo = [&](Location CallToLoc, unsigned CallToIdx,
-                                 uint32_t Offset) {
-        const llvm::bolt::BranchInfo &BI = Branches.Data.at(CallToIdx);
-        yaml::bolt::CallSiteInfo CSI;
-        CSI.DestId = 0; // designated for unknown functions
-        CSI.EntryDiscriminator = 0;
-        CSI.Count = BI.Branches;
-        CSI.Mispreds = BI.Mispreds;
-        CSI.Offset = Offset;
-        if (BinaryData *BD = BC.getBinaryDataByName(CallToLoc.Name))
-          YAMLProfileWriter::setCSIDestination(BC, CSI, BD->getSymbol(), BAT,
-                                               CallToLoc.Offset);
-        return CSI;
-      };
-
       // Lookup containing basic block offset and index
       auto getBlock = [&BlockMap](uint32_t Offset) {
         auto BlockIt = BlockMap.upper_bound(Offset);
@@ -2386,26 +2362,35 @@ std::error_code DataAggregator::writeBATYAML(BinaryContext &BC,
         return std::pair(BlockIt->first, BlockIt->second.getBBIndex());
       };
 
-      for (const auto &[FromOffset, SuccKV] : Branches.IntraIndex) {
-        const auto &[_, Index] = getBlock(FromOffset);
-        yaml::bolt::BinaryBasicBlockProfile &YamlBB = YamlBF.Blocks[Index];
-        for (const auto &[SuccOffset, SuccDataIdx] : SuccKV)
-          if (BlockMap.isInputBlock(SuccOffset))
-            YamlBB.Successors.emplace_back(
-                getSuccessorInfo(SuccOffset, SuccDataIdx));
-      }
-      for (const auto &[FromOffset, CallTo] : Branches.InterIndex) {
-        const auto &[BlockOffset, BlockIndex] = getBlock(FromOffset);
-        yaml::bolt::BinaryBasicBlockProfile &YamlBB = YamlBF.Blocks[BlockIndex];
-        const uint32_t Offset = FromOffset - BlockOffset;
-        for (const auto &[CallToLoc, CallToIdx] : CallTo)
-          YamlBB.CallSites.emplace_back(
-              getCallSiteInfo(CallToLoc, CallToIdx, Offset));
-        llvm::sort(YamlBB.CallSites, [](yaml::bolt::CallSiteInfo &A,
-                                        yaml::bolt::CallSiteInfo &B) {
-          return A.Offset < B.Offset;
-        });
-      }
+      auto addIndex = [&]<typename T>(const FuncBranchData::IndexTy<T> &Index) {
+        using namespace yaml::bolt;
+        constexpr bool Calls = std::is_same<T, Location>::value;
+        for (const auto &[FromOffset, To] : Index) {
+          const auto &[BlockOffset, BlockIndex] = getBlock(FromOffset);
+          yaml::bolt::BinaryBasicBlockProfile &BB = YamlBF.Blocks[BlockIndex];
+          for (const auto [Key, DataIdx] : To) {
+            const llvm::bolt::BranchInfo &BI = Branches.Data.at(DataIdx);
+            std::conditional_t<Calls, CallSiteInfo, SuccessorInfo> SI;
+            SI.Count = BI.Branches;
+            SI.Mispreds = BI.Mispreds;
+            if constexpr (Calls) {
+              SI.Offset = FromOffset - BlockOffset;
+              if (const BinaryData *BD = BC.getBinaryDataByName(Key.Name))
+                YAMLProfileWriter::setCSIDestination(BC, SI, BD->getSymbol(),
+                                                     BAT, Key.Offset);
+              BB.CallSites.emplace_back(SI);
+            } else if (BlockMap.isInputBlock(Key)) {
+              SI.Index = BlockMap.getBBIndex(Key);
+              BB.Successors.emplace_back(SI);
+            }
+          }
+          Calls ? llvm::sort(BB.CallSites) : llvm::sort(BB.Successors);
+        }
+      };
+
+      addIndex(Branches.IntraIndex);
+      addIndex(Branches.InterIndex);
+
       // Drop blocks without a hash, won't be useful for stale matching.
       llvm::erase_if(YamlBF.Blocks,
                      [](const yaml::bolt::BinaryBasicBlockProfile &YamlBB) {
