@@ -262,6 +262,7 @@ class CheckVarsEscapingDeclContext final
                                bool IsCombinedParallelRegion) {
     if (!S)
       return;
+
     for (const CapturedStmt::Capture &C : S->captures()) {
       if (C.capturesVariable() && !C.capturesVariableByCopy()) {
         const ValueDecl *VD = C.getCapturedVar();
@@ -336,13 +337,15 @@ public:
       return;
     if (!D->hasAssociatedStmt())
       return;
+
     if (const auto *S =
             dyn_cast_or_null<CapturedStmt>(D->getAssociatedStmt())) {
       // Do not analyze directives that do not actually require capturing,
       // like `omp for` or `omp simd` directives.
       llvm::SmallVector<OpenMPDirectiveKind, 4> CaptureRegions;
       getOpenMPCaptureRegions(CaptureRegions, D->getDirectiveKind());
-      if (CaptureRegions.size() == 1 && CaptureRegions.back() == OMPD_unknown) {
+      if (CaptureRegions.size() == 1 && CaptureRegions.back() == OMPD_unknown &&
+          D->getDirectiveKind() != OMPD_simd) {
         VisitStmt(S->getCapturedStmt());
         return;
       }
@@ -502,23 +505,23 @@ public:
 } // anonymous namespace
 
 /// Get the id of the warp in the block.
-/// We assume that the warp size is 32, which is always the case
-/// on the NVPTX device, to generate more efficient code.
+///// We assume that the warp size is 32, which is always the case
+///// on the NVPTX device, to generate more efficient code.
 static llvm::Value *getNVPTXWarpID(CodeGenFunction &CGF) {
   CGBuilderTy &Bld = CGF.Builder;
   unsigned LaneIDBits =
-      llvm::Log2_32(CGF.getTarget().getGridValue().GV_Warp_Size);
-  auto &RT = static_cast<CGOpenMPRuntimeGPU &>(CGF.CGM.getOpenMPRuntime());
-  return Bld.CreateAShr(RT.getGPUThreadID(CGF), LaneIDBits, "nvptx_warp_id");
+    llvm::Log2_32(CGF.getTarget().getGridValue().GV_Warp_Size);
+   auto &RT = static_cast<CGOpenMPRuntimeGPU &>(CGF.CGM.getOpenMPRuntime());
+   return Bld.CreateAShr(RT.getGPUThreadID(CGF), LaneIDBits, "nvptx_warp_id");
 }
-
+               
 /// Get the id of the current lane in the Warp.
 /// We assume that the warp size is 32, which is always the case
 /// on the NVPTX device, to generate more efficient code.
 static llvm::Value *getNVPTXLaneID(CodeGenFunction &CGF) {
   CGBuilderTy &Bld = CGF.Builder;
   unsigned LaneIDBits =
-      llvm::Log2_32(CGF.getTarget().getGridValue().GV_Warp_Size);
+    llvm::Log2_32(CGF.getTarget().getGridValue().GV_Warp_Size);
   assert(LaneIDBits < 32 && "Invalid LaneIDBits size in NVPTX device.");
   unsigned LaneIDMask = ~0u >> (32u - LaneIDBits);
   auto &RT = static_cast<CGOpenMPRuntimeGPU &>(CGF.CGM.getOpenMPRuntime());
@@ -2812,9 +2815,11 @@ void CGOpenMPRuntimeGPU::emitReduction(
     return;
 
   bool ParallelReduction = isOpenMPParallelDirective(Options.ReductionKind);
-#ifndef NDEBUG
+  bool DistributeReduction = isOpenMPDistributeDirective(Options.ReductionKind);
   bool TeamsReduction = isOpenMPTeamsDirective(Options.ReductionKind);
-#endif
+  bool SimdReduction = isOpenMPSimdDirective(Options.ReductionKind);
+
+  ASTContext &C = CGM.getContext();
 
   if (Options.SimpleReduction) {
     assert(!TeamsReduction && !ParallelReduction &&
@@ -2824,155 +2829,78 @@ void CGOpenMPRuntimeGPU::emitReduction(
     return;
   }
 
-  assert((TeamsReduction || ParallelReduction) &&
-         "Invalid reduction selection in emitReduction.");
-
-  llvm::SmallDenseMap<const ValueDecl *, const FieldDecl *> VarFieldMap;
-  llvm::SmallVector<const ValueDecl *, 4> PrivatesReductions(Privates.size());
-  int Cnt = 0;
-  for (const Expr *DRE : Privates) {
-    PrivatesReductions[Cnt] = cast<DeclRefExpr>(DRE)->getDecl();
-    ++Cnt;
-  }
-
-  ASTContext &C = CGM.getContext();
-  const RecordDecl *ReductionRec = ::buildRecordForGlobalizedVars(
-      CGM.getContext(), PrivatesReductions, std::nullopt, VarFieldMap, 1);
-
-  // Build res = __kmpc_reduce{_nowait}(<gtid>, <n>, sizeof(RedList),
-  // RedList, shuffle_reduce_func, interwarp_copy_func);
-  // or
-  // Build res = __kmpc_reduce_teams_nowait_simple(<loc>, <gtid>, <lck>);
+  // Source location for theident struct
   llvm::Value *RTLoc = emitUpdateLocation(CGF, Loc);
 
-  llvm::Value *Res;
-  // 1. Build a list of reduction variables.
-  // void *RedList[<n>] = {<ReductionVars>[0], ..., <ReductionVars>[<n>-1]};
-  auto Size = RHSExprs.size();
-  for (const Expr *E : Privates) {
-    if (E->getType()->isVariablyModifiedType())
-      // Reserve place for array size.
-      ++Size;
-  }
-  llvm::APInt ArraySize(/*unsigned int numBits=*/32, Size);
-  QualType ReductionArrayTy = C.getConstantArrayType(
-      C.VoidPtrTy, ArraySize, nullptr, ArraySizeModifier::Normal,
-      /*IndexTypeQuals=*/0);
-  Address ReductionList =
-      CGF.CreateMemTemp(ReductionArrayTy, ".omp.reduction.red_list");
-  auto IPriv = Privates.begin();
+  using InsertPointTy = llvm::OpenMPIRBuilder::InsertPointTy;
+  InsertPointTy AllocaIP(CGF.AllocaInsertPt->getParent(),
+                         CGF.AllocaInsertPt->getIterator());
+  InsertPointTy CodeGenIP(CGF.Builder.GetInsertBlock(),
+                          CGF.Builder.GetInsertPoint());
+  llvm::OpenMPIRBuilder::LocationDescription OmpLoc(CodeGenIP);
+  llvm::SmallVector<llvm::OpenMPIRBuilder::ReductionInfo> ReductionInfos;
+
+  CodeGenFunction::OMPPrivateScope Scope(CGF);
   unsigned Idx = 0;
-  for (unsigned I = 0, E = RHSExprs.size(); I < E; ++I, ++IPriv, ++Idx) {
-    Address Elem = CGF.Builder.CreateConstArrayGEP(ReductionList, Idx);
-    CGF.Builder.CreateStore(
-        CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
-            CGF.EmitLValue(RHSExprs[I]).getPointer(CGF), CGF.VoidPtrTy),
-        Elem);
-    if ((*IPriv)->getType()->isVariablyModifiedType()) {
-      // Store array size.
-      ++Idx;
-      Elem = CGF.Builder.CreateConstArrayGEP(ReductionList, Idx);
-      llvm::Value *Size = CGF.Builder.CreateIntCast(
-          CGF.getVLASize(
-                 CGF.getContext().getAsVariableArrayType((*IPriv)->getType()))
-              .NumElts,
-          CGF.SizeTy, /*isSigned=*/false);
-      CGF.Builder.CreateStore(CGF.Builder.CreateIntToPtr(Size, CGF.VoidPtrTy),
-                              Elem);
+  for (const Expr *Private : Privates) {
+    llvm::Type *ElementType;
+    llvm::Value *Variable;
+    llvm::Value *PrivateVariable;
+    llvm::OpenMPIRBuilder::AtomicReductionGenCB AtomicReductionGen = nullptr;
+    ElementType = CGF.ConvertTypeForMem(Private->getType());
+    const auto *RHSVar =
+        cast<VarDecl>(cast<DeclRefExpr>(RHSExprs[Idx])->getDecl());
+    PrivateVariable = CGF.GetAddrOfLocalVar(RHSVar).getBasePointer();
+    const auto *LHSVar =
+        cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[Idx])->getDecl());
+    Variable = CGF.GetAddrOfLocalVar(LHSVar).getBasePointer();
+    llvm::OpenMPIRBuilder::EvaluationKindTy EvalKind;
+    switch (CGF.getEvaluationKind(Private->getType())) {
+    case TEK_Scalar:
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Scalar;
+      break;
+    case TEK_Complex:
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Complex;
+      break;
+    case TEK_Aggregate:
+      EvalKind = llvm::OpenMPIRBuilder::EvaluationKindTy::Aggregate;
+      break;
     }
+    auto ReductionGen = [&](InsertPointTy CodeGenIP, unsigned I,
+                            llvm::Value **LHSPtr, llvm::Value **RHSPtr,
+                            llvm::Function *NewFunc) {
+      CGF.Builder.restoreIP(CodeGenIP);
+      auto *CurFn = CGF.CurFn;
+      CGF.CurFn = NewFunc;
+
+      *LHSPtr = CGF.GetAddrOfLocalVar(
+                       cast<VarDecl>(cast<DeclRefExpr>(LHSExprs[I])->getDecl()))
+                    .getBasePointer();
+      *RHSPtr = CGF.GetAddrOfLocalVar(
+                       cast<VarDecl>(cast<DeclRefExpr>(RHSExprs[I])->getDecl()))
+                    .getBasePointer();
+
+      emitSingleReductionCombiner(CGF, ReductionOps[I], Privates[I],
+                                  cast<DeclRefExpr>(LHSExprs[I]),
+                                  cast<DeclRefExpr>(RHSExprs[I]));
+
+      CGF.CurFn = CurFn;
+
+      return InsertPointTy(CGF.Builder.GetInsertBlock(),
+                           CGF.Builder.GetInsertPoint());
+    };
+    ReductionInfos.emplace_back(llvm::OpenMPIRBuilder::ReductionInfo(
+        ElementType, Variable, PrivateVariable, EvalKind,
+        /*ReductionGen=*/nullptr, ReductionGen, AtomicReductionGen));
+    Idx++;
   }
 
-  llvm::Value *RL = CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
-      ReductionList.emitRawPointer(CGF), CGF.VoidPtrTy);
-  llvm::Function *ReductionFn = emitReductionFunction(
-      CGF.CurFn->getName(), Loc, CGF.ConvertTypeForMem(ReductionArrayTy),
-      Privates, LHSExprs, RHSExprs, ReductionOps);
-  llvm::Value *ReductionDataSize =
-      CGF.getTypeSize(C.getRecordType(ReductionRec));
-  ReductionDataSize =
-      CGF.Builder.CreateSExtOrTrunc(ReductionDataSize, CGF.Int64Ty);
-  llvm::Function *ShuffleAndReduceFn = emitShuffleAndReduceFunction(
-      CGM, Privates, ReductionArrayTy, ReductionFn, Loc);
-  llvm::Value *InterWarpCopyFn =
-      emitInterWarpCopyFunction(CGM, Privates, ReductionArrayTy, Loc);
-
-  if (ParallelReduction) {
-    llvm::Value *Args[] = {RTLoc, ReductionDataSize, RL, ShuffleAndReduceFn,
-                           InterWarpCopyFn};
-
-    Res = CGF.EmitRuntimeCall(
-        OMPBuilder.getOrCreateRuntimeFunction(
-            CGM.getModule(), OMPRTL___kmpc_nvptx_parallel_reduce_nowait_v2),
-        Args);
-  } else {
-    assert(TeamsReduction && "expected teams reduction.");
-    TeamsReductions.push_back(ReductionRec);
-    auto *KernelTeamsReductionPtr = CGF.EmitRuntimeCall(
-        OMPBuilder.getOrCreateRuntimeFunction(
-            CGM.getModule(), OMPRTL___kmpc_reduction_get_fixed_buffer),
-        {}, "_openmp_teams_reductions_buffer_$_$ptr");
-    llvm::Value *GlobalToBufferCpyFn = ::emitListToGlobalCopyFunction(
-        CGM, Privates, ReductionArrayTy, Loc, ReductionRec, VarFieldMap);
-    llvm::Value *GlobalToBufferRedFn = ::emitListToGlobalReduceFunction(
-        CGM, Privates, ReductionArrayTy, Loc, ReductionRec, VarFieldMap,
-        ReductionFn);
-    llvm::Value *BufferToGlobalCpyFn = ::emitGlobalToListCopyFunction(
-        CGM, Privates, ReductionArrayTy, Loc, ReductionRec, VarFieldMap);
-    llvm::Value *BufferToGlobalRedFn = ::emitGlobalToListReduceFunction(
-        CGM, Privates, ReductionArrayTy, Loc, ReductionRec, VarFieldMap,
-        ReductionFn);
-
-    llvm::Value *Args[] = {
-        RTLoc,
-        KernelTeamsReductionPtr,
-        CGF.Builder.getInt32(C.getLangOpts().OpenMPCUDAReductionBufNum),
-        ReductionDataSize,
-        RL,
-        ShuffleAndReduceFn,
-        InterWarpCopyFn,
-        GlobalToBufferCpyFn,
-        GlobalToBufferRedFn,
-        BufferToGlobalCpyFn,
-        BufferToGlobalRedFn};
-
-    Res = CGF.EmitRuntimeCall(
-        OMPBuilder.getOrCreateRuntimeFunction(
-            CGM.getModule(), OMPRTL___kmpc_nvptx_teams_reduce_nowait_v2),
-        Args);
-  }
-
-  // 5. Build if (res == 1)
-  llvm::BasicBlock *ExitBB = CGF.createBasicBlock(".omp.reduction.done");
-  llvm::BasicBlock *ThenBB = CGF.createBasicBlock(".omp.reduction.then");
-  llvm::Value *Cond = CGF.Builder.CreateICmpEQ(
-      Res, llvm::ConstantInt::get(CGM.Int32Ty, /*V=*/1));
-  CGF.Builder.CreateCondBr(Cond, ThenBB, ExitBB);
-
-  // 6. Build then branch: where we have reduced values in the master
-  //    thread in each team.
-  //    __kmpc_end_reduce{_nowait}(<gtid>);
-  //    break;
-  CGF.EmitBlock(ThenBB);
-
-  // Add emission of __kmpc_end_reduce{_nowait}(<gtid>);
-  auto &&CodeGen = [Privates, LHSExprs, RHSExprs, ReductionOps,
-                    this](CodeGenFunction &CGF, PrePostActionTy &Action) {
-    auto IPriv = Privates.begin();
-    auto ILHS = LHSExprs.begin();
-    auto IRHS = RHSExprs.begin();
-    for (const Expr *E : ReductionOps) {
-      emitSingleReductionCombiner(CGF, E, *IPriv, cast<DeclRefExpr>(*ILHS),
-                                  cast<DeclRefExpr>(*IRHS));
-      ++IPriv;
-      ++ILHS;
-      ++IRHS;
-    }
-  };
-  RegionCodeGenTy RCG(CodeGen);
-  RCG(CGF);
-  // There is no need to emit line number for unconditional branch.
-  (void)ApplyDebugLocation::CreateEmpty(CGF);
-  CGF.EmitBlock(ExitBB, /*IsFinished=*/true);
+  CGF.Builder.restoreIP(OMPBuilder.createReductionsGPU(
+      OmpLoc, AllocaIP, CodeGenIP, ReductionInfos, false, TeamsReduction,
+      DistributeReduction, SimdReduction, llvm::OpenMPIRBuilder::ReductionGenCBTy::Clang,
+      CGF.getTarget().getGridValue(), C.getLangOpts().OpenMPCUDAReductionBufNum,
+      RTLoc));
+  return;
 }
 
 const VarDecl *
@@ -3574,3 +3502,4 @@ llvm::Value *CGOpenMPRuntimeGPU::getGPUWarpSize(CodeGenFunction &CGF) {
                                  CGM.getModule(), OMPRTL___kmpc_get_warp_size),
                              Args);
 }
+
