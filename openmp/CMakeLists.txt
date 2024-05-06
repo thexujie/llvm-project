@@ -85,6 +85,11 @@ else()
   set(CMAKE_CXX_EXTENSIONS NO)
 endif()
 
+# Enabling Fortran if it is needed
+if(${LIBOMP_FORTRAN_MODULES})
+  enable_language(Fortran)
+endif()
+
 # Check and set up common compiler flags.
 include(config-ix)
 include(HandleOpenMPOptions)
@@ -118,11 +123,22 @@ if(${OPENMP_STANDALONE_BUILD})
       OUTPUT_STRIP_TRAILING_WHITESPACE
       COMMAND ${CMAKE_CXX_COMPILER} --print-resource-dir
       RESULT_VARIABLE COMMAND_RETURN_CODE
-      OUTPUT_VARIABLE COMPILER_RESOURCE_DIR
+      OUTPUT_VARIABLE CXX_COMPILER_RESOURCE_DIR
     )
-    set(LIBOMP_HEADERS_INSTALL_PATH "${COMPILER_RESOURCE_DIR}/include")
+    set(LIBOMP_HEADERS_INSTALL_PATH "${CXX_COMPILER_RESOURCE_DIR}/include")
   else()
     set(LIBOMP_HEADERS_INSTALL_PATH "${CMAKE_INSTALL_INCLUDEDIR}")
+  endif()
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "Flang")
+    execute_process(
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      COMMAND ${CMAKE_Fortran_COMPILER} --print-resource-dir
+      RESULT_VARIABLE COMMAND_RETURN_CODE
+      OUTPUT_VARIABLE FORTRAN_COMPILER_RESOURCE_DIR
+    )
+    set(LIBOMP_MODULES_INSTALL_PATH "${FORTRAN_COMPILER_RESOURCE_DIR}")
+  else()
+    set(LIBOMP_MODULES_INSTALL_PATH "${CMAKE_INSTALL_INCLUDEDIR}")
   endif()
 else()
   include(GetClangResourceDir)
