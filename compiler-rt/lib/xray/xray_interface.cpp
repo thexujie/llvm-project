@@ -658,7 +658,7 @@ size_t __xray_max_function_id() XRAY_NEVER_INSTRUMENT {
 
 size_t __xray_max_function_id_in_object(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
   SpinMutexLock Guard(&XRayInstrMapMutex);
-  if (ObjId < 0 || ObjId > atomic_load(&XRayNumObjects, memory_order_acquire))
+  if (ObjId < 0 || ObjId >= atomic_load(&XRayNumObjects, memory_order_acquire))
     return 0;
   return XRayInstrMaps[ObjId].Functions;
 }

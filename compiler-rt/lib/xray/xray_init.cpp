@@ -56,7 +56,7 @@ SpinMutex XRayInstrMapMutex;
 //  Contains maps for the main executable as well as DSOs.
 // std::vector<XRaySledMap> XRayInstrMaps;
 XRaySledMap *XRayInstrMaps;
-atomic_uint32_t XRayNumObjects;
+atomic_uint32_t XRayNumObjects{0};
 
 // Global flag to determine whether the flags have been initialized.
 atomic_uint8_t XRayFlagsInitialized{0};
