@@ -1383,7 +1383,7 @@ static void threadSpecs(Fortran::lower::AbstractConverter &converter,
   fir::FirOpBuilder &builder = converter.getFirOpBuilder();
   for (const auto &spec : specList) {
     makeNextConditionalOn(builder, loc, checkResult, ok);
-    ok = std::visit(
+    ok = Fortran::common::visit(
         Fortran::common::visitors{
             [&](const Fortran::parser::IoControlSpec::Size &x) -> mlir::Value {
               // Size must be queried after the related READ runtime calls, not
@@ -1420,7 +1420,7 @@ ConditionSpecInfo lowerErrorSpec(Fortran::lower::AbstractConverter &converter,
   ConditionSpecInfo csi;
   const Fortran::lower::SomeExpr *ioMsgExpr = nullptr;
   for (const auto &spec : specList) {
-    std::visit(
+    Fortran::common::visit(
         Fortran::common::visitors{
             [&](const Fortran::parser::StatVariable &var) {
               csi.ioStatExpr = Fortran::semantics::GetExpr(var);
@@ -2392,7 +2392,7 @@ lowerIdExpr(Fortran::lower::AbstractConverter &converter, mlir::Location loc,
             const std::list<Fortran::parser::InquireSpec> &ispecs,
             Fortran::lower::StatementContext &stmtCtx) {
   for (const Fortran::parser::InquireSpec &spec : ispecs)
-    if (mlir::Value v = std::visit(
+    if (mlir::Value v = Fortran::common::visit(
             Fortran::common::visitors{
                 [&](const Fortran::parser::IdExpr &idExpr) {
                   return fir::getBase(converter.genExprValue(
@@ -2414,11 +2414,11 @@ static void threadInquire(Fortran::lower::AbstractConverter &converter,
   mlir::Value idExpr = lowerIdExpr(converter, loc, ispecs, stmtCtx);
   for (const Fortran::parser::InquireSpec &spec : ispecs) {
     makeNextConditionalOn(builder, loc, checkResult, ok);
-    ok = std::visit(Fortran::common::visitors{[&](const auto &x) {
-                      return genInquireSpec(converter, loc, cookie, idExpr, x,
-                                            stmtCtx);
-                    }},
-                    spec.u);
+    ok = Fortran::common::visit(Fortran::common::visitors{[&](const auto &x) {
+                                  return genInquireSpec(converter, loc, cookie,
+                                                        idExpr, x, stmtCtx);
+                                }},
+                                spec.u);
   }
 }
 
