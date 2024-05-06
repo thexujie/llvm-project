@@ -3236,6 +3236,14 @@ bool ASTReader::isConsumerInterestedIn(Decl *D) {
     if (ES->hasExternalDefinitions(D) == ExternalASTSource::EK_Never)
       return true;
 
+  // The dynamic class defined in a named module is interesting.
+  // The code generator needs to emit its vtable there.
+  if (const auto *Class = dyn_cast<CXXRecordDecl>(D))
+    return Class->getOwningModule() &&
+           Class->getOwningModule()->isInterfaceOrPartition() &&
+           Class->getOwningModule() == Ctx.getCurrentNamedModule() &&
+           Class->getDefinition() && Class->isDynamicClass();
+
   return false;
 }
 
