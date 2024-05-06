@@ -853,6 +853,8 @@ public:
 
   bool fallBackToDAGISel(const Instruction &Inst) const override;
 
+  void finalizeLowering(MachineFunction &MF) const override;
+
   bool lowerInterleavedLoad(LoadInst *LI,
                             ArrayRef<ShuffleVectorInst *> Shuffles,
                             ArrayRef<unsigned> Indices,
