@@ -884,6 +884,10 @@ public:
                                            bool Insert, bool Extract,
                                            TTI::TargetCostKind CostKind) const;
 
+  /// Estimate the overhead of scalarizing a PHI instruction.
+  InstructionCost getPHIScalarizationOverhead(Type *ScalarTy,
+                                              VectorType *VTy) const;
+
   /// Estimate the overhead of scalarizing an instructions unique
   /// non-constant operands. The (potentially vector) types to use for each of
   /// argument are passes via Tys.
@@ -1912,6 +1916,9 @@ public:
   getOperandsScalarizationOverhead(ArrayRef<const Value *> Args,
                                    ArrayRef<Type *> Tys,
                                    TargetCostKind CostKind) = 0;
+
+  virtual InstructionCost getPHIScalarizationOverhead(Type *ScalarTy,
+                                                      VectorType *VTy) = 0;
   virtual bool supportsEfficientVectorElementLoadStore() = 0;
   virtual bool supportsTailCalls() = 0;
   virtual bool supportsTailCallFor(const CallBase *CB) = 0;
@@ -2441,6 +2448,12 @@ public:
     return Impl.getScalarizationOverhead(Ty, DemandedElts, Insert, Extract,
                                          CostKind);
   }
+
+  InstructionCost getPHIScalarizationOverhead(Type *ScalarTy,
+                                              VectorType *VTy) override {
+    return Impl.getPHIScalarizationOverhead(ScalarTy, VTy);
+  }
+
   InstructionCost
   getOperandsScalarizationOverhead(ArrayRef<const Value *> Args,
                                    ArrayRef<Type *> Tys,

@@ -117,6 +117,7 @@ public:
     return TTI::PSK_FastHardware;
   }
 
+  unsigned getNumberOfParts(Type *Tp) const;
   unsigned getNumberOfRegisters(unsigned RCID) const;
   TypeSize getRegisterBitWidth(TargetTransformInfo::RegisterKind Vector) const;
   unsigned getMinVectorRegisterBitWidth() const;
@@ -245,6 +246,8 @@ public:
   unsigned getCallerAllocaCost(const CallBase *CB, const AllocaInst *AI) const;
 
   int getInlinerVectorBonusPercent() const { return InlinerVectorBonusPercent; }
+
+  InstructionCost getPHIScalarizationOverhead(Type *ScalarTy, VectorType *VTy);
 
   InstructionCost getArithmeticReductionCost(
       unsigned Opcode, VectorType *Ty, std::optional<FastMathFlags> FMF,

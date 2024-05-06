@@ -211,83 +211,83 @@ define amdgpu_kernel void @shufflevector_i16() {
 ; Should not assert
 define amdgpu_kernel void @shufflevector_i8() {
 ; ALL-LABEL: 'shufflevector_i8'
-; ALL-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %shuf00 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> zeroinitializer
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf00 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> zeroinitializer
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %shuf01 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf10 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf11 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf02 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %shuf20 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %shuf22 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf03 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 3>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf30 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf33 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 3>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf12 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf21 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf13 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 3>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf31 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf10 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf11 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf02 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf20 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf22 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf03 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 3>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf30 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf33 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 3>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf12 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf21 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf13 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 3>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf31 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 1>
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %shuf23 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 3>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf32 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf000 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> zeroinitializer
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf001 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf010 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf011 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf100 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf101 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf110 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf111 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf002 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf020 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf022 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf200 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf202 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf220 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 0>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf222 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf112 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf121 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf122 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf211 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 1>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf212 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 2>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf221 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf32 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf000 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> zeroinitializer
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf001 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf010 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf011 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf100 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf101 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf110 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf111 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf002 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf020 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf022 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf200 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf202 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf220 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 0>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf222 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf112 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf121 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf122 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf211 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 1>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf212 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 2>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf221 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 1>
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
 ; ALL-SIZE-LABEL: 'shufflevector_i8'
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %shuf00 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> zeroinitializer
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf00 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> zeroinitializer
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %shuf01 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf10 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf11 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf02 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %shuf20 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %shuf22 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf03 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 3>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf30 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf33 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 3>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf12 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf21 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf13 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 3>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf31 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf10 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf11 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf02 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf20 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf22 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf03 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 0, i32 3>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf30 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf33 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 3>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf12 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf21 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf13 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 3>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf31 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 1>
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %shuf23 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 2, i32 3>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf32 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf000 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> zeroinitializer
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf001 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf010 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf011 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf100 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf101 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf110 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf111 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf002 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf020 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf022 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf200 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf202 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf220 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 0>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %shuf222 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf112 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf121 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf122 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf211 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 1>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf212 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 2>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %shuf221 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf32 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 3, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf000 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> zeroinitializer
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf001 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf010 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf011 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 1, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf100 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf101 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 0, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf110 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf111 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf002 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 0, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf020 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf022 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 0, i32 2, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf200 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf202 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 0, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf220 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 0>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf222 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf112 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 1, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf121 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf122 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 1, i32 2, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf211 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 1>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf212 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 1, i32 2>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %shuf221 = shufflevector <2 x i8> undef, <2 x i8> undef, <3 x i32> <i32 2, i32 2, i32 1>
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
   %shuf00 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> zeroinitializer
@@ -454,14 +454,14 @@ define amdgpu_kernel void @shufflevector_i32() {
 ; Other shuffle cases
 define void @shuffle() {
 ; GFX9-10-LABEL: 'shuffle'
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 32 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
 ; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %v2i16_2 = shufflevector <2 x i16> undef, <2 x i16> undef, <2 x i32> <i32 1, i32 0>
 ; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %v4i16_4 = shufflevector <4 x i16> undef, <4 x i16> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
 ; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 14 for instruction: %v8i16_8 = shufflevector <8 x i16> undef, <8 x i16> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
@@ -474,14 +474,14 @@ define void @shuffle() {
 ; GFX9-10-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
 ; VI-LABEL: 'shuffle'
-; VI-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; VI-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; VI-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; VI-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-NEXT:  Cost Model: Found an estimated cost of 32 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; VI-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; VI-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; VI-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
 ; VI-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i16_2 = shufflevector <2 x i16> undef, <2 x i16> undef, <2 x i32> <i32 1, i32 0>
 ; VI-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %v4i16_4 = shufflevector <4 x i16> undef, <4 x i16> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
 ; VI-NEXT:  Cost Model: Found an estimated cost of 14 for instruction: %v8i16_8 = shufflevector <8 x i16> undef, <8 x i16> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
@@ -494,14 +494,14 @@ define void @shuffle() {
 ; VI-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
 ; GFX9-10-SIZE-LABEL: 'shuffle'
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 32 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
 ; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 0 for instruction: %v2i16_2 = shufflevector <2 x i16> undef, <2 x i16> undef, <2 x i32> <i32 1, i32 0>
 ; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %v4i16_4 = shufflevector <4 x i16> undef, <4 x i16> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
 ; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 14 for instruction: %v8i16_8 = shufflevector <8 x i16> undef, <8 x i16> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
@@ -514,14 +514,14 @@ define void @shuffle() {
 ; GFX9-10-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: ret void
 ;
 ; VI-SIZE-LABEL: 'shuffle'
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
-; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 32 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_2 = shufflevector <2 x i8> undef, <2 x i8> undef, <2 x i32> <i32 1, i32 0>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v2i8_4 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8_4 = shufflevector <4 x i8> undef, <4 x i8> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i8_8 = shufflevector <2 x i8> undef, <2 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v4i8_8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v6i8_8 = shufflevector <6 x i8> undef, <6 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8_8 = shufflevector <8 x i8> undef, <8 x i8> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
+; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8_16 = shufflevector <16 x i8> undef, <16 x i8> undef, <16 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
 ; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v2i16_2 = shufflevector <2 x i16> undef, <2 x i16> undef, <2 x i32> <i32 1, i32 0>
 ; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 6 for instruction: %v4i16_4 = shufflevector <4 x i16> undef, <4 x i16> undef, <4 x i32> <i32 1, i32 3, i32 2, i32 0>
 ; VI-SIZE-NEXT:  Cost Model: Found an estimated cost of 14 for instruction: %v8i16_8 = shufflevector <8 x i16> undef, <8 x i16> undef, <8 x i32> <i32 2, i32 3, i32 0, i32 1, i32 2, i32 3, i32 0, i32 1>
@@ -555,9 +555,9 @@ define void @shuffle() {
 
 define void @concat() {
 ; ALL-LABEL: 'concat'
-; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v4i8 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v8i8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; ALL-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v16i8 = shufflevector <8 x i8> undef, <8 x i8> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+; ALL-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8 = shufflevector <8 x i8> undef, <8 x i8> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %v4i16 = shufflevector <2 x i16> undef, <2 x i16> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 7 for instruction: %v8i16 = shufflevector <4 x i16> undef, <4 x i16> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 15 for instruction: %v16i16 = shufflevector <8 x i16> undef, <8 x i16> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
@@ -573,9 +573,9 @@ define void @concat() {
 ; ALL-NEXT:  Cost Model: Found an estimated cost of 10 for instruction: ret void
 ;
 ; ALL-SIZE-LABEL: 'concat'
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v4i8 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 8 for instruction: %v8i8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
-; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 16 for instruction: %v16i8 = shufflevector <8 x i8> undef, <8 x i8> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 1 for instruction: %v4i8 = shufflevector <2 x i8> undef, <2 x i8> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 2 for instruction: %v8i8 = shufflevector <4 x i8> undef, <4 x i8> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 4 for instruction: %v16i8 = shufflevector <8 x i8> undef, <8 x i8> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 3 for instruction: %v4i16 = shufflevector <2 x i16> undef, <2 x i16> undef, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 7 for instruction: %v8i16 = shufflevector <4 x i16> undef, <4 x i16> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
 ; ALL-SIZE-NEXT:  Cost Model: Found an estimated cost of 15 for instruction: %v16i16 = shufflevector <8 x i16> undef, <8 x i16> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 9, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>

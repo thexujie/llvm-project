@@ -363,6 +363,10 @@ public:
     return 0;
   }
 
+  InstructionCost getPHIScalarizationOverhead(Type *ScalarTy, VectorType *VTy) {
+    return 0;
+  }
+
   InstructionCost
   getOperandsScalarizationOverhead(ArrayRef<const Value *> Args,
                                    ArrayRef<Type *> Tys,

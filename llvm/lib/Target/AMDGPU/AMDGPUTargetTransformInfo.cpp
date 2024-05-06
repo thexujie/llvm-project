@@ -306,6 +306,18 @@ bool GCNTTIImpl::hasBranchDivergence(const Function *F) const {
   return !F || !ST->isSingleLaneExecution(*F);
 }
 
+unsigned GCNTTIImpl::getNumberOfParts(Type *Tp) const {
+  if (auto VTy = dyn_cast<FixedVectorType>(Tp)) {
+    if (DL.getTypeSizeInBits(VTy->getElementType()) == 8) {
+      auto ElCount = VTy->getElementCount().getFixedValue();
+      return ElCount / 4;
+    }
+  }
+
+  std::pair<InstructionCost, MVT> LT = getTypeLegalizationCost(Tp);
+  return LT.first.isValid() ? *LT.first.getValue() : 0;
+}
+
 unsigned GCNTTIImpl::getNumberOfRegisters(unsigned RCID) const {
   // NB: RCID is not an RCID. In fact it is 0 or 1 for scalar or vector
   // registers. See getRegisterClassForType for the implementation.
@@ -337,9 +349,11 @@ unsigned GCNTTIImpl::getMinVectorRegisterBitWidth() const {
 unsigned GCNTTIImpl::getMaximumVF(unsigned ElemWidth, unsigned Opcode) const {
   if (Opcode == Instruction::Load || Opcode == Instruction::Store)
     return 32 * 4 / ElemWidth;
-  return (ElemWidth == 16 && ST->has16BitInsts()) ? 2
-       : (ElemWidth == 32 && ST->hasPackedFP32Ops()) ? 2
-       : 1;
+
+  return (ElemWidth == 8)                              ? 4
+         : (ElemWidth == 16 && ST->has16BitInsts())    ? 2
+         : (ElemWidth == 32 && ST->hasPackedFP32Ops()) ? 2
+                                                       : 1;
 }
 
 unsigned GCNTTIImpl::getLoadVectorFactor(unsigned VF, unsigned LoadSize,
@@ -1123,6 +1137,19 @@ Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
   }
 }
 
+InstructionCost GCNTTIImpl::getPHIScalarizationOverhead(Type *ScalarTy,
+                                                        VectorType *VTy) {
+  if (DL.getTypeSizeInBits(ScalarTy) != 8)
+    return 0;
+
+  if (auto FVTy = dyn_cast<FixedVectorType>(VTy)) {
+    unsigned NumElts = FVTy->getElementCount().getFixedValue();
+    return alignDown(NumElts, 4);
+  }
+
+  return 0;
+}
+
 InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            VectorType *VT, ArrayRef<int> Mask,
                                            TTI::TargetCostKind CostKind,
@@ -1135,12 +1162,21 @@ InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
   if (IsExtractSubvector)
     Kind = TTI::SK_PermuteSingleSrc;
 
-  if (ST->hasVOP3PInsts()) {
-    if (cast<FixedVectorType>(VT)->getNumElements() == 2 &&
-        DL.getTypeSizeInBits(VT->getElementType()) == 16) {
+  bool IsGFX8Plus = ST->getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS;
+
+  FixedVectorType *FixedVT = dyn_cast<FixedVectorType>(VT);
+  if (FixedVT) {
+    unsigned NumElts = FixedVT->getNumElements();
+    unsigned ScalarSizeInBits = DL.getTypeSizeInBits(VT->getElementType());
+
+    if (IsGFX8Plus && ScalarSizeInBits == 8) {
+      // For GFX8Plus, we can emit v_perms for shuffle vectors
+      return (NumElts + 3) / 4;
+    }
+
+    if (ST->hasVOP3PInsts() && NumElts == 2 && ScalarSizeInBits == 16) {
       // With op_sel VOP3P instructions freely can access the low half or high
       // half of a register, so any swizzle is free.
-
       switch (Kind) {
       case TTI::SK_Broadcast:
       case TTI::SK_Reverse:
