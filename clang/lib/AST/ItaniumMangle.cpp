@@ -2130,6 +2130,7 @@ void CXXNameMangler::mangleLambda(const CXXRecordDecl *Lambda) {
 }
 
 void CXXNameMangler::mangleLambdaSig(const CXXRecordDecl *Lambda) {
+  FunctionTypeDepthState saved = FunctionTypeDepth.push();
   // Proposed on https://github.com/itanium-cxx-abi/cxx-abi/issues/31.
   for (auto *D : Lambda->getLambdaExplicitTemplateParameters())
     mangleTemplateParamDecl(D);
@@ -2142,6 +2143,7 @@ void CXXNameMangler::mangleLambdaSig(const CXXRecordDecl *Lambda) {
       Lambda->getLambdaTypeInfo()->getType()->castAs<FunctionProtoType>();
   mangleBareFunctionType(Proto, /*MangleReturnType=*/false,
                          Lambda->getLambdaStaticInvoker());
+  FunctionTypeDepth.pop(saved);
 }
 
 void CXXNameMangler::manglePrefix(NestedNameSpecifier *qualifier) {
