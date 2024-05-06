@@ -257,6 +257,7 @@ StringRef Triple::getOSTypeName(OSType Kind) {
   case Linux: return "linux";
   case Lv2: return "lv2";
   case MacOSX: return "macosx";
+  case Managarm: return "managarm";
   case Mesa3D: return "mesa3d";
   case NVCL: return "nvcl";
   case NaCl: return "nacl";
@@ -327,6 +328,8 @@ StringRef Triple::getEnvironmentTypeName(EnvironmentType Kind) {
   case OpenCL:
     return "opencl";
   case OpenHOS: return "ohos";
+  case Kernel: return "kernel";
+  case Mlibc: return "mlibc";
   }
 
   llvm_unreachable("Invalid EnvironmentType!");
@@ -624,6 +627,7 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("linux", Triple::Linux)
     .StartsWith("lv2", Triple::Lv2)
     .StartsWith("macos", Triple::MacOSX)
+    .StartsWith("managarm", Triple::Managarm)
     .StartsWith("netbsd", Triple::NetBSD)
     .StartsWith("openbsd", Triple::OpenBSD)
     .StartsWith("solaris", Triple::Solaris)
@@ -703,6 +707,8 @@ static Triple::EnvironmentType parseEnvironment(StringRef EnvironmentName) {
       .StartsWith("amplification", Triple::Amplification)
       .StartsWith("opencl", Triple::OpenCL)
       .StartsWith("ohos", Triple::OpenHOS)
+      .StartsWith("kernel", Triple::Kernel)
+      .StartsWith("mlibc", Triple::Mlibc)
       .Default(Triple::UnknownEnvironment);
 }
 
