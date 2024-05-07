@@ -3652,6 +3652,35 @@ FunctionProtoType::FunctionProtoType(QualType result, ArrayRef<QualType> params,
     auto &EllipsisLoc = *getTrailingObjects<SourceLocation>();
     EllipsisLoc = epi.EllipsisLoc;
   }
+
+  if (!epi.FunctionEffects.empty()) {
+    auto &ExtraBits = *getTrailingObjects<FunctionTypeExtraBitfields>();
+    const size_t EffectsCount = epi.FunctionEffects.size();
+    ExtraBits.NumFunctionEffects = EffectsCount;
+    assert(ExtraBits.NumFunctionEffects == EffectsCount &&
+           "effect bitfield overflow");
+
+    ArrayRef<FunctionEffect> SrcFX = epi.FunctionEffects.effects();
+    auto *DestFX = getTrailingObjects<FunctionEffect>();
+    std::uninitialized_copy(SrcFX.begin(), SrcFX.end(), DestFX);
+
+    ArrayRef<FunctionEffectCondition> SrcConds =
+        epi.FunctionEffects.conditions();
+    if (!SrcConds.empty()) {
+      ExtraBits.EffectsHaveConditions = true;
+      auto *DestConds = getTrailingObjects<FunctionEffectCondition>();
+      std::uninitialized_copy(SrcConds.begin(), SrcConds.end(), DestConds);
+      assert(std::any_of(SrcConds.begin(), SrcConds.end(),
+                         [](const FunctionEffectCondition &EC) {
+                           if (const Expr *E = EC.expr())
+                             return E->isTypeDependent() ||
+                                    E->isValueDependent();
+                           return false;
+                         }) &&
+             "expected a dependent expression among the conditions");
+      addDependence(TypeDependence::DependentInstantiation);
+    }
+  }
 }
 
 bool FunctionProtoType::hasDependentExceptionSpec() const {
@@ -3735,6 +3764,7 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
   // Finally we have a trailing return type flag (bool)
   // combined with AArch64 SME Attributes, to save space:
   //      int
+  // combined with any FunctionEffects
   //
   // There is no ambiguity between the consumed arguments and an empty EH
   // spec because of the leading 'bool' which unambiguously indicates
@@ -3770,6 +3800,8 @@ void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID, QualType Result,
 
   epi.ExtInfo.Profile(ID);
   ID.AddInteger((epi.AArch64SMEAttributes << 1) | epi.HasTrailingReturn);
+
+  epi.FunctionEffects.Profile(ID);
 }
 
 void FunctionProtoType::Profile(llvm::FoldingSetNodeID &ID,
@@ -5031,4 +5063,264 @@ void AutoType::Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
 void AutoType::Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context) {
   Profile(ID, Context, getDeducedType(), getKeyword(), isDependentType(),
           getTypeConstraintConcept(), getTypeConstraintArguments());
+}
+
+FunctionEffect::Kind FunctionEffect::oppositeKind() const {
+  switch (kind()) {
+  case Kind::NonBlocking:
+    return Kind::Blocking;
+  case Kind::Blocking:
+    return Kind::NonBlocking;
+  case Kind::NonAllocating:
+    return Kind::Allocating;
+  case Kind::Allocating:
+    return Kind::NonAllocating;
+  case Kind::None:
+    return Kind::None;
+  }
+  llvm_unreachable("unknown effect kind");
+}
+
+StringRef FunctionEffect::name() const {
+  switch (kind()) {
+  case Kind::NonBlocking:
+    return "nonblocking";
+  case Kind::NonAllocating:
+    return "nonallocating";
+  case Kind::Blocking:
+    return "blocking";
+  case Kind::Allocating:
+    return "allocating";
+  case Kind::None:
+    break;
+  }
+  llvm_unreachable("unknown effect kind");
+}
+
+bool FunctionEffect::canInferOnFunction(const Decl &Callee) const {
+  switch (kind()) {
+  case Kind::NonAllocating:
+  case Kind::NonBlocking: {
+    FunctionEffectsRef CalleeFX;
+    if (auto *FD = Callee.getAsFunction())
+      CalleeFX = FD->getFunctionEffects();
+    else if (auto *BD = dyn_cast<BlockDecl>(&Callee))
+      CalleeFX = BD->getFunctionEffects();
+    else
+      return false;
+    for (const FunctionEffectWithCondition &CalleeEC : CalleeFX) {
+      // nonblocking/nonallocating cannot call allocating
+      if (CalleeEC.Effect.kind() == Kind::Allocating)
+        return false;
+      // nonblocking cannot call blocking
+      if (kind() == Kind::NonBlocking &&
+          CalleeEC.Effect.kind() == Kind::Blocking)
+        return false;
+    }
+  }
+    return true;
+
+  case Kind::Allocating:
+  case Kind::Blocking:
+    return false;
+
+  case Kind::None:
+    break;
+  }
+  llvm_unreachable("unknown effect kind");
+}
+
+bool FunctionEffect::shouldDiagnoseFunctionCall(
+    bool Direct, ArrayRef<FunctionEffect> CalleeFX) const {
+  switch (kind()) {
+  case Kind::NonAllocating:
+  case Kind::NonBlocking: {
+    const Kind CallerKind = kind();
+    for (const auto &Effect : CalleeFX) {
+      const Kind EK = Effect.kind();
+      // Does callee have same or stronger constraint?
+      if (EK == CallerKind ||
+          (CallerKind == Kind::NonAllocating && EK == Kind::NonBlocking)) {
+        return false; // no diagnostic
+      }
+    }
+    return true; // warning
+  }
+  case Kind::Allocating:
+  case Kind::Blocking:
+    return false;
+  case Kind::None:
+    break;
+  }
+  llvm_unreachable("unknown effect kind");
+}
+
+// =====
+
+void FunctionEffectsRef::Profile(llvm::FoldingSetNodeID &ID) const {
+  const bool HasConds = !Conditions.empty();
+
+  ID.AddInteger(size() | (HasConds << 31u));
+  for (unsigned Idx = 0, Count = Effects.size(); Idx != Count; ++Idx) {
+    ID.AddInteger(Effects[Idx].toOpaqueInt32());
+    if (HasConds)
+      ID.AddPointer(Conditions[Idx].expr());
+  }
+}
+
+void FunctionEffectSet::insert(const FunctionEffectWithCondition &NewEC,
+                               Conflicts &Errs) {
+  const FunctionEffect::Kind NewOppositeKind = NewEC.Effect.oppositeKind();
+
+  // The index at which insertion will take place; default is at end
+  // but we might find an earlier insertion point.
+  unsigned InsertIdx = Effects.size();
+  unsigned Idx = 0;
+  for (const FunctionEffectWithCondition &EC : *this) {
+    if (EC.Effect.kind() == NewEC.Effect.kind()) {
+      if (Conditions[Idx].expr() != NewEC.Cond.expr())
+        Errs.push_back({EC, NewEC});
+      return;
+    }
+
+    if (EC.Effect.kind() == NewOppositeKind) {
+      Errs.push_back({EC, NewEC});
+      return;
+    }
+
+    if (NewEC.Effect.kind() < EC.Effect.kind() && InsertIdx > Idx)
+      InsertIdx = Idx;
+
+    ++Idx;
+  }
+
+  if (NewEC.Cond.expr()) {
+    if (Conditions.empty() && !Effects.empty())
+      Conditions.resize(Effects.size());
+    Conditions.insert(Conditions.begin() + InsertIdx, NewEC.Cond.expr());
+  }
+  Effects.insert(Effects.begin() + InsertIdx, NewEC.Effect);
+}
+
+void FunctionEffectSet::insert(const FunctionEffectsRef &Set, Conflicts &Errs) {
+  for (const auto &Item : Set)
+    insert(Item, Errs);
+}
+
+void FunctionEffectSet::insertIgnoringConditions(const FunctionEffectsRef &Set,
+                                                 Conflicts &Errs) {
+  for (const auto &Item : Set)
+    insert(FunctionEffectWithCondition(Item.Effect, {}), Errs);
+}
+
+void FunctionEffectSet::replaceItem(unsigned Idx,
+                                    const FunctionEffectWithCondition &Item) {
+  assert(Idx < Conditions.size());
+  Effects[Idx] = Item.Effect;
+  Conditions[Idx] = Item.Cond;
+
+  // Maintain invariant: If all conditions are null, the vector should be empty.
+  if (std::all_of(Conditions.begin(), Conditions.end(),
+                  [](const FunctionEffectCondition &C) {
+                    return C.expr() == nullptr;
+                  })) {
+    Conditions.clear();
+  }
+}
+
+void FunctionEffectSet::erase(unsigned Idx) {
+  assert(Idx < Effects.size());
+  Effects.erase(Effects.begin() + Idx);
+  if (!Conditions.empty()) {
+    assert(Idx < Conditions.size());
+    Conditions.erase(Conditions.begin() + Idx);
+  }
+}
+
+FunctionEffectSet FunctionEffectSet::getIntersection(FunctionEffectsRef LHS,
+                                                     FunctionEffectsRef RHS) {
+  FunctionEffectSet Result;
+  FunctionEffectSet::Conflicts Errs;
+
+  // We could use std::set_intersection but that would require expanding the
+  // container interface to include push_back, making it available to clients
+  // who might fail to maintain invariants.
+  auto IterA = LHS.begin(), EndA = LHS.end();
+  auto IterB = RHS.begin(), EndB = RHS.end();
+
+  while (IterA != EndA && IterB != EndB) {
+    if (*IterA < *IterB)
+      ++IterA;
+    else if (*IterB < *IterA)
+      ++IterB;
+    else {
+      Result.insert(*IterA, Errs);
+      ++IterA;
+      ++IterB;
+    }
+  }
+
+  // Insertion shouldn't be able to fail; that would mean both input
+  // sets contained conflicts.
+  assert(Errs.empty() && "conflict shouldn't be possible in getIntersection");
+
+  return Result;
+}
+
+FunctionEffectSet FunctionEffectSet::getUnion(FunctionEffectsRef LHS,
+                                              FunctionEffectsRef RHS,
+                                              Conflicts &Errs) {
+  // Optimize for either of the two sets being empty (very common).
+  if (LHS.empty())
+    return FunctionEffectSet(RHS);
+
+  FunctionEffectSet Combined(LHS);
+  Combined.insert(RHS, Errs);
+  return Combined;
+}
+
+LLVM_DUMP_METHOD void FunctionEffectsRef::dump(llvm::raw_ostream &OS) const {
+  OS << "Effects{";
+  bool First = true;
+  for (const auto &CFE : *this) {
+    if (!First)
+      OS << ", ";
+    else
+      First = false;
+    OS << CFE.Effect.name();
+    if (Expr *E = CFE.Cond.expr()) {
+      OS << '(';
+      E->dump();
+      OS << ')';
+    }
+  }
+  OS << "}";
+}
+
+LLVM_DUMP_METHOD void FunctionEffectSet::dump(llvm::raw_ostream &OS) const {
+  FunctionEffectsRef(*this).dump(OS);
+}
+
+FunctionEffectsRef FunctionEffectsRef::get(QualType QT) {
+  if (QualType Pointee = QT->getPointeeType(); !Pointee.isNull())
+    QT = Pointee;
+  if (const auto *FPT = QT->getAs<FunctionProtoType>())
+    return FPT->getFunctionEffects();
+  return {};
+}
+
+FunctionEffectsRef
+FunctionEffectsRef::create(ArrayRef<FunctionEffect> FX,
+                           ArrayRef<FunctionEffectCondition> Conds) {
+  assert(std::is_sorted(FX.begin(), FX.end()) && "effects should be sorted");
+  assert((Conds.empty() || Conds.size() == FX.size()) &&
+         "effects size should match conditions size");
+  return FunctionEffectsRef(FX, Conds);
+}
+
+std::string FunctionEffectWithCondition::description() const {
+  std::string Result(Effect.name().str());
+  if (Cond.expr() != nullptr)
+    Result += "(expr)";
+  return Result;
 }

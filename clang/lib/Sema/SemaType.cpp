@@ -31,6 +31,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/Lookup.h"
+#include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaCUDA.h"
@@ -148,6 +149,10 @@ static void diagnoseBadTypeAttribute(Sema &S, const ParsedAttr &attr,
 #define FUNCTION_TYPE_ATTRS_CASELIST                                           \
   case ParsedAttr::AT_NSReturnsRetained:                                       \
   case ParsedAttr::AT_NoReturn:                                                \
+  case ParsedAttr::AT_NonBlocking:                                             \
+  case ParsedAttr::AT_NonAllocating:                                           \
+  case ParsedAttr::AT_Blocking:                                                \
+  case ParsedAttr::AT_Allocating:                                              \
   case ParsedAttr::AT_Regparm:                                                 \
   case ParsedAttr::AT_CmseNSCall:                                              \
   case ParsedAttr::AT_ArmStreaming:                                            \
@@ -7963,6 +7968,157 @@ static Attr *getCCTypeAttr(ASTContext &Ctx, ParsedAttr &Attr) {
   llvm_unreachable("unexpected attribute kind!");
 }
 
+ExprResult Sema::ActOnEffectExpression(Expr *CondExpr, StringRef AttributeName,
+                                       FunctionEffectMode &Mode) {
+  auto BadExpr = [&]() {
+    Diag(CondExpr->getExprLoc(), diag::err_attribute_argument_type)
+        << ("'" + AttributeName.str() + "'") << AANT_ArgumentIntegerConstant
+        << CondExpr->getSourceRange();
+  };
+
+  if (CondExpr->isTypeDependent() || CondExpr->isValueDependent()) {
+    if (CondExpr->containsUnexpandedParameterPack()) {
+      BadExpr();
+      return ExprResult(/*invalid=*/true);
+    }
+    Mode = FunctionEffectMode::Dependent;
+    return CondExpr;
+  }
+
+  std::optional<llvm::APSInt> ConditionValue =
+      CondExpr->getIntegerConstantExpr(Context);
+  if (!ConditionValue) {
+    BadExpr();
+    return ExprResult(/*invalid=*/true);
+  }
+  Mode = ConditionValue->getExtValue() ? FunctionEffectMode::True
+                                       : FunctionEffectMode::False;
+  return ExprResult(static_cast<Expr *>(nullptr));
+}
+
+static bool
+handleNonBlockingNonAllocatingTypeAttr(TypeProcessingState &TPState,
+                                       ParsedAttr &PAttr, QualType &QT,
+                                       FunctionTypeUnwrapper &Unwrapped) {
+  // Delay if this is not a function type.
+  if (!Unwrapped.isFunctionType())
+    return false;
+
+  Sema &S = TPState.getSema();
+
+  // Require FunctionProtoType
+  auto *FPT = Unwrapped.get()->getAs<FunctionProtoType>();
+  if (FPT == nullptr) {
+    S.Diag(PAttr.getLoc(), diag::err_func_with_effects_no_prototype)
+        << PAttr.getAttrName()->getName();
+    return true;
+  }
+
+  // Parse the new  attribute.
+  // non/blocking or non/allocating? Or conditional (computed)?
+  const bool IsNonBlocking = PAttr.getKind() == ParsedAttr::AT_NonBlocking ||
+                             PAttr.getKind() == ParsedAttr::AT_Blocking;
+
+  FunctionEffectMode NewMode = FunctionEffectMode::None;
+  Expr *CondExpr = nullptr; // only valid if dependent
+
+  if (PAttr.getKind() == ParsedAttr::AT_NonBlocking ||
+      PAttr.getKind() == ParsedAttr::AT_NonAllocating) {
+    if (!PAttr.checkAtMostNumArgs(S, 1)) {
+      PAttr.setInvalid();
+      return true;
+    }
+
+    // Parse the condition, if any
+    if (PAttr.getNumArgs() == 1) {
+      CondExpr = PAttr.getArgAsExpr(0);
+      ExprResult E = S.ActOnEffectExpression(
+          CondExpr, PAttr.getAttrName()->getName(), NewMode);
+      if (E.isInvalid()) {
+        PAttr.setInvalid();
+        return true;
+      }
+      CondExpr = NewMode == FunctionEffectMode::Dependent ? E.get() : nullptr;
+    } else {
+      NewMode = FunctionEffectMode::True;
+    }
+  } else {
+    // This is the `blocking` or `allocating` attribute.
+    if (S.CheckAttrNoArgs(PAttr)) {
+      // The attribute has been marked invalid.
+      return true;
+    }
+    NewMode = FunctionEffectMode::False;
+  }
+
+  const FunctionEffect::Kind FEKind =
+      (NewMode == FunctionEffectMode::False)
+          ? (IsNonBlocking ? FunctionEffect::Kind::Blocking
+                           : FunctionEffect::Kind::Allocating)
+          : (IsNonBlocking ? FunctionEffect::Kind::NonBlocking
+                           : FunctionEffect::Kind::NonAllocating);
+  const FunctionEffectWithCondition NewEC{FunctionEffect(FEKind),
+                                          FunctionEffectCondition(CondExpr)};
+
+  // Diagnose the newly parsed attribute as incompatible with a previous one.
+  auto Incompatible = [&](const FunctionEffectWithCondition &PrevEC) {
+    S.Diag(PAttr.getLoc(), diag::err_attributes_are_not_compatible)
+        << ("'" + NewEC.description() + "'")
+        << ("'" + PrevEC.description() + "'") << false;
+    // we don't necessarily have the location of the previous attribute,
+    // so no note.
+    PAttr.setInvalid();
+    return true;
+  };
+
+  // Find previous attributes
+  std::optional<FunctionEffectWithCondition> PrevNonBlocking;
+  std::optional<FunctionEffectWithCondition> PrevNonAllocating;
+
+  for (const FunctionEffectWithCondition &PrevEC : FPT->getFunctionEffects()) {
+    if (PrevEC.Effect.kind() == FEKind ||
+        PrevEC.Effect.oppositeKind() == FEKind)
+      return Incompatible(PrevEC);
+    switch (PrevEC.Effect.kind()) {
+    case FunctionEffect::Kind::Blocking:
+    case FunctionEffect::Kind::NonBlocking:
+      PrevNonBlocking = PrevEC;
+      break;
+    case FunctionEffect::Kind::Allocating:
+    case FunctionEffect::Kind::NonAllocating:
+      PrevNonAllocating = PrevEC;
+      break;
+    default:
+      break;
+    }
+  }
+
+  if (IsNonBlocking) {
+    // new nonblocking(true) is incompatible with previous allocating
+    if (NewMode == FunctionEffectMode::True && PrevNonAllocating &&
+        PrevNonAllocating->Effect.kind() == FunctionEffect::Kind::Allocating)
+      return Incompatible(*PrevNonAllocating);
+  } else {
+    // new allocating is incompatible with previous nonblocking(true)
+    if (NewMode == FunctionEffectMode::False && PrevNonBlocking &&
+        PrevNonBlocking->Effect.kind() == FunctionEffect::Kind::NonBlocking)
+      return Incompatible(*PrevNonBlocking);
+  }
+
+  // Add the effect to the FunctionProtoType
+  FunctionProtoType::ExtProtoInfo EPI = FPT->getExtProtoInfo();
+  FunctionEffectSet FX(EPI.FunctionEffects);
+  FunctionEffectSet::Conflicts Errs;
+  FX.insert(NewEC, Errs);
+  assert(Errs.empty() && "effect conflicts should have been diagnosed above");
+  EPI.FunctionEffects = FunctionEffectsRef(FX);
+
+  QualType NewType = S.Context.getFunctionType(FPT->getReturnType(),
+                                               FPT->getParamTypes(), EPI);
+  QT = Unwrapped.wrap(S, NewType->getAs<FunctionType>());
+  return true;
+}
+
 static bool checkMutualExclusion(TypeProcessingState &state,
                                  const FunctionProtoType::ExtProtoInfo &EPI,
                                  ParsedAttr &Attr,
@@ -8273,6 +8429,13 @@ static bool handleFunctionTypeAttr(TypeProcessingState &state, ParsedAttr &attr,
                    FunctionProtoType::ExceptionSpecInfo{EST_NoThrow})
                ->getAs<FunctionType>());
     return true;
+  }
+
+  if (attr.getKind() == ParsedAttr::AT_NonBlocking ||
+      attr.getKind() == ParsedAttr::AT_NonAllocating ||
+      attr.getKind() == ParsedAttr::AT_Blocking ||
+      attr.getKind() == ParsedAttr::AT_Allocating) {
+    return handleNonBlockingNonAllocatingTypeAttr(state, attr, type, unwrapped);
   }
 
   // Delay if the type didn't work out to a function.

@@ -6263,6 +6263,53 @@ QualType TreeTransform<Derived>::TransformFunctionProtoType(
     EPI.ExtParameterInfos = nullptr;
   }
 
+  // Transform any function effects with unevaluated conditions.
+  // Hold this set in a local for the rest of this function, since EPI
+  // may need to hold a FunctionEffectsRef pointing into it.
+  std::optional<FunctionEffectSet> NewFX;
+  if (ArrayRef FXConds = EPI.FunctionEffects.conditions(); !FXConds.empty()) {
+    NewFX.emplace(EPI.FunctionEffects);
+    EnterExpressionEvaluationContext Unevaluated(
+        getSema(), Sema::ExpressionEvaluationContext::ConstantEvaluated);
+
+    for (unsigned Idx = 0, Count = FXConds.size(); Idx != Count;) {
+      if (Expr *CondExpr = FXConds[Idx].expr()) {
+        ExprResult NewExpr = getDerived().TransformExpr(CondExpr);
+        if (NewExpr.isInvalid())
+          return QualType();
+        const FunctionEffect Effect(EPI.FunctionEffects.effects()[Idx]);
+        FunctionEffectMode Mode = FunctionEffectMode::None;
+        NewExpr =
+            SemaRef.ActOnEffectExpression(NewExpr.get(), Effect.name(), Mode);
+        if (NewExpr.isInvalid())
+          return QualType();
+
+        // The condition expression has been transformed, and re-evaluated.
+        // It may or may not have become constant.
+        FunctionEffectWithCondition EC;
+        switch (Mode) {
+        case FunctionEffectMode::True:
+          EC.Effect = Effect;
+          break;
+        case FunctionEffectMode::False:
+          EC.Effect = FunctionEffect(Effect.oppositeKind());
+          break;
+        case FunctionEffectMode::Dependent:
+          EC.Effect = Effect;
+          EC.Cond = FunctionEffectCondition(NewExpr.get());
+          break;
+        case FunctionEffectMode::None:
+          llvm_unreachable(
+              "FunctionEffectMode::None shouldn't be possible here");
+        }
+        NewFX->replaceItem(Idx, EC);
+      }
+      ++Idx;
+    }
+    EPI.FunctionEffects = *NewFX;
+    EPIChanged = true;
+  }
+
   QualType Result = TL.getType();
   if (getDerived().AlwaysRebuild() || ResultType != T->getReturnType() ||
       T->getParamTypes() != llvm::ArrayRef(ParamTypes) || EPIChanged) {

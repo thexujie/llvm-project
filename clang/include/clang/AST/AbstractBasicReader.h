@@ -244,6 +244,15 @@ public:
     return FunctionProtoType::ExtParameterInfo::getFromOpaqueValue(value);
   }
 
+  FunctionEffect readFunctionEffect() {
+    uint32_t value = asImpl().readUInt32();
+    return FunctionEffect::fromOpaqueInt32(value);
+  }
+
+  FunctionEffectCondition readFunctionEffectCondition() {
+    return FunctionEffectCondition{asImpl().readExprRef()};
+  }
+
   NestedNameSpecifier *readNestedNameSpecifier() {
     auto &ctx = getASTContext();
 
