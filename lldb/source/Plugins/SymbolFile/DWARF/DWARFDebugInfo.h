@@ -58,6 +58,8 @@ public:
 
   const DWARFDebugAranges &GetCompileUnitAranges();
 
+  const std::shared_ptr<SymbolFileDWARFDwo> GetDwpSymbolFile();
+
 protected:
   typedef std::vector<DWARFUnitSP> UnitColl;
 

@@ -71,7 +71,8 @@ private:
       : DWARFIndex(module), m_debug_info(dwarf.DebugInfo()),
         m_debug_names_data(debug_names_data), m_debug_str_data(debug_str_data),
         m_debug_names_up(std::move(debug_names_up)),
-        m_fallback(module, dwarf, GetUnits(*m_debug_names_up)) {}
+        m_fallback(module, dwarf, GetUnits(*m_debug_names_up),
+                   GetTypeUnitSigs(*m_debug_names_up)) {}
 
   DWARFDebugInfo &m_debug_info;
 
@@ -83,6 +84,29 @@ private:
   using DebugNames = llvm::DWARFDebugNames;
   std::unique_ptr<DebugNames> m_debug_names_up;
   ManualDWARFIndex m_fallback;
+
+  /// Checks if an entry is a foreign TU and fetch the type unit.
+  ///
+  /// This function checks if the DebugNames::Entry refers to a foreign TU and
+  /// returns true or false to indicate this. The \a foreign_tu pointer will be
+  /// filled in if this entry matches the type unit's originating .dwo file by
+  /// verifying that the DW_TAG_type_unit DIE has a DW_AT_dwo_name that matches
+  /// the DWO name from the originating skeleton compile unit.
+  ///
+  /// \param[in] entry
+  ///   The accelerator table entry to check.
+  ///
+  /// \param[out] foreign_tu
+  ///   A reference to the foreign type unit pointer that will be filled in
+  ///   with a valid type unit if the entry matches the type unit, or filled in
+  ///   with NULL if the entry isn't valid for the type unit that ended up in
+  ///   the .dwp file.
+  ///
+  /// \returns
+  ///   True if \a entry represents a foreign type unit, false otherwise.
+  bool IsForeignTypeUnit(const DebugNames::Entry &entry, DWARFTypeUnit *&foreign_tu) const;
+
+  DWARFTypeUnit *GetForeignTypeUnit(const DebugNames::Entry &entry) const;
 
   std::optional<DIERef> ToDIERef(const DebugNames::Entry &entry) const;
   bool ProcessEntry(const DebugNames::Entry &entry,
@@ -97,6 +121,7 @@ private:
                                   llvm::StringRef name);
 
   static llvm::DenseSet<dw_offset_t> GetUnits(const DebugNames &debug_names);
+  static llvm::DenseSet<uint64_t> GetTypeUnitSigs(const DebugNames &debug_names);
 };
 
 } // namespace dwarf
