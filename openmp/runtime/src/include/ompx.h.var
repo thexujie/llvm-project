@@ -83,6 +83,10 @@ _TGT_KERNEL_LANGUAGE_HOST_IMPL_SYNC_C(void, sync_block_divergent, int Ordering,
 #undef _TGT_KERNEL_LANGUAGE_HOST_IMPL_SYNC_C
 ///}
 
+static INLINE unsigned ompx_ballot_sync(unsigned mask, int pred) {
+  __builtin_trap();
+}
+
 #pragma omp end declare variant
 
 /// ompx_{sync_block}_{,divergent}
@@ -110,6 +114,8 @@ _TGT_KERNEL_LANGUAGE_DECL_GRID_C(block_id)
 _TGT_KERNEL_LANGUAGE_DECL_GRID_C(grid_dim)
 #undef _TGT_KERNEL_LANGUAGE_DECL_GRID_C
 ///}
+
+unsigned ompx_ballot_sync(unsigned mask, int pred);
 
 #ifdef __cplusplus
 }
@@ -161,6 +167,10 @@ _TGT_KERNEL_LANGUAGE_HOST_IMPL_SYNC_CXX(void, sync_block_divergent,
                                         int Ordering = acc_rel, Ordering);
 #undef _TGT_KERNEL_LANGUAGE_HOST_IMPL_SYNC_CXX
 ///}
+
+static INLINE unsigned ballot_sync(unsigned mask, int pred) {
+  return ompx_ballot_sync(mask, pred);
+}
 
 } // namespace ompx
 #endif

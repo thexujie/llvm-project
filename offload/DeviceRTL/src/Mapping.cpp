@@ -364,4 +364,8 @@ _TGT_KERNEL_LANGUAGE(block_id, getBlockIdInKernel)
 _TGT_KERNEL_LANGUAGE(block_dim, getNumberOfThreadsInBlock)
 _TGT_KERNEL_LANGUAGE(grid_dim, getNumberOfBlocksInKernel)
 
+extern "C" unsigned ompx_ballot_sync(unsigned mask, int pred) {
+  return utils::ballotSync(mask, pred);
+}
+
 #pragma omp end declare target
