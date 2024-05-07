@@ -34,6 +34,23 @@ public:
   static bool classof(const MachineInstr *MI) {
     return isPreISelGenericOpcode(MI->getOpcode());
   }
+
+  bool hasPoisonGeneratingFlags() const {
+    return getFlag(NoUWrap) || getFlag(NoSWrap) || getFlag(IsExact) ||
+           getFlag(Disjoint) || getFlag(NonNeg) || getFlag(FmNoNans) ||
+           getFlag(FmNoInfs);
+  }
+
+  void dropPoisonGeneratingFlags() {
+    clearFlag(NoUWrap);
+    clearFlag(NoSWrap);
+    clearFlag(IsExact);
+    clearFlag(Disjoint);
+    clearFlag(NonNeg);
+    clearFlag(FmNoNans);
+    clearFlag(FmNoInfs);
+    assert(!hasPoisonGeneratingFlags());
+  }
 };
 
 /// Provides common memory operand functionality.
@@ -789,6 +806,35 @@ public:
 
   static bool classof(const MachineInstr *MI) {
     return MI->getOpcode() == TargetOpcode::G_FREEZE;
+  }
+};
+
+/// Represents cast instructions.
+class GCastOp : public GenericMachineInstr {
+public:
+  Register getSourceReg() const { return getOperand(1).getReg(); }
+
+  static bool classof(const MachineInstr *MI) {
+    switch (MI->getOpcode()) {
+    case TargetOpcode::G_TRUNC:
+    case TargetOpcode::G_ANYEXT:
+    case TargetOpcode::G_SEXT:
+    case TargetOpcode::G_ZEXT:
+    case TargetOpcode::G_FPTOSI:
+    case TargetOpcode::G_FPTOUI:
+    case TargetOpcode::G_UITOFP:
+    case TargetOpcode::G_SITOFP:
+    case TargetOpcode::G_FPTRUNC:
+    case TargetOpcode::G_FPEXT:
+    case TargetOpcode::G_INTTOPTR:
+    case TargetOpcode::G_PTRTOINT:
+    case TargetOpcode::G_BITCAST:
+    case TargetOpcode::G_ADDRSPACE_CAST:
+      return true;
+
+    default:
+      return false;
+    }
   }
 };
 
