@@ -2400,6 +2400,7 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch ((AArch64ISD::NodeType)Opcode) {
   case AArch64ISD::FIRST_NUMBER:
     break;
+    MAKE_CASE(AArch64ISD::EXPAND_ZA_BUFFER)
     MAKE_CASE(AArch64ISD::COALESCER_BARRIER)
     MAKE_CASE(AArch64ISD::SMSTART)
     MAKE_CASE(AArch64ISD::SMSTOP)
@@ -2894,6 +2895,69 @@ AArch64TargetLowering::EmitZero(MachineInstr &MI, MachineBasicBlock *BB) const {
   return BB;
 }
 
+MachineBasicBlock *
+AArch64TargetLowering::EmitExpandZABuffer(MachineInstr &MI,
+                                          MachineBasicBlock *BB) const {
+  MachineFunction *MF = BB->getParent();
+  MachineFrameInfo &MFI = MF->getFrameInfo();
+  AArch64FunctionInfo *FuncInfo = MF->getInfo<AArch64FunctionInfo>();
+  // TODO This function grows the stack with a subtraction, which doesn't work
+  // on Windows. Some refactoring to share the functionality in
+  // LowerWindowsDYNAMIC_STACKALLOC will be required once the Windows ABI
+  // supports SME
+  assert(!MF->getSubtarget<AArch64Subtarget>().isTargetWindows() &&
+         "Lazy ZA save is not yet supported on Windows");
+
+  std::optional<TPIDR2Object> TPIDR2 = FuncInfo->getTPIDR2Obj();
+  if (!TPIDR2)
+    llvm_unreachable("Cannot ExpandZABuffer without valid TPIDR2 object");
+
+  if (TPIDR2->Uses == 0) {
+    BB->remove_instr(&MI);
+    MFI.RemoveStackObject(TPIDR2->FrameIndex);
+    return BB;
+  }
+
+  const TargetInstrInfo *TII = Subtarget->getInstrInfo();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  // The SUBXrs below won't always be emitted in a form that accepts SP directly
+  Register SP = MRI.createVirtualRegister(&AArch64::GPR64RegClass);
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(TargetOpcode::COPY), SP)
+      .addReg(AArch64::SP);
+
+  // Allocate a lazy-save buffer object of the size given, normally SVL * SVL
+  Register BufferAddr = MRI.createVirtualRegister(&AArch64::GPR64RegClass);
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(AArch64::SUBXrs), BufferAddr)
+      .addReg(SP)
+      .add(MI.getOperand(0))
+      .addImm(0);
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(TargetOpcode::COPY), AArch64::SP)
+      .addReg(BufferAddr);
+
+  // Allocate an additional TPIDR2 object on the stack (16 bytes)
+  unsigned TPIDR2Object = TPIDR2->FrameIndex;
+  MFI.CreateVariableSizedObject(Align(16), nullptr);
+
+  // Store the buffer pointer to the TPIDR2 stack object.
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(AArch64::STRXui))
+      .addReg(BufferAddr)
+      .addFrameIndex(TPIDR2Object)
+      .addImm(0);
+  // Set the reserved bytes (10-15) to zero
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(AArch64::STRHHui))
+      .addReg(AArch64::WZR)
+      .addFrameIndex(TPIDR2Object)
+      .addImm(5);
+  BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(AArch64::STRWui))
+      .addReg(AArch64::WZR)
+      .addFrameIndex(TPIDR2Object)
+      .addImm(3);
+
+  BB->remove_instr(&MI);
+  return BB;
+}
+
 MachineBasicBlock *AArch64TargetLowering::EmitInstrWithCustomInserter(
     MachineInstr &MI, MachineBasicBlock *BB) const {
 
@@ -2924,6 +2988,8 @@ MachineBasicBlock *AArch64TargetLowering::EmitInstrWithCustomInserter(
     MI.dump();
 #endif
     llvm_unreachable("Unexpected instruction for custom inserter!");
+  case AArch64::ExpandZABuffer:
+    return EmitExpandZABuffer(MI, BB);
 
   case AArch64::F128CSEL:
     return EmitF128CSEL(MI, BB);
@@ -6885,47 +6951,6 @@ AArch64TargetLowering::CCAssignFnForReturn(CallingConv::ID CC) const {
   }
 }
 
-
-unsigned
-AArch64TargetLowering::allocateLazySaveBuffer(SDValue &Chain, const SDLoc &DL,
-                                              SelectionDAG &DAG) const {
-  MachineFunction &MF = DAG.getMachineFunction();
-  MachineFrameInfo &MFI = MF.getFrameInfo();
-
-  // Allocate a lazy-save buffer object of size SVL.B * SVL.B (worst-case)
-  SDValue N = DAG.getNode(AArch64ISD::RDSVL, DL, MVT::i64,
-                          DAG.getConstant(1, DL, MVT::i32));
-  SDValue NN = DAG.getNode(ISD::MUL, DL, MVT::i64, N, N);
-  SDValue Ops[] = {Chain, NN, DAG.getConstant(1, DL, MVT::i64)};
-  SDVTList VTs = DAG.getVTList(MVT::i64, MVT::Other);
-  SDValue Buffer = DAG.getNode(ISD::DYNAMIC_STACKALLOC, DL, VTs, Ops);
-  Chain = Buffer.getValue(1);
-  MFI.CreateVariableSizedObject(Align(1), nullptr);
-
-  // Allocate an additional TPIDR2 object on the stack (16 bytes)
-  unsigned TPIDR2Obj = MFI.CreateStackObject(16, Align(16), false);
-
-  // Store the buffer pointer to the TPIDR2 stack object.
-  MachinePointerInfo MPI = MachinePointerInfo::getStack(MF, TPIDR2Obj);
-  SDValue Ptr = DAG.getFrameIndex(
-      TPIDR2Obj,
-      DAG.getTargetLoweringInfo().getFrameIndexTy(DAG.getDataLayout()));
-  Chain = DAG.getStore(Chain, DL, Buffer, Ptr, MPI);
-
-  // Set the reserved bytes (10-15) to zero
-  EVT PtrTy = Ptr.getValueType();
-  SDValue ReservedPtr =
-      DAG.getNode(ISD::ADD, DL, PtrTy, Ptr, DAG.getConstant(10, DL, PtrTy));
-  Chain = DAG.getStore(Chain, DL, DAG.getConstant(0, DL, MVT::i16), ReservedPtr,
-                       MPI);
-  ReservedPtr =
-      DAG.getNode(ISD::ADD, DL, PtrTy, Ptr, DAG.getConstant(12, DL, PtrTy));
-  Chain = DAG.getStore(Chain, DL, DAG.getConstant(0, DL, MVT::i32), ReservedPtr,
-                       MPI);
-
-  return TPIDR2Obj;
-}
-
 static bool isPassedInFPR(EVT VT) {
   return VT.isFixedLengthVector() ||
          (VT.isFloatingPoint() && !VT.isScalableVector());
@@ -7342,10 +7367,17 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
   if (Subtarget->hasCustomCallingConv())
     Subtarget->getRegisterInfo()->UpdateCustomCalleeSavedRegs(MF);
 
-  // Conservatively assume the function requires the lazy-save mechanism.
+  // Create a 16 Byte TPIDR2 object. The dynamic buffer
+  // will be expanded and stored in the static object later using a pseudonode.
   if (SMEAttrs(MF.getFunction()).hasZAState()) {
-    unsigned TPIDR2Obj = allocateLazySaveBuffer(Chain, DL, DAG);
-    FuncInfo->setLazySaveTPIDR2Obj(TPIDR2Obj);
+    TPIDR2Object TPIDR2;
+    TPIDR2.FrameIndex = MFI.CreateStackObject(16, Align(16), false);
+    FuncInfo->setTPIDR2Obj(TPIDR2);
+    SDValue SVL = DAG.getNode(AArch64ISD::RDSVL, DL, MVT::i64,
+                              DAG.getConstant(1, DL, MVT::i32));
+    SDValue Size = DAG.getNode(ISD::MUL, DL, MVT::i64, SVL, SVL);
+    Chain = DAG.getNode(AArch64ISD::EXPAND_ZA_BUFFER, DL,
+                        DAG.getVTList(MVT::Other), {Chain, Size});
   }
 
   return Chain;
@@ -8016,9 +8048,11 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   bool RequiresLazySave = CallerAttrs.requiresLazySave(CalleeAttrs);
   if (RequiresLazySave) {
-    unsigned TPIDR2Obj = FuncInfo->getLazySaveTPIDR2Obj();
-    MachinePointerInfo MPI = MachinePointerInfo::getStack(MF, TPIDR2Obj);
-    SDValue TPIDR2ObjAddr = DAG.getFrameIndex(TPIDR2Obj,
+    const TPIDR2Object TPIDR2 = *FuncInfo->getTPIDR2Obj();
+    MachinePointerInfo MPI =
+        MachinePointerInfo::getStack(MF, TPIDR2.FrameIndex);
+    SDValue TPIDR2ObjAddr = DAG.getFrameIndex(
+        TPIDR2.FrameIndex,
         DAG.getTargetLoweringInfo().getFrameIndexTy(DAG.getDataLayout()));
     SDValue NumZaSaveSlicesAddr =
         DAG.getNode(ISD::ADD, DL, TPIDR2ObjAddr.getValueType(), TPIDR2ObjAddr,
@@ -8534,7 +8568,7 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
 
   if (RequiresLazySave) {
     // Conditionally restore the lazy save using a pseudo node.
-    unsigned FI = FuncInfo->getLazySaveTPIDR2Obj();
+    TPIDR2Object TPIDR2 = *FuncInfo->getTPIDR2Obj();
     SDValue RegMask = DAG.getRegisterMask(
         TRI->SMEABISupportRoutinesCallPreservedMaskFromX0());
     SDValue RestoreRoutine = DAG.getTargetExternalSymbol(
@@ -8547,7 +8581,8 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
     // RESTORE_ZA pseudo.
     SDValue Glue;
     SDValue TPIDR2Block = DAG.getFrameIndex(
-        FI, DAG.getTargetLoweringInfo().getFrameIndexTy(DAG.getDataLayout()));
+        TPIDR2.FrameIndex,
+        DAG.getTargetLoweringInfo().getFrameIndexTy(DAG.getDataLayout()));
     Result = DAG.getCopyToReg(Result, DL, AArch64::X0, TPIDR2Block, Glue);
     Result =
         DAG.getNode(AArch64ISD::RESTORE_ZA, DL, MVT::Other,
@@ -8559,6 +8594,8 @@ AArch64TargetLowering::LowerCall(CallLoweringInfo &CLI,
         ISD::INTRINSIC_VOID, DL, MVT::Other, Result,
         DAG.getConstant(Intrinsic::aarch64_sme_set_tpidr2, DL, MVT::i32),
         DAG.getConstant(0, DL, MVT::i64));
+    TPIDR2.Uses++;
+    FuncInfo->setTPIDR2Obj(TPIDR2);
   }
 
   if (RequiresSMChange || RequiresLazySave || ShouldPreserveZT0) {

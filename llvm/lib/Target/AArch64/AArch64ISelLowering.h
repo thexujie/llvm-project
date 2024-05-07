@@ -444,6 +444,7 @@ enum NodeType : unsigned {
   // SME
   RDSVL,
   REVD_MERGE_PASSTHRU,
+  EXPAND_ZA_BUFFER,
 
   // Asserts that a function argument (i32) is zero-extended to i8 by
   // the caller
@@ -645,6 +646,8 @@ public:
   MachineBasicBlock *EmitZTInstr(MachineInstr &MI, MachineBasicBlock *BB,
                                  unsigned Opcode, bool Op0IsDef) const;
   MachineBasicBlock *EmitZero(MachineInstr &MI, MachineBasicBlock *BB) const;
+  MachineBasicBlock *EmitExpandZABuffer(MachineInstr &MI,
+                                        MachineBasicBlock *BB) const;
 
   MachineBasicBlock *
   EmitInstrWithCustomInserter(MachineInstr &MI,
@@ -1019,9 +1022,6 @@ private:
   void addTypeForFixedLengthSVE(MVT VT);
   void addDRTypeForNEON(MVT VT);
   void addQRTypeForNEON(MVT VT);
-
-  unsigned allocateLazySaveBuffer(SDValue &Chain, const SDLoc &DL,
-                                  SelectionDAG &DAG) const;
 
   SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
                                bool isVarArg,
