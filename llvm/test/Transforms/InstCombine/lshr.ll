@@ -165,8 +165,7 @@ define <2 x i8> @lshr_exact_splat_vec(<2 x i8> %x) {
 
 define <2 x i8> @lshr_exact_splat_vec_nuw(<2 x i8> %x) {
 ; CHECK-LABEL: @lshr_exact_splat_vec_nuw(
-; CHECK-NEXT:    [[TMP1:%.*]] = add <2 x i8> [[X:%.*]], <i8 1, i8 1>
-; CHECK-NEXT:    [[LSHR:%.*]] = and <2 x i8> [[TMP1]], <i8 63, i8 63>
+; CHECK-NEXT:    [[LSHR:%.*]] = add nuw <2 x i8> [[X:%.*]], <i8 1, i8 1>
 ; CHECK-NEXT:    ret <2 x i8> [[LSHR]]
 ;
   %shl = shl nuw <2 x i8> %x, <i8 2, i8 2>
@@ -374,9 +373,8 @@ define <3 x i14> @mul_splat_fold_vec(<3 x i14> %x) {
 
 define i32 @shl_add_lshr_flag_preservation(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_add_lshr_flag_preservation(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = add nuw nsw i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr exact i32 [[ADD]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr exact i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = add nuw nsw i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -387,9 +385,8 @@ define i32 @shl_add_lshr_flag_preservation(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_add_lshr(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_add_lshr(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = add nuw i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[ADD]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = add nuw i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -400,9 +397,8 @@ define i32 @shl_add_lshr(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_add_lshr_comm(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_add_lshr_comm(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = add nuw i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[ADD]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = add nuw i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -413,9 +409,8 @@ define i32 @shl_add_lshr_comm(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_sub_lshr(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_sub_lshr(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[SUB:%.*]] = sub nuw i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[SUB]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = sub nuw i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -426,9 +421,8 @@ define i32 @shl_sub_lshr(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_or_lshr(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_or_lshr(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[OR:%.*]] = or i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[OR]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = or i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -439,9 +433,8 @@ define i32 @shl_or_lshr(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_or_disjoint_lshr(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_or_disjoint_lshr(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[OR:%.*]] = or disjoint i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[OR]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = or disjoint i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
@@ -452,9 +445,8 @@ define i32 @shl_or_disjoint_lshr(i32 %x, i32 %c, i32 %y) {
 
 define i32 @shl_xor_lshr(i32 %x, i32 %c, i32 %y) {
 ; CHECK-LABEL: @shl_xor_lshr(
-; CHECK-NEXT:    [[SHL:%.*]] = shl nuw i32 [[X:%.*]], [[C:%.*]]
-; CHECK-NEXT:    [[XOR:%.*]] = xor i32 [[SHL]], [[Y:%.*]]
-; CHECK-NEXT:    [[LSHR:%.*]] = lshr i32 [[XOR]], [[C]]
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i32 [[Y:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[LSHR:%.*]] = xor i32 [[TMP1]], [[X:%.*]]
 ; CHECK-NEXT:    ret i32 [[LSHR]]
 ;
   %shl = shl nuw i32 %x, %c
