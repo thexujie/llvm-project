@@ -2494,10 +2494,10 @@ Parser::ParseModuleDecl(Sema::ModuleImportState &ImportState) {
     return Actions.ActOnPrivateModuleFragmentDecl(ModuleLoc, PrivateLoc);
   }
 
+  bool HasError = false;
   SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> Path;
-  if (ParseModuleName(ModuleLoc, Path, /*IsImport*/ false))
-    return nullptr;
-
+  if (ParseModuleName(ModuleLoc, Path, /*IsImport=*/false))
+    HasError = true;
   // Parse the optional module-partition.
   SmallVector<std::pair<IdentifierInfo *, SourceLocation>, 2> Partition;
   if (Tok.is(tok::colon)) {
@@ -2506,8 +2506,8 @@ Parser::ParseModuleDecl(Sema::ModuleImportState &ImportState) {
       Diag(ColonLoc, diag::err_unsupported_module_partition)
           << SourceRange(ColonLoc, Partition.back().second);
     // Recover by ignoring the partition name.
-    else if (ParseModuleName(ModuleLoc, Partition, /*IsImport*/ false))
-      return nullptr;
+    else if (ParseModuleName(ModuleLoc, Partition, /*IsImport=*/false))
+      HasError = true;
   }
 
   // We don't support any module attributes yet; just parse them and diagnose.
@@ -2520,8 +2520,9 @@ Parser::ParseModuleDecl(Sema::ModuleImportState &ImportState) {
 
   ExpectAndConsumeSemi(diag::err_module_expected_semi);
 
-  return Actions.ActOnModuleDecl(StartLoc, ModuleLoc, MDK, Path, Partition,
-                                 ImportState);
+  return HasError ? nullptr
+                  : Actions.ActOnModuleDecl(StartLoc, ModuleLoc, MDK, Path,
+                                            Partition, ImportState);
 }
 
 /// Parse a module import declaration. This is essentially the same for
@@ -2571,12 +2572,12 @@ Decl *Parser::ParseModuleImport(SourceLocation AtLoc,
       Diag(ColonLoc, diag::err_unsupported_module_partition)
           << SourceRange(ColonLoc, Path.back().second);
     // Recover by leaving partition empty.
-    else if (ParseModuleName(ColonLoc, Path, /*IsImport*/ true))
+    else if (ParseModuleName(ColonLoc, Path, /*IsImport=*/true))
       return nullptr;
     else
       IsPartition = true;
   } else {
-    if (ParseModuleName(ImportLoc, Path, /*IsImport*/ true))
+    if (ParseModuleName(ImportLoc, Path, /*IsImport=*/true))
       return nullptr;
   }
 
@@ -2676,6 +2677,7 @@ bool Parser::ParseModuleName(
     SourceLocation UseLoc,
     SmallVectorImpl<std::pair<IdentifierInfo *, SourceLocation>> &Path,
     bool IsImport) {
+  bool HasMacroInModuleName = false;
   // Parse the module path.
   while (true) {
     if (!Tok.is(tok::identifier)) {
@@ -2686,18 +2688,19 @@ bool Parser::ParseModuleName(
       }
 
       Diag(Tok, diag::err_module_expected_ident) << IsImport;
-      SkipUntil(tok::semi);
+      SkipUntil(tok::semi, StopBeforeMatch);
       return true;
     }
+
+    const auto *MI = PP.getMacroInfo(Tok.getIdentifierInfo());
+    HasMacroInModuleName = !IsImport && MI && MI->isObjectLike();
 
     // Record this part of the module path.
     Path.push_back(std::make_pair(Tok.getIdentifierInfo(), Tok.getLocation()));
     ConsumeToken();
 
-    if (Tok.isNot(tok::period))
-      return false;
-
-    ConsumeToken();
+    if (!TryConsumeToken(tok::period))
+      return HasMacroInModuleName;
   }
 }
 
