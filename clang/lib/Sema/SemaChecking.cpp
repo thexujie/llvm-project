@@ -172,6 +172,27 @@ static bool checkArgCount(Sema &S, CallExpr *Call, unsigned DesiredArgCount) {
          << /*is non object*/ 0 << Call->getArg(1)->getSourceRange();
 }
 
+static bool checkBuiltinVerboseTrap(CallExpr *Call, Sema &S) {
+  bool HasError = false;
+
+  for (int I = 0; I < Call->getNumArgs(); ++I) {
+    Expr *Arg = Call->getArg(I);
+
+    if (Arg->isValueDependent())
+      continue;
+
+    // FIXME: Add more checks and reject strings that can't be handled by
+    // debuggers.
+    if (!Arg->tryEvaluateString(S.Context).has_value()) {
+      S.Diag(Arg->getBeginLoc(), diag::err_builtin_verbose_trap_arg)
+          << Arg->getSourceRange();
+      HasError = true;
+    }
+  }
+
+  return !HasError;
+}
+
 static bool convertArgumentToType(Sema &S, Expr *&Value, QualType Ty) {
   if (Value->isTypeDependent())
     return false;
@@ -3216,6 +3237,11 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
 
   case Builtin::BI__builtin_matrix_column_major_store:
     return BuiltinMatrixColumnMajorStore(TheCall, TheCallResult);
+
+  case Builtin::BI__builtin_verbose_trap:
+    if (!checkBuiltinVerboseTrap(TheCall, *this))
+      return ExprError();
+    break;
 
   case Builtin::BI__builtin_get_device_side_mangled_name: {
     auto Check = [](CallExpr *TheCall) {
