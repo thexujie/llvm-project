@@ -1479,8 +1479,10 @@ static auto computeNewlines(const AnnotatedLine &Line,
     Newlines = std::min(Newlines, 1u);
   if (Newlines == 0 && !RootToken.IsFirst)
     Newlines = 1;
-  if (RootToken.IsFirst && !RootToken.HasUnescapedNewline)
+  if (RootToken.IsFirst &&
+      (!Style.KeepEmptyLinesAtStart || !RootToken.HasUnescapedNewline)) {
     Newlines = 0;
+  }
 
   // Remove empty lines after "{".
   if (!Style.KeepEmptyLinesAtTheStartOfBlocks && PreviousLine &&

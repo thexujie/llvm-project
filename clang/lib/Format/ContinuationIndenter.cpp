@@ -208,6 +208,9 @@ RawStringFormatStyleManager::RawStringFormatStyleManager(
       LanguageStyle = PredefinedStyle;
     }
     LanguageStyle->ColumnLimit = CodeStyle.ColumnLimit;
+    // This way the first line of the string does not have to follow the code
+    // before the string.
+    LanguageStyle->KeepEmptyLinesAtStart = true;
     for (StringRef Delimiter : RawStringFormat.Delimiters)
       DelimiterStyle.insert({Delimiter, *LanguageStyle});
     for (StringRef EnclosingFunction : RawStringFormat.EnclosingFunctions)

@@ -3093,6 +3093,10 @@ struct FormatStyle {
   /// \version 17
   bool KeepEmptyLinesAtEOF;
 
+  /// Keep empty lines (up to ``MaxEmptyLinesToKeep``) at start of file.
+  /// \version 19
+  bool KeepEmptyLinesAtStart;
+
   /// If true, the empty line at the start of blocks is kept.
   /// \code
   ///    true:                                  false:
@@ -5028,6 +5032,7 @@ struct FormatStyle {
            JavaScriptQuotes == R.JavaScriptQuotes &&
            JavaScriptWrapImports == R.JavaScriptWrapImports &&
            KeepEmptyLinesAtEOF == R.KeepEmptyLinesAtEOF &&
+           KeepEmptyLinesAtStart == R.KeepEmptyLinesAtStart &&
            KeepEmptyLinesAtTheStartOfBlocks ==
                R.KeepEmptyLinesAtTheStartOfBlocks &&
            Language == R.Language &&

@@ -178,6 +178,7 @@ TEST(ConfigParseTest, ParsesConfigurationBools) {
   CHECK_PARSE_BOOL(InsertBraces);
   CHECK_PARSE_BOOL(InsertNewlineAtEOF);
   CHECK_PARSE_BOOL(KeepEmptyLinesAtEOF);
+  CHECK_PARSE_BOOL(KeepEmptyLinesAtStart);
   CHECK_PARSE_BOOL(KeepEmptyLinesAtTheStartOfBlocks);
   CHECK_PARSE_BOOL(ObjCSpaceAfterProperty);
   CHECK_PARSE_BOOL(ObjCSpaceBeforeProtocolList);

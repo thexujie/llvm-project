@@ -45,6 +45,9 @@ TEST_F(FormatTest, FormatsGlobalStatementsAt0) {
   verifyFormat("\nint i;", " \n\t \v \f  int i;");
   verifyFormat("int i;\nint j;", "    int i; int j;");
   verifyFormat("int i;\nint j;", "    int i;\n  int j;");
+  auto Style = getLLVMStyle();
+  Style.KeepEmptyLinesAtStart = false;
+  verifyFormat("int i;", " \n\t \v \f  int i;", Style);
 }
 
 TEST_F(FormatTest, FormatsUnwrappedLinesAtFirstFormat) {
@@ -21898,6 +21901,10 @@ TEST_F(FormatTest, HandlesUTF8BOM) {
   verifyFormat("\xef\xbb\xbf");
   verifyFormat("\xef\xbb\xbf#include <iostream>");
   verifyFormat("\xef\xbb\xbf\n#include <iostream>");
+  auto Style = getLLVMStyle();
+  Style.KeepEmptyLinesAtStart = false;
+  verifyFormat("\xef\xbb\xbf#include <iostream>",
+               "\xef\xbb\xbf\n#include <iostream>", Style);
 }
 
 // FIXME: Encode Cyrillic and CJK characters below to appease MS compilers.
