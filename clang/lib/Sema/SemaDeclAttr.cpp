@@ -7524,6 +7524,20 @@ static void handleARMInterruptAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   D->addAttr(::new (S.Context) ARMInterruptAttr(S.Context, AL, Kind));
 }
 
+static void handleARMInterruptSaveFPAttr(Sema &S, Decl *D,
+                                         const ParsedAttr &AL) {
+  handleARMInterruptAttr(S, D, AL);
+
+  bool VFP = S.Context.getTargetInfo().hasFeature("vfp");
+
+  if (!VFP) {
+    S.Diag(D->getLocation(), diag::warn_arm_interrupt_save_fp_without_vfp_unit);
+    return;
+  }
+
+  D->addAttr(::new (S.Context) ARMSaveFPAttr(S.Context, AL));
+}
+
 static void handleMSP430InterruptAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   // MSP430 'interrupt' attribute is applied to
   // a function with no parameters and void return type.
@@ -9134,9 +9148,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   if (AL.isCXX11Attribute() && !Options.IncludeCXX11Attributes)
     return;
 
-  // Unknown attributes are automatically warned on. Target-specific attributes
-  // which do not apply to the current target architecture are treated as
-  // though they were unknown attributes.
+  // Unknown attributes are automatically warned on. Target-specific
+  // attributes which do not apply to the current target architecture are
+  // treated as though they were unknown attributes.
   if (AL.getKind() == ParsedAttr::UnknownAttribute ||
       !AL.existsInTarget(S.Context.getTargetInfo())) {
     S.Diag(AL.getLoc(),
@@ -9240,6 +9254,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_Interrupt:
     handleInterruptAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_ARMInterruptSaveFP:
+    handleARMInterruptSaveFPAttr(S, D, AL);
     break;
   case ParsedAttr::AT_X86ForceAlignArgPointer:
     handleX86ForceAlignArgPointerAttr(S, D, AL);

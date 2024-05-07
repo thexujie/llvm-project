@@ -415,6 +415,13 @@ def VCCR : RegisterClass<"ARM", [i32, v16i1, v8i1, v4i1, v2i1], 32, (add VPR)> {
 // output to an instruction such as MVE VADC.
 def cl_FPSCR_NZCV : RegisterClass<"ARM", [i32], 32, (add FPSCR_NZCV)>;
 
+// This RegisterClass is required to add FPSCR and FPEXC into a calling
+// convention.
+def FP_STATUS_REGS : RegisterClass<"ARM", [i32], 32, (add FPSCR, FPEXC)> {
+  let CopyCost = -1;  // Don't allow copying of status registers.
+  let isAllocatable = 0;
+}
+
 // Scalar single precision floating point register class..
 // FIXME: Allocation order changed to s0, s2, ... or s0, s4, ... as a quick hack
 // to avoid partial-write dependencies on D or Q (depending on platform)

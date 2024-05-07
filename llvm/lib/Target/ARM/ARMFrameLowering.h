@@ -97,6 +97,15 @@ private:
                    bool (*Func)(unsigned, bool),
                    unsigned NumAlignedDPRCS2Regs) const;
 
+  void emitFPStatusSaves(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                         ArrayRef<CalleeSavedInfo> CSI,
+                         unsigned PushOneOpc) const;
+
+  void emitFPStatusRestores(MachineBasicBlock &MBB,
+                            MachineBasicBlock::iterator MI,
+                            MutableArrayRef<CalleeSavedInfo> CSI,
+                            unsigned LdrOpc) const;
+
   MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF,
                                 MachineBasicBlock &MBB,

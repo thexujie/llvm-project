@@ -759,7 +759,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Determine the sizes of each callee-save spill areas and record which frame
   // belongs to which callee-save spill areas.
-  unsigned GPRCS1Size = 0, GPRCS2Size = 0, DPRCSSize = 0;
+  unsigned GPRCS1Size = 0, GPRCS2Size = 0, FPStatusSize = 0, DPRCS1Size = 0,
+           GPRCS3Size = 0, DPRCS2Size = 0;
   int FramePtrSpillFI = 0;
   int D8SpillFI = 0;
 
@@ -790,84 +791,67 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Determine spill area sizes.
-  if (STI.splitFramePointerPush(MF)) {
-    for (const CalleeSavedInfo &I : CSI) {
-      Register Reg = I.getReg();
-      int FI = I.getFrameIdx();
-      switch (Reg) {
-      case ARM::R11:
-      case ARM::LR:
-        if (Reg == FramePtr)
-          FramePtrSpillFI = FI;
-        GPRCS2Size += 4;
-        break;
-      case ARM::R0:
-      case ARM::R1:
-      case ARM::R2:
-      case ARM::R3:
-      case ARM::R4:
-      case ARM::R5:
-      case ARM::R6:
-      case ARM::R7:
-      case ARM::R8:
-      case ARM::R9:
-      case ARM::R10:
-      case ARM::R12:
-        GPRCS1Size += 4;
-        break;
-      case ARM::FPCXTNS:
-        FPCXTSaveSize = 4;
-        break;
-      default:
-        // This is a DPR. Exclude the aligned DPRCS2 spills.
-        if (Reg == ARM::D8)
-          D8SpillFI = FI;
-        if (Reg < ARM::D8 || Reg >= ARM::D8 + AFI->getNumAlignedDPRCS2Regs())
-          DPRCSSize += 8;
+  for (const CalleeSavedInfo &I : CSI) {
+    Register Reg = I.getReg();
+    int FI = I.getFrameIdx();
+
+    if (Reg == FramePtr) {
+      FramePtrSpillFI = FI;
+    }
+
+    if (STI.splitFramePointerPush(MF)) {
+      if (Reg == ARM::LR || Reg == ARM::R11) {
+        GPRCS3Size += 4;
+        continue;
       }
     }
-  } else {
-    for (const CalleeSavedInfo &I : CSI) {
-      Register Reg = I.getReg();
-      int FI = I.getFrameIdx();
-      switch (Reg) {
-      case ARM::R8:
-      case ARM::R9:
-      case ARM::R10:
-      case ARM::R11:
-      case ARM::R12:
-        if (STI.splitFramePushPop(MF)) {
-          GPRCS2Size += 4;
-          break;
-        }
-        [[fallthrough]];
-      case ARM::R0:
-      case ARM::R1:
-      case ARM::R2:
-      case ARM::R3:
-      case ARM::R4:
-      case ARM::R5:
-      case ARM::R6:
-      case ARM::R7:
-      case ARM::LR:
-        if (Reg == FramePtr)
-          FramePtrSpillFI = FI;
-        GPRCS1Size += 4;
+
+    switch (Reg) {
+    case ARM::R8:
+    case ARM::R9:
+    case ARM::R10:
+    case ARM::R11:
+    case ARM::R12:
+      if (STI.splitFramePushPop(MF)) {
+        GPRCS2Size += 4;
         break;
-      case ARM::FPCXTNS:
-        FPCXTSaveSize = 4;
-        break;
-      default:
-        // This is a DPR. Exclude the aligned DPRCS2 spills.
-        if (Reg == ARM::D8)
-          D8SpillFI = FI;
-        if (Reg < ARM::D8 || Reg >= ARM::D8 + AFI->getNumAlignedDPRCS2Regs())
-          DPRCSSize += 8;
+      }
+      [[fallthrough]];
+    case ARM::R0:
+    case ARM::R1:
+    case ARM::R2:
+    case ARM::R3:
+    case ARM::R4:
+    case ARM::R5:
+    case ARM::R6:
+    case ARM::R7:
+    case ARM::LR:
+    case ARM::SP:
+    case ARM::PC:
+      GPRCS1Size += 4;
+      break;
+    case ARM::FPCXTNS:
+      FPCXTSaveSize = 4;
+      break;
+    case ARM::FPSCR:
+    case ARM::FPEXC:
+      FPStatusSize += 4;
+      break;
+    default:
+      // This is a DPR. Exclude the aligned DPRCS2 spills.
+      if (Reg == ARM::D8)
+        D8SpillFI = FI;
+
+      if (ARM::D8 <= Reg && Reg < ARM::D8 + AFI->getNumAlignedDPRCS2Regs()) {
+        DPRCS2Size += 8;
+      } else {
+        DPRCS1Size += 8;
       }
     }
   }
 
-  MachineBasicBlock::iterator LastPush = MBB.end(), GPRCS1Push, GPRCS2Push;
+  MachineBasicBlock::iterator LastPush = MBB.end(), GPRCS1Push, GPRCS2Push,
+                              GPRCS3Push;
 
   // Move past the PAC computation.
   if (AFI->shouldSignReturnAddress())
@@ -897,20 +881,15 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   unsigned FPCXTOffset = NumBytes - ArgRegsSaveSize - FPCXTSaveSize;
   unsigned GPRCS1Offset = FPCXTOffset - GPRCS1Size;
   unsigned GPRCS2Offset = GPRCS1Offset - GPRCS2Size;
-  Align DPRAlign = DPRCSSize ? std::min(Align(8), Alignment) : Align(4);
-  unsigned DPRGapSize = GPRCS1Size + FPCXTSaveSize + ArgRegsSaveSize;
-  if (!STI.splitFramePointerPush(MF)) {
-    DPRGapSize += GPRCS2Size;
-  }
-  DPRGapSize %= DPRAlign.value();
+  unsigned FPStatusOffset = GPRCS2Offset - FPStatusSize;
 
-  unsigned DPRCSOffset;
-  if (STI.splitFramePointerPush(MF)) {
-    DPRCSOffset = GPRCS1Offset - DPRGapSize - DPRCSSize;
-    GPRCS2Offset = DPRCSOffset - GPRCS2Size;
-  } else {
-    DPRCSOffset = GPRCS2Offset - DPRGapSize - DPRCSSize;
-  }
+  Align DPRAlign = DPRCS1Size ? std::min(Align(8), Alignment) : Align(4);
+  unsigned DPRGapSize = (ArgRegsSaveSize + FPCXTSaveSize + GPRCS1Size +
+                         GPRCS2Size + FPStatusSize) %
+                        DPRAlign.value();
+
+  unsigned DPRCS1Offset = FPStatusOffset - DPRGapSize - DPRCS1Size;
+
   int FramePtrOffsetInPush = 0;
   if (HasFP) {
     int FPOffset = MFI.getObjectOffset(FramePtrSpillFI);
@@ -922,12 +901,26 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   }
   AFI->setGPRCalleeSavedArea1Offset(GPRCS1Offset);
   AFI->setGPRCalleeSavedArea2Offset(GPRCS2Offset);
-  AFI->setDPRCalleeSavedAreaOffset(DPRCSOffset);
+  AFI->setDPRCalleeSavedAreaOffset(DPRCS1Offset);
 
   // Move past area 2.
-  if (GPRCS2Size > 0 && !STI.splitFramePointerPush(MF)) {
+  if (GPRCS2Size > 0) {
+    assert(STI.splitFramePushPop(MF));
     GPRCS2Push = LastPush = MBBI++;
     DefCFAOffsetCandidates.addInst(LastPush, GPRCS2Size);
+  }
+
+  // Move past FP status save area.
+  if (FPStatusSize > 0) {
+    while (MBBI != MBB.end()) {
+      unsigned Opc = MBBI->getOpcode();
+      if (Opc == ARM::VMRS || Opc == ARM::VMRS_FPEXC)
+        MBBI++;
+      else
+        break;
+    }
+    LastPush = MBBI++;
+    DefCFAOffsetCandidates.addInst(LastPush, FPStatusSize);
   }
 
   // Prolog/epilog inserter assumes we correctly align DPRs on the stack, so our
@@ -945,7 +938,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Move past area 3.
-  if (DPRCSSize > 0) {
+  if (DPRCS1Size > 0) {
     // Since vpush register list cannot have gaps, there may be multiple vpush
     // instructions in the prologue.
     while (MBBI != MBB.end() && MBBI->getOpcode() == ARM::VSTMDDB_UPD) {
@@ -955,7 +948,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Move past the aligned DPRCS2 area.
-  if (AFI->getNumAlignedDPRCS2Regs() > 0) {
+  if (DPRCS2Size > 0) {
     MBBI = skipAlignedDPRCS2Spills(MBBI, AFI->getNumAlignedDPRCS2Regs());
     // The code inserted by emitAlignedDPRCS2Spills realigns the stack, and
     // leaves the stack pointer pointing to the DPRCS2 area.
@@ -963,11 +956,13 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
     // Adjust NumBytes to represent the stack slots below the DPRCS2 area.
     NumBytes += MFI.getObjectOffset(D8SpillFI);
   } else
-    NumBytes = DPRCSOffset;
+    NumBytes = DPRCS1Offset;
 
-  if (GPRCS2Size > 0 && STI.splitFramePointerPush(MF)) {
-    GPRCS2Push = LastPush = MBBI++;
-    DefCFAOffsetCandidates.addInst(LastPush, GPRCS2Size);
+  // Move past split LR + R11 push
+  if (GPRCS3Size > 0) {
+    assert(STI.splitFramePointerPush(MF));
+    GPRCS3Push = LastPush = MBBI++;
+    DefCFAOffsetCandidates.addInst(LastPush, GPRCS3Size);
   }
 
   bool NeedsWinCFIStackAlloc = NeedsWinCFI;
@@ -1077,7 +1072,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
     unsigned PushSize = sizeOfSPAdjustment(*GPRCS1Push);
     int FPOffset = PushSize + FramePtrOffsetInPush;
     if (STI.splitFramePointerPush(MF)) {
-      AfterPush = std::next(GPRCS2Push);
+      AfterPush = std::next(GPRCS3Push);
       emitRegPlusImmediate(!AFI->isThumbFunction(), MBB, AfterPush, dl, TII,
                            FramePtr, ARM::SP, 0, MachineInstr::FrameSetup);
     } else {
@@ -1153,7 +1148,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
     }
   }
 
-  if (GPRCS2Size > 0 && !NeedsWinCFI) {
+  if (GPRCS2Size > 0) {
+    assert(STI.splitFramePushPop(MF));
     MachineBasicBlock::iterator Pos = std::next(GPRCS2Push);
     for (const auto &Entry : CSI) {
       Register Reg = Entry.getReg();
@@ -1164,22 +1160,20 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
       case ARM::R10:
       case ARM::R11:
       case ARM::R12:
-        if (STI.splitFramePushPop(MF)) {
-          unsigned DwarfReg = MRI->getDwarfRegNum(
-              Reg == ARM::R12 ? ARM::RA_AUTH_CODE : Reg, true);
-          unsigned Offset = MFI.getObjectOffset(FI);
-          unsigned CFIIndex = MF.addFrameInst(
-              MCCFIInstruction::createOffset(nullptr, DwarfReg, Offset));
-          BuildMI(MBB, Pos, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
-              .addCFIIndex(CFIIndex)
-              .setMIFlags(MachineInstr::FrameSetup);
-        }
+        unsigned DwarfReg = MRI->getDwarfRegNum(
+            Reg == ARM::R12 ? ARM::RA_AUTH_CODE : Reg, true);
+        unsigned Offset = MFI.getObjectOffset(FI);
+        unsigned CFIIndex = MF.addFrameInst(
+            MCCFIInstruction::createOffset(nullptr, DwarfReg, Offset));
+        BuildMI(MBB, Pos, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+            .addCFIIndex(CFIIndex)
+            .setMIFlags(MachineInstr::FrameSetup);
         break;
       }
     }
   }
 
-  if (DPRCSSize > 0 && !NeedsWinCFI) {
+  if (DPRCS1Size > 0 && !NeedsWinCFI) {
     // Since vpush register list cannot have gaps, there may be multiple vpush
     // instructions in the prologue.
     MachineBasicBlock::iterator Pos = std::next(LastPush);
@@ -1213,8 +1207,10 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   AFI->setFPCXTSaveAreaSize(FPCXTSaveSize);
   AFI->setGPRCalleeSavedArea1Size(GPRCS1Size);
   AFI->setGPRCalleeSavedArea2Size(GPRCS2Size);
+  AFI->setFPStatusSavesSize(FPStatusSize);
   AFI->setDPRCalleeSavedGapSize(DPRGapSize);
-  AFI->setDPRCalleeSavedAreaSize(DPRCSSize);
+  AFI->setDPRCalleeSavedArea1Size(DPRCS1Size);
+  AFI->setGPRCalleeSavedArea3Size(GPRCS3Size);
 
   // If we need dynamic stack realignment, do it here. Be paranoid and make
   // sure if we also have VLAs, we have a base pointer for frame access.
@@ -1335,8 +1331,10 @@ void ARMFrameLowering::emitEpilogue(MachineFunction &MF,
                  AFI->getFPCXTSaveAreaSize() +
                  AFI->getGPRCalleeSavedArea1Size() +
                  AFI->getGPRCalleeSavedArea2Size() +
+                 AFI->getFPStatusSavesSize() +
                  AFI->getDPRCalleeSavedGapSize() +
-                 AFI->getDPRCalleeSavedAreaSize());
+                 AFI->getDPRCalleeSavedArea1Size() +
+                 AFI->getGPRCalleeSavedArea3Size());
 
     // Reset SP based on frame pointer only if the stack frame extends beyond
     // frame pointer stack slot or target is ELF and the function has FP.
@@ -1384,10 +1382,12 @@ void ARMFrameLowering::emitEpilogue(MachineFunction &MF,
                    MachineInstr::FrameDestroy);
 
     // Increment past our save areas.
-    if (AFI->getGPRCalleeSavedArea2Size() && STI.splitFramePointerPush(MF))
+    if (AFI->getGPRCalleeSavedArea3Size()) {
+      assert(STI.splitFramePointerPush(MF));
       MBBI++;
+    }
 
-    if (MBBI != MBB.end() && AFI->getDPRCalleeSavedAreaSize()) {
+    if (MBBI != MBB.end() && AFI->getDPRCalleeSavedArea1Size()) {
       MBBI++;
       // Since vpop register list cannot have gaps, there may be multiple vpop
       // instructions in the epilogue.
@@ -1401,8 +1401,10 @@ void ARMFrameLowering::emitEpilogue(MachineFunction &MF,
                    MachineInstr::FrameDestroy);
     }
 
-    if (AFI->getGPRCalleeSavedArea2Size() && !STI.splitFramePointerPush(MF))
+    if (AFI->getGPRCalleeSavedArea2Size()) {
+      assert(STI.splitFramePushPop(MF));
       MBBI++;
+    }
     if (AFI->getGPRCalleeSavedArea1Size()) MBBI++;
 
     if (ReservedArgStack || IncomingArgStackToRestore) {
@@ -1710,6 +1712,108 @@ void ARMFrameLowering::emitPopInst(MachineBasicBlock &MBB,
   }
 }
 
+void ARMFrameLowering::emitFPStatusSaves(MachineBasicBlock &MBB,
+                                         MachineBasicBlock::iterator MI,
+                                         ArrayRef<CalleeSavedInfo> CSI,
+                                         unsigned PushOpc) const {
+  MachineFunction &MF = *MBB.getParent();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+
+  SmallVector<Register> Regs;
+  auto RegPresent = [&CSI](Register Reg) {
+    return llvm::any_of(CSI, [Reg](const CalleeSavedInfo &C) {
+      return C.getReg() == Reg;
+    });
+  };
+
+  // If we need to save FPSCR, then we must move FPSCR into R4 with the VMRS
+  // instruction.
+  if (RegPresent(ARM::FPSCR)) {
+    BuildMI(MBB, MI, DebugLoc(), TII.get(ARM::VMRS), ARM::R4)
+        .add(predOps(ARMCC::AL))
+        .setMIFlags(MachineInstr::FrameSetup);
+
+    Regs.push_back(ARM::R4);
+  }
+
+  // If we need to save FPEXC, then we must move FPEXC into R5 with the
+  // VMRS_FPEXC instruction.
+  if (RegPresent(ARM::FPEXC)) {
+    BuildMI(MBB, MI, DebugLoc(), TII.get(ARM::VMRS_FPEXC), ARM::R5)
+        .add(predOps(ARMCC::AL))
+        .setMIFlags(MachineInstr::FrameSetup);
+
+    Regs.push_back(ARM::R5);
+  }
+
+  // If neither FPSCR and FPEXC are present, then do nothing.
+  if (Regs.size() == 0)
+    return;
+
+  // Push both R4 and R5 onto the stack, if present.
+  MachineInstrBuilder MIB =
+      BuildMI(MBB, MI, DebugLoc(), TII.get(PushOpc), ARM::SP)
+          .addReg(ARM::SP)
+          .add(predOps(ARMCC::AL))
+          .setMIFlags(MachineInstr::FrameSetup);
+
+  for (Register Reg : Regs) {
+    MIB.addReg(Reg);
+  }
+}
+
+void ARMFrameLowering::emitFPStatusRestores(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+    MutableArrayRef<CalleeSavedInfo> CSI, unsigned LdmOpc) const {
+  MachineFunction &MF = *MBB.getParent();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+
+  SmallVector<Register> Regs;
+  auto RegPresent = [&CSI](Register Reg) {
+    return llvm::any_of(CSI, [Reg](const CalleeSavedInfo &C) {
+      return C.getReg() == Reg;
+    });
+  };
+
+  // Do nothing if we don't need to restore any FP status registers.
+  if (!RegPresent(ARM::FPSCR) && !RegPresent(ARM::FPEXC))
+    return;
+
+  // Pop registers off of the stack.
+  MachineInstrBuilder MIB =
+      BuildMI(MBB, MI, DebugLoc(), TII.get(LdmOpc), ARM::SP)
+          .addReg(ARM::SP)
+          .add(predOps(ARMCC::AL))
+          .setMIFlags(MachineInstr::FrameDestroy);
+
+  // If FPSCR was saved, it will be popped into R4.
+  if (RegPresent(ARM::FPSCR)) {
+    MIB.addReg(ARM::R4, RegState::Define);
+  }
+
+  // If FPEXC was saved, it will be popped into R5.
+  if (RegPresent(ARM::FPEXC)) {
+    MIB.addReg(ARM::R5, RegState::Define);
+  }
+
+  // Move the FPSCR value back into the register with the VMSR instruction.
+  if (RegPresent(ARM::FPSCR)) {
+    BuildMI(MBB, MI, DebugLoc(), STI.getInstrInfo()->get(ARM::VMSR))
+        .addReg(ARM::R4)
+        .add(predOps(ARMCC::AL))
+        .setMIFlags(MachineInstr::FrameDestroy);
+  }
+
+  // Move the FPEXC value back into the register with the VMSR_FPEXC
+  // instruction.
+  if (RegPresent(ARM::FPEXC)) {
+    BuildMI(MBB, MI, DebugLoc(), STI.getInstrInfo()->get(ARM::VMSR_FPEXC))
+        .addReg(ARM::R5)
+        .add(predOps(ARMCC::AL))
+        .setMIFlags(MachineInstr::FrameDestroy);
+  }
+}
+
 /// Emit aligned spill instructions for NumAlignedDPRCS2Regs D-registers
 /// starting from d8.  Also insert stack realignment code and leave the stack
 /// pointer pointing to the d8 spill slot.
@@ -2005,6 +2109,7 @@ bool ARMFrameLowering::spillCalleeSavedRegisters(
         .addImm(-4)
         .add(predOps(ARMCC::AL));
   }
+
   if (STI.splitFramePointerPush(MF)) {
     emitPushInst(MBB, MI, CSI, PushOpc, PushOneOpc, false,
                  &isSplitFPArea1Register, 0, MachineInstr::FrameSetup);
@@ -2017,6 +2122,7 @@ bool ARMFrameLowering::spillCalleeSavedRegisters(
                  0, MachineInstr::FrameSetup);
     emitPushInst(MBB, MI, CSI, PushOpc, PushOneOpc, false, &isARMArea2Register,
                  0, MachineInstr::FrameSetup);
+    emitFPStatusSaves(MBB, MI, CSI, PushOpc);
     emitPushInst(MBB, MI, CSI, FltOpc, 0, true, &isARMArea3Register,
                  NumAlignedDPRCS2Regs, MachineInstr::FrameSetup);
   }
@@ -2060,6 +2166,7 @@ bool ARMFrameLowering::restoreCalleeSavedRegisters(
   } else {
     emitPopInst(MBB, MI, CSI, FltOpc, 0, isVarArg, true, &isARMArea3Register,
                 NumAlignedDPRCS2Regs);
+    emitFPStatusRestores(MBB, MI, CSI, PopOpc);
     emitPopInst(MBB, MI, CSI, PopOpc, LdrOpc, isVarArg, false,
                 &isARMArea2Register, 0);
     emitPopInst(MBB, MI, CSI, PopOpc, LdrOpc, isVarArg, false,
@@ -2278,6 +2385,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
   unsigned NumFPRSpills = 0;
   SmallVector<unsigned, 4> UnspilledCS1GPRs;
   SmallVector<unsigned, 4> UnspilledCS2GPRs;
+  const Function &F = MF.getFunction();
   const ARMBaseRegisterInfo *RegInfo = static_cast<const ARMBaseRegisterInfo *>(
       MF.getSubtarget().getRegisterInfo());
   const ARMBaseInstrInfo &TII =
@@ -2288,6 +2396,21 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   (void)TRI;  // Silence unused warning in non-assert builds.
   Register FramePtr = RegInfo->getFrameRegister(MF);
+
+  // For a floating point interrupt, save these registers always, since LLVM
+  // currently doesn't model reads/writes to these registers.
+  if (F.hasFnAttribute("interrupt") && F.hasFnAttribute("save-fp")) {
+    SavedRegs.set(ARM::FPSCR);
+    SavedRegs.set(ARM::R4);
+
+    // This register will only be present on non-MClass registers.
+    if (STI.isMClass()) {
+      SavedRegs.reset(ARM::FPEXC);
+    } else {
+      SavedRegs.set(ARM::FPEXC);
+      SavedRegs.set(ARM::R5);
+    }
+  }
 
   // Spill R4 if Thumb2 function requires stack realignment - it will be used as
   // scratch register. Also spill R4 if Thumb2 function has varsized objects,
