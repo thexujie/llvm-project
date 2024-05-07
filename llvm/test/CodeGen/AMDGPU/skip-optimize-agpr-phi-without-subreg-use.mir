@@ -1,0 +1,58 @@
+# RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx908 -verify-machineinstrs -run-pass si-fold-operands -o - %s | FileCheck %s
+
+# CHECK-NOT: V_ACCVGPR_READ_B32_e64
+
+---
+name:            skip_optimize_agpr_phi_without_subreg_use
+tracksRegLiveness: true
+machineFunctionInfo:
+  isEntryFunction: true
+  scratchRSrcReg:  '$sgpr0_sgpr1_sgpr2_sgpr3'
+body:             |
+  bb.0:
+    successors: %bb.1(0x80000000); %bb.1(100.00%)
+
+    %10:vgpr_32 = V_MOV_B32_e32 0, implicit $exec
+    %11:sgpr_32 = S_MOV_B32 0
+    %12:sgpr_128 = REG_SEQUENCE %11:sgpr_32, %subreg.sub0, %11:sgpr_32, %subreg.sub1, %11:sgpr_32, %subreg.sub2, %11:sgpr_32, %subreg.sub3
+    %0:vreg_128 = COPY %12:sgpr_128
+    %9:sreg_64 = S_MOV_B64 0
+    %38:areg_128 = COPY %0:vreg_128, implicit $exec
+    %27:sreg_32 = S_MOV_B32 1
+
+  bb.1:
+    successors: %bb.2(0x04000000), %bb.1(0x7c000000); %bb.2(3.12%), %bb.1(96.88%)
+
+    %2:sreg_64 = PHI %9:sreg_64, %bb.0, %7:sreg_64, %bb.1
+    %3:areg_128 = PHI %38:areg_128, %bb.0, %39:areg_128, %bb.1
+    %4:areg_128 = PHI %38:areg_128, %bb.0, %41:areg_128, %bb.1
+    %14:areg_128 = V_MFMA_F32_16X16X4F32_e64 %10:vgpr_32, %10:vgpr_32, %4:areg_128, 0, 0, 0, implicit $mode, implicit $exec
+    %16:vgpr_32 = COPY %14.sub3:areg_128
+    %17:vgpr_32 = COPY %14.sub2:areg_128
+    %18:vgpr_32 = COPY %14.sub1:areg_128
+    %19:vgpr_32 = COPY %14.sub0:areg_128
+    %20:areg_128 = V_MFMA_F32_16X16X4F32_e64 %10:vgpr_32, %10:vgpr_32, %3:areg_128, 0, 0, 0, implicit $mode, implicit $exec
+    %22:vgpr_32 = COPY %20.sub3:areg_128
+    %23:vgpr_32 = COPY %20.sub2:areg_128
+    %24:vgpr_32 = COPY %20.sub1:areg_128
+    %25:vgpr_32 = COPY %20.sub0:areg_128
+    %26:vgpr_32 = BUFFER_LOAD_DWORD_OFFSET $sgpr0_sgpr1_sgpr2_sgpr3, 0, 0, 0, 0, implicit $exec
+    %28:sreg_64 = V_CMP_LT_I32_e64 killed %26:vgpr_32, %27:sreg_32, implicit $exec
+    %7:sreg_64 = SI_IF_BREAK killed %28:sreg_64, %2:sreg_64, implicit-def dead $scc
+    %39:areg_128 = COPY %20:areg_128, implicit $exec
+    %41:areg_128 = COPY %14:areg_128, implicit $exec
+    SI_LOOP %7:sreg_64, %bb.1, implicit-def dead $exec, implicit-def dead $scc, implicit $exec
+    S_BRANCH %bb.2
+
+  bb.2:
+
+    SI_END_CF %7:sreg_64, implicit-def dead $exec, implicit-def dead $scc, implicit $exec
+    %29:sreg_64 = S_MOV_B64 $src_private_base
+    %30:sreg_32 = COPY %29.sub1:sreg_64
+    %35:sgpr_32 = S_MOV_B32 0
+    %36:vgpr_32 = COPY killed %35:sgpr_32
+    %37:vgpr_32 = COPY killed %30:sreg_32
+    %34:vreg_64 = REG_SEQUENCE killed %36:vgpr_32, %subreg.sub0, killed %37:vgpr_32, %subreg.sub1
+    %33:vreg_64 = V_MOV_B64_PSEUDO 24, implicit $exec
+    FLAT_STORE_DWORDX2 killed %33:vreg_64, killed %34:vreg_64, 0, 0, implicit $exec, implicit $flat_scr
+    SI_RETURN
