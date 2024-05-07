@@ -3381,29 +3381,29 @@ void InnerLoopVectorizer::fixupEarlyExitIVUsers(PHINode *OrigPhi,
     return Escape;
   };
 
-  for (User *U : PostInc->users()) {
-    // This assumes if it's not in the loop then it must be the normal
-    // exit block. However, it could be a user in an early exit block different
-    // to the latch's exit block.
-    auto *UI = cast<Instruction>(U);
-    if (!OrigLoop->contains(UI)) {
+  const Loop *L = this->OrigLoop;
+  auto isUsedInEarlyExitBlock =
+      [&L, &OrigEarlyExitingBlock](Value *V, Instruction *UI) -> bool {
+    if (!L->contains(UI)) {
       PHINode *PHI = dyn_cast<PHINode>(UI);
       assert(PHI && "Expected LCSSA form");
       int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
-      if (Index != -1 && PHI->getIncomingValue(Index) == PostInc)
-        MissingVals[UI] = FixUpPhi(UI, true);
+      if (Index != -1 && PHI->getIncomingValue(Index) == V)
+        return true;
     }
+    return false;
+  };
+
+  for (User *U : PostInc->users()) {
+    auto *UI = cast<Instruction>(U);
+    if (isUsedInEarlyExitBlock(PostInc, UI))
+      MissingVals[UI] = FixUpPhi(UI, true);
   }
 
   for (User *U : OrigPhi->users()) {
     auto *UI = cast<Instruction>(U);
-    if (!OrigLoop->contains(UI)) {
-      PHINode *PHI = dyn_cast<PHINode>(UI);
-      assert(PHI && "Expected LCSSA form");
-      int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
-      if (Index != -1 && PHI->getIncomingValue(Index) == OrigPhi)
-        MissingVals[UI] = FixUpPhi(UI, false);
-    }
+    if (isUsedInEarlyExitBlock(OrigPhi, UI))
+      MissingVals[UI] = FixUpPhi(UI, false);
   }
 
   for (auto &I : MissingVals) {
@@ -9934,34 +9934,31 @@ static InstructionCost calculateEarlyExitCost(const TargetTransformInfo *TTI,
   unsigned NumCttzElemCalls = 0;
   BasicBlock *OrigEarlyExitingBlock = Legal->getSpeculativeEarlyExitingBlock();
   BasicBlock *OrigLoopLatch = L->getLoopLatch();
+
+  auto isUsedInEarlyExitBlock = [&L, &OrigEarlyExitingBlock](Value *V,
+                                                             User *U) -> bool {
+    auto *UI = cast<Instruction>(U);
+    if (!L->contains(UI)) {
+      PHINode *PHI = dyn_cast<PHINode>(UI);
+      assert(PHI && "Expected LCSSA form");
+      int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
+      if (Index != -1 && PHI->getIncomingValue(Index) == V)
+        return true;
+    }
+    return false;
+  };
+
   for (const auto &Entry : Legal->getInductionVars()) {
     PHINode *OrigPhi = Entry.first;
     Value *PostInc = OrigPhi->getIncomingValueForBlock(OrigLoopLatch);
 
-    for (User *U : PostInc->users()) {
-      // This assumes if it's not in the loop then it must be the normal
-      // exit block. However, it could be a user in an early exit block
-      // different to the latch's exit block.
-      auto *UI = cast<Instruction>(U);
-      if (!L->contains(UI)) {
-        PHINode *PHI = dyn_cast<PHINode>(UI);
-        assert(PHI && "Expected LCSSA form");
-        int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
-        if (Index != -1 && PHI->getIncomingValue(Index) == PostInc)
-          NumCttzElemCalls++;
-      }
-    }
+    for (User *U : PostInc->users())
+      if (isUsedInEarlyExitBlock(PostInc, U))
+        NumCttzElemCalls++;
 
-    for (User *U : OrigPhi->users()) {
-      auto *UI = cast<Instruction>(U);
-      if (!L->contains(UI)) {
-        PHINode *PHI = dyn_cast<PHINode>(UI);
-        assert(PHI && "Expected LCSSA form");
-        int Index = PHI->getBasicBlockIndex(OrigEarlyExitingBlock);
-        if (Index != -1 && PHI->getIncomingValue(Index) == OrigPhi)
-          NumCttzElemCalls++;
-      }
-    }
+    for (User *U : OrigPhi->users())
+      if (isUsedInEarlyExitBlock(OrigPhi, U))
+        NumCttzElemCalls++;
   }
 
   InstructionCost Cost = 0;

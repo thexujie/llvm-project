@@ -2690,8 +2690,8 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
     return;
   }
 
-  assert(!Stores.size() || !SpeculativeEarlyExitingBB &&
-                               "Did not expect stores in an early exit loop!");
+  assert((!Stores.size() || !SpeculativeEarlyExitingBB) &&
+         "Did not expect stores in an early exit loop!");
 
   MemoryDepChecker::DepCandidates DependentAccesses;
   AccessAnalysis Accesses(TheLoop, AA, LI, DependentAccesses, *PSE,
