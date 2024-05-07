@@ -204,6 +204,34 @@ define float @fmuladd_fneg_x_fneg_y_fast(float %x, float %y, float %z) {
   ret float %fmuladd
 }
 
+define float @fmuladd_unfold(float %x, float %y, float %z) {
+; CHECK-LABEL: @fmuladd_unfold(
+; CHECK-NEXT:    [[TMP1:%.*]] = fmul reassoc contract float [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[FMULADD:%.*]] = fadd reassoc contract float [[TMP1]], [[Z:%.*]]
+; CHECK-NEXT:    ret float [[FMULADD]]
+;
+  %fmuladd = call reassoc contract float @llvm.fmuladd.f32(float %x, float %y, float %z)
+  ret float %fmuladd
+}
+
+define float @fmuladd_unfold_missing_reassoc(float %x, float %y, float %z) {
+; CHECK-LABEL: @fmuladd_unfold_missing_reassoc(
+; CHECK-NEXT:    [[FMULADD:%.*]] = call contract float @llvm.fmuladd.f32(float [[X:%.*]], float [[Y:%.*]], float [[Z:%.*]])
+; CHECK-NEXT:    ret float [[FMULADD]]
+;
+  %fmuladd = call contract float @llvm.fmuladd.f32(float %x, float %y, float %z)
+  ret float %fmuladd
+}
+
+define float @fmuladd_unfold_missing_contract(float %x, float %y, float %z) {
+; CHECK-LABEL: @fmuladd_unfold_missing_contract(
+; CHECK-NEXT:    [[FMULADD:%.*]] = call reassoc float @llvm.fmuladd.f32(float [[X:%.*]], float [[Y:%.*]], float [[Z:%.*]])
+; CHECK-NEXT:    ret float [[FMULADD]]
+;
+  %fmuladd = call reassoc float @llvm.fmuladd.f32(float %x, float %y, float %z)
+  ret float %fmuladd
+}
+
 define float @fmuladd_unary_fneg_x_unary_fneg_y_fast(float %x, float %y, float %z) {
 ; CHECK-LABEL: @fmuladd_unary_fneg_x_unary_fneg_y_fast(
 ; CHECK-NEXT:    [[TMP1:%.*]] = fmul fast float [[X:%.*]], [[Y:%.*]]
