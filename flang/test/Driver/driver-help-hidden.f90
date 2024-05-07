@@ -162,6 +162,7 @@
 ! CHECK-NEXT: -v                      Show commands to run and use verbose output
 ! CHECK-NEXT: -Wl,<arg>               Pass the comma separated arguments in <arg> to the linker
 ! CHECK-NEXT: -W<warning>             Enable the specified warning
+! CHECK-NEXT: -w                      Suppress all warnings
 ! CHECK-NEXT: -Xflang <arg>           Pass <arg> to the flang compiler
 ! CHECK-NEXT: -x <language>           Treat subsequent input files as having type <language>
 
