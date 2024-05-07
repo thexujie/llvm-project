@@ -62,25 +62,19 @@ namespace templ {
 namespace type_pack1 {
   template<class T2> struct A;
   template<template<class ...T3s> class TT1, class T4> struct A<TT1<T4>>   ;
-  // new-note@-1 {{partial specialization matches}}
   template<template<class    T5 > class TT2, class T6> struct A<TT2<T6>> {};
-  // new-note@-1 {{partial specialization matches}}
 
   template<class T1> struct B;
   template struct A<B<char>>;
-  // new-error@-1 {{ambiguous partial specialization}}
 } // namespace type_pack1
 
 namespace type_pack2 {
   template<class T2> struct A;
   template<template<class ...T3s> class TT1, class ...T4> struct A<TT1<T4...>>   ;
-  // new-note@-1 {{partial specialization matches}}
   template<template<class    T5 > class TT2, class ...T6> struct A<TT2<T6...>> {};
-  // new-note@-1 {{partial specialization matches}}
 
   template<class T1> struct B;
   template struct A<B<char>>;
-  // new-error@-1 {{ambiguous partial specialization}}
 } // namespace type_pack2
 
 namespace type_pack3 {
