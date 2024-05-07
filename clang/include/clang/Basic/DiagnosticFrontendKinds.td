@@ -328,6 +328,9 @@ def warn_atomic_op_misaligned : Warning<
   "; the expected alignment (%0 bytes) exceeds the actual alignment (%1 bytes)">,
   InGroup<AtomicAlignment>;
 
+def err_atomic_op_size_zero : Error<
+  "First argument cannot be a pointer to an object of size zero">;
+
 def warn_atomic_op_oversized : Warning<
   "large atomic operation may incur "
   "significant performance penalty"
