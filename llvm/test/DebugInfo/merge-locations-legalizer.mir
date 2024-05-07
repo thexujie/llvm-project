@@ -1,0 +1,67 @@
+# This test checks to make sure that when an instruction (%35 in the test) is 
+# moved due to matching a result of a fold of two other instructions
+# (%16, and %17 in the test) in the legalizer, the DILocation of the 
+# instruction that is moved (%35) is updated appropriately.
+
+# RUN: llc %s -O0 --start-before=legalizer --stop-after=legalizer -o - | FileCheck %s 
+# CHECK-NOT: %35:_(s32) = G_CONSTANT i32 0, debug-location !71
+# CHECK: %35:_(s32) = G_CONSTANT i32 0, debug-location !DILocation(line: 0,
+--- |
+  source_filename = "/tmp/main.ll"
+  target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
+  target triple = "arm64-apple-macosx14.0.0"
+  
+  define i32 @main(i32 %0, ptr %1) #0 !dbg !57 {
+  entry:
+    ret i32 0, !dbg !71
+  }
+  !3 = !DIFile(filename: "main.swift", directory: "/Volumes/Data/swift")
+  !23 = distinct !DICompileUnit(language: DW_LANG_Swift, file: !3, sdk: "blah.sdk")
+  !57 = distinct !DISubprogram(name: "main", unit: !23)
+  !64 = distinct !DILexicalBlock(scope: !57, column: 1)
+  !66 = distinct !DILexicalBlock(scope: !64, column: 1)
+  !68 = !DILocation(line: 12, scope: !66)
+  !70 = distinct !DILexicalBlock(scope: !66, column: 1)
+  !71 = !DILocation(line: 13, scope: !70)
+name:            main
+registers:
+  - { id: 0, class: _, preferred-register: '' }
+  - { id: 1, class: _, preferred-register: '' }
+  - { id: 2, class: _, preferred-register: '' }
+  - { id: 3, class: _, preferred-register: '' }
+  - { id: 4, class: _, preferred-register: '' }
+  - { id: 5, class: _, preferred-register: '' }
+  - { id: 6, class: _, preferred-register: '' }
+  - { id: 7, class: _, preferred-register: '' }
+  - { id: 8, class: _, preferred-register: '' }
+  - { id: 9, class: _, preferred-register: '' }
+  - { id: 10, class: _, preferred-register: '' }
+  - { id: 11, class: _, preferred-register: '' }
+  - { id: 12, class: _, preferred-register: '' }
+  - { id: 13, class: _, preferred-register: '' }
+  - { id: 14, class: _, preferred-register: '' }
+  - { id: 15, class: gpr64, preferred-register: '' }
+  - { id: 18, class: _, preferred-register: '' }
+  - { id: 19, class: _, preferred-register: '' }
+  - { id: 20, class: _, preferred-register: '' }
+  - { id: 21, class: _, preferred-register: '' }
+  - { id: 22, class: _, preferred-register: '' }
+  - { id: 23, class: _, preferred-register: '' }
+  - { id: 24, class: _, preferred-register: '' }
+  - { id: 25, class: _, preferred-register: '' }
+  - { id: 26, class: _, preferred-register: '' }
+  - { id: 27, class: _, preferred-register: '' }
+  - { id: 28, class: _, preferred-register: '' }
+  - { id: 29, class: _, preferred-register: '' }
+  - { id: 30, class: _, preferred-register: '' }
+  - { id: 31, class: _, preferred-register: '' }
+  - { id: 32, class: _, preferred-register: '' }
+  - { id: 33, class: _, preferred-register: '' }
+  - { id: 34, class: _, preferred-register: '' }
+body:             |
+  bb.1.entry:
+    %16:_(s8) = G_CONSTANT i8 0, debug-location !68
+    %17:_(s32) = G_ANYEXT %16(s8), debug-location !68
+    $w2 = COPY %17(s32), debug-location !68
+    %35:_(s32) = G_CONSTANT i32 0, debug-location !71
+    $w0 = COPY %35(s32), debug-location !71

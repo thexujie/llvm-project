@@ -243,6 +243,10 @@ protected:
   }
 
 public:
+  /// This is the merged location of an instruction which is a result of a fold
+  /// in the legalizer.
+  DILocation *MergedLocation = nullptr;
+
   /// Some constructors for easy use.
   MachineIRBuilder() = default;
   MachineIRBuilder(MachineFunction &MF) { setMF(MF); }
