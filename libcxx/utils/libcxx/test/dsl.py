@@ -99,7 +99,7 @@ def _executeWithFakeConfig(test, commands):
         order="smart",
         params={},
     )
-    return libcxx.test.format._executeScriptInternal(test, litConfig, commands)
+    return lit.formats.standardlibrarytest._executeScriptInternal(test, litConfig, commands)
 
 
 def _makeConfigTest(config):
@@ -121,12 +121,12 @@ def _makeConfigTest(config):
 
     class TestWrapper(lit.Test.Test):
         def __enter__(self):
-            testDir, _ = libcxx.test.format._getTempPaths(self)
+            testDir, _ = lit.formats.standardlibrarytest._getTempPaths(self)
             os.makedirs(testDir)
             return self
 
         def __exit__(self, *args):
-            testDir, _ = libcxx.test.format._getTempPaths(self)
+            testDir, _ = lit.formats.standardlibrarytest._getTempPaths(self)
             shutil.rmtree(testDir)
             os.remove(tmp.name)
 
