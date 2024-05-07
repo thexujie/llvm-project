@@ -42,6 +42,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -222,16 +223,27 @@ raw_ostream &operator<<(raw_ostream &OS, const SinkingInstructionCandidate &C) {
 class ModelledPHI {
   SmallVector<Value *, 4> Values;
   SmallVector<BasicBlock *, 4> Blocks;
+  DominatorTree *DT;
 
 public:
   ModelledPHI() = default;
 
-  ModelledPHI(const PHINode *PN) {
-    // BasicBlock comes first so we sort by basic block pointer order, then by value pointer order.
-    SmallVector<std::pair<BasicBlock *, Value *>, 4> Ops;
+  ModelledPHI(const PHINode *PN, DominatorTree *DT) : DT(DT) {
+    // BasicBlock comes first so we sort by basic block pointer order,
+    // then by value pointer order. No need to call `verifyModelledPHI`
+    // As the Values and Blocks are populated in DFSOrder already.
+    using OpsType = std::pair<BasicBlock *, Value *>;
+    SmallVector<OpsType, 4> Ops;
     for (unsigned I = 0, E = PN->getNumIncomingValues(); I != E; ++I)
       Ops.push_back({PN->getIncomingBlock(I), PN->getIncomingValue(I)});
-    llvm::sort(Ops);
+
+    auto DFSOrder = [DT](OpsType O1, OpsType O2) {
+      return DT->getNode(O1.first)->getDFSNumIn() <
+             DT->getNode(O2.first)->getDFSNumIn();
+    };
+    // Sort by DFSNumber to have a deterministic order.
+    llvm::sort(Ops, DFSOrder);
+
     for (auto &P : Ops) {
       Blocks.push_back(P.first);
       Values.push_back(P.second);
@@ -247,16 +259,37 @@ public:
     return M;
   }
 
+  void verifyModelledPHI() {
+    assert(Values.size() > 1 && Blocks.size() > 1 &&
+           "Modelling PHI with less than 2 values");
+    auto DFSOrder = [this](const BasicBlock *BB1, const BasicBlock *BB2) {
+      return DT->getNode(BB1)->getDFSNumIn() < DT->getNode(BB2)->getDFSNumIn();
+    };
+    assert(llvm::is_sorted(Blocks, DFSOrder));
+    int C = 0;
+    llvm::for_each(Values, [&C, this](const Value *V) {
+      if (!isa<UndefValue>(V)) {
+        const Instruction *I = cast<Instruction>(V);
+        assert(I->getParent() == this->Blocks[C]);
+      }
+      C++;
+    });
+  }
   /// Create a PHI from an array of incoming values and incoming blocks.
-  template <typename VArray, typename BArray>
-  ModelledPHI(const VArray &V, const BArray &B) {
+  ModelledPHI(SmallVectorImpl<Instruction *> &V,
+              SmallSetVector<BasicBlock *, 4> &B, DominatorTree *DT)
+      : DT(DT) {
+    // The order of Values and Blocks are already as per their DFSNumbers.
     llvm::copy(V, std::back_inserter(Values));
     llvm::copy(B, std::back_inserter(Blocks));
+    verifyModelledPHI();
   }
 
   /// Create a PHI from [I[OpNum] for I in Insts].
-  template <typename BArray>
-  ModelledPHI(ArrayRef<Instruction *> Insts, unsigned OpNum, const BArray &B) {
+  /// TODO: Figure out a way to verifyModelledPHI in this constructor.
+  ModelledPHI(ArrayRef<Instruction *> Insts, unsigned OpNum,
+              SmallSetVector<BasicBlock *, 4> &B, DominatorTree *DT)
+      : DT(DT) {
     llvm::copy(B, std::back_inserter(Blocks));
     for (auto *I : Insts)
       Values.push_back(I->getOperand(OpNum));
@@ -297,7 +330,8 @@ public:
 
   // Hash functor
   unsigned hash() const {
-      return (unsigned)hash_combine_range(Values.begin(), Values.end());
+    // Is deterministic because Values are saved in DFSOrder.
+    return (unsigned)hash_combine_range(Values.begin(), Values.end());
   }
 
   bool operator==(const ModelledPHI &Other) const {
@@ -566,7 +600,7 @@ public:
 
 class GVNSink {
 public:
-  GVNSink() = default;
+  GVNSink(DominatorTree *DT) : DT(DT) {}
 
   bool run(Function &F) {
     LLVM_DEBUG(dbgs() << "GVNSink: running on function @" << F.getName()
@@ -583,6 +617,7 @@ public:
 
 private:
   ValueTable VN;
+  DominatorTree *DT;
 
   bool shouldAvoidSinkingInstruction(Instruction *I) {
     // These instructions may change or break semantics if moved.
@@ -603,7 +638,7 @@ private:
   void analyzeInitialPHIs(BasicBlock *BB, ModelledPHISet &PHIs,
                           SmallPtrSetImpl<Value *> &PHIContents) {
     for (PHINode &PN : BB->phis()) {
-      auto MPHI = ModelledPHI(&PN);
+      auto MPHI = ModelledPHI(&PN, DT);
       PHIs.insert(MPHI);
       for (auto *V : MPHI.getValues())
         PHIContents.insert(V);
@@ -691,7 +726,7 @@ GVNSink::analyzeInstructionForSinking(LockstepReverseIterator &LRI,
   }
 
   // The sunk instruction's results.
-  ModelledPHI NewPHI(NewInsts, ActivePreds);
+  ModelledPHI NewPHI(NewInsts, ActivePreds, DT);
 
   // Does sinking this instruction render previous PHIs redundant?
   if (NeededPHIs.erase(NewPHI))
@@ -728,7 +763,7 @@ GVNSink::analyzeInstructionForSinking(LockstepReverseIterator &LRI,
     return std::nullopt;
 
   for (unsigned OpNum = 0, E = I0->getNumOperands(); OpNum != E; ++OpNum) {
-    ModelledPHI PHI(NewInsts, OpNum, ActivePreds);
+    ModelledPHI PHI(NewInsts, OpNum, ActivePreds, DT);
     if (PHI.areAllIncomingValuesSame())
       continue;
     if (!canReplaceOperandWithVariable(I0, OpNum))
@@ -766,6 +801,9 @@ unsigned GVNSink::sinkBB(BasicBlock *BBEnd) {
              BBEnd->printAsOperand(dbgs()); dbgs() << "\n");
   SmallVector<BasicBlock *, 4> Preds;
   for (auto *B : predecessors(BBEnd)) {
+    // Bailout on malformed CFG where BasicBlock has no predecessor(PR42346).
+    if (!DT->getNode(B))
+      return 0;
     auto *T = B->getTerminator();
     if (isa<BranchInst>(T) || isa<SwitchInst>(T))
       Preds.push_back(B);
@@ -774,7 +812,11 @@ unsigned GVNSink::sinkBB(BasicBlock *BBEnd) {
   }
   if (Preds.size() < 2)
     return 0;
-  llvm::sort(Preds);
+  auto DFSOrder = [this](const BasicBlock *BB1, const BasicBlock *BB2) {
+    return DT->getNode(BB1)->getDFSNumIn() < DT->getNode(BB2)->getDFSNumIn();
+  };
+  // Sort by DFSNumber to have a deterministic order.
+  llvm::sort(Preds, DFSOrder);
 
   unsigned NumOrigPreds = Preds.size();
   // We can only sink instructions through unconditional branches.
@@ -811,11 +853,12 @@ unsigned GVNSink::sinkBB(BasicBlock *BBEnd) {
   auto C = Candidates.front();
 
   LLVM_DEBUG(dbgs() << " -- Sinking: " << C << "\n");
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
   BasicBlock *InsertBB = BBEnd;
   if (C.Blocks.size() < NumOrigPreds) {
     LLVM_DEBUG(dbgs() << " -- Splitting edge to ";
                BBEnd->printAsOperand(dbgs()); dbgs() << "\n");
-    InsertBB = SplitBlockPredecessors(BBEnd, C.Blocks, ".gvnsink.split");
+    InsertBB = SplitBlockPredecessors(BBEnd, C.Blocks, ".gvnsink.split", &DTU);
     if (!InsertBB) {
       LLVM_DEBUG(dbgs() << " -- FAILED to split edge!\n");
       // Edge couldn't be split.
@@ -886,8 +929,13 @@ void GVNSink::sinkLastInstruction(ArrayRef<BasicBlock *> Blocks,
 } // end anonymous namespace
 
 PreservedAnalyses GVNSinkPass::run(Function &F, FunctionAnalysisManager &AM) {
-  GVNSink G;
+  auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
+  GVNSink G(&DT);
+  DT.updateDFSNumbers();
   if (!G.run(F))
     return PreservedAnalyses::all();
-  return PreservedAnalyses::none();
+
+  PreservedAnalyses PA;
+  PA.preserve<DominatorTreeAnalysis>();
+  return PA;
 }
