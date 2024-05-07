@@ -16,6 +16,30 @@
 
 #include "test_macros.h"
 
+// Tests whether the range [p1, p1 + n) overlaps with the range [p2, p2 + n).
+//
+// precondition The ranges [p1, p1 + n) and [p2, p2 + n) are valid ranges.
+//
+// Typically the pointers are compared with less than. This is not allowed when
+// the pointers belong to different ranges. This is UB. Typically, this is
+// benign at run-time, however since UB is not allowed during constant
+// evaluation this does not compile. This function does the validation without
+// UB.
+//
+// When the ranges overlap the ranges can be copied from the beginning to the
+// end. Otherwise they need to be copied from the end to the beginning.
+template <class Traits>
+TEST_CONSTEXPR_CXX14 bool is_overlapping_range(Traits* p1, const Traits* p2, std::size_t n) {
+  if (p1 == p2) // Needed when n == 0
+    return true;
+
+  for (; n; --n, ++p1)
+    if (p1 == p2)
+      return true;
+
+  return false;
+}
+
 template <class CharT>
 struct constexpr_char_traits
 {
@@ -98,23 +122,21 @@ constexpr_char_traits<CharT>::find(const char_type* s, std::size_t n, const char
 }
 
 template <class CharT>
-TEST_CONSTEXPR_CXX14 CharT*
-constexpr_char_traits<CharT>::move(char_type* s1, const char_type* s2, std::size_t n)
-{
-    char_type* r = s1;
-    if (s1 < s2)
-    {
-        for (; n; --n, ++s1, ++s2)
-            assign(*s1, *s2);
-    }
-    else if (s2 < s1)
-    {
-        s1 += n;
-        s2 += n;
-        for (; n; --n)
-            assign(*--s1, *--s2);
-    }
-    return r;
+TEST_CONSTEXPR_CXX14 CharT* constexpr_char_traits<CharT>::move(char_type* s1, const char_type* s2, std::size_t n) {
+  if (s1 == s2)
+    return s1;
+
+  char_type* r = s1;
+  if (is_overlapping_range(s1, s2, n)) {
+    for (; n; --n)
+      assign(*s1++, *s2++);
+  } else {
+    s1 += n;
+    s2 += n;
+    for (; n; --n)
+      assign(*--s1, *--s2);
+  }
+  return r;
 }
 
 template <class CharT>
