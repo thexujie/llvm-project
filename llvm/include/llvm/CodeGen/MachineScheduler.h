@@ -487,6 +487,11 @@ public:
                    MachineBasicBlock::iterator end,
                    unsigned regioninstrs) override;
 
+  bool disableForRegion(MachineBasicBlock *bb,
+                        MachineBasicBlock::iterator begin,
+                        MachineBasicBlock::iterator end,
+                        unsigned regioninstrs) const override;
+
   /// Implement ScheduleDAGInstrs interface for scheduling a sequence of
   /// reorderable instructions.
   void schedule() override;

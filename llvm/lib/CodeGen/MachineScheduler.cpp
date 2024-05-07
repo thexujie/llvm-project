@@ -641,7 +641,8 @@ void MachineSchedulerBase::scheduleRegions(ScheduleDAGInstrs &Scheduler,
       Scheduler.enterRegion(&*MBB, I, RegionEnd, NumRegionInstrs);
 
       // Skip empty scheduling regions (0 or 1 schedulable instructions).
-      if (I == RegionEnd || I == std::prev(RegionEnd)) {
+      if (I == RegionEnd || I == std::prev(RegionEnd) ||
+          Scheduler.disableForRegion(&*MBB, I, RegionEnd, NumRegionInstrs)) {
         // Close the current region. Bundle the terminator if needed.
         // This invalidates 'RegionEnd' and 'I'.
         Scheduler.exitRegion();
@@ -1250,6 +1251,23 @@ void ScheduleDAGMILive::enterRegion(MachineBasicBlock *bb,
 
   assert((!ShouldTrackLaneMasks || ShouldTrackPressure) &&
          "ShouldTrackLaneMasks requires ShouldTrackPressure");
+}
+
+// EXPERIMENTAL: It seems that GenericScheduler currently often increases
+// spilling heavily with huge regions (like >350 instructions). This option
+// makes any sched region bigger than its value have pre-ra scheduling
+// skipped.
+cl::opt<unsigned> NoSchedAbove("nosched-above", cl::init(~0U));
+bool ScheduleDAGMILive::disableForRegion(MachineBasicBlock *bb,
+                                         MachineBasicBlock::iterator begin,
+                                         MachineBasicBlock::iterator end,
+                                         unsigned regioninstrs) const {
+  if (NumRegionInstrs > NoSchedAbove) {
+    LLVM_DEBUG(dbgs() << "Disabling pre-ra mischeduling of region with "
+               << NumRegionInstrs << " instructions\n";);
+    return true;
+  }
+  return false;
 }
 
 // Setup the register pressure trackers for the top scheduled and bottom
