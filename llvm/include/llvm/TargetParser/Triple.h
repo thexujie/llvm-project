@@ -193,7 +193,8 @@ public:
     Mesa,
     SUSE,
     OpenEmbedded,
-    LastVendorType = OpenEmbedded
+    Swift,
+    LastVendorType = Swift
   };
   enum OSType {
     UnknownOS,
