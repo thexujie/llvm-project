@@ -1736,6 +1736,7 @@ DILineInfo DWARFContext::getLineInfoForAddress(object::SectionedAddress Address,
   if (!CU)
     return Result;
 
+  DWARFDebugLine::ReportApproximateLine = Spec.ApproximateLine;
   getFunctionNameAndStartLineForAddress(
       CU, Address.Address, Spec.FNKind, Spec.FLIKind, Result.FunctionName,
       Result.StartFileName, Result.StartLine, Result.StartAddress);
@@ -1830,6 +1831,7 @@ DWARFContext::getInliningInfoForAddress(object::SectionedAddress Address,
 
   const DWARFLineTable *LineTable = nullptr;
   SmallVector<DWARFDie, 4> InlinedChain;
+  DWARFDebugLine::ReportApproximateLine = Spec.ApproximateLine;
   CU->getInlinedChainForAddress(Address.Address, InlinedChain);
   if (InlinedChain.size() == 0) {
     // If there is no DIE for address (e.g. it is in unavailable .dwo file),
