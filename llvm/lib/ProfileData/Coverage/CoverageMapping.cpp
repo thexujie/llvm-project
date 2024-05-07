@@ -416,7 +416,7 @@ private:
       assert(TVIdx < SavedNodes[ID].Width);
       assert(TVIdxs.insert(NextTVIdx).second && "Duplicate TVIdx");
 
-      if (!Bitmap[DecisionParams.BitmapIdx * CHAR_BIT + TV.getIndex()])
+      if (!Bitmap[DecisionParams.BitmapIdx - NumTestVectors + NextTVIdx])
         continue;
 
       // Copy the completed test vector to the vector of testvectors.
@@ -614,21 +614,12 @@ static unsigned getMaxCounterID(const CounterMappingContext &Ctx,
 static unsigned getMaxBitmapSize(const CounterMappingContext &Ctx,
                                  const CoverageMappingRecord &Record) {
   unsigned MaxBitmapIdx = 0;
-  unsigned NumConditions = 0;
-  // Scan max(BitmapIdx).
-  // Note that `<=` is used insted of `<`, because `BitmapIdx == 0` is valid
-  // and `MaxBitmapIdx is `unsigned`. `BitmapIdx` is unique in the record.
   for (const auto &Region : reverse(Record.MappingRegions)) {
-    if (Region.Kind != CounterMappingRegion::MCDCDecisionRegion)
-      continue;
-    const auto &DecisionParams = Region.getDecisionParams();
-    if (MaxBitmapIdx <= DecisionParams.BitmapIdx) {
-      MaxBitmapIdx = DecisionParams.BitmapIdx;
-      NumConditions = DecisionParams.NumConditions;
-    }
+    if (Region.Kind == CounterMappingRegion::MCDCDecisionRegion)
+      MaxBitmapIdx =
+          std::max(MaxBitmapIdx, Region.getDecisionParams().BitmapIdx);
   }
-  unsigned SizeInBits = llvm::alignTo(uint64_t(1) << NumConditions, CHAR_BIT);
-  return MaxBitmapIdx * CHAR_BIT + SizeInBits;
+  return MaxBitmapIdx;
 }
 
 namespace {
