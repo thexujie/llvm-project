@@ -6740,7 +6740,7 @@ InstructionCost X86TTIImpl::getInterleavedMemoryOpCost(
 }
 
 InstructionCost X86TTIImpl::getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
-                                                 int64_t BaseOffset,
+                                                 StackOffset BaseOffset,
                                                  bool HasBaseReg, int64_t Scale,
                                                  unsigned AddrSpace) const {
   // Scaling factors are not free at all.
@@ -6763,9 +6763,10 @@ InstructionCost X86TTIImpl::getScalingFactorCost(Type *Ty, GlobalValue *BaseGV,
   // vmovaps %ymm1, (%r8) can use port 2, 3, or 7.
   TargetLoweringBase::AddrMode AM;
   AM.BaseGV = BaseGV;
-  AM.BaseOffs = BaseOffset;
+  AM.BaseOffs = BaseOffset.getFixed();
   AM.HasBaseReg = HasBaseReg;
   AM.Scale = Scale;
+  assert(!BaseOffset.getScalable() && "Scalable offsets unsupported");
   if (getTLI()->isLegalAddressingMode(DL, AM, Ty, AddrSpace))
     // Scale represents reg2 * scale, thus account for 1
     // as soon as we use a second register.
