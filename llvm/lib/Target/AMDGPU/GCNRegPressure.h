@@ -259,6 +259,41 @@ public:
                const LiveRegSet *LiveRegsCopy = nullptr);
 };
 
+class GCNIterativeRPTracker {
+public:
+  using LiveRegSet = DenseMap<unsigned, LaneBitmask>;
+
+protected:
+  LiveRegSet LiveRegs;
+  GCNRegPressure CurPressure, MaxPressure;
+
+  mutable const MachineRegisterInfo *MRI = nullptr;
+
+  GCNIterativeRPTracker(){};
+
+public:
+  void reset(const MachineRegisterInfo *MRI_, const LiveRegSet *LiveRegsCopy);
+
+  GCNRegPressure getPressure() const { return CurPressure; }
+  GCNRegPressure getMaxPressure() const { return MaxPressure; }
+};
+
+class GCNIterativeUpwardRPTracker : public GCNIterativeRPTracker {
+public:
+  GCNIterativeUpwardRPTracker(){};
+
+  // Move to the state just before the MI.
+  void recede(const MachineInstr &MI, LiveIntervals *TheLIS);
+};
+
+class GCNIterativeDownwardRPTracker : public GCNIterativeRPTracker {
+public:
+  GCNIterativeDownwardRPTracker(){};
+
+  // Move to the state just after the MI.
+  void advance(const MachineInstr &MI, LiveIntervals *TheLIS);
+};
+
 LaneBitmask getLiveLaneMask(unsigned Reg,
                             SlotIndex SI,
                             const LiveIntervals &LIS,
@@ -275,44 +310,8 @@ GCNRPTracker::LiveRegSet getLiveRegs(SlotIndex SI, const LiveIntervals &LIS,
 /// After - upon entry or exit of every instruction
 /// Note: there is no entry in the map for instructions with empty live reg set
 /// Complexity = O(NumVirtRegs * averageLiveRangeSegmentsPerReg * lg(R))
-template <typename Range>
-DenseMap<MachineInstr*, GCNRPTracker::LiveRegSet>
-getLiveRegMap(Range &&R, bool After, LiveIntervals &LIS) {
-  std::vector<SlotIndex> Indexes;
-  Indexes.reserve(std::distance(R.begin(), R.end()));
-  auto &SII = *LIS.getSlotIndexes();
-  for (MachineInstr *I : R) {
-    auto SI = SII.getInstructionIndex(*I);
-    Indexes.push_back(After ? SI.getDeadSlot() : SI.getBaseIndex());
-  }
-  llvm::sort(Indexes);
-
-  auto &MRI = (*R.begin())->getParent()->getParent()->getRegInfo();
-  DenseMap<MachineInstr *, GCNRPTracker::LiveRegSet> LiveRegMap;
-  SmallVector<SlotIndex, 32> LiveIdxs, SRLiveIdxs;
-  for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
-    auto Reg = Register::index2VirtReg(I);
-    if (!LIS.hasInterval(Reg))
-      continue;
-    auto &LI = LIS.getInterval(Reg);
-    LiveIdxs.clear();
-    if (!LI.findIndexesLiveAt(Indexes, std::back_inserter(LiveIdxs)))
-      continue;
-    if (!LI.hasSubRanges()) {
-      for (auto SI : LiveIdxs)
-        LiveRegMap[SII.getInstructionFromIndex(SI)][Reg] =
-          MRI.getMaxLaneMaskForVReg(Reg);
-    } else
-      for (const auto &S : LI.subranges()) {
-        // constrain search for subranges by indexes live at main range
-        SRLiveIdxs.clear();
-        S.findIndexesLiveAt(LiveIdxs, std::back_inserter(SRLiveIdxs));
-        for (auto SI : SRLiveIdxs)
-          LiveRegMap[SII.getInstructionFromIndex(SI)][Reg] |= S.LaneMask;
-      }
-  }
-  return LiveRegMap;
-}
+DenseMap<int, GCNRPTracker::LiveRegSet>
+getLiveRegMap(DenseMap<MachineInstr *, int> &R, bool After, LiveIntervals &LIS);
 
 inline GCNRPTracker::LiveRegSet getLiveRegsAfter(const MachineInstr &MI,
                                                  const LiveIntervals &LIS) {
