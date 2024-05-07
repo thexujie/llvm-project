@@ -512,6 +512,16 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
   uint64_t NumInitElements = Args.size();
 
   uint64_t NumArrayElements = AType->getNumElements();
+  for (const auto *Init : Args) {
+    if (const auto *Embed = dyn_cast<EmbedExpr>(Init->IgnoreParenImpCasts())) {
+      NumInitElements += Embed->getDataElementCount() - 1;
+      if (NumInitElements > NumArrayElements) {
+        NumInitElements = NumArrayElements;
+        break;
+      }
+    }
+  }
+
   assert(NumInitElements <= NumArrayElements);
 
   QualType elementType =
@@ -520,7 +530,7 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
   // DestPtr is an array*.  Construct an elementType* by drilling
   // down a level.
   llvm::Value *zero = llvm::ConstantInt::get(CGF.SizeTy, 0);
-  llvm::Value *indices[] = { zero, zero };
+  llvm::Value *indices[] = {zero, zero};
   llvm::Value *begin = Builder.CreateInBoundsGEP(DestPtr.getElementType(),
                                                  DestPtr.emitRawPointer(CGF),
                                                  indices, "arrayinit.begin");
@@ -595,22 +605,36 @@ void AggExprEmitter::EmitArrayInit(Address DestPtr, llvm::ArrayType *AType,
   // elements have been initialized.
   llvm::Value *element = begin;
 
-  // Emit the explicit initializers.
-  for (uint64_t i = 0; i != NumInitElements; ++i) {
+  auto Emit = [&](Expr *Init, uint64_t ArrayIndex) {
     // Advance to the next element.
-    if (i > 0) {
-      element = Builder.CreateInBoundsGEP(
-          llvmElementType, element, one, "arrayinit.element");
+    if (ArrayIndex > 0) {
+      element = Builder.CreateInBoundsGEP(llvmElementType, element, one,
+                                          "arrayinit.element");
 
       // Tell the cleanup that it needs to destroy up to this
       // element.  TODO: some of these stores can be trivially
       // observed to be unnecessary.
-      if (endOfInit.isValid()) Builder.CreateStore(element, endOfInit);
+      if (endOfInit.isValid())
+        Builder.CreateStore(element, endOfInit);
     }
 
     LValue elementLV = CGF.MakeAddrLValue(
         Address(element, llvmElementType, elementAlign), elementType);
-    EmitInitializationToLValue(Args[i], elementLV);
+    EmitInitializationToLValue(Init, elementLV);
+    return true;
+  };
+
+  unsigned ArrayIndex = 0;
+  // Emit the explicit initializers.
+  for (uint64_t i = 0; i != NumInitElements; ++i) {
+    if (ArrayIndex >= NumInitElements)
+      break;
+    if (auto *EmbedS = dyn_cast<EmbedExpr>(Args[i]->IgnoreParenImpCasts())) {
+      EmbedS->doForEachDataElement(Emit, ArrayIndex);
+    } else {
+      Emit(Args[i], ArrayIndex);
+      ArrayIndex++;
+    }
   }
 
   // Check whether there's a non-trivial array-fill expression.

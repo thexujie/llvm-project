@@ -1164,6 +1164,10 @@ void StmtPrinter::VisitSourceLocExpr(SourceLocExpr *Node) {
   OS << Node->getBuiltinStr() << "()";
 }
 
+void StmtPrinter::VisitEmbedExpr(EmbedExpr *Node) {
+  assert(false && "not yet implemented");
+}
+
 void StmtPrinter::VisitConstantExpr(ConstantExpr *Node) {
   PrintExpr(Node->getSubExpr());
 }

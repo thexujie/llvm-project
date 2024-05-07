@@ -3909,7 +3909,7 @@ bool Sema::CheckLoopHintExpr(Expr *E, SourceLocation Loc, bool AllowZero) {
   bool ValueIsPositive =
       AllowZero ? ValueAPS.isNonNegative() : ValueAPS.isStrictlyPositive();
   if (!ValueIsPositive || ValueAPS.getActiveBits() > 31) {
-    Diag(E->getExprLoc(), diag::err_pragma_loop_invalid_argument_value)
+    Diag(E->getExprLoc(), diag::err_requires_positive_value)
         << toString(ValueAPS, 10) << ValueIsPositive;
     return true;
   }
@@ -7465,8 +7465,8 @@ Sema::BuildInitList(SourceLocation LBraceLoc, MultiExprArg InitArgList,
     }
   }
 
-  InitListExpr *E = new (Context) InitListExpr(Context, LBraceLoc, InitArgList,
-                                               RBraceLoc);
+  InitListExpr *E =
+      new (Context) InitListExpr(Context, LBraceLoc, InitArgList, RBraceLoc);
   E->setType(Context.VoidTy); // FIXME: just a place holder for now.
   return E;
 }
@@ -17074,6 +17074,17 @@ ExprResult Sema::BuildSourceLocExpr(SourceLocIdentKind Kind, QualType ResultTy,
                                     DeclContext *ParentContext) {
   return new (Context)
       SourceLocExpr(Context, Kind, ResultTy, BuiltinLoc, RPLoc, ParentContext);
+}
+
+ExprResult Sema::ActOnEmbedExpr(SourceLocation BuiltinLoc,
+                                SourceLocation BinaryDataLoc,
+                                SourceLocation RPLoc, StringLiteral *Filename,
+                                StringLiteral *BinaryData) {
+  EmbedDataStorage *Data = new (Context) EmbedDataStorage;
+  Data->Filename = Filename;
+  Data->BinaryData = BinaryData;
+  return new (Context) EmbedExpr(Context, BuiltinLoc, RPLoc, CurContext, Data,
+                                 0, Data->getDataElementCount());
 }
 
 bool Sema::CheckConversionToObjCLiteral(QualType DstType, Expr *&Exp,
