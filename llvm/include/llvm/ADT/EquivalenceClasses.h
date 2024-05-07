@@ -233,6 +233,13 @@ public:
     return findLeader(TheMapping.find(V));
   }
 
+  /// Erase the class containing \p V.
+  void eraseClass(const ElemTy &V) {
+    if (TheMapping.find(V) == TheMapping.end())
+      return;
+    TheMapping.erase(V);
+  }
+
   /// union - Merge the two equivalence sets for the specified values, inserting
   /// them if they do not already exist in the equivalence set.
   member_iterator unionSets(const ElemTy &V1, const ElemTy &V2) {
