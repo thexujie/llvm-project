@@ -62,6 +62,7 @@ bool VPRecipeBase::mayWriteToMemory() const {
   case VPPredInstPHISC:
     return false;
   case VPBlendSC:
+  case VPReductionEVLSC:
   case VPReductionSC:
   case VPWidenCanonicalIVSC:
   case VPWidenCastSC:
@@ -103,6 +104,7 @@ bool VPRecipeBase::mayReadFromMemory() const {
   case VPWidenStoreSC:
     return false;
   case VPBlendSC:
+  case VPReductionEVLSC:
   case VPReductionSC:
   case VPWidenCanonicalIVSC:
   case VPWidenCastSC:
@@ -147,6 +149,7 @@ bool VPRecipeBase::mayHaveSideEffects() const {
     return mayWriteToMemory() || !Fn->doesNotThrow() || !Fn->willReturn();
   }
   case VPBlendSC:
+  case VPReductionEVLSC:
   case VPReductionSC:
   case VPScalarIVStepsSC:
   case VPWidenCanonicalIVSC:
@@ -1590,6 +1593,40 @@ void VPReductionRecipe::execute(VPTransformState &State) {
   }
 }
 
+void VPReductionEVLRecipe::execute(VPTransformState &State) {
+  assert(!State.Instance && "Reduction being replicated.");
+  assert(State.UF == 1 &&
+         "Expected only UF == 1 when vectorizing with explicit vector length.");
+
+  auto &Builder = State.Builder;
+  // Propagate the fast-math flags carried by the underlying instruction.
+  IRBuilderBase::FastMathFlagGuard FMFGuard(Builder);
+  Builder.setFastMathFlags(RdxDesc.getFastMathFlags());
+
+  RecurKind Kind = RdxDesc.getRecurrenceKind();
+  Value *Prev = State.get(getChainOp(), 0, /*IsScalar*/ true);
+  Value *VecOp = State.get(getVecOp(), 0);
+  Value *EVL = State.get(getEVL(), VPIteration(0, 0));
+
+  VectorBuilder VBuilder(Builder);
+  VBuilder.setEVL(EVL);
+  if (getCondOp())
+    VBuilder.setMask(State.get(getCondOp(), 0));
+
+  Value *NewRed;
+  if (IsOrdered) {
+    NewRed = createOrderedReduction(VBuilder, RdxDesc, VecOp, Prev);
+  } else {
+    NewRed = createSimpleTargetReduction(VBuilder, VecOp, RdxDesc);
+    if (RecurrenceDescriptor::isMinMaxRecurrenceKind(Kind))
+      NewRed = createMinMaxOp(Builder, Kind, NewRed, Prev);
+    else
+      NewRed = Builder.CreateBinOp(
+          (Instruction::BinaryOps)RdxDesc.getOpcode(Kind), NewRed, Prev);
+  }
+  State.set(this, NewRed, 0, /*IsScalar*/ true);
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void VPReductionRecipe::print(raw_ostream &O, const Twine &Indent,
                               VPSlotTracker &SlotTracker) const {
@@ -1602,6 +1639,29 @@ void VPReductionRecipe::print(raw_ostream &O, const Twine &Indent,
     O << getUnderlyingInstr()->getFastMathFlags();
   O << " reduce." << Instruction::getOpcodeName(RdxDesc.getOpcode()) << " (";
   getVecOp()->printAsOperand(O, SlotTracker);
+  if (getCondOp()) {
+    O << ", ";
+    getCondOp()->printAsOperand(O, SlotTracker);
+  }
+  O << ")";
+  if (RdxDesc.IntermediateStore)
+    O << " (with final reduction value stored in invariant address sank "
+         "outside of loop)";
+}
+
+void VPReductionEVLRecipe::print(raw_ostream &O, const Twine &Indent,
+                                 VPSlotTracker &SlotTracker) const {
+  O << Indent << "REDUCE ";
+  printAsOperand(O, SlotTracker);
+  O << " = ";
+  getChainOp()->printAsOperand(O, SlotTracker);
+  O << " +";
+  if (isa<FPMathOperator>(getUnderlyingInstr()))
+    O << getUnderlyingInstr()->getFastMathFlags();
+  O << " reduce." << Instruction::getOpcodeName(RdxDesc.getOpcode()) << " (";
+  getVecOp()->printAsOperand(O, SlotTracker);
+  O << ", ";
+  getEVL()->printAsOperand(O, SlotTracker);
   if (getCondOp()) {
     O << ", ";
     getCondOp()->printAsOperand(O, SlotTracker);
