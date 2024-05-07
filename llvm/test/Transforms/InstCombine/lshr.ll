@@ -1042,7 +1042,7 @@ define i2 @bool_add_lshr(i1 %a, i1 %b) {
 define i4 @not_bool_add_lshr(i2 %a, i2 %b) {
 ; CHECK-LABEL: @not_bool_add_lshr(
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor i2 [[A:%.*]], -1
-; CHECK-NEXT:    [[ADD_NARROWED_OVERFLOW:%.*]] = icmp ult i2 [[TMP1]], [[B:%.*]]
+; CHECK-NEXT:    [[ADD_NARROWED_OVERFLOW:%.*]] = icmp ugt i2 [[B:%.*]], [[TMP1]]
 ; CHECK-NEXT:    [[LSHR:%.*]] = zext i1 [[ADD_NARROWED_OVERFLOW]] to i4
 ; CHECK-NEXT:    ret i4 [[LSHR]]
 ;

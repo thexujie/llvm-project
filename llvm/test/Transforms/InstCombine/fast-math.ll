@@ -65,7 +65,7 @@ define double @fold3_reassoc_nsz(double %f1) {
 define double @fold3_reassoc(double %f1) {
 ; CHECK-LABEL: @fold3_reassoc(
 ; CHECK-NEXT:    [[T1:%.*]] = fmul reassoc double [[F1:%.*]], 5.000000e+00
-; CHECK-NEXT:    [[T2:%.*]] = fadd reassoc double [[T1]], [[F1]]
+; CHECK-NEXT:    [[T2:%.*]] = fadd reassoc double [[F1]], [[T1]]
 ; CHECK-NEXT:    ret double [[T2]]
 ;
   %t1 = fmul reassoc double 5.000000e+00, %f1
@@ -175,7 +175,7 @@ define float @fold6_reassoc_nsz(float %f1) {
 define float @fold6_reassoc(float %f1) {
 ; CHECK-LABEL: @fold6_reassoc(
 ; CHECK-NEXT:    [[T1:%.*]] = fadd reassoc float [[F1:%.*]], [[F1]]
-; CHECK-NEXT:    [[T2:%.*]] = fadd reassoc float [[T1]], [[F1]]
+; CHECK-NEXT:    [[T2:%.*]] = fadd reassoc float [[F1]], [[T1]]
 ; CHECK-NEXT:    [[T3:%.*]] = fadd reassoc float [[T2]], [[F1]]
 ; CHECK-NEXT:    ret float [[T3]]
 ;
@@ -506,7 +506,7 @@ define float @fold16(float %x, float %y) {
 ; CHECK-NEXT:    [[CMP:%.*]] = fcmp ogt float [[X:%.*]], [[Y:%.*]]
 ; CHECK-NEXT:    [[TMP1:%.*]] = fneg float [[Y]]
 ; CHECK-NEXT:    [[R_P:%.*]] = select i1 [[CMP]], float [[Y]], float [[TMP1]]
-; CHECK-NEXT:    [[R:%.*]] = fadd float [[R_P]], [[X]]
+; CHECK-NEXT:    [[R:%.*]] = fadd float [[X]], [[R_P]]
 ; CHECK-NEXT:    ret float [[R]]
 ;
   %cmp = fcmp ogt float %x, %y
@@ -711,9 +711,9 @@ define double @sqrt_intrinsic_three_args5(double %x, double %y) {
 
 define double @sqrt_intrinsic_three_args6(double %x, double %y) {
 ; CHECK-LABEL: @sqrt_intrinsic_three_args6(
-; CHECK-NEXT:    [[FABS:%.*]] = call fast double @llvm.fabs.f64(double [[X:%.*]])
-; CHECK-NEXT:    [[SQRT1:%.*]] = call fast double @llvm.sqrt.f64(double [[Y:%.*]])
-; CHECK-NEXT:    [[SQRT:%.*]] = fmul fast double [[FABS]], [[SQRT1]]
+; CHECK-NEXT:    [[MUL:%.*]] = fmul fast double [[X:%.*]], [[X]]
+; CHECK-NEXT:    [[MUL2:%.*]] = fmul fast double [[Y:%.*]], [[MUL]]
+; CHECK-NEXT:    [[SQRT:%.*]] = call fast double @llvm.sqrt.f64(double [[MUL2]])
 ; CHECK-NEXT:    ret double [[SQRT]]
 ;
   %mul = fmul fast double %x, %x
@@ -922,7 +922,7 @@ define float @test55(i1 %which, float %a) {
 ; CHECK-NEXT:    [[TMP0:%.*]] = fadd float [[A:%.*]], 1.000000e+00
 ; CHECK-NEXT:    br label [[FINAL]]
 ; CHECK:       final:
-; CHECK-NEXT:    [[A:%.*]] = phi float [ 3.000000e+00, [[ENTRY:%.*]] ], [ [[TMP0]], [[DELAY]] ]
+; CHECK-NEXT:    [[A]] = phi float [ 3.000000e+00, [[ENTRY:%.*]] ], [ [[TMP0]], [[DELAY]] ]
 ; CHECK-NEXT:    ret float [[A]]
 ;
 entry:

@@ -165,8 +165,8 @@ define i16 @pr57336(i16 %end, i16 %m) mustprogress {
 ; CHECK:       for.body:
 ; CHECK-NEXT:    [[INC8:%.*]] = phi i16 [ [[INC:%.*]], [[FOR_BODY]] ], [ 0, [[ENTRY:%.*]] ]
 ; CHECK-NEXT:    [[INC]] = add nuw nsw i16 [[INC8]], 1
-; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i16 [[INC8]], [[M:%.*]]
-; CHECK-NEXT:    [[CMP_NOT:%.*]] = icmp sgt i16 [[MUL]], [[END:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i16 [[M:%.*]], [[INC8]]
+; CHECK-NEXT:    [[CMP_NOT:%.*]] = icmp slt i16 [[END:%.*]], [[MUL]]
 ; CHECK-NEXT:    br i1 [[CMP_NOT]], label [[CRIT_EDGE:%.*]], label [[FOR_BODY]]
 ; CHECK:       crit_edge:
 ; CHECK-NEXT:    [[TMP0:%.*]] = add i16 [[END]], 1

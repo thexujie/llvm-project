@@ -122,7 +122,7 @@ define i32 @test5(i32 %A, i32 %B) {
 
 define i32 @test5_both_nsw(i32 %A, i32 %B) {
 ; CHECK-LABEL: @test5_both_nsw(
-; CHECK-NEXT:    [[D:%.*]] = sub nsw i32 [[B:%.*]], [[A:%.*]]
+; CHECK-NEXT:    [[D:%.*]] = sub i32 [[B:%.*]], [[A:%.*]]
 ; CHECK-NEXT:    ret i32 [[D]]
 ;
   %C = sub nsw i32 0, %A
@@ -222,7 +222,7 @@ define i32 @test9(i32 %A) {
 define i1 @test10(i8 %a, i8 %b) {
 ; CHECK-LABEL: @test10(
 ; CHECK-NEXT:    [[ADD:%.*]] = sub i8 0, [[B:%.*]]
-; CHECK-NEXT:    [[C:%.*]] = icmp ne i8 [[ADD]], [[A:%.*]]
+; CHECK-NEXT:    [[C:%.*]] = icmp ne i8 [[A:%.*]], [[ADD]]
 ; CHECK-NEXT:    ret i1 [[C]]
 ;
   %add = add i8 %a, %b
@@ -233,7 +233,7 @@ define i1 @test10(i8 %a, i8 %b) {
 define <2 x i1> @test10vec(<2 x i8> %a, <2 x i8> %b) {
 ; CHECK-LABEL: @test10vec(
 ; CHECK-NEXT:    [[C:%.*]] = sub <2 x i8> zeroinitializer, [[B:%.*]]
-; CHECK-NEXT:    [[D:%.*]] = icmp ne <2 x i8> [[C]], [[A:%.*]]
+; CHECK-NEXT:    [[D:%.*]] = icmp ne <2 x i8> [[A:%.*]], [[C]]
 ; CHECK-NEXT:    ret <2 x i1> [[D]]
 ;
   %c = add <2 x i8> %a, %b
@@ -264,7 +264,7 @@ define <2 x i1> @test11vec(<2 x i8> %a) {
 define i8 @reassoc_shl1(i8 %x, i8 %y) {
 ; CHECK-LABEL: @reassoc_shl1(
 ; CHECK-NEXT:    [[REASS_ADD:%.*]] = shl i8 [[X:%.*]], 1
-; CHECK-NEXT:    [[R:%.*]] = add i8 [[REASS_ADD]], [[Y:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = add i8 [[Y:%.*]], [[REASS_ADD]]
 ; CHECK-NEXT:    ret i8 [[R]]
 ;
   %a = add i8 %y, %x
@@ -275,7 +275,7 @@ define i8 @reassoc_shl1(i8 %x, i8 %y) {
 define <2 x i8> @reassoc_shl1_commute1(<2 x i8> %x, <2 x i8> %y) {
 ; CHECK-LABEL: @reassoc_shl1_commute1(
 ; CHECK-NEXT:    [[REASS_ADD:%.*]] = shl <2 x i8> [[X:%.*]], <i8 1, i8 1>
-; CHECK-NEXT:    [[R:%.*]] = add <2 x i8> [[REASS_ADD]], [[Y:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = add <2 x i8> [[Y:%.*]], [[REASS_ADD]]
 ; CHECK-NEXT:    ret <2 x i8> [[R]]
 ;
   %a = add <2 x i8> %x, %y
@@ -1221,7 +1221,7 @@ define <2 x i32> @test44_vec_non_splat(<2 x i32> %A) {
 define i32 @lshr_add(i1 %x, i1 %y) {
 ; CHECK-LABEL: @lshr_add(
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor i1 [[X:%.*]], true
-; CHECK-NEXT:    [[TMP2:%.*]] = and i1 [[TMP1]], [[Y:%.*]]
+; CHECK-NEXT:    [[TMP2:%.*]] = and i1 [[Y:%.*]], [[TMP1]]
 ; CHECK-NEXT:    [[R:%.*]] = zext i1 [[TMP2]] to i32
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
@@ -1235,7 +1235,7 @@ define i32 @lshr_add(i1 %x, i1 %y) {
 define i5 @and_add(i1 %x, i1 %y) {
 ; CHECK-LABEL: @and_add(
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor i1 [[X:%.*]], true
-; CHECK-NEXT:    [[TMP2:%.*]] = and i1 [[TMP1]], [[Y:%.*]]
+; CHECK-NEXT:    [[TMP2:%.*]] = and i1 [[Y:%.*]], [[TMP1]]
 ; CHECK-NEXT:    [[R:%.*]] = select i1 [[TMP2]], i5 -2, i5 0
 ; CHECK-NEXT:    ret i5 [[R]]
 ;
@@ -1249,7 +1249,7 @@ define i5 @and_add(i1 %x, i1 %y) {
 define <2 x i8> @ashr_add_commute(<2 x i1> %x, <2 x i1> %y) {
 ; CHECK-LABEL: @ashr_add_commute(
 ; CHECK-NEXT:    [[TMP1:%.*]] = xor <2 x i1> [[X:%.*]], <i1 true, i1 true>
-; CHECK-NEXT:    [[TMP2:%.*]] = and <2 x i1> [[TMP1]], [[Y:%.*]]
+; CHECK-NEXT:    [[TMP2:%.*]] = and <2 x i1> [[Y:%.*]], [[TMP1]]
 ; CHECK-NEXT:    [[TMP3:%.*]] = sext <2 x i1> [[TMP2]] to <2 x i8>
 ; CHECK-NEXT:    ret <2 x i8> [[TMP3]]
 ;
@@ -1548,7 +1548,7 @@ define i8 @add_and_xor_wrong_const(i8 %x, i8 %y) {
 define i8 @add_and_xor_wrong_op(i8 %x, i8 %y, i8 %z) {
 ; CHECK-LABEL: @add_and_xor_wrong_op(
 ; CHECK-NEXT:    [[XOR:%.*]] = xor i8 [[Z:%.*]], -1
-; CHECK-NEXT:    [[AND:%.*]] = and i8 [[XOR]], [[Y:%.*]]
+; CHECK-NEXT:    [[AND:%.*]] = and i8 [[Y:%.*]], [[XOR]]
 ; CHECK-NEXT:    [[ADD:%.*]] = add i8 [[AND]], [[X:%.*]]
 ; CHECK-NEXT:    ret i8 [[ADD]]
 ;
@@ -1603,7 +1603,7 @@ define i8 @add_and_xor_extra_use(i8 noundef %x, i8 %y) {
 ; CHECK-LABEL: @add_and_xor_extra_use(
 ; CHECK-NEXT:    [[XOR:%.*]] = xor i8 [[X:%.*]], -1
 ; CHECK-NEXT:    call void @use(i8 [[XOR]])
-; CHECK-NEXT:    [[AND:%.*]] = and i8 [[XOR]], [[Y:%.*]]
+; CHECK-NEXT:    [[AND:%.*]] = and i8 [[Y:%.*]], [[XOR]]
 ; CHECK-NEXT:    call void @use(i8 [[AND]])
 ; CHECK-NEXT:    [[ADD:%.*]] = or i8 [[Y]], [[X]]
 ; CHECK-NEXT:    ret i8 [[ADD]]
@@ -1848,7 +1848,7 @@ define i32 @add_add_add_commute1(i32 %A, i32 %B, i32 %C, i32 %D) {
 define i32 @add_add_add_commute2(i32 %A, i32 %B, i32 %C, i32 %D) {
 ; CHECK-LABEL: @add_add_add_commute2(
 ; CHECK-NEXT:    [[E:%.*]] = add i32 [[B:%.*]], [[A:%.*]]
-; CHECK-NEXT:    [[F:%.*]] = add i32 [[E]], [[C:%.*]]
+; CHECK-NEXT:    [[F:%.*]] = add i32 [[C:%.*]], [[E]]
 ; CHECK-NEXT:    [[G:%.*]] = add i32 [[F]], [[D:%.*]]
 ; CHECK-NEXT:    ret i32 [[G]]
 ;
@@ -1861,8 +1861,8 @@ define i32 @add_add_add_commute2(i32 %A, i32 %B, i32 %C, i32 %D) {
 define i32 @add_add_add_commute3(i32 %A, i32 %B, i32 %C, i32 %D) {
 ; CHECK-LABEL: @add_add_add_commute3(
 ; CHECK-NEXT:    [[E:%.*]] = add i32 [[B:%.*]], [[A:%.*]]
-; CHECK-NEXT:    [[F:%.*]] = add i32 [[E]], [[C:%.*]]
-; CHECK-NEXT:    [[G:%.*]] = add i32 [[F]], [[D:%.*]]
+; CHECK-NEXT:    [[F:%.*]] = add i32 [[C:%.*]], [[E]]
+; CHECK-NEXT:    [[G:%.*]] = add i32 [[D:%.*]], [[F]]
 ; CHECK-NEXT:    ret i32 [[G]]
 ;
   %E = add i32 %B, %A
@@ -1876,7 +1876,7 @@ define i32 @add_add_add_commute3(i32 %A, i32 %B, i32 %C, i32 %D) {
 define i8 @mul_add_common_factor_commute1(i8 %x, i8 %y) {
 ; CHECK-LABEL: @mul_add_common_factor_commute1(
 ; CHECK-NEXT:    [[X1:%.*]] = add i8 [[Y:%.*]], 1
-; CHECK-NEXT:    [[A:%.*]] = mul i8 [[X1]], [[X:%.*]]
+; CHECK-NEXT:    [[A:%.*]] = mul i8 [[X:%.*]], [[X1]]
 ; CHECK-NEXT:    ret i8 [[A]]
 ;
   %m = mul nsw i8 %x, %y
@@ -1970,7 +1970,7 @@ define i8 @not_mul_wrong_op(i8 %x, i8 %y) {
 ; CHECK-LABEL: @not_mul_wrong_op(
 ; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X:%.*]], 42
 ; CHECK-NEXT:    [[NOT:%.*]] = xor i8 [[MUL]], -1
-; CHECK-NEXT:    [[PLUSX:%.*]] = add i8 [[NOT]], [[Y:%.*]]
+; CHECK-NEXT:    [[PLUSX:%.*]] = add i8 [[Y:%.*]], [[NOT]]
 ; CHECK-NEXT:    ret i8 [[PLUSX]]
 ;
   %mul = mul i8 %x, 42
@@ -1986,7 +1986,7 @@ define i8 @not_mul_use1(i8 %x) {
 ; CHECK-NEXT:    [[MUL:%.*]] = mul nsw i8 [[X:%.*]], 42
 ; CHECK-NEXT:    call void @use(i8 [[MUL]])
 ; CHECK-NEXT:    [[NOT:%.*]] = xor i8 [[MUL]], -1
-; CHECK-NEXT:    [[PLUSX:%.*]] = add nsw i8 [[NOT]], [[X]]
+; CHECK-NEXT:    [[PLUSX:%.*]] = add nsw i8 [[X]], [[NOT]]
 ; CHECK-NEXT:    ret i8 [[PLUSX]]
 ;
   %mul = mul nsw i8 %x, 42
@@ -2003,7 +2003,7 @@ define i8 @not_mul_use2(i8 %x) {
 ; CHECK-NEXT:    [[MUL:%.*]] = mul i8 [[X:%.*]], 42
 ; CHECK-NEXT:    [[NOT:%.*]] = xor i8 [[MUL]], -1
 ; CHECK-NEXT:    call void @use(i8 [[NOT]])
-; CHECK-NEXT:    [[PLUSX:%.*]] = add i8 [[NOT]], [[X]]
+; CHECK-NEXT:    [[PLUSX:%.*]] = add i8 [[X]], [[NOT]]
 ; CHECK-NEXT:    ret i8 [[PLUSX]]
 ;
   %mul = mul i8 %x, 42
@@ -3286,8 +3286,11 @@ define i32 @add_reduce_sqr_sum_flipped(i32 %a, i32 %b) {
 
 define i32 @add_reduce_sqr_sum_flipped2(i32 %a, i32 %b) {
 ; CHECK-LABEL: @add_reduce_sqr_sum_flipped2(
-; CHECK-NEXT:    [[TMP1:%.*]] = add i32 [[A:%.*]], [[B:%.*]]
-; CHECK-NEXT:    [[ADD:%.*]] = mul i32 [[TMP1]], [[TMP1]]
+; CHECK-NEXT:    [[A_SQ:%.*]] = mul nsw i32 [[A:%.*]], [[A]]
+; CHECK-NEXT:    [[TWO_A:%.*]] = shl i32 [[A]], 1
+; CHECK-NEXT:    [[TWO_A_PLUS_B:%.*]] = add i32 [[TWO_A]], [[B:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul i32 [[B]], [[TWO_A_PLUS_B]]
+; CHECK-NEXT:    [[ADD:%.*]] = add i32 [[MUL]], [[A_SQ]]
 ; CHECK-NEXT:    ret i32 [[ADD]]
 ;
   %a_sq = mul nsw i32 %a, %a
@@ -3344,8 +3347,11 @@ define i32 @add_reduce_sqr_sum_order2_flipped(i32 %a, i32 %b) {
 
 define i32 @add_reduce_sqr_sum_order2_flipped2(i32 %a, i32 %b) {
 ; CHECK-LABEL: @add_reduce_sqr_sum_order2_flipped2(
-; CHECK-NEXT:    [[TMP1:%.*]] = add i32 [[A:%.*]], [[B:%.*]]
-; CHECK-NEXT:    [[AB2:%.*]] = mul i32 [[TMP1]], [[TMP1]]
+; CHECK-NEXT:    [[A_SQ:%.*]] = mul nsw i32 [[A:%.*]], [[A]]
+; CHECK-NEXT:    [[TWOA:%.*]] = shl i32 [[A]], 1
+; CHECK-NEXT:    [[TWOAB1:%.*]] = add i32 [[B:%.*]], [[TWOA]]
+; CHECK-NEXT:    [[TWOAB_B2:%.*]] = mul i32 [[B]], [[TWOAB1]]
+; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[A_SQ]], [[TWOAB_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
   %a_sq = mul nsw i32 %a, %a
@@ -3359,8 +3365,11 @@ define i32 @add_reduce_sqr_sum_order2_flipped2(i32 %a, i32 %b) {
 
 define i32 @add_reduce_sqr_sum_order2_flipped3(i32 %a, i32 %b) {
 ; CHECK-LABEL: @add_reduce_sqr_sum_order2_flipped3(
-; CHECK-NEXT:    [[TMP1:%.*]] = add i32 [[A:%.*]], [[B:%.*]]
-; CHECK-NEXT:    [[AB2:%.*]] = mul i32 [[TMP1]], [[TMP1]]
+; CHECK-NEXT:    [[A_SQ:%.*]] = mul nsw i32 [[A:%.*]], [[A]]
+; CHECK-NEXT:    [[TWOA:%.*]] = shl i32 [[A]], 1
+; CHECK-NEXT:    [[B_SQ1:%.*]] = add i32 [[TWOA]], [[B:%.*]]
+; CHECK-NEXT:    [[TWOAB_B2:%.*]] = mul i32 [[B]], [[B_SQ1]]
+; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[A_SQ]], [[TWOAB_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
   %a_sq = mul nsw i32 %a, %a
@@ -3419,8 +3428,12 @@ define i32 @add_reduce_sqr_sum_order3_flipped2(i32 %a, i32 %b) {
 
 define i32 @add_reduce_sqr_sum_order3_flipped3(i32 %a, i32 %b) {
 ; CHECK-LABEL: @add_reduce_sqr_sum_order3_flipped3(
-; CHECK-NEXT:    [[TMP1:%.*]] = add i32 [[A:%.*]], [[B:%.*]]
-; CHECK-NEXT:    [[AB2:%.*]] = mul i32 [[TMP1]], [[TMP1]]
+; CHECK-NEXT:    [[A_SQ:%.*]] = mul nsw i32 [[A:%.*]], [[A]]
+; CHECK-NEXT:    [[TWOA:%.*]] = shl i32 [[A]], 1
+; CHECK-NEXT:    [[TWOAB:%.*]] = mul i32 [[B:%.*]], [[TWOA]]
+; CHECK-NEXT:    [[B_SQ:%.*]] = mul i32 [[B]], [[B]]
+; CHECK-NEXT:    [[A2_B2:%.*]] = add i32 [[A_SQ]], [[B_SQ]]
+; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[TWOAB]], [[A2_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
   %a_sq = mul nsw i32 %a, %a
@@ -3554,8 +3567,12 @@ define i32 @add_reduce_sqr_sum_order5_flipped2(i32 %a, i32 %b) {
 
 define i32 @add_reduce_sqr_sum_order5_flipped3(i32 %a, i32 %b) {
 ; CHECK-LABEL: @add_reduce_sqr_sum_order5_flipped3(
-; CHECK-NEXT:    [[TMP1:%.*]] = add i32 [[B:%.*]], [[A:%.*]]
-; CHECK-NEXT:    [[AB2:%.*]] = mul i32 [[TMP1]], [[TMP1]]
+; CHECK-NEXT:    [[A_SQ:%.*]] = mul nsw i32 [[A:%.*]], [[A]]
+; CHECK-NEXT:    [[TWOB:%.*]] = shl i32 [[B:%.*]], 1
+; CHECK-NEXT:    [[TWOAB:%.*]] = mul i32 [[A]], [[TWOB]]
+; CHECK-NEXT:    [[B_SQ:%.*]] = mul i32 [[B]], [[B]]
+; CHECK-NEXT:    [[A2_B2:%.*]] = add i32 [[A_SQ]], [[B_SQ]]
+; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[TWOAB]], [[A2_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
   %a_sq = mul nsw i32 %a, %a
@@ -3928,7 +3945,7 @@ define i32 @add_reduce_sqr_sum_varB_invalid3(i32 %a, i32 %b) {
 ; CHECK-NEXT:    [[A_B:%.*]] = mul nsw i32 [[A:%.*]], [[B:%.*]]
 ; CHECK-NEXT:    [[TWOAB:%.*]] = shl i32 [[A_B]], 1
 ; CHECK-NEXT:    [[B_SQ1:%.*]] = add i32 [[A]], [[B]]
-; CHECK-NEXT:    [[A2_B2:%.*]] = mul i32 [[B_SQ1]], [[B]]
+; CHECK-NEXT:    [[A2_B2:%.*]] = mul i32 [[B]], [[B_SQ1]]
 ; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[TWOAB]], [[A2_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
@@ -3946,7 +3963,7 @@ define i32 @add_reduce_sqr_sum_varB_invalid4(i32 %a, i32 %b) {
 ; CHECK-NEXT:    [[A_B:%.*]] = mul nsw i32 [[A:%.*]], [[B:%.*]]
 ; CHECK-NEXT:    [[TWOAB:%.*]] = shl i32 [[A_B]], 1
 ; CHECK-NEXT:    [[NOT_B_SQ1:%.*]] = add i32 [[A]], [[B]]
-; CHECK-NEXT:    [[A2_B2:%.*]] = mul i32 [[NOT_B_SQ1]], [[A]]
+; CHECK-NEXT:    [[A2_B2:%.*]] = mul i32 [[A]], [[NOT_B_SQ1]]
 ; CHECK-NEXT:    [[AB2:%.*]] = add i32 [[TWOAB]], [[A2_B2]]
 ; CHECK-NEXT:    ret i32 [[AB2]]
 ;
@@ -4018,8 +4035,8 @@ define i32 @add_reduce_sqr_sum_varC_invalid2(i32 %a, i32 %b) {
 
 define i32 @fold_sext_addition_or_disjoint(i8 %x) {
 ; CHECK-LABEL: @fold_sext_addition_or_disjoint(
-; CHECK-NEXT:    [[SE:%.*]] = sext i8 [[XX:%.*]] to i32
-; CHECK-NEXT:    [[R:%.*]] = add nsw i32 [[SE]], 1246
+; CHECK-NEXT:    [[TMP1:%.*]] = sext i8 [[X:%.*]] to i32
+; CHECK-NEXT:    [[R:%.*]] = add nsw i32 [[TMP1]], 1246
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 12
@@ -4043,8 +4060,8 @@ define i32 @fold_sext_addition_fail(i8 %x) {
 
 define i32 @fold_zext_addition_or_disjoint(i8 %x) {
 ; CHECK-LABEL: @fold_zext_addition_or_disjoint(
-; CHECK-NEXT:    [[SE:%.*]] = zext i8 [[XX:%.*]] to i32
-; CHECK-NEXT:    [[R:%.*]] = add nuw nsw i32 [[SE]], 1246
+; CHECK-NEXT:    [[TMP1:%.*]] = zext i8 [[X:%.*]] to i32
+; CHECK-NEXT:    [[R:%.*]] = add nuw nsw i32 [[TMP1]], 1246
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 12
@@ -4055,9 +4072,9 @@ define i32 @fold_zext_addition_or_disjoint(i8 %x) {
 
 define i32 @fold_zext_addition_or_disjoint2(i8 %x) {
 ; CHECK-LABEL: @fold_zext_addition_or_disjoint2(
-; CHECK-NEXT:    [[XX:%.*]] = add nuw i8 [[X:%.*]], 4
-; CHECK-NEXT:    [[SE:%.*]] = zext i8 [[XX]] to i32
-; CHECK-NEXT:    ret i32 [[SE]]
+; CHECK-NEXT:    [[TMP1:%.*]] = add nuw i8 [[X:%.*]], 4
+; CHECK-NEXT:    [[R:%.*]] = zext i8 [[TMP1]] to i32
+; CHECK-NEXT:    ret i32 [[R]]
 ;
   %xx = or disjoint i8 %x, 18
   %se = zext i8 %xx to i32

@@ -497,7 +497,7 @@ define i1 @eq_and_lshr_minval_commute(i8 %px, i8 %y) {
 define i1 @eq_and_shl_two(i8 %x, i8 %y) {
 ; CHECK-LABEL: @eq_and_shl_two(
 ; CHECK-NEXT:    [[POW2_OR_ZERO:%.*]] = shl i8 2, [[Y:%.*]]
-; CHECK-NEXT:    [[AND:%.*]] = and i8 [[POW2_OR_ZERO]], [[X:%.*]]
+; CHECK-NEXT:    [[AND:%.*]] = and i8 [[X:%.*]], [[POW2_OR_ZERO]]
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp eq i8 [[AND]], [[POW2_OR_ZERO]]
 ; CHECK-NEXT:    ret i1 [[CMP]]
 ;
@@ -511,7 +511,7 @@ define i1 @eq_and_shl_two(i8 %x, i8 %y) {
 define i1 @slt_and_shl_one(i8 %x, i8 %y) {
 ; CHECK-LABEL: @slt_and_shl_one(
 ; CHECK-NEXT:    [[POW2:%.*]] = shl nuw i8 1, [[Y:%.*]]
-; CHECK-NEXT:    [[AND:%.*]] = and i8 [[POW2]], [[X:%.*]]
+; CHECK-NEXT:    [[AND:%.*]] = and i8 [[X:%.*]], [[POW2]]
 ; CHECK-NEXT:    [[CMP:%.*]] = icmp slt i8 [[AND]], [[POW2]]
 ; CHECK-NEXT:    ret i1 [[CMP]]
 ;
@@ -523,8 +523,8 @@ define i1 @slt_and_shl_one(i8 %x, i8 %y) {
 
 define i1 @fold_eq_lhs(i8 %x, i8 %y) {
 ; CHECK-LABEL: @fold_eq_lhs(
-; CHECK-NEXT:    [[AND:%.*]] = lshr i8 [[Y:%.*]], [[X:%.*]]
-; CHECK-NEXT:    [[R:%.*]] = icmp eq i8 [[AND]], 0
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i8 [[Y:%.*]], [[X:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = icmp eq i8 [[TMP1]], 0
 ; CHECK-NEXT:    ret i1 [[R]]
 ;
   %shl = shl i8 -1, %x
@@ -564,8 +564,8 @@ define i1 @fold_eq_lhs_fail_multiuse_shl(i8 %x, i8 %y) {
 define i1 @fold_ne_rhs(i8 %x, i8 %yy) {
 ; CHECK-LABEL: @fold_ne_rhs(
 ; CHECK-NEXT:    [[Y:%.*]] = xor i8 [[YY:%.*]], 123
-; CHECK-NEXT:    [[AND:%.*]] = lshr i8 [[Y]], [[X:%.*]]
-; CHECK-NEXT:    [[R:%.*]] = icmp ne i8 [[AND]], 0
+; CHECK-NEXT:    [[TMP1:%.*]] = lshr i8 [[Y]], [[X:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = icmp ne i8 [[TMP1]], 0
 ; CHECK-NEXT:    ret i1 [[R]]
 ;
   %y = xor i8 %yy, 123
