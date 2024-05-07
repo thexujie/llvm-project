@@ -684,7 +684,11 @@ std::string ToolChain::getCompilerRT(const ArgList &Args, StringRef Component,
     if (Path.empty())
       Path = P;
   }
-  if (getTriple().isOSAIX())
+  // Some targets default to the old layout.
+  bool UseOldLayout =
+      getTriple().isOSAIX() || getTriple().isPS() || getTriple().isOSWindows();
+  if (!Args.hasFlag(options::OPT_frtlib_per_target,
+                    options::OPT_fno_rtlib_per_target, !UseOldLayout))
     Path.clear();
 
   // Check the filename for the old layout if the new one does not exist.
