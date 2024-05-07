@@ -10,6 +10,7 @@
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Status.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <cerrno>
 #include <cinttypes>
@@ -288,4 +289,20 @@ void StructuredData::Null::GetDescription(lldb_private::Stream &s) const {
 
 void StructuredData::Generic::GetDescription(lldb_private::Stream &s) const {
   s.Printf("%p", m_object);
+}
+
+StructuredData::ArraySP StructuredData::Array::SplitString(llvm::StringRef s,
+                                                           char separator,
+                                                           int maxSplit,
+                                                           bool keepEmpty) {
+  // Split the string into a small vector.
+  llvm::SmallVector<StringRef> small_vec;
+  s.split(small_vec, separator, maxSplit, keepEmpty);
+
+  // Copy the substrings from the small vector into the output array.
+  auto array_sp = std::make_shared<StructuredData::Array>();
+  for (auto substring : small_vec) {
+    array_sp->AddStringItem(substring);
+  }
+  return array_sp;
 }
