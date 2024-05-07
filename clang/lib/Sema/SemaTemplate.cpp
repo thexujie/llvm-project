@@ -18,6 +18,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/TemplateName.h"
+#include "clang/AST/Type.h"
 #include "clang/AST/TypeVisitor.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticSema.h"
@@ -2774,6 +2775,41 @@ Expr *transformRequireClause(Sema &SemaRef, FunctionTemplateDecl *FTD,
   return E.getAs<Expr>();
 }
 
+// Build the associated constraints for the alias deduction guides.
+// C++ [over.match.class.deduct]p3.3:
+//   The associated constraints ([temp.constr.decl]) are the conjunction of the
+//   associated constraints of g and a constraint that is satisfied if and only
+//   if the arguments of A are deducible (see below) from the return type.
+Expr *
+buildAssociatedConstraints(Sema &SemaRef, TypeAliasTemplateDecl *AliasTemplate,
+                           FunctionTemplateDecl *FTD,
+                           llvm::ArrayRef<TemplateArgument> TransformedArgs,
+                           QualType ReturnType) {
+  auto &Context = SemaRef.Context;
+  TemplateName TN(AliasTemplate);
+  auto TST = Context.getDeducedTemplateSpecializationType(TN, QualType(), true);
+  // Build the IsDeducible constraint.
+  SmallVector<TypeSourceInfo *> IsDeducibleTypeTraitArgs = {
+      Context.getTrivialTypeSourceInfo(TST),
+      Context.getTrivialTypeSourceInfo(ReturnType)};
+  Expr *IsDeducible = TypeTraitExpr::Create(
+      Context, Context.getLogicalOperationType(), AliasTemplate->getLocation(),
+      TypeTrait::BTT_IsDeducible, IsDeducibleTypeTraitArgs,
+      AliasTemplate->getLocation(), false);
+
+  // Substitute new template parameters into requires-clause if present.
+  if (auto *TransformedRC =
+          transformRequireClause(SemaRef, FTD, TransformedArgs)) {
+    auto Conjunction = SemaRef.BuildBinOp(
+        SemaRef.getCurScope(), SourceLocation{}, BinaryOperatorKind::BO_LAnd,
+        TransformedRC, IsDeducible);
+    if (Conjunction.isInvalid())
+      return nullptr;
+    return Conjunction.get();
+  }
+  return IsDeducible;
+}
+
 std::pair<TemplateDecl *, llvm::ArrayRef<TemplateArgument>>
 getRHSTemplateDeclAndArgs(Sema &SemaRef, TypeAliasTemplateDecl *AliasTemplate) {
   // Unwrap the sugared ElaboratedType.
@@ -3000,20 +3036,19 @@ void DeclareImplicitDeductionGuidesForTypeAlias(
     if (auto *FPrime = SemaRef.InstantiateFunctionDeclaration(
             F, TemplateArgListForBuildingFPrime, AliasTemplate->getLocation(),
             Sema::CodeSynthesisContext::BuildingDeductionGuides)) {
-      auto *GG = cast<CXXDeductionGuideDecl>(FPrime);
-      // Substitute new template parameters into requires-clause if present.
-      Expr *RequiresClause =
-          transformRequireClause(SemaRef, F, TemplateArgsForBuildingFPrime);
-      // FIXME: implement the is_deducible constraint per C++
-      // [over.match.class.deduct]p3.3:
-      //    ... and a constraint that is satisfied if and only if the arguments
-      //    of A are deducible (see below) from the return type.
+      Expr *RequireClause = buildAssociatedConstraints(
+          SemaRef, AliasTemplate, F, TemplateArgsForBuildingFPrime,
+          FPrime->getReturnType());
+      if (!RequireClause)
+        continue;
       auto *FPrimeTemplateParamList = TemplateParameterList::Create(
           Context, AliasTemplate->getTemplateParameters()->getTemplateLoc(),
           AliasTemplate->getTemplateParameters()->getLAngleLoc(),
           FPrimeTemplateParams,
           AliasTemplate->getTemplateParameters()->getRAngleLoc(),
-          /*RequiresClause=*/RequiresClause);
+          RequireClause);
+
+      auto *GG = cast<CXXDeductionGuideDecl>(FPrime);
 
       buildDeductionGuide(SemaRef, AliasTemplate, FPrimeTemplateParamList,
                           GG->getCorrespondingConstructor(),
@@ -3067,16 +3102,6 @@ FunctionTemplateDecl *DeclareAggregateDeductionGuideForTypeAlias(
             SemaRef.Context.getInjectedTemplateArg(NewParam));
     TransformedTemplateParams.push_back(NewParam);
   }
-  // FIXME: implement the is_deducible constraint per C++
-  // [over.match.class.deduct]p3.3.
-  Expr *TransformedRequiresClause = transformRequireClause(
-      SemaRef, RHSDeductionGuide, TransformedTemplateArgs);
-  auto *TransformedTemplateParameterList = TemplateParameterList::Create(
-      SemaRef.Context, AliasTemplate->getTemplateParameters()->getTemplateLoc(),
-      AliasTemplate->getTemplateParameters()->getLAngleLoc(),
-      TransformedTemplateParams,
-      AliasTemplate->getTemplateParameters()->getRAngleLoc(),
-      TransformedRequiresClause);
   auto *TransformedTemplateArgList = TemplateArgumentList::CreateCopy(
       SemaRef.Context, TransformedTemplateArgs);
 
@@ -3084,6 +3109,18 @@ FunctionTemplateDecl *DeclareAggregateDeductionGuideForTypeAlias(
           RHSDeductionGuide, TransformedTemplateArgList,
           AliasTemplate->getLocation(),
           Sema::CodeSynthesisContext::BuildingDeductionGuides)) {
+    Expr *RequireClause = buildAssociatedConstraints(
+        SemaRef, AliasTemplate, RHSDeductionGuide, TransformedTemplateArgs,
+        TransformedDeductionGuide->getReturnType());
+    if (!RequireClause)
+      return nullptr;
+    auto *TransformedTemplateParameterList = TemplateParameterList::Create(
+        SemaRef.Context,
+        AliasTemplate->getTemplateParameters()->getTemplateLoc(),
+        AliasTemplate->getTemplateParameters()->getLAngleLoc(),
+        TransformedTemplateParams,
+        AliasTemplate->getTemplateParameters()->getRAngleLoc(), RequireClause);
+
     auto *GD =
         llvm::dyn_cast<clang::CXXDeductionGuideDecl>(TransformedDeductionGuide);
     FunctionTemplateDecl *Result = buildDeductionGuide(

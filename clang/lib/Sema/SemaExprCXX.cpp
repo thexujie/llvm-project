@@ -6117,6 +6117,17 @@ static bool EvaluateBinaryTypeTrait(Sema &Self, TypeTrait BTT, const TypeSourceI
 
     return Self.IsPointerInterconvertibleBaseOf(Lhs, Rhs);
   }
+  case BTT_IsDeducible: {
+    if (const auto *TSTToBeDeduced =
+            LhsT->getAs<DeducedTemplateSpecializationType>()) {
+      sema::TemplateDeductionInfo Info(KeyLoc);
+      return Self.DeduceTemplateArgumentsFromType(
+                 TSTToBeDeduced->getTemplateName().getAsTemplateDecl(), RhsT,
+                 Info) == TemplateDeductionResult::Success;
+    }
+    assert("Expect to see DeducedTemplateSpecializationType!");
+    return false;
+  }
     default: llvm_unreachable("not a BTT");
   }
   llvm_unreachable("Unknown type trait or not implemented");

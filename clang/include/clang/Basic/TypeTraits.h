@@ -27,7 +27,8 @@ enum TypeTrait {
   ,
 #define TYPE_TRAIT_2(Spelling, Name, Key) BTT_##Name,
 #include "clang/Basic/TokenKinds.def"
-  BTT_Last = UTT_Last // BTT_Last == last BTT_XX in the enum.
+  BTT_Last = UTT_Last
+
 #define TYPE_TRAIT_2(Spelling, Name, Key) +1
 #include "clang/Basic/TokenKinds.def"
   ,
