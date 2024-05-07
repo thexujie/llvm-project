@@ -2838,6 +2838,38 @@ SDValue DAGCombiner::visitADDLike(SDNode *N) {
     return DAG.getNode(ISD::ADD, DL, VT, Not, N0.getOperand(0));
   }
 
+  // Fold add(mul(add(A, CA), CM), CB) -> add(mul(A, CM), CM*CA+CB).
+  // This can help if the inner add has multiple uses.
+  APInt CM, CA;
+  if (ConstantSDNode *CB = dyn_cast<ConstantSDNode>(N1)) {
+    if (VT.getScalarSizeInBits() <= 64) {
+      if (sd_match(N0, m_OneUse(m_Mul(m_Add(m_Value(A), m_ConstInt(CA)),
+                                      m_ConstInt(CM)))) &&
+          TLI.isLegalAddImmediate(
+              (CA * CM + CB->getAPIntValue()).getSExtValue())) {
+        SDValue Mul = DAG.getNode(ISD::MUL, SDLoc(N1), VT, A,
+                                  DAG.getConstant(CM, DL, VT));
+        return DAG.getNode(
+            ISD::ADD, DL, VT, Mul,
+            DAG.getConstant(CA * CM + CB->getAPIntValue(), DL, VT));
+      }
+      // Also look in case there is an intermediate add.
+      if (sd_match(N0, m_OneUse(m_Add(
+                           m_OneUse(m_Mul(m_Add(m_Value(A), m_ConstInt(CA)),
+                                          m_ConstInt(CM))),
+                           m_Value(B)))) &&
+          TLI.isLegalAddImmediate(
+              (CA * CM + CB->getAPIntValue()).getSExtValue())) {
+        SDValue Mul = DAG.getNode(ISD::MUL, SDLoc(N1), VT, A,
+                                  DAG.getConstant(CM, DL, VT));
+        SDValue Add = DAG.getNode(ISD::ADD, SDLoc(N1), VT, Mul, B);
+        return DAG.getNode(
+            ISD::ADD, DL, VT, Add,
+            DAG.getConstant(CA * CM + CB->getAPIntValue(), DL, VT));
+      }
+    }
+  }
+
   if (SDValue Combined = visitADDLikeCommutative(N0, N1, N))
     return Combined;
 
