@@ -7334,6 +7334,91 @@ static void handleHLSLShaderAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     D->addAttr(NewAttr);
 }
 
+static void DiagnoseHLSLResourceRegType(Sema &S, SourceLocation &ArgLoc,
+                                        Decl *D, StringRef &Slot) {
+  // Samplers, UAVs, and SRVs are VarDecl types
+  VarDecl *SamplerUAVOrSRV = dyn_cast<VarDecl>(D);
+  // Cbuffers and Tbuffers are HLSLBufferDecl types
+  HLSLBufferDecl *CBufferOrTBuffer = dyn_cast<HLSLBufferDecl>(D);
+  if (!SamplerUAVOrSRV && !CBufferOrTBuffer)
+    return;
+
+  llvm::hlsl::ResourceClass DeclResourceClass;
+  StringRef VarTy = "";
+  if (SamplerUAVOrSRV) {
+    const Type *Ty = SamplerUAVOrSRV->getType()->getPointeeOrArrayElementType();
+    if (!Ty)
+      llvm_unreachable("Resource class must have an element type.");
+
+    if (const BuiltinType *BTy = dyn_cast<BuiltinType>(Ty)) {
+      QualType QT = SamplerUAVOrSRV->getType();
+      PrintingPolicy PP = S.getPrintingPolicy();
+      std::string typestr = QualType::getAsString(QT.split(), PP);
+
+      S.Diag(ArgLoc, diag::err_hlsl_unsupported_register_resource_type)
+          << typestr;
+      return;
+    }
+
+    const CXXRecordDecl *TheRecordDecl = Ty->getAsCXXRecordDecl();
+    if (!TheRecordDecl)
+      llvm_unreachable(
+          "Resource class should have a resource type declaration.");
+
+    if (auto TDecl = dyn_cast<ClassTemplateSpecializationDecl>(TheRecordDecl))
+      TheRecordDecl = TDecl->getSpecializedTemplate()->getTemplatedDecl();
+    TheRecordDecl = TheRecordDecl->getCanonicalDecl();
+    const auto *Attr = TheRecordDecl->getAttr<HLSLResourceAttr>();
+    if (!Attr)
+      llvm_unreachable("Resource class should have a resource attribute.");
+
+    DeclResourceClass = Attr->getResourceClass();
+    VarTy = TheRecordDecl->getName();
+  } else {
+    HLSLResourceAttr *Attr = CBufferOrTBuffer->getAttr<HLSLResourceAttr>();
+    DeclResourceClass = Attr->getResourceClass();
+    if (CBufferOrTBuffer->isCBuffer()) {
+      VarTy = "cbuffer";
+    } else {
+      VarTy = "tbuffer";
+    }
+  }
+  switch (DeclResourceClass) {
+  case llvm::hlsl::ResourceClass::SRV: {
+    if (Slot[0] == 't')
+      return;
+    break;
+  }
+  case llvm::hlsl::ResourceClass::UAV: {
+    if (Slot[0] == 'u')
+      return;
+    break;
+  }
+  case llvm::hlsl::ResourceClass::CBuffer: {
+    // could be CBuffer or TBuffer
+    if (VarTy == "cbuffer") {
+      if (Slot[0] == 'b')
+        return;
+    } else if (VarTy == "tbuffer") {
+      if (Slot[0] == 't')
+        return;
+    }
+    break;
+  }
+  case llvm::hlsl::ResourceClass::Sampler: {
+    if (Slot[0] == 's')
+      return;
+    break;
+  }
+  case llvm::hlsl::ResourceClass::Invalid: {
+    llvm_unreachable("Resource class should be valid.");
+    break;
+  }
+  }
+  S.Diag(ArgLoc, diag::err_hlsl_mismatching_register_resource_type_and_name)
+      << Slot.substr(0, 1) << VarTy << (unsigned)DeclResourceClass;
+}
+
 static void handleHLSLResourceBindingAttr(Sema &S, Decl *D,
                                           const ParsedAttr &AL) {
   StringRef Space = "space0";
@@ -7374,7 +7459,7 @@ static void handleHLSLResourceBindingAttr(Sema &S, Decl *D,
     case 't':
       break;
     default:
-      S.Diag(ArgLoc, diag::err_hlsl_unsupported_register_type)
+      S.Diag(ArgLoc, diag::err_hlsl_unsupported_register_prefix)
           << Slot.substr(0, 1);
       return;
     }
@@ -7398,8 +7483,8 @@ static void handleHLSLResourceBindingAttr(Sema &S, Decl *D,
     return;
   }
 
-  // FIXME: check reg type match decl. Issue
-  // https://github.com/llvm/llvm-project/issues/57886.
+  DiagnoseHLSLResourceRegType(S, ArgLoc, D, Slot);
+
   HLSLResourceBindingAttr *NewAttr =
       HLSLResourceBindingAttr::Create(S.getASTContext(), Slot, Space, AL);
   if (NewAttr)
