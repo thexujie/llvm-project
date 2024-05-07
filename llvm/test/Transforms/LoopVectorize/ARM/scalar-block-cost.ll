@@ -15,6 +15,7 @@ define void @pred_loop(ptr %off, ptr %data, ptr %dst, i32 %n) #0 {
 ; CHECK-COST-NEXT: LV: Found an estimated cost of 1 for VF 1 For instruction:   store i32 %add1, ptr %arrayidx2, align 4
 ; CHECK-COST-NEXT: LV: Found an estimated cost of 1 for VF 1 For instruction:   %exitcond.not = icmp eq i32 %add, %n
 ; CHECK-COST-NEXT: LV: Found an estimated cost of 0 for VF 1 For instruction:   br i1 %exitcond.not, label %exit.loopexit, label %for.body
+; CHECK-COST-NEXT: LV: Adding cost of generating tail-fold mask: 0
 ; CHECK-COST-NEXT: LV: Scalar loop costs: 5.
 
 entry:
