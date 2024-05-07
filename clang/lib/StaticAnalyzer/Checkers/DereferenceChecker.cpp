@@ -287,6 +287,14 @@ void DereferenceChecker::checkBind(SVal L, SVal V, const Stmt *S,
   if (V.isUndef())
     return;
 
+  // One should never write to label addresses.
+  if (auto Label = L.getAs<loc::GotoLabel>()) {
+    llvm::errs() << "WRITING TO LABEL: " << L << "\n";
+    llvm::errs() << "Fatal Error: " << "Dereference of the address of a label"
+                 << "\n";
+    return;
+  }
+
   const MemRegion *MR = L.getAsRegion();
   const TypedValueRegion *TVR = dyn_cast_or_null<TypedValueRegion>(MR);
   if (!TVR)
