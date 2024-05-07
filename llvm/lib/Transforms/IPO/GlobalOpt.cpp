@@ -200,68 +200,58 @@ CleanupPointerRootUsers(GlobalVariable *GV,
   // handle that case, we expect the program may create a singleton and never
   // destroy it.
 
-  bool Changed = false;
+  auto RemoveComputationChain = [&GetTLI](Instruction *I) {
+    do {
+      if (isAllocationFn(I, GetTLI))
+        break;
+      Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
+      if (!J)
+        break;
+      I->eraseFromParent();
+      I = J;
+    } while (true);
+    I->eraseFromParent();
+  };
 
-  // If Dead[n].first is the only use of a malloc result, we can delete its
-  // chain of computation and the store to the global in Dead[n].second.
-  SmallVector<std::pair<Instruction *, Instruction *>, 32> Dead;
-
+  // Collect all writes to GV.
+  SmallVector<Instruction *, 8> Writes;
   SmallVector<User *> Worklist(GV->users());
-  // Constants can't be pointers to dynamically allocated memory.
   while (!Worklist.empty()) {
     User *U = Worklist.pop_back_val();
-    if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-      Value *V = SI->getValueOperand();
-      if (isa<Constant>(V)) {
-        Changed = true;
-        SI->eraseFromParent();
-      } else if (Instruction *I = dyn_cast<Instruction>(V)) {
-        if (I->hasOneUse())
-          Dead.push_back(std::make_pair(I, SI));
-      }
-    } else if (MemSetInst *MSI = dyn_cast<MemSetInst>(U)) {
-      if (isa<Constant>(MSI->getValue())) {
-        Changed = true;
-        MSI->eraseFromParent();
-      } else if (Instruction *I = dyn_cast<Instruction>(MSI->getValue())) {
-        if (I->hasOneUse())
-          Dead.push_back(std::make_pair(I, MSI));
-      }
-    } else if (MemTransferInst *MTI = dyn_cast<MemTransferInst>(U)) {
-      GlobalVariable *MemSrc = dyn_cast<GlobalVariable>(MTI->getSource());
-      if (MemSrc && MemSrc->isConstant()) {
-        Changed = true;
-        MTI->eraseFromParent();
-      } else if (Instruction *I = dyn_cast<Instruction>(MTI->getSource())) {
-        if (I->hasOneUse())
-          Dead.push_back(std::make_pair(I, MTI));
-      }
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
+    if (auto *SI = dyn_cast<StoreInst>(U)) {
+      Writes.push_back(SI);
+    } else if (auto *CE = dyn_cast<ConstantExpr>(U)) {
       if (isa<GEPOperator>(CE))
         append_range(Worklist, CE->users());
+    } else if (auto *MI = dyn_cast<MemIntrinsic>(U)) {
+      if (MI->getRawDest() == GV)
+        Writes.push_back(MI);
     }
   }
 
-  for (int i = 0, e = Dead.size(); i != e; ++i) {
-    if (IsSafeComputationToRemove(Dead[i].first, GetTLI)) {
-      Dead[i].second->eraseFromParent();
-      Instruction *I = Dead[i].first;
-      do {
-        if (isAllocationFn(I, GetTLI))
-          break;
-        Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
-        if (!J)
-          break;
-        I->eraseFromParent();
-        I = J;
-      } while (true);
-      I->eraseFromParent();
-      Changed = true;
+  // For each write, try to remove it's operand if it is safe to do so.
+  for (auto *Write : Writes) {
+    Value *V;
+    if (auto *SI = dyn_cast<StoreInst>(Write)) {
+      V = SI->getValueOperand();
+    } else if (auto *MTI = dyn_cast<MemTransferInst>(Write)) {
+      V = MTI->getSource();
+    } else {
+      continue;
+    }
+
+    if (auto *Inst = dyn_cast<Instruction>(V)) {
+      if (IsSafeComputationToRemove(V, GetTLI))
+        RemoveComputationChain(Inst);
     }
   }
+
+  // Finally, remove the writes to GV.
+  for (auto *Write : Writes)
+    Write->eraseFromParent();
 
   GV->removeDeadConstantUsers();
-  return Changed;
+  return !Writes.empty();
 }
 
 /// We just marked GV constant.  Loop over all users of the global, cleaning up
