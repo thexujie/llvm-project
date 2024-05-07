@@ -554,6 +554,74 @@ void applyExtUaddvToUaddlv(MachineInstr &MI, MachineRegisterInfo &MRI,
   MI.eraseFromParent();
 }
 
+// Pushes ADD/SUB through extend instructions to decrease the number of extend
+// instruction at the end by allowing selection of {s|u}addl sooner
+
+// i32 add(i32 ext i8, i32 ext i8) => i32 ext(i16 add(i16 ext i8, i16 ext i8))
+bool matchPushAddSubExt(
+    MachineInstr &MI, MachineRegisterInfo &MRI,
+    std::tuple<bool, Register, Register, Register> &matchinfo) {
+  assert(MI.getOpcode() == TargetOpcode::G_ADD ||
+         MI.getOpcode() == TargetOpcode::G_SUB &&
+             "Expected a G_ADD or G_SUB instruction\n");
+  MachineInstr *ExtMI1 = MRI.getVRegDef(MI.getOperand(1).getReg());
+  MachineInstr *ExtMI2 = MRI.getVRegDef(MI.getOperand(2).getReg());
+
+  LLT DstTy = MRI.getType(MI.getOperand(0).getReg());
+  if (!DstTy.isVector())
+    return false;
+
+  // Check the source came from G_{S/Z}EXT instructions
+  if (ExtMI1->getOpcode() != ExtMI2->getOpcode() ||
+      (ExtMI1->getOpcode() != TargetOpcode::G_SEXT &&
+       ExtMI1->getOpcode() != TargetOpcode::G_ZEXT))
+    return false;
+
+  if (!MRI.hasOneUse(ExtMI1->getOperand(0).getReg()) ||
+      !MRI.hasOneUse(ExtMI2->getOperand(0).getReg()))
+    return false;
+
+  // Return true if G_{S|Z}EXT instruction is more than 2* source
+  Register ExtDstReg = MI.getOperand(1).getReg();
+  get<0>(matchinfo) = ExtMI1->getOpcode() == TargetOpcode::G_SEXT;
+  get<1>(matchinfo) = MI.getOperand(0).getReg();
+  get<2>(matchinfo) = ExtMI1->getOperand(1).getReg();
+  get<3>(matchinfo) = ExtMI2->getOperand(1).getReg();
+
+  LLT ExtDstTy = MRI.getType(ExtDstReg);
+  LLT Ext1SrcTy = MRI.getType(get<2>(matchinfo));
+  LLT Ext2SrcTy = MRI.getType(get<3>(matchinfo));
+
+  if (((Ext1SrcTy.getScalarSizeInBits() == 8 &&
+        ExtDstTy.getScalarSizeInBits() == 32) ||
+       ((Ext1SrcTy.getScalarSizeInBits() == 8 ||
+         Ext1SrcTy.getScalarSizeInBits() == 16) &&
+        ExtDstTy.getScalarSizeInBits() == 64)) &&
+      Ext1SrcTy == Ext2SrcTy)
+    return true;
+
+  return false;
+}
+
+void applyPushAddSubExt(
+    MachineInstr &MI, MachineRegisterInfo &MRI, MachineIRBuilder &B,
+    std::tuple<bool, Register, Register, Register> &matchinfo) {
+  LLT SrcTy = MRI.getType(get<2>(matchinfo));
+  LLT MidTy = SrcTy.changeElementSize(SrcTy.getScalarSizeInBits() * 2);
+  unsigned Opc =
+      get<0>(matchinfo) ? TargetOpcode::G_SEXT : TargetOpcode::G_ZEXT;
+  Register Ext1Reg = B.buildInstr(Opc, {MidTy}, {get<2>(matchinfo)}).getReg(0);
+  Register Ext2Reg = B.buildInstr(Opc, {MidTy}, {get<3>(matchinfo)}).getReg(0);
+  Register AddReg =
+      B.buildInstr(MI.getOpcode(), {MidTy}, {Ext1Reg, Ext2Reg}).getReg(0);
+  if (MI.getOpcode() == TargetOpcode::G_ADD)
+    B.buildInstr(Opc, {get<1>(matchinfo)}, {AddReg});
+  else
+    B.buildSExt(get<1>(matchinfo), AddReg);
+
+  MI.eraseFromParent();
+}
+
 bool tryToSimplifyUADDO(MachineInstr &MI, MachineIRBuilder &B,
                         CombinerHelper &Helper, GISelChangeObserver &Observer) {
   // Try simplify G_UADDO with 8 or 16 bit operands to wide G_ADD and TBNZ if

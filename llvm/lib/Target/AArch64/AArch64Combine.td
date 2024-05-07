@@ -52,6 +52,16 @@ def ext_uaddv_to_uaddlv : GICombineRule<
   (apply [{ applyExtUaddvToUaddlv(*${root}, MRI, B, Observer, ${matchinfo}); }])
 >;
 
+// Push G_ADD and G_SUB through G_{Z/S}EXT to allow better selection of addl/subl instructions
+// add(ext, ext) => ext(add(ext, ext))
+def push_add_matchinfo :
+    GIDefMatchData<"std::tuple<bool, Register, Register, Register>">;
+def push_add_sub_through_ext : GICombineRule<
+  (defs root:$root, push_add_matchinfo:$matchinfo),
+  (match (wip_match_opcode G_ADD, G_SUB):$root,
+        [{ return matchPushAddSubExt(*${root}, MRI, ${matchinfo}); }]),
+  (apply [{ applyPushAddSubExt(*${root}, MRI, B, ${matchinfo}); }])>;
+
 def AArch64PreLegalizerCombiner: GICombiner<
   "AArch64PreLegalizerCombinerImpl", [all_combines,
                                       fconstant_to_constant,
@@ -59,7 +69,8 @@ def AArch64PreLegalizerCombiner: GICombiner<
                                       fold_global_offset,
                                       shuffle_to_extract,
                                       ext_addv_to_udot_addv,
-                                      ext_uaddv_to_uaddlv]> {
+                                      ext_uaddv_to_uaddlv,
+                                      push_add_sub_through_ext]> {
   let CombineAllMethodName = "tryCombineAllImpl";
 }
 
