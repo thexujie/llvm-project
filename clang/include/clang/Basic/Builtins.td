@@ -3446,9 +3446,10 @@ def Fmod : FPMathTemplate, LibBuiltin<"math.h"> {
 
 def Frexp : FPMathTemplate, LibBuiltin<"math.h"> {
   let Spellings = ["frexp"];
-  let Attributes = [NoThrow];
+  let Attributes = [NoThrow, Constexpr];
   let Prototype = "T(T, int*)";
   let AddBuiltinPrefixedAlias = 1;
+  let OnlyBuiltinPrefixedAliasIsConstexpr = 1;
 }
 
 def Ldexp : FPMathTemplate, LibBuiltin<"math.h"> {
@@ -3624,7 +3625,7 @@ def Fmax : FPMathTemplate, LibBuiltin<"math.h"> {
 
 def Fmin : FPMathTemplate, LibBuiltin<"math.h"> {
   let Spellings = ["fmin"];
-  let Attributes = [NoThrow, Const];
+  let Attributes = [NoThrow, Const, Constexpr];
   let Prototype = "T(T, T)";
   let AddBuiltinPrefixedAlias = 1;
   let OnlyBuiltinPrefixedAliasIsConstexpr = 1;

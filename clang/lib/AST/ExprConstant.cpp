@@ -2926,7 +2926,7 @@ static bool handleFloatFloatBinOp(EvalInfo &Info, const BinaryOperator *E,
   //   If during the evaluation of an expression, the result is not
   //   mathematically defined [...], the behavior is undefined.
   // FIXME: C++ rules require us to not conform to IEEE 754 here.
-  if (LHS.isNaN()) {
+  if (!Info.getLangOpts().CPlusPlus23 && LHS.isNaN()) {
     Info.CCEDiag(E, diag::note_constexpr_float_arithmetic) << LHS.isNaN();
     return Info.noteUndefinedBehavior();
   }
@@ -14683,6 +14683,20 @@ bool FloatExprEvaluator::VisitCallExpr(const CallExpr *E) {
   default:
     return false;
 
+  case Builtin::BI__builtin_frexp:
+  case Builtin::BI__builtin_frexpf:
+  case Builtin::BI__builtin_frexpl: {
+    LValue Pointer;
+    if (!EvaluateFloat(E->getArg(0), Result, Info) ||
+        !EvaluatePointer(E->getArg(1), Pointer, Info))
+      return false;
+    llvm::RoundingMode RM = getActiveRoundingMode(Info, E);
+    int FrexpExp;
+    FrexpExp = ilogb(Result);
+    FrexpExp = FrexpExp == llvm::detail::IEEEFloat::IEK_Zero ? 0 : FrexpExp + 1;
+    Result =  scalbn(Result, -FrexpExp, RM);
+    return true;
+  }
   case Builtin::BI__builtin_huge_val:
   case Builtin::BI__builtin_huge_valf:
   case Builtin::BI__builtin_huge_vall:
@@ -14774,6 +14788,9 @@ bool FloatExprEvaluator::VisitCallExpr(const CallExpr *E) {
     return true;
   }
 
+  case Builtin::BIfmin:
+  case Builtin::BIfminf:
+  case Builtin::BIfminl:
   case Builtin::BI__builtin_fmin:
   case Builtin::BI__builtin_fminf:
   case Builtin::BI__builtin_fminl:
