@@ -183,6 +183,89 @@ void Parser::ParseHLSLAnnotations(ParsedAttributes &Attrs,
       return;
     }
   } break;
+  case ParsedAttr::AT_HLSLPackOffset: {
+    // Parse 'packoffset( c[Subcomponent][.component] )'.
+    // Check '('.
+    if (ExpectAndConsume(tok::l_paren, diag::err_expected_lparen_after)) {
+      SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+      return;
+    }
+    // Check c[Subcomponent] as an identifier.
+    if (!Tok.is(tok::identifier)) {
+      Diag(Tok.getLocation(), diag::err_expected) << tok::identifier;
+      SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+      return;
+    }
+    StringRef OffsetStr = Tok.getIdentifierInfo()->getName();
+    SourceLocation OffsetLoc = Tok.getLocation();
+    if (OffsetStr[0] != 'c') {
+      Diag(Tok.getLocation(), diag::err_hlsl_packoffset_invalid_reg)
+          << OffsetStr;
+      SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+      return;
+    }
+    OffsetStr = OffsetStr.substr(1);
+    unsigned SubComponent = 0;
+    if (!OffsetStr.empty()) {
+      // Make sure SubComponent is a number.
+      if (OffsetStr.getAsInteger(10, SubComponent)) {
+        Diag(OffsetLoc.getLocWithOffset(1),
+             diag::err_hlsl_unsupported_register_number);
+        SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+        return;
+      }
+    }
+    unsigned Component = 0;
+    ConsumeToken(); // consume identifier.
+    if (Tok.is(tok::period)) {
+      ConsumeToken(); // consume period.
+      if (!Tok.is(tok::identifier)) {
+        Diag(Tok.getLocation(), diag::err_expected) << tok::identifier;
+        SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+        return;
+      }
+      StringRef ComponentStr = Tok.getIdentifierInfo()->getName();
+      SourceLocation SpaceLoc = Tok.getLocation();
+      ConsumeToken(); // consume identifier.
+      // Make sure Component is a single character.
+      if (ComponentStr.size() != 1) {
+        Diag(SpaceLoc, diag::err_hlsl_unsupported_component) << ComponentStr;
+        SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+        return;
+      }
+      switch (ComponentStr[0]) {
+      case 'x':
+      case 'r':
+        Component = 0;
+        break;
+      case 'y':
+      case 'g':
+        Component = 1;
+        break;
+      case 'z':
+      case 'b':
+        Component = 2;
+        break;
+      case 'w':
+      case 'a':
+        Component = 3;
+        break;
+      default:
+        Diag(SpaceLoc, diag::err_hlsl_unsupported_component) << ComponentStr;
+        SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+        return;
+      }
+    }
+    unsigned Offset = SubComponent * 4 + Component;
+    ASTContext &Ctx = Actions.getASTContext();
+    ArgExprs.push_back(IntegerLiteral::Create(
+        Ctx, llvm::APInt(Ctx.getTypeSize(Ctx.getSizeType()), Offset),
+        Ctx.getSizeType(), OffsetLoc));
+    if (ExpectAndConsume(tok::r_paren, diag::err_expected)) {
+      SkipUntil(tok::r_paren, StopAtSemi); // skip through )
+      return;
+    }
+  } break;
   case ParsedAttr::UnknownAttribute:
     Diag(Loc, diag::err_unknown_hlsl_semantic) << II;
     return;
