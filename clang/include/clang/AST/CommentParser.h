@@ -100,6 +100,9 @@ public:
   ArrayRef<Comment::Argument>
   parseCommandArgs(TextTokenRetokenizer &Retokenizer, unsigned NumArgs);
 
+  ArrayRef<Comment::Argument>
+  parseParCommandArgs(TextTokenRetokenizer &Retokenizer, unsigned NumArgs);
+
   BlockCommandComment *parseBlockCommand();
   InlineCommandComment *parseInlineCommand();
 
@@ -118,4 +121,3 @@ public:
 } // end namespace clang
 
 #endif
-
