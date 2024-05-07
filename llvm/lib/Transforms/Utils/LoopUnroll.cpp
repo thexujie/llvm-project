@@ -974,6 +974,9 @@ llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
                                     /*MSSAU=*/nullptr, /*MemDep=*/nullptr,
                                     /*PredecessorWithTwoSuccessors=*/false,
                                     DTUToUse ? nullptr : DT)) {
+        // Remove redundant Dbg instructions for reducing compile time.
+        if (Fold->getParent()->getSubprogram())
+          RemoveRedundantDbgInstrs(Fold);
         // Dest has been folded into Fold. Update our worklists accordingly.
         std::replace(Latches.begin(), Latches.end(), Dest, Fold);
         llvm::erase(UnrolledLoopBlocks, Dest);
