@@ -547,6 +547,35 @@ define double @select_fcmp_nnan_nsz_ult_zero_unary_fneg(double %x) {
   ret double %fabs
 }
 
+
+define float @fcmp_olt_select_nsz_func_attr(float %x) "no-signed-zeros-fp-math" {
+; CHECK-LABEL: @fcmp_olt_select_nsz_func_attr(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[FABS:%.*]] = call nnan float @llvm.fabs.f32(float [[X:%.*]])
+; CHECK-NEXT:    ret float [[FABS]]
+;
+entry:
+  %fcmp = fcmp nnan nsz olt float %x, 0.000000e+00
+  %fneg = fneg float %x
+  %fabs = select nnan i1 %fcmp, float %fneg, float %x
+  ret float %fabs
+}
+
+define float @fcmp_olt_select_no_nsz(float %x) {
+; CHECK-LABEL: @fcmp_olt_select_no_nsz(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[FCMP:%.*]] = fcmp nnan nsz olt float [[X:%.*]], 0.000000e+00
+; CHECK-NEXT:    [[FNEG:%.*]] = fneg float [[X]]
+; CHECK-NEXT:    [[NOFABS:%.*]] = select nnan i1 [[FCMP]], float [[FNEG]], float [[X]]
+; CHECK-NEXT:    ret float [[NOFABS]]
+;
+entry:
+  %fcmp = fcmp nnan nsz olt float %x, 0.000000e+00
+  %fneg = fneg float %x
+  %nofabs = select nnan i1 %fcmp, float %fneg, float %x
+  ret float %nofabs
+}
+
 ; X < -0.0 ? -X : X --> fabs(X)
 
 define float @select_fcmp_nnan_nsz_olt_negzero(float %x) {
@@ -838,6 +867,35 @@ define <2 x float> @select_fcmp_nnan_nsz_ugt_zero_unary_fneg(<2 x float> %x) {
   %fabs = select <2 x i1> %gtzero, <2 x float> %x, <2 x float> %negx
   ret <2 x float> %fabs
 }
+
+define float @fcmp_ogt_select_nsz_func_attr(float %x) "no-signed-zeros-fp-math" {
+; CHECK-LABEL: @fcmp_ogt_select_nsz_func_attr(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[FABS:%.*]] = call nnan float @llvm.fabs.f32(float [[X:%.*]])
+; CHECK-NEXT:    ret float [[FABS]]
+;
+entry:
+  %fcmp = fcmp nnan nsz ogt float %x, 0.000000e+00
+  %fneg = fneg float %x
+  %fabs = select nnan i1 %fcmp, float %x, float %fneg
+  ret float %fabs
+}
+
+define float @fcmp_ogt_select_no_nsz(float %x) {
+; CHECK-LABEL: @fcmp_ogt_select_no_nsz(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    [[FCMP:%.*]] = fcmp nnan nsz ogt float [[X:%.*]], 0.000000e+00
+; CHECK-NEXT:    [[FNEG:%.*]] = fneg float [[X]]
+; CHECK-NEXT:    [[NOFABS:%.*]] = select nnan i1 [[FCMP]], float [[X]], float [[FNEG]]
+; CHECK-NEXT:    ret float [[NOFABS]]
+;
+entry:
+  %fcmp = fcmp nnan nsz ogt float %x, 0.000000e+00
+  %fneg = fneg float %x
+  %nofabs = select nnan i1 %fcmp, float %x, float %fneg
+  ret float %nofabs
+}
+
 
 ; X > -0.0 ? X : (0.0 - X) --> fabs(X)
 
