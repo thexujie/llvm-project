@@ -4776,16 +4776,16 @@ ElementCount LoopVectorizationCostModel::getMaximizedVFForTarget(
   if (MaxTripCount > 0 && requiresScalarEpilogue(true))
     MaxTripCount -= 1;
 
-  if (MaxTripCount && MaxTripCount <= WidestRegisterMinEC &&
-      (!FoldTailByMasking || isPowerOf2_32(MaxTripCount))) {
+  if (MaxTripCount && MaxTripCount <= WidestRegisterMinEC) {
     // If upper bound loop trip count (TC) is known at compile time there is no
     // point in choosing VF greater than TC (as done in the loop below). Select
     // maximum power of two which doesn't exceed TC. If MaxVectorElementCount is
     // scalable, we only fall back on a fixed VF when the TC is less than or
     // equal to the known number of lanes.
-    auto ClampedUpperTripCount = llvm::bit_floor(MaxTripCount);
-    LLVM_DEBUG(dbgs() << "LV: Clamping the MaxVF to maximum power of two not "
-                         "exceeding the constant trip count: "
+    auto ClampedUpperTripCount = FoldTailByMasking
+                                     ? llvm::bit_ceil(MaxTripCount)
+                                     : llvm::bit_floor(MaxTripCount);
+    LLVM_DEBUG(dbgs() << "LV: Clamping the trip count to a power of two: "
                       << ClampedUpperTripCount << "\n");
     return ElementCount::get(
         ClampedUpperTripCount,
