@@ -6081,6 +6081,68 @@ static SDValue lowerBALLOTIntrinsic(const SITargetLowering &TLI, SDNode *N,
       DAG.getConstant(0, SL, MVT::i32), DAG.getCondCode(ISD::SETNE));
 }
 
+static SDValue lowerLaneOp(const SITargetLowering &TLI, SDNode *N,
+                           SelectionDAG &DAG) {
+  EVT VT = N->getValueType(0);
+  unsigned ValSize = VT.getSizeInBits();
+  unsigned IntrinsicID = N->getConstantOperandVal(0);
+  SDValue Src0 = N->getOperand(1);
+  SDLoc SL(N);
+  MVT IntVT = MVT::getIntegerVT(ValSize);
+
+  auto createLaneOp = [&](SDValue &Src0, SDValue &Src1, SDValue &Src2,
+                          MVT VT) -> SDValue {
+    return (Src2 ? DAG.getNode(AMDGPUISD::WRITELANE, SL, VT, {Src0, Src1, Src2})
+            : Src1 ? DAG.getNode(AMDGPUISD::READLANE, SL, VT, {Src0, Src1})
+                   : DAG.getNode(AMDGPUISD::READFIRSTLANE, SL, VT, {Src0}));
+  };
+
+  SDValue Src1, Src2, Src0Valid, Src2Valid;
+  if (IntrinsicID == Intrinsic::amdgcn_readlane ||
+      IntrinsicID == Intrinsic::amdgcn_writelane) {
+    Src1 = N->getOperand(2);
+    if (IntrinsicID == Intrinsic::amdgcn_writelane)
+      Src2 = N->getOperand(3);
+  }
+
+  if (ValSize == 32) {
+    if (VT == MVT::i32)
+      // Already legal
+      return SDValue();
+    Src0Valid = DAG.getBitcast(IntVT, Src0);
+    if (Src2.getNode())
+      Src2Valid = DAG.getBitcast(IntVT, Src2);
+    SDValue LaneOp = createLaneOp(Src0Valid, Src1, Src2Valid, MVT::i32);
+    return DAG.getBitcast(VT, LaneOp);
+  }
+
+  if (ValSize < 32) {
+    SDValue InitBitCast = DAG.getBitcast(IntVT, Src0);
+    Src0Valid = DAG.getAnyExtOrTrunc(InitBitCast, SL, MVT::i32);
+    if (Src2.getNode()) {
+      SDValue Src2Cast = DAG.getBitcast(IntVT, Src2);
+      Src2Valid = DAG.getAnyExtOrTrunc(Src2Cast, SL, MVT::i32);
+    }
+    SDValue LaneOp = createLaneOp(Src0Valid, Src1, Src2Valid, MVT::i32);
+    SDValue Trunc = DAG.getAnyExtOrTrunc(LaneOp, SL, IntVT);
+    return DAG.getBitcast(VT, Trunc);
+  }
+
+  if ((ValSize % 32) == 0) {
+    MVT VecVT = MVT::getVectorVT(MVT::i32, ValSize / 32);
+    Src0Valid = DAG.getBitcast(VecVT, Src0);
+
+    if (Src2.getNode())
+      Src2Valid = DAG.getBitcast(VecVT, Src2);
+
+    SDValue LaneOp = createLaneOp(Src0Valid, Src1, Src2Valid, VecVT);
+    SDValue UnrolledLaneOp = DAG.UnrollVectorOp(LaneOp.getNode());
+    return DAG.getBitcast(VT, UnrolledLaneOp);
+  }
+
+  return SDValue();
+}
+
 void SITargetLowering::ReplaceNodeResults(SDNode *N,
                                           SmallVectorImpl<SDValue> &Results,
                                           SelectionDAG &DAG) const {
@@ -8548,6 +8610,10 @@ SDValue SITargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   }
   case Intrinsic::amdgcn_addrspacecast_nonnull:
     return lowerADDRSPACECAST(Op, DAG);
+  case Intrinsic::amdgcn_readlane:
+  case Intrinsic::amdgcn_readfirstlane:
+  case Intrinsic::amdgcn_writelane:
+    return lowerLaneOp(*this, Op.getNode(), DAG);
   default:
     if (const AMDGPU::ImageDimIntrinsicInfo *ImageDimIntr =
             AMDGPU::getImageDimIntrinsicInfo(IntrinsicID))
