@@ -655,10 +655,81 @@ unsigned Parser::ParseAttributeArgsCommon(
       ParsedAttributeArgumentsProperties ArgProperties =
           attributeStringLiteralListArg(getTargetInfo().getTriple(), *AttrName,
                                         Form.getSyntax(), ScopeName);
-      if (ParseAttributeArgumentList(*AttrName, ParsedExprs, ArgProperties)) {
-        SkipUntil(tok::r_paren, StopAtSemi);
-        return 0;
+      // xujie02: begin
+      // add XinMeta support
+      if (ParsedAttr::getParsedKind(AttrName, ScopeName, Form.getSyntax()) ==
+          AttributeCommonInfo::AT_XinMeta) {
+        auto ParseMetaArgs = [&](auto &This) -> ExprVector {
+          SourceLocation BeginLoc = Tok.getLocation();
+          ExprVector InitListArgs;
+          while (!Tok.is(tok::r_paren)) {
+            switch (Tok.getKind()) {
+            case tok::identifier: {
+              IdentifierInfo *Identifier = Tok.getIdentifierInfo();
+              UnresolvedLookupExpr *IdentifierExpr =
+                  UnresolvedLookupExpr::Create(
+                      Actions.Context, /*NamingClass*/ nullptr, {},
+                      DeclarationNameInfo(DeclarationName(Identifier),
+                                          Tok.getLocation()),
+                      /*RequiresADL*/ false, 
+                      UnresolvedSetIterator(), UnresolvedSetIterator(),
+                      /*KnownDependent*/ false,
+                      /*KnownInstantiationDependent*/ false);
+              InitListArgs.push_back(IdentifierExpr);
+              ConsumeAnyToken();
+              break;
+            }
+            case tok::string_literal: {
+              // SourceLocation SL = Tok.getLocation();
+              // StringRef String {Tok.getLiteralData(), Tok.getLength()};
+              // InitListArgs.push_back(StringLiteral::Create(Actions.Context,
+              // String, StringLiteral::Unevaluated, false,
+              // Actions.Context.VoidTy, &SL, 1)); ConsumeAnyToken();
+              InitListArgs.push_back(ParseAssignmentExpression().get());
+              break;
+            }
+            case tok::numeric_constant: {
+              // SourceLocation SL = Tok.getLocation();
+              // StringRef String {Tok.getLiteralData(), Tok.getLength()};
+              // InitListArgs.push_back(StringLiteral::Create( Actions.Context,
+              // String, StringLiteral::Unevaluated, false,
+              // Actions.Context.VoidTy, &SL, 1)); ConsumeAnyToken();
+              InitListArgs.push_back(ParseAssignmentExpression().get());
+              break;
+            }
+            case tok::l_paren: {
+              SourceLocation LParenLoc = Tok.getLocation();
+              ConsumeParen();
+              ExprVector ArgsExpr = This(This);
+              ConsumeParen();
+              SourceLocation RParenLoc = Tok.getLocation();
+              InitListArgs.push_back(new (Actions.Context) InitListExpr(
+                  Actions.Context, LParenLoc, ArgsExpr, LParenLoc));
+              break;
+            }
+            case tok::comma: {
+              // InitListArgs.push_back(nullptr);
+              ConsumeAnyToken();
+              break;
+            }
+            default: {
+              Diag(Tok.getLocation(), diag::err_attribute_wrong_decl_type)
+                  << AttrName;
+              return InitListArgs;
+            }
+            }
+          }
+          return InitListArgs;
+        };
+
+        ParsedExprs = ParseMetaArgs(ParseMetaArgs);
+      } else {
+        if (ParseAttributeArgumentList(*AttrName, ParsedExprs, ArgProperties)) {
+          SkipUntil(tok::r_paren, StopAtSemi);
+          return 0;
+        }
       }
+      // xujie02: end
 
       // Pack expansion must currently be explicitly supported by an attribute.
       for (size_t I = 0; I < ParsedExprs.size(); ++I) {

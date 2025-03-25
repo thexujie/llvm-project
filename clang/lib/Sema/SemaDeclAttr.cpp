@@ -5831,6 +5831,16 @@ static void handlePreferredTypeAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   D->addAttr(::new (S.Context) PreferredTypeAttr(S.Context, AL, ParmTSI));
 }
 
+static void handleXinMetaAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  SmallVector<Expr *, 16> Args;
+  for (unsigned ArgIndex = 0; ArgIndex < AL.getNumArgs(); ++ArgIndex) {
+    Expr *ArgExpr = AL.getArgAsExpr(ArgIndex);
+    Args.push_back(ArgExpr);
+  }
+  D->addAttr(::new (S.Context)
+                 XinMetaAttr(S.Context, AL, Args.data(), Args.size()));
+}
+
 //===----------------------------------------------------------------------===//
 // Microsoft specific attribute handlers.
 //===----------------------------------------------------------------------===//
@@ -7648,6 +7658,10 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
 
   case ParsedAttr::AT_VTablePointerAuthentication:
     handleVTablePointerAuthentication(S, D, AL);
+    break;
+
+  case ParsedAttr::AT_XinMeta:
+    handleXinMetaAttr(S, D, AL);
     break;
   }
 }

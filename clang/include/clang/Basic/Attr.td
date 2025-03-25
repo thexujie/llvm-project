@@ -5030,3 +5030,14 @@ def OpenACCRoutineAnnot : InheritableAttr {
     SourceLocation BindClause;
   }];
 }
+
+def XinMeta : InheritableAttr {
+  let Spellings = [CXX11<"", "Meta", 200809>,
+                   C23<"", "Meta", 202202>,
+                   GNU<"Meta">];
+  let Documentation = [InternalOnly];
+  let LateParsed = LateAttrParseStandard;
+  let ParseArgumentsAsUnevaluated = 1;
+  let Args = [VariadicExprArgument<"Args">];
+  let Documentation = [Undocumented];
+}
